@@ -1,0 +1,217 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg-primary: #0a0e1a;
+  --bg-card: #0d1220;
+  --bg-card-hover: #111827;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent-blue: #1d9bf0;
+  --accent-green: #00e676;
+  --accent-red: #f44336;
+  --accent-yellow: #ffd700;
+  --text-muted: #8b9ab0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-primary);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 5%, rgba(29, 155, 240, 0.08), transparent 30%),
+    radial-gradient(circle at 85% 10%, rgba(244, 67, 54, 0.05), transparent 28%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+::selection {
+  background: rgba(29, 155, 240, 0.35);
+  color: white;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@layer components {
+  /* Typography */
+  .font-display { font-family: var(--font-barlow), sans-serif; }
+  .font-mono-stat { font-family: var(--font-jetbrains), monospace; }
+
+  .section-title {
+    @apply font-display text-label font-bold uppercase tracking-[0.1em] text-accent-blue;
+  }
+
+  .section-heading {
+    @apply font-display text-section font-bold uppercase tracking-[0.08em] text-white;
+  }
+
+  .section-note {
+    @apply text-sm text-text-muted;
+  }
+
+  .hero-h1 {
+    @apply font-display text-[40px] font-black uppercase leading-[0.95] tracking-tight text-white sm:text-[52px] lg:text-[56px];
+  }
+
+  .tagline-italic {
+    @apply font-display text-lg italic text-accent-blue sm:text-xl;
+  }
+
+  /* Cards */
+  .esports-card {
+    @apply rounded-card border border-white/[0.08] bg-bg-card p-4 transition;
+  }
+
+  .esports-card:hover {
+    @apply border-accent-blue/40 bg-bg-hover;
+  }
+
+  .stat-pill {
+    @apply rounded-card border border-white/[0.08] bg-bg-card p-4;
+  }
+
+  .tournament-card {
+    @apply rounded-card border border-white/[0.08] bg-bg-card transition hover:border-accent-blue/40;
+  }
+
+  .video-card {
+    @apply overflow-hidden rounded-card border border-white/[0.08] bg-bg-card transition hover:border-accent-blue/30;
+  }
+
+  .news-card {
+    @apply rounded-card border border-white/[0.08] bg-bg-card;
+  }
+
+  .stream-card {
+    @apply rounded-card border border-white/[0.08] bg-bg-card;
+  }
+
+  .page-hero {
+    @apply relative overflow-hidden rounded-card border border-white/[0.08] bg-bg-card p-6 sm:p-8;
+  }
+
+  .hero-banner {
+    @apply relative overflow-hidden rounded-card border border-white/[0.08] bg-bg-card;
+  }
+
+  .mvp-card {
+    @apply rounded-card border border-accent-yellow/25 bg-[radial-gradient(circle_at_top,_rgba(255,215,0,0.08),_transparent_50%),#0d1220];
+  }
+
+  .glass-panel {
+    @apply rounded-card border border-white/[0.08] bg-bg-card backdrop-blur-sm;
+  }
+
+  .brand-badge {
+    @apply inline-flex items-center rounded-btn border border-accent-blue/20 bg-accent-blue/10 px-3 py-1.5 font-display text-label font-bold uppercase tracking-[0.1em] text-accent-blue;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-accent-blue to-accent-green bg-clip-text text-transparent;
+  }
+
+  /* Buttons — spec: 6px radius, 13px uppercase */
+  .btn-watch-live {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn bg-accent-red px-5 py-2.5 font-display text-[13px] font-bold uppercase text-white transition hover:bg-red-500 hover:shadow-glow-red;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn border border-white/30 bg-transparent px-5 py-2.5 font-display text-[13px] font-bold uppercase text-white transition hover:border-white/50 hover:bg-white/5;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn bg-accent-blue px-5 py-2.5 font-display text-[13px] font-bold uppercase text-white transition hover:bg-blue-400 hover:shadow-glow;
+  }
+
+  .btn-discord {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn bg-accent-discord px-5 py-2.5 font-display text-[13px] font-bold uppercase text-white transition hover:bg-[#4752c4];
+  }
+
+  .btn-outline-blue {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn border border-accent-blue bg-transparent px-5 py-2.5 font-display text-[13px] font-bold uppercase text-accent-blue transition hover:bg-accent-blue/10;
+  }
+
+  .btn-esports-primary { @apply btn-primary; }
+  .btn-esports-outline { @apply btn-secondary; }
+  .btn-esports-red { @apply btn-watch-live; }
+  .btn-esports-green { @apply btn-discord; }
+
+  .input-esports {
+    @apply w-full rounded-card border border-white/[0.08] bg-bg-primary px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-text-muted focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30;
+  }
+
+  .live-dot {
+    @apply h-2 w-2 rounded-full bg-accent-red;
+    animation: livePulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.8);
+  }
+
+  /* Tables */
+  .data-table thead tr {
+    @apply bg-bg-primary text-label font-bold uppercase tracking-[0.08em] text-text-muted;
+  }
+
+  .data-table tbody tr {
+    @apply border-b border-white/[0.05] bg-bg-card text-sm text-white transition hover:bg-bg-hover;
+  }
+
+  .data-table th,
+  .data-table td {
+    @apply px-4 py-3;
+  }
+
+  .points-cell {
+    @apply font-mono-stat font-bold text-accent-green;
+  }
+
+  .rank-gold {
+    @apply font-mono-stat font-bold text-accent-yellow;
+  }
+
+  /* Tabs */
+  .tab-bar {
+    @apply flex flex-wrap gap-1 border-b border-white/[0.08];
+  }
+
+  .tab-item {
+    @apply font-display px-4 py-3 text-label font-bold uppercase tracking-[0.1em] text-text-muted transition;
+  }
+
+  .tab-item-active {
+    @apply border-b-2 border-accent-blue text-accent-blue;
+  }
+
+  .count-up {
+    animation: fadeInUp 0.6s ease both;
+  }
+
+  .map-thumb {
+    @apply h-12 w-12 shrink-0 rounded-card bg-gradient-to-br from-slate-700 to-slate-900 object-cover;
+  }
+
+  .sponsor-strip {
+    @apply rounded-card border border-white/[0.08] bg-bg-card;
+  }
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.9); }
+}
+
+body:has(.admin-shell) > header,
+body:has(.admin-shell) > footer {
+  display: none;
+}
