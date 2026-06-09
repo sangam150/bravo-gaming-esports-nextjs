@@ -4,6 +4,15 @@ const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
+function resolveStorageBucket(projectId?: string) {
+  return (
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    (projectId ? `${projectId}.firebasestorage.app` : undefined) ||
+    (projectId ? `${projectId}.appspot.com` : undefined)
+  );
+}
+
 export const COLLECTIONS = {
   tournaments: "tournaments",
   teams: "teams",
@@ -38,10 +47,7 @@ function getFirebaseAppInternal() {
     return null;
   }
 
-  const storageBucket =
-    process.env.FIREBASE_STORAGE_BUCKET ||
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-    `${projectId}.appspot.com`;
+  const storageBucket = resolveStorageBucket(projectId);
 
   return admin.initializeApp({
     credential: admin.credential.cert({

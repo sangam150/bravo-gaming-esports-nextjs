@@ -8,7 +8,7 @@ function getBucket() {
   const bucketName =
     process.env.FIREBASE_STORAGE_BUCKET ||
     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-    `${process.env.FIREBASE_PROJECT_ID}.appspot.com`;
+    `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`;
   return admin.storage(app).bucket(bucketName);
 }
 
