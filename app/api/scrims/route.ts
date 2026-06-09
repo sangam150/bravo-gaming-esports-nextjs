@@ -1,10 +1,11 @@
-import { getScrims } from "@/lib/data";
+import { getScrimDayResults, getScrims } from "@/lib/data";
 
 export async function GET() {
-  const data = await getScrims();
+  const [data, days] = await Promise.all([getScrims(), getScrimDayResults()]);
   return Response.json({
     success: true,
     data,
+    days,
     message: data.length === 0 ? "Waiting for live match data" : undefined,
   });
 }

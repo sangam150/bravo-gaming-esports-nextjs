@@ -3,6 +3,7 @@ export type RegistrationStatus = "pending" | "approved" | "rejected";
 export type PlayerRole = "IGL" | "Assaulter" | "Support" | "Sniper" | "Substitute";
 export type PlayerStatus = "active" | "inactive";
 export type ScrimStatus = "scheduled" | "live" | "completed" | "waiting_for_data";
+export type ScrimDayStatus = ScrimStatus | "mixed";
 export type MatchDataSource = "pubg_api" | "manual_correction";
 
 export interface Tournament {
@@ -119,11 +120,43 @@ export interface Scrim {
   roomPassword?: string;
   teamIds: string[];
   pubgMatchId?: string;
+  pubgMatchIds?: string[];
   status: ScrimStatus;
   announcement?: string;
   mapRotation?: string[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ScrimDayStanding {
+  teamId?: string;
+  teamName: string;
+  matches: number;
+  wins: number;
+  kills: number;
+  killPoints: number;
+  placementPoints: number;
+  totalPoints: number;
+  bestPlacement: number;
+  averagePlacement: number;
+}
+
+export interface ScrimDayResult {
+  id: string;
+  dayNumber: number;
+  label: string;
+  date: string;
+  displayDate: string;
+  status: ScrimDayStatus;
+  scrimCount: number;
+  completedMatches: number;
+  pendingMatches: number;
+  matchIds: string[];
+  scrims: Scrim[];
+  matches: TournamentMatch[];
+  leaderboard: ScrimDayStanding[];
+  announcements: string[];
+  lastUpdatedAt?: string;
 }
 
 export interface Announcement {

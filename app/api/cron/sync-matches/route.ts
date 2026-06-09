@@ -12,23 +12,27 @@ export async function GET(request: Request) {
   try {
     const scrims = await fetchFirestoreCollection<Scrim>(COLLECTIONS.scrims, 50);
     const pending = scrims.filter(
-      (s) => s.pubgMatchId && (s.status === "live" || s.status === "waiting_for_data")
+      (s) => (s.pubgMatchId || (s.pubgMatchIds?.length ?? 0) > 0) && (s.status === "live" || s.status === "waiting_for_data")
     );
 
     const results: { scrimId: string; matchId: string; ok: boolean; error?: string }[] = [];
 
     for (const scrim of pending) {
-      if (!scrim.pubgMatchId) continue;
-      try {
-        await importPubgMatch(scrim.pubgMatchId, { scrimId: scrim.id });
-        results.push({ scrimId: scrim.id, matchId: scrim.pubgMatchId, ok: true });
-      } catch (error: unknown) {
-        results.push({
-          scrimId: scrim.id,
-          matchId: scrim.pubgMatchId,
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
+      const matchIds = Array.from(
+        new Set([...(scrim.pubgMatchIds ?? []), scrim.pubgMatchId].filter((matchId): matchId is string => Boolean(matchId)))
+      );
+      for (const matchId of matchIds) {
+        try {
+          await importPubgMatch(matchId, { scrimId: scrim.id });
+          results.push({ scrimId: scrim.id, matchId, ok: true });
+        } catch (error: unknown) {
+          results.push({
+            scrimId: scrim.id,
+            matchId,
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     }
 

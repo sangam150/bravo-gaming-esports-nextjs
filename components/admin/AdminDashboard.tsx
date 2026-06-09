@@ -38,6 +38,27 @@ const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
 const btnDanger = "btn-watch-live !text-[11px] !py-1.5";
 const ROLES: PlayerRole[] = ["IGL", "Assaulter", "Support", "Sniper", "Substitute"];
+const defaultScrimForm: Partial<Scrim> = {
+  status: "scheduled",
+  teamIds: [],
+  mapRotation: [],
+  lobbyTime: "8:00 PM NPT",
+  pubgMatchIds: [],
+};
+
+function normalizeMatchIds(value?: string) {
+  return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
+}
+
+function getScrimMatchIds(scrim?: Partial<Scrim>) {
+  return Array.from(
+    new Set([...(scrim?.pubgMatchIds ?? []), scrim?.pubgMatchId].filter((matchId): matchId is string => Boolean(matchId)))
+  );
+}
+
+function formatScrimMatchIds(scrim?: Partial<Scrim>) {
+  return getScrimMatchIds(scrim).join("\n");
+}
 
 export default function AdminDashboard() {
   const { user, logout } = useAdminAuth();
@@ -77,12 +98,7 @@ export default function AdminDashboard() {
     matches: 0,
     playerStatus: "active",
   });
-  const [scrimForm, setScrimForm] = useState<Partial<Scrim>>({
-    status: "scheduled",
-    teamIds: [],
-    mapRotation: [],
-    lobbyTime: "8:00 PM NPT",
-  });
+  const [scrimForm, setScrimForm] = useState<Partial<Scrim>>(defaultScrimForm);
   const [announcementForm, setAnnouncementForm] = useState<Partial<Announcement>>({ published: true });
   const [editingTournament, setEditingTournament] = useState<string | null>(null);
   const [editingTeam, setEditingTeam] = useState<string | null>(null);
@@ -230,14 +246,21 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!scrimForm.title || !scrimForm.date || !scrimForm.map) return;
     try {
+      const pubgMatchIds = getScrimMatchIds(scrimForm);
+      const payload = {
+        ...scrimForm,
+        pubgMatchId: pubgMatchIds[0],
+        pubgMatchIds,
+      };
+
       if (editingScrim) {
-        await adminFetch("/api/admin/scrims", { method: "PUT", body: JSON.stringify({ ...scrimForm, id: editingScrim }) });
+        await adminFetch("/api/admin/scrims", { method: "PUT", body: JSON.stringify({ ...payload, id: editingScrim }) });
         setMessage("Scrim updated");
       } else {
-        await adminFetch("/api/admin/scrims", { method: "POST", body: JSON.stringify(scrimForm) });
+        await adminFetch("/api/admin/scrims", { method: "POST", body: JSON.stringify(payload) });
         setMessage("Scrim created");
       }
-      setScrimForm({ status: "scheduled", teamIds: [], mapRotation: [], lobbyTime: "8:00 PM NPT" });
+      setScrimForm(defaultScrimForm);
       setEditingScrim(null);
       loadData();
     } catch (err: unknown) {
@@ -275,28 +298,55 @@ export default function AdminDashboard() {
   }
 
   async function handleImportMatch() {
-    if (!matchId.trim()) {
+    const matchIds = normalizeMatchIds(matchId);
+    if (matchIds.length === 0) {
       setError("PUBG Match ID is required");
       return;
     }
+
     setImporting(true);
     setError(null);
     try {
-      const res = await adminFetch("/api/admin/matches/import", {
-        method: "POST",
-        body: JSON.stringify({
-          matchId: matchId.trim(),
-          tournamentId: importTournamentId || undefined,
-          scrimId: importScrimId || undefined,
-          screenshotUrl: screenshotUrl || undefined,
-        }),
-      });
-      setPubgResult(res.data);
-      setMessage("Live match data imported from PUBG API");
+      const results: Array<{ matchId: string; success: boolean; data?: unknown; error?: string }> = [];
+
+      for (const currentMatchId of matchIds) {
+        try {
+          const res = await adminFetch("/api/admin/matches/import", {
+            method: "POST",
+            body: JSON.stringify({
+              matchId: currentMatchId,
+              tournamentId: importTournamentId || undefined,
+              scrimId: importScrimId || undefined,
+              screenshotUrl: screenshotUrl || undefined,
+            }),
+          });
+          results.push({ matchId: currentMatchId, success: true, data: res.data });
+        } catch (err: unknown) {
+          results.push({
+            matchId: currentMatchId,
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      const successfulImports = results.filter((result) => result.success);
+      const failedImports = results.filter((result) => !result.success);
+
+      setPubgResult(matchIds.length === 1 ? successfulImports[0]?.data ?? failedImports[0] : results);
+
+      if (failedImports.length > 0) {
+        setError(`Imported ${successfulImports.length}/${matchIds.length} PUBG match IDs. Check the result log below.`);
+      } else {
+        setMessage(
+          matchIds.length === 1
+            ? "Live match data imported from PUBG API"
+            : `${successfulImports.length} PUBG match results imported from the API`
+        );
+      }
+
       setMatchId("");
       loadData();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setImporting(false);
     }
@@ -585,10 +635,19 @@ export default function AdminDashboard() {
               <input className={inputClass} placeholder="Lobby Time" value={scrimForm.lobbyTime ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, lobbyTime: e.target.value })} />
               <input className={inputClass} placeholder="Room ID" value={scrimForm.roomId ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, roomId: e.target.value })} />
               <input className={inputClass} placeholder="Room Password" value={scrimForm.roomPassword ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, roomPassword: e.target.value })} />
-              <input className={inputClass} placeholder="PUBG Match ID (for auto-sync)" value={scrimForm.pubgMatchId ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, pubgMatchId: e.target.value })} />
               <select className={inputClass} value={scrimForm.status ?? "scheduled"} onChange={(e) => setScrimForm({ ...scrimForm, status: e.target.value as ScrimStatus })}>
                 {(["scheduled", "live", "completed", "waiting_for_data"] as const).map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
+              <textarea
+                className={`${inputClass} sm:col-span-2`}
+                placeholder="PUBG Match IDs (one per line or comma separated)"
+                rows={3}
+                value={formatScrimMatchIds(scrimForm)}
+                onChange={(e) => {
+                  const pubgMatchIds = normalizeMatchIds(e.target.value);
+                  setScrimForm({ ...scrimForm, pubgMatchIds, pubgMatchId: pubgMatchIds[0] });
+                }}
+              />
               <input className={`${inputClass} sm:col-span-2`} placeholder="Map rotation (comma separated)" value={(scrimForm.mapRotation ?? []).join(", ")} onChange={(e) => setScrimForm({ ...scrimForm, mapRotation: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
               <textarea className={`${inputClass} sm:col-span-2`} placeholder="Announcement" rows={2} value={scrimForm.announcement ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, announcement: e.target.value })} />
               <div className="sm:col-span-2">
@@ -603,7 +662,7 @@ export default function AdminDashboard() {
               </div>
               <div className="flex gap-3 sm:col-span-2">
                 <button type="submit" className={btnPrimary}>{editingScrim ? "Update" : "Create"} Scrim</button>
-                {editingScrim && <button type="button" onClick={() => { setEditingScrim(null); setScrimForm({ status: "scheduled", teamIds: [], mapRotation: [], lobbyTime: "8:00 PM NPT" }); }} className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300">Cancel</button>}
+                {editingScrim && <button type="button" onClick={() => { setEditingScrim(null); setScrimForm(defaultScrimForm); }} className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300">Cancel</button>}
               </div>
             </form>
             <div className="space-y-3">
@@ -612,14 +671,14 @@ export default function AdminDashboard() {
                   <div>
                     <p className="font-semibold text-white">{s.title}</p>
                     <p className="text-sm text-text-muted">{s.date} · {s.map} · {s.lobbyTime}</p>
-                    <p className="text-xs text-text-muted">Room: {s.roomId ?? "—"} · Match ID: {s.pubgMatchId ?? "—"}</p>
+                    <p className="text-xs text-text-muted">Room: {s.roomId ?? "—"} · Match IDs: {getScrimMatchIds(s).join(", ") || "—"}</p>
                     <span className="mt-2 inline-block rounded-full bg-white/5 px-2 py-0.5 text-[10px] uppercase text-accent-blue">{s.status}</span>
                   </div>
                   <div className="flex gap-2">
-                    {s.pubgMatchId && (
-                      <button type="button" onClick={async () => { setMatchId(s.pubgMatchId!); setImportScrimId(s.id); setSection("pubg"); }} className="btn-secondary !text-[11px]">Import Data</button>
+                    {getScrimMatchIds(s).length > 0 && (
+                      <button type="button" onClick={async () => { setMatchId(formatScrimMatchIds(s)); setImportScrimId(s.id); setSection("pubg"); }} className="btn-secondary !text-[11px]">Import Data</button>
                     )}
-                    <button type="button" onClick={() => { setEditingScrim(s.id); setScrimForm(s); }} className="text-bravoBlue text-sm hover:underline">Edit</button>
+                    <button type="button" onClick={() => { setEditingScrim(s.id); setScrimForm({ ...s, pubgMatchIds: getScrimMatchIds(s), pubgMatchId: getScrimMatchIds(s)[0] }); }} className="text-bravoBlue text-sm hover:underline">Edit</button>
                     <button type="button" onClick={async () => { await adminFetch(`/api/admin/scrims?id=${s.id}`, { method: "DELETE" }); loadData(); }} className="text-bravoRed text-sm hover:underline">Delete</button>
                   </div>
                 </div>
@@ -737,16 +796,23 @@ export default function AdminDashboard() {
             <h2 className="text-2xl font-black text-white">Import Live Match Data</h2>
             <p className="text-sm text-text-muted">All points, kills, and rankings are imported from the real PUBG PC API. No random or demo data is generated.</p>
             <div className="esports-card grid gap-4 p-6 sm:grid-cols-2">
-              <input className={inputClass} placeholder="PUBG Match ID" value={matchId} onChange={(e) => setMatchId(e.target.value)} />
+              <textarea className={`${inputClass} sm:col-span-2`} placeholder="PUBG Match IDs (one per line or comma separated)" rows={4} value={matchId} onChange={(e) => setMatchId(e.target.value)} />
               <select className={inputClass} value={importTournamentId} onChange={(e) => setImportTournamentId(e.target.value)}>
                 <option value="">Link to tournament (optional)</option>
                 {tournaments.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
               </select>
-              <select className={inputClass} value={importScrimId} onChange={(e) => setImportScrimId(e.target.value)}>
+              <select className={inputClass} value={importScrimId} onChange={(e) => {
+                const nextScrimId = e.target.value;
+                setImportScrimId(nextScrimId);
+                const selectedScrim = scrims.find((scrim) => scrim.id === nextScrimId);
+                if (selectedScrim) {
+                  setMatchId(formatScrimMatchIds(selectedScrim));
+                }
+              }}>
                 <option value="">Link to scrim (optional)</option>
                 {scrims.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
               </select>
-              <FileUpload type="match_screenshot" entityId={matchId || "match"} label="Result Screenshot" currentUrl={screenshotUrl} onUploaded={setScreenshotUrl} />
+              <FileUpload type="match_screenshot" entityId={normalizeMatchIds(matchId)[0] || "match"} label="Result Screenshot" currentUrl={screenshotUrl} onUploaded={setScreenshotUrl} />
               <div className="sm:col-span-2 flex gap-3">
                 <button type="button" onClick={handleImportMatch} disabled={importing} className={btnPrimary}>
                   {importing ? "Importing..." : "Import Match Data"}

@@ -22,6 +22,8 @@ import type {
   LeaderboardRow,
   Player,
   Scrim,
+  ScrimDayResult,
+  ScrimDayStanding,
   SiteStats,
   StreamSchedule,
   Team,
@@ -31,11 +33,118 @@ import type {
   VideoItem,
 } from "./types";
 
+const kathmanduDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Kathmandu",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const kathmanduDayFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Kathmandu",
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
 function slugify(value: string) {
   return value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+function toKathmanduDateKey(value?: string) {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) return null;
+
+  const dateParts = kathmanduDateFormatter.formatToParts(parsedDate);
+  const year = dateParts.find((part) => part.type === "year")?.value;
+  const month = dateParts.find((part) => part.type === "month")?.value;
+  const day = dateParts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) return null;
+  return `${year}-${month}-${day}`;
+}
+
+function formatKathmanduDate(value: string) {
+  const parsedDate = new Date(`${value}T00:00:00+05:45`);
+  if (Number.isNaN(parsedDate.getTime())) return value;
+  return kathmanduDayFormatter.format(parsedDate);
+}
+
+function getScrimLinkedMatchIds(scrim: Pick<Scrim, "pubgMatchId" | "pubgMatchIds">) {
+  return Array.from(
+    new Set([...(scrim.pubgMatchIds ?? []), scrim.pubgMatchId].filter((matchId): matchId is string => Boolean(matchId)))
+  );
+}
+
+function buildScrimDayStatus(scrims: Scrim[]): ScrimDayResult["status"] {
+  const uniqueStatuses = Array.from(new Set(scrims.map((scrim) => scrim.status)));
+
+  if (uniqueStatuses.length === 1) {
+    return uniqueStatuses[0] ?? "scheduled";
+  }
+
+  if (uniqueStatuses.includes("live")) return "live";
+  if (uniqueStatuses.includes("waiting_for_data")) return "waiting_for_data";
+  return "mixed";
+}
+
+function aggregateScrimDayLeaderboard(matches: TournamentMatch[]): ScrimDayStanding[] {
+  const standingsMap = new Map<
+    string,
+    ScrimDayStanding & {
+      placementTotal: number;
+    }
+  >();
+
+  for (const match of matches) {
+    for (const teamResult of match.teamResults ?? []) {
+      const teamKey = teamResult.teamId ?? teamResult.teamName.toLowerCase();
+      const currentStanding = standingsMap.get(teamKey) ?? {
+        teamId: teamResult.teamId,
+        teamName: teamResult.teamName,
+        matches: 0,
+        wins: 0,
+        kills: 0,
+        killPoints: 0,
+        placementPoints: 0,
+        totalPoints: 0,
+        bestPlacement: Number.POSITIVE_INFINITY,
+        averagePlacement: 0,
+        placementTotal: 0,
+      };
+
+      currentStanding.matches += 1;
+      currentStanding.wins += teamResult.placement === 1 ? 1 : 0;
+      currentStanding.kills += teamResult.kills;
+      currentStanding.killPoints += teamResult.killPoints ?? teamResult.kills;
+      currentStanding.placementPoints += teamResult.placementPoints ?? 0;
+      currentStanding.totalPoints += teamResult.totalPoints;
+      currentStanding.bestPlacement = Math.min(currentStanding.bestPlacement, teamResult.placement);
+      currentStanding.placementTotal += teamResult.placement;
+
+      standingsMap.set(teamKey, currentStanding);
+    }
+  }
+
+  return Array.from(standingsMap.values())
+    .map(({ placementTotal, ...standing }) => ({
+      ...standing,
+      averagePlacement: Number((placementTotal / standing.matches).toFixed(2)),
+    }))
+    .sort(
+      (firstStanding, secondStanding) =>
+        secondStanding.totalPoints - firstStanding.totalPoints ||
+        secondStanding.kills - firstStanding.kills ||
+        firstStanding.averagePlacement - secondStanding.averagePlacement ||
+        firstStanding.teamName.localeCompare(secondStanding.teamName)
+    );
 }
 
 async function fromFirestoreOrSeed<T>(collection: string, seed: T[], sortFn?: (a: T & { id: string }, b: T & { id: string }) => number): Promise<(T & { id: string })[]> {
@@ -108,10 +217,116 @@ export async function getTournamentMatches(tournamentId: string): Promise<Tourna
 export async function getScrims(): Promise<Scrim[]> {
   if (!isFirebaseConfigured()) return [];
   try {
-    return await fetchFirestoreCollection(COLLECTIONS.scrims, 100);
+    const scrims = await fetchFirestoreCollection<Scrim>(COLLECTIONS.scrims, 100);
+    return scrims.sort(
+      (firstScrim, secondScrim) =>
+        secondScrim.date.localeCompare(firstScrim.date) ||
+        (secondScrim.lobbyTime ?? "").localeCompare(firstScrim.lobbyTime ?? "") ||
+        secondScrim.title.localeCompare(firstScrim.title)
+    );
   } catch {
     return [];
   }
+}
+
+export async function getScrimDayResults(): Promise<ScrimDayResult[]> {
+  const scrims = await getScrims();
+  if (scrims.length === 0) return [];
+
+  let matchResults: TournamentMatch[] = [];
+  if (isFirebaseConfigured()) {
+    try {
+      matchResults = await fetchFirestoreCollection<TournamentMatch>(COLLECTIONS.matchResults, 500);
+    } catch {
+      matchResults = [];
+    }
+  }
+
+  const scrimsByDate = new Map<string, Scrim[]>();
+  for (const scrim of scrims) {
+    const dateKey = toKathmanduDateKey(scrim.date) ?? scrim.date;
+    const existingScrims = scrimsByDate.get(dateKey) ?? [];
+    existingScrims.push(scrim);
+    scrimsByDate.set(dateKey, existingScrims);
+  }
+
+  const orderedDateKeys = Array.from(scrimsByDate.keys()).sort((firstDate, secondDate) =>
+    firstDate.localeCompare(secondDate)
+  );
+
+  const dayResults = orderedDateKeys.map((dateKey, dayIndex) => {
+    const dayScrims = [...(scrimsByDate.get(dateKey) ?? [])].sort(
+      (firstScrim, secondScrim) =>
+        firstScrim.date.localeCompare(secondScrim.date) ||
+        (firstScrim.lobbyTime ?? "").localeCompare(secondScrim.lobbyTime ?? "") ||
+        firstScrim.title.localeCompare(secondScrim.title)
+    );
+
+    const scrimIds = new Set(dayScrims.map((scrim) => scrim.id));
+    const linkedMatchIds = new Set(dayScrims.flatMap((scrim) => getScrimLinkedMatchIds(scrim)));
+
+    const dayMatchesMap = new Map<string, TournamentMatch>();
+    for (const matchResult of matchResults) {
+      const playedAtDateKey = toKathmanduDateKey(matchResult.playedAt);
+      const isStandaloneScrimMatch =
+        playedAtDateKey === dateKey && !matchResult.tournamentId && !matchResult.scrimId;
+      const belongsToDay =
+        (matchResult.scrimId ? scrimIds.has(matchResult.scrimId) : false) ||
+        linkedMatchIds.has(matchResult.pubgMatchId) ||
+        isStandaloneScrimMatch;
+
+      if (belongsToDay) {
+        dayMatchesMap.set(matchResult.id, matchResult);
+      }
+    }
+
+    const dayMatches = Array.from(dayMatchesMap.values()).sort((firstMatch, secondMatch) =>
+      (firstMatch.playedAt ?? firstMatch.syncedAt ?? "").localeCompare(
+        secondMatch.playedAt ?? secondMatch.syncedAt ?? ""
+      )
+    );
+
+    const announcements = dayScrims
+      .map((scrim) => scrim.announcement?.trim())
+      .filter((announcement): announcement is string => Boolean(announcement));
+
+    const syncedScrimIds = new Set(
+      dayMatches.map((match) => match.scrimId).filter((scrimId): scrimId is string => Boolean(scrimId))
+    );
+    const syncedMatchIds = new Set(dayMatches.map((match) => match.pubgMatchId));
+    const pendingMatches = dayScrims.reduce((pendingTotal, scrim) => {
+      const configuredMatchIds = getScrimLinkedMatchIds(scrim);
+      const expectedMatches = configuredMatchIds.length > 0 ? configuredMatchIds.length : 1;
+      const syncedConfiguredMatches = configuredMatchIds.filter((matchId) => syncedMatchIds.has(matchId)).length;
+      const syncedStandaloneMatch = syncedScrimIds.has(scrim.id) && configuredMatchIds.length === 0 ? 1 : 0;
+      return pendingTotal + Math.max(expectedMatches - syncedConfiguredMatches - syncedStandaloneMatch, 0);
+    }, 0);
+
+    const latestUpdatedAt = [...dayMatches.map((match) => match.syncedAt), ...dayScrims.map((scrim) => scrim.updatedAt)]
+      .filter((timestamp): timestamp is string => Boolean(timestamp))
+      .sort((firstTimestamp, secondTimestamp) => firstTimestamp.localeCompare(secondTimestamp))
+      .at(-1);
+
+    return {
+      id: `scrim-day-${dateKey}`,
+      dayNumber: dayIndex + 1,
+      label: `Day ${dayIndex + 1}`,
+      date: dateKey,
+      displayDate: formatKathmanduDate(dateKey),
+      status: buildScrimDayStatus(dayScrims),
+      scrimCount: dayScrims.length,
+      completedMatches: dayMatches.length,
+      pendingMatches,
+      matchIds: Array.from(new Set(dayMatches.map((match) => match.pubgMatchId))),
+      scrims: dayScrims,
+      matches: dayMatches,
+      leaderboard: aggregateScrimDayLeaderboard(dayMatches),
+      announcements,
+      lastUpdatedAt: latestUpdatedAt,
+    } satisfies ScrimDayResult;
+  });
+
+  return dayResults.sort((firstDay, secondDay) => secondDay.date.localeCompare(firstDay.date));
 }
 
 export async function saveTournamentMatch(data: TournamentMatch) {

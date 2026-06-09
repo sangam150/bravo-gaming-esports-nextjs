@@ -1,14 +1,12 @@
 import {
   COLLECTIONS,
-  createFirestoreDocument,
   fetchFirestoreCollection,
   getFirestoreDocument,
-  queryFirestoreCollection,
   saveFirestoreDocument,
 } from "./firebase";
 import { pubgFetch, PUBG_SHARD, summarizeMatch } from "./pubg";
 import { aggregateTeamResults, parseMatchParticipants } from "./pubg-match-parser";
-import type { Player, PubgMatchImport, Team, TeamMatchResult, TournamentMatch } from "./types";
+import type { Player, PubgMatchImport, Scrim, Team, TeamMatchResult, TournamentMatch } from "./types";
 
 export async function importPubgMatch(
   matchId: string,
@@ -72,8 +70,18 @@ export async function importPubgMatch(
   await updatePlayersFromStats(players, teams);
 
   if (options?.scrimId) {
+    const existingScrim = await getFirestoreDocument<Scrim>(COLLECTIONS.scrims, options.scrimId);
+    const pubgMatchIds = Array.from(
+      new Set(
+        [...(existingScrim?.pubgMatchIds ?? []), existingScrim?.pubgMatchId, matchId].filter(
+          (value): value is string => Boolean(value)
+        )
+      )
+    );
+
     await saveFirestoreDocument(COLLECTIONS.scrims, options.scrimId, {
-      pubgMatchId: matchId,
+      pubgMatchId: pubgMatchIds[0] ?? matchId,
+      pubgMatchIds,
       status: "completed",
       updatedAt: now,
     });

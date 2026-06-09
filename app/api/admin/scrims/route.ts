@@ -2,6 +2,45 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { COLLECTIONS, createFirestoreDocument, deleteFirestoreDocument, fetchFirestoreCollection, saveFirestoreDocument } from "@/lib/firebase";
 import type { Scrim } from "@/lib/types";
 
+function normalizePubgMatchIds(body: Record<string, unknown>) {
+  const rawMatchIds = Array.isArray(body.pubgMatchIds)
+    ? body.pubgMatchIds
+    : typeof body.pubgMatchIds === "string"
+      ? body.pubgMatchIds.split(/[\n,]+/g)
+      : [];
+
+  const primaryMatchId = typeof body.pubgMatchId === "string" ? body.pubgMatchId : "";
+
+  return Array.from(
+    new Set(
+      [primaryMatchId, ...rawMatchIds]
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter(Boolean)
+    )
+  );
+}
+
+function buildScrimPayload(body: Record<string, unknown>): Partial<Scrim> {
+  const pubgMatchIds = normalizePubgMatchIds(body);
+
+  return {
+    title: typeof body.title === "string" ? body.title : "",
+    date: typeof body.date === "string" ? body.date : "",
+    map: typeof body.map === "string" ? body.map : "",
+    lobbyTime: typeof body.lobbyTime === "string" && body.lobbyTime ? body.lobbyTime : "8:00 PM NPT",
+    roomId: typeof body.roomId === "string" ? body.roomId : undefined,
+    roomPassword: typeof body.roomPassword === "string" ? body.roomPassword : undefined,
+    teamIds: Array.isArray(body.teamIds) ? body.teamIds.filter((value): value is string => typeof value === "string") : [],
+    pubgMatchId: pubgMatchIds[0],
+    pubgMatchIds,
+    status: (typeof body.status === "string" ? body.status : "scheduled") as Scrim["status"],
+    announcement: typeof body.announcement === "string" ? body.announcement : undefined,
+    mapRotation: Array.isArray(body.mapRotation)
+      ? body.mapRotation.filter((value): value is string => typeof value === "string" && Boolean(value))
+      : [],
+  };
+}
+
 export async function GET(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
@@ -17,18 +56,7 @@ export async function POST(request: Request) {
     if (!body.title || !body.date || !body.map) {
       return Response.json({ error: "title, date, and map are required" }, { status: 400 });
     }
-    const payload: Partial<Scrim> = {
-      title: body.title,
-      date: body.date,
-      map: body.map,
-      lobbyTime: body.lobbyTime ?? "8:00 PM NPT",
-      roomId: body.roomId,
-      roomPassword: body.roomPassword,
-      teamIds: body.teamIds ?? [],
-      status: body.status ?? "scheduled",
-      announcement: body.announcement,
-      mapRotation: body.mapRotation ?? [],
-    };
+    const payload = buildScrimPayload(body as Record<string, unknown>);
     const result = await createFirestoreDocument(COLLECTIONS.scrims, payload as Record<string, unknown>, body.id);
     return Response.json({ success: true, data: { id: result.id, ...payload } });
   } catch (error: unknown) {
@@ -42,8 +70,9 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json();
     if (!body.id) return Response.json({ error: "id is required" }, { status: 400 });
-    await saveFirestoreDocument(COLLECTIONS.scrims, body.id, body);
-    return Response.json({ success: true, data: body });
+    const payload = buildScrimPayload(body as Record<string, unknown>);
+    await saveFirestoreDocument(COLLECTIONS.scrims, body.id, payload as Record<string, unknown>);
+    return Response.json({ success: true, data: { id: body.id, ...payload } });
   } catch (error: unknown) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
