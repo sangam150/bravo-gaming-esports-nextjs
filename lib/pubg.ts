@@ -18,8 +18,11 @@ export async function pubgFetch(path: string, needsAuth = true) {
 export function placementPoints(placement: number) {
   if (placement === 1) return 10;
   if (placement === 2) return 6;
-  if (placement === 3) return 4;
-  if (placement >= 4 && placement <= 8) return 2;
+  if (placement === 3) return 5;
+  if (placement === 4) return 4;
+  if (placement === 5) return 3;
+  if (placement === 6) return 2;
+  if (placement === 7 || placement === 8) return 1;
   return 0;
 }
 

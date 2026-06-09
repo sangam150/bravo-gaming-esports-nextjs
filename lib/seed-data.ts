@@ -121,9 +121,31 @@ export const seedAnnouncements: Announcement[] = [
 ];
 
 export const seedStreams: StreamSchedule[] = [
-  { id: "stream-1", time: "Today, 8:00 PM", title: "PUBG PC Daily Scrims", platform: "YouTube" },
-  { id: "stream-2", time: "Tomorrow, 7:00 PM", title: "Tournament Practice", platform: "YouTube" },
-  { id: "stream-3", time: "May 22, 8:00 PM", title: "Weekly Finals Review", platform: "YouTube" },
+  {
+    id: "stream-1",
+    time: "Today, 8:00 PM",
+    title: "PUBG PC Daily Scrims",
+    platform: "YouTube",
+    description: "Daily community scrims with live casting and standings updates.",
+    channelUrl: "https://www.youtube.com/@bravogamingnepal7981",
+    supportUrl: "https://kamaucha.me/bravo",
+  },
+  {
+    id: "stream-2",
+    time: "Tomorrow, 7:00 PM",
+    title: "Tournament Practice",
+    platform: "YouTube",
+    description: "Practice lobby coverage and team comms highlights.",
+    channelUrl: "https://www.youtube.com/@bravogamingnepal7981",
+  },
+  {
+    id: "stream-3",
+    time: "May 22, 8:00 PM",
+    title: "Weekly Finals Review",
+    platform: "YouTube",
+    description: "Best plays, breakdowns, and review from the weekly finals.",
+    channelUrl: "https://www.youtube.com/@bravogamingnepal7981",
+  },
 ];
 
 export const seedVideos: VideoItem[] = [

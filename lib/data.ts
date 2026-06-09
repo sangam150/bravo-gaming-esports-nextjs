@@ -33,6 +33,10 @@ import type {
   VideoItem,
 } from "./types";
 
+const DEFAULT_YOUTUBE_HANDLE = "bravogamingnepal7981";
+const DEFAULT_YOUTUBE_CHANNEL_URL = "https://www.youtube.com/@bravogamingnepal7981";
+const DEFAULT_YOUTUBE_CHANNEL_ID = "UCiQ0gllz6KLTRs-6ma4Fhjw";
+
 const kathmanduDateFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Kathmandu",
   year: "numeric",
@@ -431,6 +435,51 @@ export async function deleteAnnouncement(id: string) {
 
 export async function getStreams(): Promise<StreamSchedule[]> {
   return fromFirestoreOrSeed(COLLECTIONS.streams, seedStreams);
+}
+
+function normalizeYouTubeHandle(value?: string) {
+  const rawValue = value?.trim();
+  if (!rawValue) return DEFAULT_YOUTUBE_HANDLE;
+  return rawValue.replace(/^https?:\/\/(www\.)?youtube\.com\//i, "").replace(/^@/, "").replace(/\/$/, "");
+}
+
+function buildYouTubeChannelUrl() {
+  const configuredChannelUrl = process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_URL || process.env.YOUTUBE_CHANNEL_URL;
+  if (configuredChannelUrl) return configuredChannelUrl;
+  return DEFAULT_YOUTUBE_CHANNEL_URL;
+}
+
+function buildLiveEmbedUrl() {
+  const configuredEmbedUrl = process.env.NEXT_PUBLIC_YOUTUBE_EMBED_URL || process.env.YOUTUBE_EMBED_URL;
+  if (configuredEmbedUrl) return configuredEmbedUrl;
+
+  const channelId =
+    process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_ID || process.env.YOUTUBE_CHANNEL_ID || DEFAULT_YOUTUBE_CHANNEL_ID;
+  if (channelId) {
+    return `https://www.youtube.com/embed/live_stream?channel=${channelId}&autoplay=1`;
+  }
+
+  return `https://www.youtube.com/embed?listType=user_uploads&list=${normalizeYouTubeHandle(
+    process.env.NEXT_PUBLIC_YOUTUBE_HANDLE || process.env.YOUTUBE_HANDLE
+  )}`;
+}
+
+export async function getLiveStreamFeed(): Promise<StreamSchedule> {
+  const streams = await getStreams();
+  const activeStream = streams.find((stream) => stream.isLive) ?? streams[0];
+
+  return {
+    id: activeStream?.id ?? "stream-default",
+    time: activeStream?.time ?? "Live updates",
+    title: activeStream?.title ?? "Bravo Gaming Nepal Live",
+    platform: activeStream?.platform ?? "YouTube",
+    isLive: activeStream?.isLive ?? false,
+    description: activeStream?.description ?? "PUBG PC Daily Scrims & Tournament Finals",
+    viewers: activeStream?.viewers,
+    embedUrl: activeStream?.embedUrl ?? buildLiveEmbedUrl(),
+    channelUrl: activeStream?.channelUrl ?? buildYouTubeChannelUrl(),
+    supportUrl: activeStream?.supportUrl ?? "https://kamaucha.me/bravo",
+  };
 }
 
 export async function getVideos(): Promise<VideoItem[]> {

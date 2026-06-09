@@ -54,7 +54,7 @@ export default function TournamentDetailClient({
                     <li>• Squad Format</li>
                     <li>• {tournament.format}</li>
                     <li>• {tournament.server} Server</li>
-                    <li>• Point System: 1st=10, 2nd=6, 3rd=4, kills=1</li>
+                    <li>• Point System: 1st=10, 2nd=6, 3rd=5, 4th=4, 5th=3, 6th=2, 7th-8th=1, kills=1</li>
                     {tab === "Rules" && <li>• Admin-verified match IDs required</li>}
                   </ul>
                 </div>
@@ -115,3 +115,4 @@ export default function TournamentDetailClient({
     </main>
   );
 }
+

@@ -22,8 +22,12 @@ const weekendSchedule = [
 const pointSystem = [
   { place: "1st Place", pts: 10 },
   { place: "2nd Place", pts: 6 },
-  { place: "3rd Place", pts: 4 },
-  { place: "4th-8th", pts: 2 },
+  { place: "3rd Place", pts: 5 },
+  { place: "4th Place", pts: 4 },
+  { place: "5th Place", pts: 3 },
+  { place: "6th Place", pts: 2 },
+  { place: "7th Place", pts: 1 },
+  { place: "8th Place", pts: 1 },
   { place: "9th-16th", pts: 0 },
   { place: "Each Kill", pts: 1 },
 ];

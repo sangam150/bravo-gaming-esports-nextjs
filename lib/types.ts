@@ -205,6 +205,12 @@ export interface StreamSchedule {
   time: string;
   title: string;
   platform?: string;
+  isLive?: boolean;
+  description?: string;
+  viewers?: string;
+  embedUrl?: string;
+  channelUrl?: string;
+  supportUrl?: string;
 }
 
 export interface VideoItem {
