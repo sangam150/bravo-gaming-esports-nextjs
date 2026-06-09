@@ -15,23 +15,27 @@ export default function Footer() {
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {[
-              { t: "Platform", links: [["Home", "/"], ["Scrims", "/pubg-scrims"], ["Tournaments", "/tournaments"]] },
-              { t: "Compete", links: [["Leaderboard", "/leaderboard"], ["Teams", "/teams"], ["Players", "/players"]] },
-              { t: "Live", links: [["Stream", "/live-stream"], ["Videos", "/videos"], ["News", "/news"]] },
-              { t: "About", links: [["About", "/about"], ["Community", "/community"], ["Admin", "/admin"]] },
-            ].map((col) => (
-              <div key={col.t}>
-                <p className="text-label font-bold uppercase text-text-muted">{col.t}</p>
+              { title: "Platform", links: [["Home", "/"], ["Scrims", "/pubg-scrims"], ["Tournaments", "/tournaments"]] },
+              { title: "Compete", links: [["Leaderboard", "/leaderboard"], ["Teams", "/teams"], ["Players", "/players"]] },
+              { title: "Live", links: [["Stream", "/live-stream"], ["Videos", "/videos"], ["News", "/news"]] },
+              { title: "About", links: [["About", "/about"], ["Community", "/community"], ["Admin", "/admin"]] },
+            ].map((column) => (
+              <div key={column.title}>
+                <p className="text-label font-bold uppercase text-text-muted">{column.title}</p>
                 <ul className="mt-3 space-y-2">
-                  {col.links.map(([l, h]) => (
-                    <li key={h}><Link href={h} className="text-sm text-text-muted hover:text-accent-blue">{l}</Link></li>
+                  {column.links.map(([label, href]) => (
+                    <li key={href}>
+                      <Link href={href} className="text-sm text-text-muted hover:text-accent-blue">
+                        {label}
+                      </Link>
+                    </li>
                   ))}
                 </ul>
               </div>
             ))}
           </div>
         </div>
-        <p className="mt-8 text-center text-xs text-text-muted">© 2026 Bravo Gaming Esports Nepal</p>
+        <p className="mt-8 text-center text-xs text-text-muted">Copyright 2026 Bravo Gaming Esports Nepal</p>
       </div>
     </footer>
   );

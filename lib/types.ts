@@ -62,6 +62,7 @@ export interface Team {
   id: string;
   name: string;
   tag?: string;
+  slotNumber?: number;
   logo?: string;
   logoUrl?: string;
   country?: string;
@@ -228,6 +229,19 @@ export interface UploadRecord {
   type: "team_logo" | "player_avatar" | "tournament_banner" | "match_screenshot";
   entityId?: string;
   uploadedAt: string;
+}
+
+export interface ErrorLogRecord {
+  id: string;
+  scope: string;
+  message: string;
+  errorName?: string;
+  stack?: string;
+  method?: string;
+  pathname?: string;
+  search?: string;
+  createdAt: string;
+  details?: Record<string, unknown>;
 }
 
 export interface PubgMatchImport {

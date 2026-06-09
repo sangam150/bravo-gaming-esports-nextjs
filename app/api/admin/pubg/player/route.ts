@@ -1,10 +1,15 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { pubgFetch, PUBG_SHARD } from "@/lib/pubg";
 import { saveFirestoreDocument } from "@/lib/firebase";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { logServerError } from "@/lib/server-monitoring";
 
 export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+
+  const limited = enforceRateLimit(request, { key: "admin-pubg-player", maxRequests: 12, windowMs: 60_000 });
+  if (limited) return limited;
 
   try {
     const body = await request.json();
@@ -28,8 +33,9 @@ export async function POST(request: Request) {
       JSON.stringify({ success: true, playerData, firebaseResult }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error?.message || String(error) }), {
+  } catch (error: unknown) {
+    await logServerError("admin.pubg.player", error, request);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

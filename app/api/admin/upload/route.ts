@@ -1,10 +1,15 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { COLLECTIONS, createFirestoreDocument } from "@/lib/firebase";
 import { buildStoragePath, uploadToStorage } from "@/lib/firebase-storage";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { logServerError } from "@/lib/server-monitoring";
 
 export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+
+  const limited = enforceRateLimit(request, { key: "admin-upload", maxRequests: 20, windowMs: 60_000 });
+  if (limited) return limited;
 
   try {
     const formData = await request.formData();
@@ -40,6 +45,7 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true, url, id: record.id });
   } catch (error: unknown) {
+    await logServerError("admin.upload", error, request);
     const message = error instanceof Error ? error.message : String(error);
     return Response.json({ error: message }, { status: 500 });
   }

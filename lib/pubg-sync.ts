@@ -2,6 +2,7 @@ import {
   COLLECTIONS,
   fetchFirestoreCollection,
   getFirestoreDocument,
+  isFirebaseConfigured,
   saveFirestoreDocument,
 } from "./firebase";
 import { pubgFetch, PUBG_SHARD, summarizeMatch } from "./pubg";
@@ -12,6 +13,10 @@ export async function importPubgMatch(
   matchId: string,
   options?: { tournamentId?: string; scrimId?: string; screenshotUrl?: string }
 ) {
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase is not configured. Add FIREBASE_* credentials before importing PUBG data.");
+  }
+
   const matchData = await pubgFetch(`/shards/${PUBG_SHARD}/matches/${matchId}`);
   const summary = summarizeMatch(matchData);
   const players = parseMatchParticipants(matchData);

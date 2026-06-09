@@ -1,8 +1,25 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPlayer, getTeam } from "@/lib/data";
 
 type PageProps = { params: Promise<{ playerId: string }> };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { playerId } = await params;
+  const player = await getPlayer(playerId);
+
+  if (!player) {
+    return {
+      title: "Player Not Found",
+    };
+  }
+
+  return {
+    title: `${player.name} Player Profile`,
+    description: `Track ${player.name}'s kills, damage, MVP awards, and Bravo Gaming Esports player form.`,
+  };
+}
 
 export default async function PlayerProfilePage({ params }: PageProps) {
   const { playerId } = await params;
@@ -17,7 +34,7 @@ export default async function PlayerProfilePage({ params }: PageProps) {
     { label: "Chicken Dinners", value: player.chickenDinners, accent: "text-bravoGreen" },
     { label: "MVP Awards", value: player.mvpCount, accent: "text-amber-400" },
     { label: "Matches", value: player.matches, accent: "text-white" },
-    { label: "Rating", value: player.rating ?? "—", accent: "text-bravoBlue" },
+    { label: "Rating", value: player.rating ?? "-", accent: "text-bravoBlue" },
   ];
 
   return (
@@ -25,13 +42,19 @@ export default async function PlayerProfilePage({ params }: PageProps) {
       <section className="page-hero">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-6">
-            <div className={`relative flex h-28 w-28 items-center justify-center rounded-3xl border-2 text-4xl font-black shadow-[0_0_40px_rgba(0,180,255,0.15)] ${
-              player.isMvpOfWeek
-                ? "border-amber-500/40 bg-gradient-to-br from-amber-500/20 to-slate-900 text-amber-400"
-                : "border-bravoBlue/30 bg-gradient-to-br from-bravoBlue/20 to-slate-900 text-bravoBlue"
-            }`}>
+            <div
+              className={`relative flex h-28 w-28 items-center justify-center rounded-3xl border-2 text-4xl font-black shadow-[0_0_40px_rgba(0,180,255,0.15)] ${
+                player.isMvpOfWeek
+                  ? "border-amber-500/40 bg-gradient-to-br from-amber-500/20 to-slate-900 text-amber-400"
+                  : "border-bravoBlue/30 bg-gradient-to-br from-bravoBlue/20 to-slate-900 text-bravoBlue"
+              }`}
+            >
               {player.name.slice(0, 2).toUpperCase()}
-              {player.isMvpOfWeek && <span className="absolute -right-2 -top-2 text-2xl">🏆</span>}
+              {player.isMvpOfWeek && (
+                <span className="absolute -right-2 -top-2 rounded-full bg-amber-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300">
+                  MVP
+                </span>
+              )}
             </div>
             <div>
               <p className="section-title">Player Profile</p>
@@ -48,7 +71,9 @@ export default async function PlayerProfilePage({ params }: PageProps) {
               )}
             </div>
           </div>
-          <Link href="/players" className="btn-esports-outline">← All Players</Link>
+          <Link href="/players" className="btn-esports-outline">
+            Back to Players
+          </Link>
         </div>
 
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

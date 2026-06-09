@@ -1,5 +1,7 @@
 import { createRegistration, getRegistrations, updateRegistrationStatus } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { logServerError } from "@/lib/server-monitoring";
 
 export async function GET(request: Request) {
   const unauthorized = await requireAdmin(request);
@@ -9,6 +11,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const limited = enforceRateLimit(request, { key: "team-registration", maxRequests: 5, windowMs: 60_000 });
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     if (!body.teamName || !body.captainName || !body.captainDiscord) {
@@ -23,6 +28,7 @@ export async function POST(request: Request) {
     });
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
+    await logServerError("registrations.create", error, request);
     const message = error instanceof Error ? error.message : String(error);
     return Response.json({ error: message }, { status: 500 });
   }
@@ -31,6 +37,10 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+
+  const limited = enforceRateLimit(request, { key: "registration-admin-update", maxRequests: 30, windowMs: 60_000 });
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     if (!body.id || !body.status) {
@@ -39,6 +49,7 @@ export async function PATCH(request: Request) {
     const result = await updateRegistrationStatus(body.id, body.status);
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
+    await logServerError("registrations.update", error, request);
     const message = error instanceof Error ? error.message : String(error);
     return Response.json({ error: message }, { status: 500 });
   }

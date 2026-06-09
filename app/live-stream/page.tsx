@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getLiveStreamFeed, getStreams, getVideos } from "@/lib/data";
+
+export const metadata: Metadata = {
+  title: "Live Stream",
+  description: "Watch Bravo Gaming Esports live coverage, upcoming PUBG streams, and recent video highlights.",
+};
+
+export const revalidate = 300;
 
 export default async function LiveStreamPage() {
   const [liveFeed, streams, videos] = await Promise.all([getLiveStreamFeed(), getStreams(), getVideos()]);
@@ -64,7 +72,7 @@ export default async function LiveStreamPage() {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="section-heading !text-base">Latest Videos</h2>
           <Link href="/videos" className="text-label font-bold uppercase text-accent-blue hover:underline">
-            View All →
+            View All
           </Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

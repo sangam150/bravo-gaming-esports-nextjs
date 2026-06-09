@@ -20,6 +20,7 @@ Admin dashboard:
 - Visit `/admin` to access the PUBG + Firebase control center
 - Use the admin panel to import PUBG match and player data
 - Fetch Firestore collections and persist imported summaries when Firebase is configured
+- Review recent server error logs from the admin settings panel
 
 PUBG API routes:
 - `/api/pubg/players?name=PLAYER_NAME`
@@ -33,3 +34,8 @@ Admin helper routes:
 - `POST /api/admin/firebase` with `collectionName`
 
 Keep secret keys only in `.env.local`.
+
+Production notes:
+- Set `NEXT_PUBLIC_SITE_URL` (or `SITE_URL`) to your live domain for metadata, sitemap, and robots output
+- Deploy `firestore.rules` and `storage.rules` to keep client-side Firebase access locked down
+- Set the exact Firebase Storage bucket name in both `FIREBASE_STORAGE_BUCKET` and `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`

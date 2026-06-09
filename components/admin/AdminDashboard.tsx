@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminSidebar, { type AdminSection } from "./AdminSidebar";
+import BulkTeamLogoUpload from "./BulkTeamLogoUpload";
 import FileUpload from "./FileUpload";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { useAdminAuth } from "./AuthProvider";
@@ -19,6 +20,7 @@ import type {
   Tournament,
   TournamentMatch,
   TournamentStatus,
+  ErrorLogRecord,
   UploadRecord,
 } from "@/lib/types";
 
@@ -72,6 +74,7 @@ export default function AdminDashboard() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [liveMatches, setLiveMatches] = useState<TournamentMatch[]>([]);
   const [recentUploads, setRecentUploads] = useState<UploadRecord[]>([]);
+  const [errorLogs, setErrorLogs] = useState<ErrorLogRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -145,19 +148,22 @@ export default function AdminDashboard() {
       setAnnouncements(announcementsRes.data);
 
       try {
-        const [regRes, scrimRes, matchRes] = await Promise.all([
+        const [regRes, scrimRes, matchRes, errorRes] = await Promise.all([
           adminFetch("/api/registrations"),
           adminFetch("/api/admin/scrims"),
           adminFetch("/api/admin/matches"),
+          adminFetch("/api/admin/errors?limit=10"),
         ]);
         setRegistrations(regRes.data);
         setScrims(scrimRes.data);
         setLiveMatches(matchRes.data?.matches ?? []);
         setRecentUploads(matchRes.data?.uploads ?? []);
+        setErrorLogs(errorRes.data ?? []);
       } catch {
         setRegistrations([]);
         setScrims([]);
         setLiveMatches([]);
+        setErrorLogs([]);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -380,7 +386,7 @@ export default function AdminDashboard() {
             <p className="section-title">Staff Control Center</p>
             <h1 className="font-display text-3xl font-black uppercase text-white">Admin Panel</h1>
           </div>
-          <p className="text-xs text-text-muted">Live stats import from PUBG PC API only — no demo results.</p>
+          <p className="text-xs text-text-muted">Live stats import from PUBG PC API only - no demo results.</p>
         </div>
 
         {(message || error) && (
@@ -423,7 +429,7 @@ export default function AdminDashboard() {
                         <td className="text-accent-blue">{m.map}</td>
                         <td className="font-semibold">{m.winner}</td>
                         <td>{m.knockouts}</td>
-                        <td className="text-text-muted">{m.syncedAt ? new Date(m.syncedAt).toLocaleString() : "—"}</td>
+                        <td className="text-text-muted">{m.syncedAt ? new Date(m.syncedAt).toLocaleString() : "-"}</td>
                         <td className="text-accent-green">{m.dataSource}</td>
                       </tr>
                     ))}
@@ -523,9 +529,9 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
-
         {section === "teams" && (
           <div className="space-y-6">
+            <BulkTeamLogoUpload teams={teams} onComplete={loadData} />
             <h2 className="text-2xl font-black text-white">{editingTeam ? "Edit Team" : "Add Team"}</h2>
             <form onSubmit={handleTeamSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
               <input className={inputClass} placeholder="Team Name" value={teamForm.name ?? ""} onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })} required />
@@ -535,6 +541,7 @@ export default function AdminDashboard() {
               <input className={inputClass} placeholder="Captain Discord" value={teamForm.captainDiscord ?? ""} onChange={(e) => setTeamForm({ ...teamForm, captainDiscord: e.target.value })} />
               <input className={inputClass} placeholder="Captain Phone" value={teamForm.captainPhone ?? ""} onChange={(e) => setTeamForm({ ...teamForm, captainPhone: e.target.value })} />
               <input className={inputClass} placeholder="Captain Email" value={teamForm.captainEmail ?? ""} onChange={(e) => setTeamForm({ ...teamForm, captainEmail: e.target.value })} />
+              <input className={inputClass} type="number" placeholder="Slot Number" value={teamForm.slotNumber ?? ""} onChange={(e) => setTeamForm({ ...teamForm, slotNumber: e.target.value ? Number(e.target.value) : undefined })} />
               <select className={inputClass} value={teamForm.registrationStatus ?? "approved"} onChange={(e) => setTeamForm({ ...teamForm, registrationStatus: e.target.value as RegistrationStatus })}>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
@@ -550,18 +557,29 @@ export default function AdminDashboard() {
               </div>
             </form>
             <div className="grid gap-4 sm:grid-cols-2">
-              {teams.map((t) => (
-                <div key={t.id} className="esports-card p-5">
+              {teams.map((team) => (
+                <div key={team.id} className="esports-card p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-white">{t.name} {t.tag && <span className="text-accent-blue">[{t.tag}]</span>}</p>
-                      <p className="text-sm text-slate-400">{t.country ?? "—"} · Captain: {t.captainName ?? "—"}</p>
-                      <p className="text-xs text-text-muted mt-1">#{t.rank ?? "—"} · {t.totalPoints ?? 0} pts · {t.matches ?? 0} matches</p>
+                    <div className="flex min-w-0 items-start gap-3">
+                      {team.logoUrl || team.logo ? (
+                        <img src={team.logoUrl ?? team.logo} alt={team.name} className="h-14 w-14 rounded-xl border border-white/10 object-cover" />
+                      ) : (
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/15 text-[10px] uppercase text-text-muted">
+                          No Logo
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-semibold text-white">
+                          {team.name} {team.tag && <span className="text-accent-blue">[{team.tag}]</span>}
+                        </p>
+                        <p className="text-sm text-slate-400">{team.country ?? "—"} · Captain: {team.captainName ?? "—"}</p>
+                        <p className="mt-1 text-xs text-text-muted">Slot #{team.slotNumber ?? "—"} · Rank #{team.rank ?? "—"} · {team.totalPoints ?? 0} pts · {team.matches ?? 0} matches</p>
+                      </div>
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => { setEditingTeam(t.id); setTeamForm(t); setSelectedTeamId(t.id); setSection("players"); }} className="text-bravoBlue text-sm hover:underline">Players</button>
-                      <button type="button" onClick={() => { setEditingTeam(t.id); setTeamForm(t); }} className="text-bravoBlue text-sm hover:underline">Edit</button>
-                      <button type="button" onClick={async () => { await adminFetch(`/api/teams/${t.id}`, { method: "DELETE" }); loadData(); }} className="text-bravoRed text-sm hover:underline">Delete</button>
+                      <button type="button" onClick={() => { setEditingTeam(team.id); setTeamForm(team); setSelectedTeamId(team.id); setSection("players"); }} className="text-bravoBlue text-sm hover:underline">Players</button>
+                      <button type="button" onClick={() => { setEditingTeam(team.id); setTeamForm(team); }} className="text-bravoBlue text-sm hover:underline">Edit</button>
+                      <button type="button" onClick={async () => { await adminFetch(`/api/teams/${team.id}`, { method: "DELETE" }); loadData(); }} className="text-bravoRed text-sm hover:underline">Delete</button>
                     </div>
                   </div>
                 </div>
@@ -610,8 +628,8 @@ export default function AdminDashboard() {
                   {(selectedTeamId ? teamPlayers : players).map((p) => (
                     <tr key={p.id} className="border-b border-white/5">
                       <td className="px-4 py-3 font-semibold text-white">{p.inGameName ?? p.name}</td>
-                      <td className="px-4 py-3 text-slate-300">{p.teamName ?? "—"}</td>
-                      <td className="px-4 py-3 text-slate-300">{p.role ?? "—"}</td>
+                      <td className="px-4 py-3 text-slate-300">{p.teamName ?? "-"}</td>
+                      <td className="px-4 py-3 text-slate-300">{p.role ?? "-"}</td>
                       <td className="px-4 py-3 text-slate-300">{p.kills}</td>
                       <td className="px-4 py-3">
                         <button type="button" onClick={() => { setEditingPlayer(p.id); setPlayerForm(p); }} className="mr-2 text-bravoBlue hover:underline">Edit</button>
@@ -670,8 +688,8 @@ export default function AdminDashboard() {
                 <div key={s.id} className="esports-card flex flex-wrap items-center justify-between gap-4 p-5">
                   <div>
                     <p className="font-semibold text-white">{s.title}</p>
-                    <p className="text-sm text-text-muted">{s.date} · {s.map} · {s.lobbyTime}</p>
-                    <p className="text-xs text-text-muted">Room: {s.roomId ?? "—"} · Match IDs: {getScrimMatchIds(s).join(", ") || "—"}</p>
+                    <p className="text-sm text-text-muted">{s.date} - {s.map} - {s.lobbyTime}</p>
+                    <p className="text-xs text-text-muted">Room: {s.roomId ?? "-"} - Match IDs: {getScrimMatchIds(s).join(", ") || "-"}</p>
                     <span className="mt-2 inline-block rounded-full bg-white/5 px-2 py-0.5 text-[10px] uppercase text-accent-blue">{s.status}</span>
                   </div>
                   <div className="flex gap-2">
@@ -704,7 +722,7 @@ export default function AdminDashboard() {
                         <td className="font-semibold">{m.winner}</td>
                         <td className="points-cell">{m.points}</td>
                         <td>{m.knockouts}</td>
-                        <td className="text-text-muted">{m.syncedAt ? new Date(m.syncedAt).toLocaleString() : "—"}</td>
+                        <td className="text-text-muted">{m.syncedAt ? new Date(m.syncedAt).toLocaleString() : "-"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -831,8 +849,31 @@ export default function AdminDashboard() {
             <div className="esports-card space-y-4 p-6">
               <p className="font-semibold text-white">Firebase Status</p>
               <p className="text-sm text-slate-400">
-                {stats?.firebaseConnected ? "Connected — Firestore & Storage active" : "Not configured — add FIREBASE_* and NEXT_PUBLIC_FIREBASE_* env vars"}
+                {stats?.firebaseConnected ? "Connected - Firestore and Storage active" : "Not configured - add FIREBASE_* and NEXT_PUBLIC_FIREBASE_* env vars"}
               </p>
+            </div>
+            <div className="esports-card space-y-4 p-6">
+              <p className="font-semibold text-white">Recent Error Logs</p>
+              {errorLogs.length === 0 ? (
+                <p className="text-sm text-slate-400">No recent server errors logged.</p>
+              ) : (
+                <div className="space-y-3">
+                  {errorLogs.map((log) => (
+                    <div key={log.id} className="rounded-card border border-white/10 bg-bg-primary p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-white">{log.scope}</p>
+                        <p className="text-xs text-text-muted">{new Date(log.createdAt).toLocaleString()}</p>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-300">{log.message}</p>
+                      {log.pathname && (
+                        <p className="mt-1 text-xs text-text-muted">
+                          {log.method ?? "REQUEST"} {log.pathname}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="esports-card space-y-4 p-6">
               <p className="font-semibold text-white">Seed Database</p>
@@ -849,3 +890,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+

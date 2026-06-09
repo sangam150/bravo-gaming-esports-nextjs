@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { SESSION_COOKIE, verifyAdminToken } from "./firebase-auth-server";
+import { SESSION_COOKIE, verifyAdminSessionCookie, verifyAdminToken } from "./firebase-auth-server";
 
 export async function isAdminRequest(request: Request): Promise<boolean> {
   const authHeader = request.headers.get("authorization");
@@ -15,7 +15,7 @@ export async function isAdminRequest(request: Request): Promise<boolean> {
   const sessionCookie = request.headers.get("cookie")?.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`))?.[1];
   if (sessionCookie) {
     try {
-      await verifyAdminToken(sessionCookie);
+      await verifyAdminSessionCookie(sessionCookie);
       return true;
     } catch {
       return false;
@@ -36,7 +36,7 @@ export async function getServerAdminSession() {
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   try {
-    return await verifyAdminToken(token);
+    return await verifyAdminSessionCookie(token);
   } catch {
     return null;
   }

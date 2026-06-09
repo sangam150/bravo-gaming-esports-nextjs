@@ -59,6 +59,125 @@ function slugify(value: string) {
     .replace(/(^-|-$)/g, "");
 }
 
+function cleanString(value?: string | null) {
+  const normalizedValue = value?.trim();
+  return normalizedValue ? normalizedValue : undefined;
+}
+
+function cleanStringArray(values?: string[] | null) {
+  if (!values?.length) return undefined;
+
+  const normalizedValues = Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+  return normalizedValues.length > 0 ? normalizedValues : undefined;
+}
+
+function toNumber(value: number | undefined, fallback = 0) {
+  return Number.isFinite(value) ? Number(value) : fallback;
+}
+
+function toOptionalNumber(value: number | undefined) {
+  return Number.isFinite(value) ? Number(value) : undefined;
+}
+
+function normalizeTournamentPayload(data: Partial<Tournament> & { title: string }) {
+  const registeredTeamIds = cleanStringArray(data.registeredTeamIds) ?? [];
+
+  return {
+    title: data.title.trim(),
+    tier: cleanString(data.tier) ?? "OPEN",
+    status: data.status ?? "UPCOMING",
+    prizePool: cleanString(data.prizePool) ?? "TBD",
+    teamCount: Math.max(toNumber(data.teamCount, registeredTeamIds.length), registeredTeamIds.length),
+    maxTeams: Math.max(1, toNumber(data.maxTeams, 32)),
+    startDate: cleanString(data.startDate) ?? new Date().toISOString().slice(0, 10),
+    endDate: cleanString(data.endDate),
+    format: cleanString(data.format) ?? "TPP Squad",
+    mode: cleanString(data.mode) ?? "PUBG PC",
+    server: cleanString(data.server) ?? "Asia",
+    description: cleanString(data.description),
+    rules: cleanString(data.rules),
+    schedule: cleanString(data.schedule),
+    mapRotation: cleanStringArray(data.mapRotation),
+    bannerUrl: cleanString(data.bannerUrl),
+    registeredTeamIds,
+    createdAt: cleanString(data.createdAt),
+  } satisfies Partial<Tournament> & { title: string };
+}
+
+function normalizeTeamPayload(data: Partial<Team> & { name: string }) {
+  const canonicalLogo = cleanString(data.logoUrl ?? data.logo);
+
+  return {
+    name: data.name.trim(),
+    tag: cleanString(data.tag),
+    slotNumber: toOptionalNumber(data.slotNumber),
+    logo: canonicalLogo,
+    logoUrl: canonicalLogo,
+    country: cleanString(data.country),
+    rank: toOptionalNumber(data.rank),
+    totalPoints: toNumber(data.totalPoints),
+    kills: toNumber(data.kills),
+    matches: toNumber(data.matches),
+    placementPoints: toOptionalNumber(data.placementPoints),
+    status: data.status ?? "active",
+    registrationStatus: data.registrationStatus ?? "approved",
+    playerIds: cleanStringArray(data.playerIds),
+    captainName: cleanString(data.captainName),
+    captainDiscord: cleanString(data.captainDiscord),
+    captainPhone: cleanString(data.captainPhone),
+    captainEmail: cleanString(data.captainEmail),
+    createdAt: cleanString(data.createdAt),
+  } satisfies Partial<Team> & { name: string };
+}
+
+function normalizePlayerPayload(data: Partial<Player> & { name: string }) {
+  const canonicalName = (cleanString(data.name) ?? cleanString(data.inGameName) ?? "Unknown").trim();
+  const canonicalAvatar = cleanString(data.avatarUrl ?? data.avatar);
+
+  return {
+    name: canonicalName,
+    realName: cleanString(data.realName),
+    inGameName: cleanString(data.inGameName) ?? canonicalName,
+    teamId: cleanString(data.teamId),
+    teamName: cleanString(data.teamName),
+    avatar: canonicalAvatar,
+    avatarUrl: canonicalAvatar,
+    pubgId: cleanString(data.pubgId),
+    pubgName: cleanString(data.pubgName) ?? canonicalName,
+    role: data.role,
+    discord: cleanString(data.discord),
+    phone: cleanString(data.phone),
+    email: cleanString(data.email),
+    nationality: cleanString(data.nationality),
+    playerStatus: data.playerStatus ?? "active",
+    kills: toNumber(data.kills),
+    damage: toNumber(data.damage),
+    mvpCount: toNumber(data.mvpCount),
+    chickenDinners: toNumber(data.chickenDinners),
+    matches: toNumber(data.matches),
+    rating: toOptionalNumber(data.rating),
+    winRate: toOptionalNumber(data.winRate),
+    isMvpOfWeek: Boolean(data.isMvpOfWeek),
+    createdAt: cleanString(data.createdAt),
+  } satisfies Partial<Player> & { name: string };
+}
+
+function normalizeAnnouncementPayload(data: Partial<Announcement> & { title: string; detail: string }) {
+  return {
+    title: data.title.trim(),
+    detail: data.detail.trim(),
+    date:
+      cleanString(data.date) ??
+      new Date().toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).toUpperCase(),
+    category: cleanString(data.category),
+    published: data.published !== false,
+  } satisfies Partial<Announcement> & { title: string; detail: string };
+}
+
 function toKathmanduDateKey(value?: string) {
   if (!value) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -194,11 +313,12 @@ export async function getTournament(id: string): Promise<Tournament | null> {
 }
 
 export async function saveTournament(data: Partial<Tournament> & { title: string }, id?: string) {
-  const docId = id ?? slugify(data.title);
+  const payload = normalizeTournamentPayload(data);
+  const docId = id ?? slugify(payload.title);
   if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.tournaments, docId, data as Record<string, unknown>);
+    await saveFirestoreDocument(COLLECTIONS.tournaments, docId, payload as Record<string, unknown>);
   }
-  return { id: docId, ...data };
+  return { id: docId, ...payload };
 }
 
 export async function deleteTournament(id: string) {
@@ -341,7 +461,12 @@ export async function saveTournamentMatch(data: TournamentMatch) {
 }
 
 export async function getTeams(): Promise<Team[]> {
-  return fromFirestoreOrSeed<Team>(COLLECTIONS.teams, seedTeams, (a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  return fromFirestoreOrSeed<Team>(COLLECTIONS.teams, seedTeams, (a, b) => {
+    const firstSlot = a.slotNumber ?? Number.POSITIVE_INFINITY;
+    const secondSlot = b.slotNumber ?? Number.POSITIVE_INFINITY;
+    if (firstSlot !== secondSlot) return firstSlot - secondSlot;
+    return (a.rank ?? 99) - (b.rank ?? 99);
+  });
 }
 
 export async function getTeam(id: string): Promise<Team | null> {
@@ -349,11 +474,12 @@ export async function getTeam(id: string): Promise<Team | null> {
 }
 
 export async function saveTeam(data: Partial<Team> & { name: string }, id?: string) {
-  const docId = id ?? slugify(data.name);
+  const payload = normalizeTeamPayload(data);
+  const docId = id ?? slugify(payload.name);
   if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.teams, docId, data as Record<string, unknown>);
+    await saveFirestoreDocument(COLLECTIONS.teams, docId, payload as Record<string, unknown>);
   }
-  return { id: docId, ...data };
+  return { id: docId, ...payload };
 }
 
 export async function deleteTeam(id: string) {
@@ -377,11 +503,12 @@ export async function getMvpOfWeek(): Promise<Player | null> {
 }
 
 export async function savePlayer(data: Partial<Player> & { name: string }, id?: string) {
-  const docId = id ?? slugify(data.name);
+  const payload = normalizePlayerPayload(data);
+  const docId = id ?? slugify(payload.name);
   if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.players, docId, data as Record<string, unknown>);
+    await saveFirestoreDocument(COLLECTIONS.players, docId, payload as Record<string, unknown>);
   }
-  return { id: docId, ...data };
+  return { id: docId, ...payload };
 }
 
 export async function deletePlayer(id: string) {
@@ -419,11 +546,12 @@ export async function getAnnouncements(): Promise<Announcement[]> {
 }
 
 export async function saveAnnouncement(data: Partial<Announcement> & { title: string; detail: string }, id?: string) {
+  const payload = normalizeAnnouncementPayload(data);
   const docId = id ?? `ann-${Date.now()}`;
   if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.announcements, docId, data as Record<string, unknown>);
+    await saveFirestoreDocument(COLLECTIONS.announcements, docId, payload as Record<string, unknown>);
   }
-  return { id: docId, ...data };
+  return { id: docId, ...payload };
 }
 
 export async function deleteAnnouncement(id: string) {
@@ -497,7 +625,13 @@ export async function getRegistrations(): Promise<TeamRegistration[]> {
 
 export async function createRegistration(data: Omit<TeamRegistration, "id" | "createdAt" | "status">) {
   const payload = {
-    ...data,
+    teamName: data.teamName.trim(),
+    captainName: data.captainName.trim(),
+    captainDiscord: data.captainDiscord.trim(),
+    captainPhone: cleanString(data.captainPhone),
+    captainEmail: cleanString(data.captainEmail),
+    playerNames: cleanStringArray(data.playerNames) ?? [],
+    tournamentId: cleanString(data.tournamentId),
     status: "pending" as const,
     createdAt: new Date().toISOString(),
   };
@@ -519,7 +653,7 @@ export async function registerTeamForTournament(tournamentId: string, teamId: st
   const tournament = await getTournament(tournamentId);
   if (!tournament) throw new Error("Tournament not found");
   if (tournament.teamCount >= tournament.maxTeams) throw new Error("Tournament is full");
-  const registered = [...(tournament.registeredTeamIds ?? []), teamId];
+  const registered = Array.from(new Set([...(tournament.registeredTeamIds ?? []), teamId]));
   const updated = {
     ...tournament,
     registeredTeamIds: registered,

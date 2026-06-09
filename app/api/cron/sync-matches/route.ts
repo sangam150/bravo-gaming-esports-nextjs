@@ -1,8 +1,13 @@
 import { COLLECTIONS, fetchFirestoreCollection } from "@/lib/firebase";
 import { importPubgMatch } from "@/lib/pubg-sync";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { logServerError } from "@/lib/server-monitoring";
 import type { Scrim } from "@/lib/types";
 
 export async function GET(request: Request) {
+  const limited = enforceRateLimit(request, { key: "cron-sync-matches", maxRequests: 30, windowMs: 60_000 });
+  if (limited) return limited;
+
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
@@ -38,6 +43,7 @@ export async function GET(request: Request) {
 
     return Response.json({ success: true, synced: results.filter((r) => r.ok).length, results });
   } catch (error: unknown) {
+    await logServerError("cron.sync-matches", error, request);
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import BravoLogo from "@/components/ui/BravoLogo";
 
 const navItems = [
@@ -82,11 +82,11 @@ export default function Header() {
 
         <button
           type="button"
-          aria-label="Menu"
+          aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen(!open)}
-          className="flex h-10 w-10 items-center justify-center rounded-btn border border-white/[0.08] bg-bg-card text-white lg:hidden"
+          className="flex h-10 items-center justify-center rounded-btn border border-white/[0.08] bg-bg-card px-3 text-xs font-semibold uppercase tracking-[0.12em] text-white lg:hidden"
         >
-          {open ? "×" : "☰"}
+          {open ? "Close" : "Menu"}
         </button>
 
         <nav className="hidden flex-1 items-center justify-between lg:flex">
@@ -97,10 +97,12 @@ export default function Header() {
                   <button
                     type="button"
                     className={`flex items-center gap-1 px-3 py-2 font-display text-label font-bold uppercase tracking-[0.1em] transition hover:text-white ${
-                      item.items.some((s) => isActive(pathname, s.href)) ? "text-accent-blue" : "text-text-muted"
+                      item.items.some((subItem) => isActive(pathname, subItem.href))
+                        ? "text-accent-blue"
+                        : "text-text-muted"
                     }`}
                   >
-                    {item.label} <span className="text-[8px]">▾</span>
+                    {item.label} <span className="text-[8px]">v</span>
                   </button>
                 ) : (
                   <Link
@@ -117,15 +119,15 @@ export default function Header() {
                 )}
                 {item.items && (
                   <div className="invisible absolute left-0 top-full z-50 mt-0 w-52 rounded-card border border-white/[0.08] bg-bg-card p-1.5 opacity-0 shadow-card transition group-hover:visible group-hover:opacity-100">
-                    {item.items.map((sub) => (
+                    {item.items.map((subItem) => (
                       <Link
-                        key={sub.href}
-                        href={sub.href}
+                        key={subItem.href}
+                        href={subItem.href}
                         className={`block rounded px-3 py-2 text-xs font-semibold uppercase tracking-wide transition hover:bg-bg-hover hover:text-white ${
-                          isActive(pathname, sub.href) ? "text-accent-blue" : "text-text-muted"
+                          isActive(pathname, subItem.href) ? "text-accent-blue" : "text-text-muted"
                         }`}
                       >
-                        {sub.label}
+                        {subItem.label}
                       </Link>
                     ))}
                   </div>
@@ -150,21 +152,35 @@ export default function Header() {
             item.items ? (
               <div key={item.label} className="mb-3">
                 <p className="mb-1 px-2 text-label font-bold uppercase text-text-muted">{item.label}</p>
-                {item.items.map((sub) => (
-                  <Link key={sub.href} href={sub.href} onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm text-white hover:bg-bg-hover">
-                    {sub.label}
+                {item.items.map((subItem) => (
+                  <Link
+                    key={subItem.href}
+                    href={subItem.href}
+                    onClick={() => setOpen(false)}
+                    className="block rounded px-3 py-2 text-sm text-white hover:bg-bg-hover"
+                  >
+                    {subItem.label}
                   </Link>
                 ))}
               </div>
             ) : (
-              <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded px-3 py-2 font-bold text-white">
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className="block rounded px-3 py-2 font-bold text-white"
+              >
                 {item.label}
               </Link>
             )
           )}
           <div className="mt-3 flex flex-col gap-2">
-            <Link href="/live-stream" className="btn-watch-live text-center" onClick={() => setOpen(false)}>Watch Live</Link>
-            <a href="https://kamaucha.me/bravo" className="btn-discord text-center">Join Discord</a>
+            <Link href="/live-stream" className="btn-watch-live text-center" onClick={() => setOpen(false)}>
+              Watch Live
+            </Link>
+            <a href="https://kamaucha.me/bravo" className="btn-discord text-center">
+              Join Discord
+            </a>
           </div>
         </div>
       )}

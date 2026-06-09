@@ -4,13 +4,20 @@ const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
-function resolveStorageBucket(projectId?: string) {
-  return (
+export function getStorageBucketCandidates(projectIdOverride = projectId) {
+  const candidates = [
     process.env.FIREBASE_STORAGE_BUCKET ||
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-    (projectId ? `${projectId}.firebasestorage.app` : undefined) ||
-    (projectId ? `${projectId}.appspot.com` : undefined)
-  );
+      undefined,
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || undefined,
+    projectIdOverride ? `${projectIdOverride}.appspot.com` : undefined,
+    projectIdOverride ? `${projectIdOverride}.firebasestorage.app` : undefined,
+  ].filter((value): value is string => Boolean(value?.trim()));
+
+  return [...new Set(candidates)];
+}
+
+function resolveStorageBucket(projectIdOverride?: string) {
+  return getStorageBucketCandidates(projectIdOverride)[0];
 }
 
 export const COLLECTIONS = {
@@ -28,7 +35,33 @@ export const COLLECTIONS = {
   videos: "videos",
   pubgMatches: "pubgMatches",
   pubgPlayers: "pubgPlayers",
+  errorLogs: "errorLogs",
 } as const;
+
+type FirestoreInput = Record<string, unknown> | unknown[] | string | number | boolean | null | undefined;
+
+function sanitizeFirestoreValue(value: FirestoreInput): FirestoreInput {
+  if (Array.isArray(value)) {
+    return (value as FirestoreInput[])
+      .map((item) => sanitizeFirestoreValue(item))
+      .filter((item) => item !== undefined);
+  }
+
+  if (value && typeof value === "object" && !(value instanceof Date)) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .map(([key, nestedValue]) => [key, sanitizeFirestoreValue(nestedValue as FirestoreInput)] as const)
+        .filter((entry) => entry[1] !== undefined)
+    );
+  }
+
+  return value;
+}
+
+export function sanitizeFirestoreData(data: Record<string, unknown>) {
+  const { id: _ignoredId, ...payload } = data;
+  return sanitizeFirestoreValue(payload) as Record<string, unknown>;
+}
 
 export function getFirebaseApp() {
   return getFirebaseAppInternal();
@@ -85,7 +118,7 @@ export async function getFirestoreDocument<T = Record<string, unknown>>(collecti
 export async function saveFirestoreDocument(collectionName: string, docId: string, data: Record<string, unknown>) {
   const db = getFirestore();
   const docRef = db.collection(collectionName).doc(docId);
-  const payload = { ...data, updatedAt: new Date().toISOString() };
+  const payload = sanitizeFirestoreData({ ...data, updatedAt: new Date().toISOString() });
   await docRef.set(payload, { merge: true });
   return { id: docId, collection: collectionName };
 }
@@ -94,7 +127,7 @@ export async function createFirestoreDocument(collectionName: string, data: Reco
   const db = getFirestore();
   const docRef = docId ? db.collection(collectionName).doc(docId) : db.collection(collectionName).doc();
   const now = new Date().toISOString();
-  const payload = { ...data, createdAt: now, updatedAt: now };
+  const payload = sanitizeFirestoreData({ ...data, createdAt: now, updatedAt: now });
   await docRef.set(payload);
   return { id: docRef.id, collection: collectionName };
 }

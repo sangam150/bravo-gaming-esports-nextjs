@@ -31,5 +31,27 @@ export async function verifyAdminToken(idToken: string) {
   return decoded;
 }
 
+export async function createAdminSessionCookie(idToken: string, expiresInMs: number) {
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase Admin is not configured");
+  }
+
+  await verifyAdminToken(idToken);
+  return getAdminAuth().createSessionCookie(idToken, { expiresIn: expiresInMs });
+}
+
+export async function verifyAdminSessionCookie(sessionCookie: string) {
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase Admin is not configured");
+  }
+
+  const decoded = await getAdminAuth().verifySessionCookie(sessionCookie, true);
+  if (!isAdminEmail(decoded.email || "")) {
+    throw new Error("Unauthorized: not an admin user");
+  }
+
+  return decoded;
+}
+
 export const SESSION_COOKIE = "bravo_admin_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 5; // 5 days
