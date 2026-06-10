@@ -1,3 +1,5 @@
+import type { UploadType } from "./upload-config";
+
 export type TournamentStatus = "LIVE" | "OPEN" | "REGISTERING" | "UPCOMING" | "COMPLETED";
 export type RegistrationStatus = "pending" | "approved" | "rejected";
 export type PlayerRole = "IGL" | "Assaulter" | "Support" | "Sniper" | "Substitute";
@@ -226,8 +228,11 @@ export interface UploadRecord {
   id: string;
   path: string;
   url: string;
-  type: "team_logo" | "player_avatar" | "tournament_banner" | "match_screenshot";
+  type: UploadType;
   entityId?: string;
+  fileName?: string;
+  contentType?: string;
+  sizeBytes?: number;
   uploadedAt: string;
 }
 

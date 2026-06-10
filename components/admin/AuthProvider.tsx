@@ -31,12 +31,16 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const configured = isClientFirebaseConfigured();
 
   const establishSession = useCallback(async (idToken: string) => {
-    await fetch("/api/auth/session", {
+    const response = await fetch("/api/auth/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }),
       credentials: "include",
     });
+    return response.json().catch(() => ({ success: false, claimsUpdated: false })) as Promise<{
+      success?: boolean;
+      claimsUpdated?: boolean;
+    }>;
   }, []);
 
   const clearSession = useCallback(async () => {
@@ -55,7 +59,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (nextUser) {
         try {
           const token = await nextUser.getIdToken();
-          await establishSession(token);
+          const session = await establishSession(token);
+          if (session.claimsUpdated) {
+            await nextUser.getIdToken(true);
+          }
         } catch {
           /* session cookie optional fallback */
         }
@@ -81,6 +88,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (!res.ok) {
         await signOut(auth);
         throw new Error(data.error || "Admin login failed");
+      }
+      if (data.claimsUpdated) {
+        await cred.user.getIdToken(true);
       }
       setUser(cred.user);
     },

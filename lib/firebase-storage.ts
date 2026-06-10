@@ -1,8 +1,12 @@
 import admin from "firebase-admin";
 import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { getFirebaseApp, getStorageBucketCandidates, isFirebaseConfigured } from "./firebase";
+import {
+  sanitizeStorageSegment,
+  sanitizeUploadFileName,
+  STORAGE_DIRECTORY_BY_TYPE,
+  type UploadType,
+} from "./upload-config";
 
 function isMissingBucketError(error: unknown) {
   if (!(error instanceof Error)) return false;
@@ -17,6 +21,17 @@ function isMissingBucketError(error: unknown) {
 
 function buildFirebaseDownloadUrl(bucketName: string, filePath: string, token: string) {
   return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media&token=${token}`;
+}
+
+function isMissingFileError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+
+  const maybeCode = (error as Error & { code?: number | string }).code;
+  return (
+    maybeCode === 404 ||
+    maybeCode === "404" ||
+    error.message.toLowerCase().includes("no such object")
+  );
 }
 
 async function uploadToFirebaseBucket(
@@ -45,11 +60,27 @@ async function uploadToFirebaseBucket(
   return buildFirebaseDownloadUrl(bucket.name, filePath, downloadToken);
 }
 
-async function uploadToLocalDisk(buffer: Buffer, filePath: string) {
-  const diskPath = path.join(process.cwd(), "public", "uploads", ...filePath.split("/"));
-  await mkdir(path.dirname(diskPath), { recursive: true });
-  await writeFile(diskPath, buffer);
-  return `/uploads/${filePath}`;
+function getStorageConfigurationError() {
+  return new Error(
+    "Firebase Storage is required for uploads. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, and FIREBASE_STORAGE_BUCKET."
+  );
+}
+
+function parseFirebaseDownloadUrl(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname !== "firebasestorage.googleapis.com") return null;
+
+    const match = parsedUrl.pathname.match(/^\/v0\/b\/([^/]+)\/o\/(.+)$/);
+    if (!match) return null;
+
+    return {
+      bucketName: decodeURIComponent(match[1]),
+      filePath: decodeURIComponent(match[2]),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function uploadToStorage(
@@ -59,6 +90,10 @@ export async function uploadToStorage(
 ): Promise<string> {
   if (isFirebaseConfigured()) {
     const bucketNames = getStorageBucketCandidates();
+    if (bucketNames.length === 0) {
+      throw getStorageConfigurationError();
+    }
+
     let missingBucketCount = 0;
 
     for (const bucketName of bucketNames) {
@@ -74,19 +109,43 @@ export async function uploadToStorage(
     }
 
     if (bucketNames.length > 0 && missingBucketCount === bucketNames.length) {
-      return uploadToLocalDisk(buffer, filePath);
+      throw new Error(
+        `Firebase Storage bucket not found. Checked: ${bucketNames.join(", ")}. Set FIREBASE_STORAGE_BUCKET to your active bucket name.`
+      );
     }
   }
 
-  return uploadToLocalDisk(buffer, filePath);
+  throw getStorageConfigurationError();
 }
 
 export function buildStoragePath(
-  type: "team_logo" | "player_avatar" | "tournament_banner" | "match_screenshot",
+  type: UploadType,
   entityId: string,
   filename: string
 ) {
-  const safeEntityId = entityId.replace(/[^a-zA-Z0-9_-]/g, "_").replace(/_+/g, "_") || "general";
-  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  return `${type}/${safeEntityId}/${Date.now()}_${safeFilename}`;
+  const directory = STORAGE_DIRECTORY_BY_TYPE[type];
+  const safeEntityId = sanitizeStorageSegment(entityId);
+  const safeFilename = sanitizeUploadFileName(filename);
+  return `${directory}/${safeEntityId}/${randomUUID()}_${safeFilename}`;
+}
+
+export async function deleteFromStorageByUrl(url: string | null | undefined) {
+  if (!url) return false;
+
+  const parsed = parseFirebaseDownloadUrl(url);
+  if (!parsed) return false;
+
+  const app = getFirebaseApp();
+  if (!app) return false;
+
+  try {
+    await admin.storage(app).bucket(parsed.bucketName).file(parsed.filePath).delete();
+    return true;
+  } catch (error: unknown) {
+    if (isMissingFileError(error)) {
+      return false;
+    }
+
+    throw error;
+  }
 }

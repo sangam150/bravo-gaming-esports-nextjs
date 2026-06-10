@@ -1,6 +1,7 @@
 "use client";
 
 import { getClientAuth } from "./firebase-client";
+import type { UploadType } from "./upload-config";
 
 export async function getIdToken(): Promise<string | null> {
   const auth = getClientAuth();
@@ -24,14 +25,78 @@ export async function adminFetch(url: string, options: RequestInit = {}) {
   return data;
 }
 
+type UploadProgressCallback = (progress: number) => void;
+
+export type AdminUploadResponse = {
+  success: true;
+  id: string;
+  path: string;
+  url: string;
+};
+
+async function sendUploadRequest(
+  url: string,
+  formData: FormData,
+  headers: Headers,
+  onProgress?: UploadProgressCallback
+) {
+  return new Promise<AdminUploadResponse>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.withCredentials = true;
+
+    headers.forEach((value, key) => {
+      xhr.setRequestHeader(key, value);
+    });
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !onProgress) return;
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+
+    xhr.onload = () => {
+      let data: Partial<AdminUploadResponse> & { error?: string } = {};
+      try {
+        data = JSON.parse(xhr.responseText || "{}") as Partial<AdminUploadResponse> & { error?: string };
+      } catch {
+        data = {};
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300 && data.url && data.id && data.path) {
+        onProgress?.(100);
+        resolve(data as AdminUploadResponse);
+        return;
+      }
+
+      reject(new Error(data.error || "Upload failed"));
+    };
+
+    xhr.onerror = () => reject(new Error("Upload failed"));
+    xhr.onabort = () => reject(new Error("Upload canceled"));
+    xhr.send(formData);
+  });
+}
+
 export async function adminUpload(
   file: File,
-  type: "team_logo" | "player_avatar" | "tournament_banner" | "match_screenshot",
-  entityId: string
+  type: UploadType,
+  entityId: string,
+  options: {
+    onProgress?: UploadProgressCallback;
+    previousUrl?: string;
+  } = {}
 ) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("type", type);
   formData.append("entityId", entityId);
-  return adminFetch("/api/admin/upload", { method: "POST", body: formData });
+  if (options.previousUrl) {
+    formData.append("previousUrl", options.previousUrl);
+  }
+
+  const headers = new Headers();
+  const token = await getIdToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  return sendUploadRequest("/api/admin/upload", formData, headers, options.onProgress);
 }

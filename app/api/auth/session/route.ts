@@ -1,4 +1,10 @@
-import { createAdminSessionCookie, SESSION_COOKIE, SESSION_MAX_AGE, verifyAdminToken } from "@/lib/firebase-auth-server";
+import {
+  createAdminSessionCookie,
+  ensureAdminCustomClaim,
+  SESSION_COOKIE,
+  SESSION_MAX_AGE,
+  verifyAdminToken,
+} from "@/lib/firebase-auth-server";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 
@@ -12,9 +18,11 @@ export async function POST(request: Request) {
       return Response.json({ error: "idToken is required" }, { status: 400 });
     }
     const decoded = await verifyAdminToken(idToken);
+    const claimsUpdated = await ensureAdminCustomClaim(decoded.uid);
     const sessionCookie = await createAdminSessionCookie(idToken, SESSION_MAX_AGE * 1000);
     const response = Response.json({
       success: true,
+      claimsUpdated,
       user: { uid: decoded.uid, email: decoded.email },
     });
     const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";

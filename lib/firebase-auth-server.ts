@@ -31,6 +31,25 @@ export async function verifyAdminToken(idToken: string) {
   return decoded;
 }
 
+export async function ensureAdminCustomClaim(uid: string) {
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase Admin is not configured");
+  }
+
+  const auth = getAdminAuth();
+  const user = await auth.getUser(uid);
+  if (user.customClaims?.admin === true) {
+    return false;
+  }
+
+  await auth.setCustomUserClaims(uid, {
+    ...user.customClaims,
+    admin: true,
+  });
+
+  return true;
+}
+
 export async function createAdminSessionCookie(idToken: string, expiresInMs: number) {
   if (!isFirebaseConfigured()) {
     throw new Error("Firebase Admin is not configured");
