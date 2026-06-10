@@ -91,16 +91,35 @@ export interface TournamentMatch {
   dataSource: MatchDataSource;
   syncedAt?: string;
   teamResults?: TeamMatchResult[];
+  playerResults?: MatchPlayerResult[];
 }
 
 export interface TeamMatchResult {
   teamId?: string;
   teamName: string;
+  slotNumber?: number;
   placement: number;
   kills: number;
   damage: number;
   placementPoints: number;
   killPoints: number;
+  totalPoints: number;
+}
+
+export interface MatchPlayerResult {
+  playerId: string;
+  playerName: string;
+  pubgPlayerId?: string;
+  teamId?: string;
+  teamName: string;
+  slotNumber?: number;
+  placement: number;
+  kills: number;
+  assists: number;
+  knocks: number;
+  damage: number;
+  survivalTime: number;
+  placementPoints: number;
   totalPoints: number;
 }
 
@@ -207,6 +226,7 @@ export interface Scrim {
 export interface ScrimDayStanding {
   teamId?: string;
   teamName: string;
+  slotNumber?: number;
   matches: number;
   wins: number;
   kills: number;
@@ -222,6 +242,7 @@ export interface TournamentStanding {
   tournamentId: string;
   teamId: string;
   teamName: string;
+  slotNumber?: number;
   matches: number;
   wins: number;
   kills: number;
@@ -301,6 +322,7 @@ export interface LeaderboardRow {
   rank: number;
   teamId: string;
   team: string;
+  slotNumber?: number;
   matches: number;
   kills: number;
   killPoints?: number;
@@ -369,5 +391,38 @@ export interface PubgMatchImport {
   scrimId?: string;
   syncedAt: string;
   teamResults: TeamMatchResult[];
+  playerResults?: MatchPlayerResult[];
   dataSource: MatchDataSource;
+}
+
+export interface PubgPlayerMatchSummary {
+  matchId: string;
+  mapName: string;
+  gameMode: string;
+  createdAt: string;
+  duration?: number;
+  alreadyImported?: boolean;
+}
+
+export interface PubgPlayerLookup {
+  playerId: string;
+  playerName: string;
+  shardId: string;
+  recentMatches: PubgPlayerMatchSummary[];
+}
+
+export interface PubgImportWatcher {
+  id: string;
+  playerName: string;
+  playerId?: string;
+  shardId?: string;
+  tournamentId?: string;
+  scrimId?: string;
+  enabled: boolean;
+  autoImportNewMatches: boolean;
+  importedMatchIds?: string[];
+  lastCheckedAt?: string;
+  lastImportedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

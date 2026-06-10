@@ -281,12 +281,16 @@ function parseTournamentPayload(html: string) {
   return parsedPayload;
 }
 
-export async function fetchBravoFeedTournaments(): Promise<BravoTournamentFeedItem[]> {
+export async function fetchBravoFeedTournaments(options?: { maxDay?: number }): Promise<BravoTournamentFeedItem[]> {
   const indexHtml = await fetchText(BRAVO_FEED_URL);
   const cards = withFallbackCards(extractFeedCards(indexHtml));
+  const filteredCards =
+    typeof options?.maxDay === "number"
+      ? cards.filter((card) => card.dayNumber <= options.maxDay)
+      : cards;
 
   const tournamentItems = await Promise.all(
-    cards.map(async (card) => {
+    filteredCards.map(async (card) => {
       const detailHtml = await fetchText(card.sourceUrl);
       const payload = parseTournamentPayload(detailHtml);
       const dayNumber = parseDayNumber(payload.tournament.name) ?? card.dayNumber;

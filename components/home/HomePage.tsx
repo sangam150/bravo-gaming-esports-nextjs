@@ -48,7 +48,8 @@ export default async function HomePage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+    <div className="page-shell pb-12 pt-6">
+      <div className="page-stack">
       <div className="flex flex-col gap-6 xl:flex-row">
         <div className="hero-banner min-h-[420px] flex-1 overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_50%,_rgba(29,155,240,0.12),_transparent_45%)]" />
@@ -68,8 +69,8 @@ export default async function HomePage() {
             </p>
             <p className="tagline-italic mt-2">Where Champions Are Made</p>
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-text-muted">
-              Professional PUBG PC scrims, tournaments, esports broadcasts, team rankings, player statistics, and a
-              gaming community built for champions.
+              Live coverage of BRAVO GAMING ESPORTS DAILY PUBG PC SCRIMS with verified standings, slot-based team
+              tracking, esports broadcasts, and season history stored directly in Bravo&apos;s own platform.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Link href="/live-stream" className="btn-watch-live">
@@ -129,8 +130,9 @@ export default async function HomePage() {
               <div className="rounded-card border border-white/[0.06] bg-bg-primary p-4">
                 <p className="text-label uppercase text-text-muted">Season Length</p>
                 <p className="mt-2 text-2xl font-black text-accent-green">
-                  {currentSeasonOverview.season.configuredDays}
+                  {currentSeasonOverview.season.configuredDays} Days
                 </p>
+                <p className="mt-1 text-xs text-text-muted">Extendable to 30 days</p>
               </div>
             </div>
             <div className="mt-5 grid grid-cols-3 gap-3">
@@ -181,6 +183,7 @@ export default async function HomePage() {
                   <thead>
                     <tr>
                       <th>#</th>
+                      <th>Slot</th>
                       <th>Team</th>
                       <th>M</th>
                       <th>Kill</th>
@@ -194,6 +197,7 @@ export default async function HomePage() {
                         <td className={row.rank === 1 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>
                           #{row.rank}
                         </td>
+                        <td className="text-text-muted">{row.slotNumber ? `#${row.slotNumber}` : "-"}</td>
                         <td>
                           <Link href={`/teams/${row.teamId}`} className="flex items-center gap-2 hover:text-accent-blue">
                             <TeamAvatar name={row.team} imageUrl={row.logoUrl} size="sm" />
@@ -217,43 +221,49 @@ export default async function HomePage() {
       <section className="mt-8 grid gap-6 lg:grid-cols-12">
         <div className="lg:col-span-4">
           <SectionHeader title="Featured Tournaments" linkLabel="View All" linkHref="/tournaments" />
-          <div className="space-y-3">
-            {tournaments.slice(0, 3).map((tournament) => (
-              <Link key={tournament.id} href={`/tournaments/${tournament.id}`} className="tournament-card block p-4">
-                <div className="flex gap-3">
-                  <TeamAvatar name={tournament.title} size="lg" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="truncate font-display text-[15px] font-semibold uppercase text-white">
-                        {tournament.title}
-                      </h3>
-                      <StatusBadge status={tournament.status} />
-                    </div>
-                    <div className="mt-2 grid grid-cols-3 gap-1 text-center">
-                      <div>
-                        <p className="text-label uppercase text-text-muted">Prize</p>
-                        <p className="font-mono-stat text-xs font-bold text-white">
-                          {tournament.prizePool.replace("NPR ", "")}
-                        </p>
+          {tournaments.length === 0 ? (
+            <div className="esports-card p-6 text-center text-sm text-text-muted">
+              Tournament records will appear here after the Bravo season is synced.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tournaments.slice(0, 3).map((tournament) => (
+                <Link key={tournament.id} href={`/tournaments/${tournament.id}`} className="tournament-card block p-4">
+                  <div className="flex gap-3">
+                    <TeamAvatar name={tournament.title} size="lg" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="truncate font-display text-[15px] font-semibold uppercase text-white">
+                          {tournament.title}
+                        </h3>
+                        <StatusBadge status={tournament.status} />
                       </div>
-                      <div>
-                        <p className="text-label uppercase text-text-muted">Teams</p>
-                        <p className="font-mono-stat text-xs font-bold text-white">
-                          {tournament.teamCount}/{tournament.maxTeams}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-label uppercase text-text-muted">Starts</p>
-                        <p className="font-mono-stat text-xs font-bold text-accent-blue">
-                          {countdown(tournament.startDate)}
-                        </p>
+                      <div className="mt-2 grid grid-cols-3 gap-1 text-center">
+                        <div>
+                          <p className="text-label uppercase text-text-muted">Prize</p>
+                          <p className="font-mono-stat text-xs font-bold text-white">
+                            {tournament.prizePool.replace("NPR ", "")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-label uppercase text-text-muted">Teams</p>
+                          <p className="font-mono-stat text-xs font-bold text-white">
+                            {tournament.teamCount}/{tournament.maxTeams}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-label uppercase text-text-muted">Starts</p>
+                          <p className="font-mono-stat text-xs font-bold text-accent-blue">
+                            {countdown(tournament.startDate)}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-5">
@@ -267,6 +277,7 @@ export default async function HomePage() {
                   <thead>
                     <tr>
                       <th>#</th>
+                      <th>Slot</th>
                       <th>Team</th>
                       <th>M</th>
                       <th>K</th>
@@ -280,6 +291,7 @@ export default async function HomePage() {
                         <td className={row.rank === 1 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>
                           #{row.rank}
                         </td>
+                        <td className="text-text-muted">{row.slotNumber ? `#${row.slotNumber}` : "-"}</td>
                         <td>
                           <Link href={`/teams/${row.teamId}`} className="flex items-center gap-2 hover:text-accent-blue">
                             <TeamAvatar name={row.team} size="sm" />
@@ -396,6 +408,7 @@ export default async function HomePage() {
       </section>
 
       <SponsorStrip />
+      </div>
     </div>
   );
 }

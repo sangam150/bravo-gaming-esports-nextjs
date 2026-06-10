@@ -70,8 +70,8 @@ export default function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-bg-primary">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-bg-primary/90 backdrop-blur-xl">
+      <div className="page-inner flex items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2.5">
           <BravoLogo size={40} />
           <div className="hidden sm:block">
@@ -90,13 +90,13 @@ export default function Header() {
         </button>
 
         <nav className="hidden min-w-0 flex-1 items-center justify-between xl:flex">
-          <div className="flex min-w-0 items-center gap-0.5">
+          <div className="flex min-w-0 items-center gap-1">
             {navItems.map((item) => (
               <div key={item.label} className="group relative">
                 {item.items ? (
                   <button
                     type="button"
-                    className={`flex items-center gap-1 px-2.5 py-2 font-display text-[11px] font-bold uppercase tracking-[0.08em] transition hover:text-white ${
+                    className={`flex items-center gap-1 rounded-btn px-3 py-2 font-display text-[11px] font-bold uppercase tracking-[0.08em] transition hover:bg-white/[0.04] hover:text-white ${
                       item.items.some((subItem) => isActive(pathname, subItem.href))
                         ? "text-accent-blue"
                         : "text-text-muted"
@@ -107,13 +107,13 @@ export default function Header() {
                 ) : (
                   <Link
                     href={item.href}
-                    className={`relative px-2.5 py-2 font-display text-[11px] font-bold uppercase tracking-[0.08em] transition hover:text-white ${
-                      isActive(pathname, item.href) ? "text-white" : "text-text-muted"
+                    className={`relative rounded-btn px-3 py-2 font-display text-[11px] font-bold uppercase tracking-[0.08em] transition hover:bg-white/[0.04] hover:text-white ${
+                      isActive(pathname, item.href) ? "bg-white/[0.04] text-white" : "text-text-muted"
                     }`}
                   >
                     {item.label}
                     {isActive(pathname, item.href) && (
-                      <span className="absolute bottom-0 left-2.5 right-2.5 h-0.5 bg-accent-blue" />
+                      <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-accent-blue" />
                     )}
                   </Link>
                 )}
@@ -148,7 +148,7 @@ export default function Header() {
 
       {open && (
         <div className="border-t border-white/[0.08] bg-bg-card xl:hidden">
-          <div className="mx-auto max-h-[calc(100vh-72px)] max-w-7xl overflow-y-auto px-4 py-4 sm:px-6">
+          <div className="page-inner max-h-[calc(100vh-72px)] overflow-y-auto px-4 py-4 sm:px-6">
             <div className="grid gap-4 sm:grid-cols-2">
               {navItems.map((item) =>
                 item.items ? (

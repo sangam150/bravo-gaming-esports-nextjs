@@ -13,6 +13,7 @@ import {
 } from "./data";
 import { importBravoGamingFeed } from "./bravo-feed-import";
 import { buildBravoTournamentSlug, buildBravoTournamentTitle } from "./bravo-feed";
+import { getBravoCanonicalTeamIds, getBravoCanonicalTeams, resolveBravoTeamIdentity } from "./bravo-teams";
 import { buildSeasonLeaderboard } from "./season-standings";
 import {
   COLLECTIONS,
@@ -22,14 +23,15 @@ import {
   queryFirestoreCollection,
   saveFirestoreDocument,
 } from "./firebase";
-import type { Player, Scrim, Season, SiteStats, Team, Tournament, TournamentStanding } from "./types";
+import type { Player, Scrim, Season, SiteStats, Team, Tournament, TournamentMatch, TournamentStanding } from "./types";
 
 const BRAVO_SEASON_SERIES_TITLE = "BRAVO GAMING ESPORTS DAILY PUBG PC SCRIMS";
 const BRAVO_SEASON_START_DATE = "2026-06-05";
 const BRAVO_SEASON_NUMBER = 1;
 const BRAVO_SEASON_SLUG = "bravo-gaming-esports-daily-pubg-pc-scrims-season-1";
 const DEFAULT_SEASON_LENGTH = 15;
-const DEFAULT_CURRENT_DAY = 5;
+const DEFAULT_CURRENT_DAY = 6;
+const BRAVO_REFERENCE_IMPORT_MAX_DAY = 3;
 
 function slugify(value: string) {
   return value
@@ -49,7 +51,7 @@ function addDays(startDate: string, dayOffset: number) {
 }
 
 function buildSeasonTeamId(seasonId: string, teamName: string) {
-  return `${seasonId}--${slugify(teamName)}`;
+  return resolveBravoTeamIdentity(teamName)?.id ?? `${seasonId}--${slugify(teamName)}`;
 }
 
 function buildSeasonPlayerId(seasonId: string, sourcePlayerId: string, playerName: string) {
@@ -88,6 +90,27 @@ async function deleteMissingSeasonDocuments<T extends { id: string }>(
   );
 }
 
+async function purgeTournamentScope(tournamentId: string) {
+  const [matches, tournamentMatches, matchResults, standings, teams, players] = await Promise.all([
+    queryFirestoreCollection<TournamentMatch>(COLLECTIONS.matches, "tournamentId", tournamentId, 500),
+    queryFirestoreCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, "tournamentId", tournamentId, 500),
+    queryFirestoreCollection<TournamentMatch>(COLLECTIONS.matchResults, "tournamentId", tournamentId, 500),
+    queryFirestoreCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 500),
+    queryFirestoreCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 500),
+    queryFirestoreCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 1000),
+  ]);
+
+  await Promise.all([
+    ...matches.map((match) => deleteFirestoreDocument(COLLECTIONS.matches, match.id)),
+    ...tournamentMatches.map((match) => deleteFirestoreDocument(COLLECTIONS.tournamentMatches, match.id)),
+    ...matchResults.map((match) => deleteFirestoreDocument(COLLECTIONS.matchResults, match.id)),
+    ...standings.map((standing) => deleteFirestoreDocument(COLLECTIONS.standings, standing.id)),
+    ...teams.map((team) => deleteFirestoreDocument(COLLECTIONS.teams, team.id)),
+    ...players.map((player) => deleteFirestoreDocument(COLLECTIONS.players, player.id)),
+    deleteFirestoreDocument(COLLECTIONS.tournaments, tournamentId),
+  ]);
+}
+
 type TournamentSnapshot = {
   tournament: Tournament;
   matches: Awaited<ReturnType<typeof getTournamentMatches>>;
@@ -105,7 +128,10 @@ export async function syncBravoDailyScrimSeason(options?: {
     throw new Error("Firebase is not configured. Add FIREBASE_* credentials before syncing Bravo season data.");
   }
 
-  const importedFeed = options?.importFeed === false ? null : await importBravoGamingFeed();
+  const importedFeed =
+    options?.importFeed === false
+      ? null
+      : await importBravoGamingFeed({ maxDay: BRAVO_REFERENCE_IMPORT_MAX_DAY });
   const existingSeason = await getSeason(BRAVO_SEASON_SLUG);
   const configuredDays = Math.max(
     options?.configuredDays ?? Number(existingSeason?.configuredDays ?? DEFAULT_SEASON_LENGTH),
@@ -115,8 +141,31 @@ export async function syncBravoDailyScrimSeason(options?: {
   const now = new Date().toISOString();
 
   const tournaments = await getTournaments();
-  const importedBravoTournaments = tournaments
-    .filter((tournament) => tournament.sourceProvider === "bravo_feed" && typeof tournament.dayNumber === "number")
+  const deprecatedFeedTournaments = tournaments.filter(
+    (tournament) =>
+      tournament.sourceProvider === "bravo_feed" &&
+      typeof tournament.dayNumber === "number" &&
+      (tournament.dayNumber ?? 0) > BRAVO_REFERENCE_IMPORT_MAX_DAY
+  );
+
+  if (deprecatedFeedTournaments.length > 0) {
+    await Promise.all(deprecatedFeedTournaments.map((tournament) => purgeTournamentScope(tournament.id)));
+  }
+
+  const refreshedTournaments = deprecatedFeedTournaments.length > 0 ? await getTournaments() : tournaments;
+  const existingSeasonTournaments = refreshedTournaments.filter((tournament) => tournament.seasonId === BRAVO_SEASON_SLUG);
+  const existingSeasonTournamentsByDay = new Map(
+    existingSeasonTournaments
+      .filter((tournament) => typeof (tournament.seasonDayNumber ?? tournament.dayNumber) === "number")
+      .map((tournament) => [tournament.seasonDayNumber ?? tournament.dayNumber ?? 0, tournament])
+  );
+  const importedBravoTournaments = refreshedTournaments
+    .filter(
+      (tournament) =>
+        tournament.sourceProvider === "bravo_feed" &&
+        typeof tournament.dayNumber === "number" &&
+        (tournament.dayNumber ?? 0) <= BRAVO_REFERENCE_IMPORT_MAX_DAY
+    )
     .sort((firstTournament, secondTournament) => (firstTournament.dayNumber ?? 0) - (secondTournament.dayNumber ?? 0));
 
   const tournamentByDay = new Map(importedBravoTournaments.map((tournament) => [tournament.dayNumber ?? 0, tournament]));
@@ -142,13 +191,23 @@ export async function syncBravoDailyScrimSeason(options?: {
 
   for (let dayNumber = maxImportedDay + 1; dayNumber <= currentDay; dayNumber += 1) {
     const tournamentId = buildBravoTournamentSlug(dayNumber);
+    const existingTournament = existingSeasonTournamentsByDay.get(dayNumber);
     const placeholderTournament: Partial<Tournament> & { title: string } = {
+      ...existingTournament,
       title: buildBravoTournamentTitle(dayNumber),
       tier: "C-TIER",
-      status: normalizeTournamentPlaceholderStatus(dayNumber, currentDay),
-      prizePool: "$0",
-      teamCount: 0,
-      maxTeams: 32,
+      status:
+        existingTournament?.matchCount && existingTournament.matchCount > 0
+          ? dayNumber < currentDay
+            ? "COMPLETED"
+            : "LIVE"
+          : normalizeTournamentPlaceholderStatus(dayNumber, currentDay),
+      prizePool: "Not imported yet",
+      teamCount:
+        existingTournament?.teamCount && existingTournament.teamCount > 0
+          ? existingTournament.teamCount
+          : getBravoCanonicalTeamIds().length,
+      maxTeams: Math.max(existingTournament?.maxTeams ?? 0, getBravoCanonicalTeamIds().length),
       startDate: addDays(BRAVO_SEASON_START_DATE, dayNumber - 1),
       endDate: addDays(BRAVO_SEASON_START_DATE, dayNumber - 1),
       format: "Squad",
@@ -159,17 +218,22 @@ export async function syncBravoDailyScrimSeason(options?: {
         dayNumber === currentDay
           ? "Current Bravo daily scrim day is active on our platform. Official match results are still pending import."
           : "Historical Bravo daily scrim record placeholder awaiting a verified internal import.",
-      registeredTeamIds: [],
+      registeredTeamIds:
+        existingTournament?.registeredTeamIds && existingTournament.registeredTeamIds.length > 0
+          ? existingTournament.registeredTeamIds
+          : getBravoCanonicalTeamIds(),
       dayNumber,
-      matchCount: 0,
+      matchCount: existingTournament?.matchCount ?? 0,
       seasonId: BRAVO_SEASON_SLUG,
       seasonTitle: BRAVO_SEASON_SERIES_TITLE,
       seasonNumber: BRAVO_SEASON_NUMBER,
       seasonDayNumber: dayNumber,
       sourceName: buildBravoTournamentTitle(dayNumber),
-      sourceStatus: dayNumber === currentDay ? "pending" : "scheduled",
-      sourceProvider: "bravo_season",
-      createdAt: now,
+      sourceStatus:
+        existingTournament?.sourceStatus ??
+        (dayNumber === currentDay ? "pending" : existingTournament?.matchCount ? "completed" : "scheduled"),
+      sourceProvider: existingTournament?.sourceProvider ?? "bravo_season",
+      createdAt: existingTournament?.createdAt ?? now,
     };
 
     const savedTournament = await saveTournament(placeholderTournament, tournamentId);
@@ -238,6 +302,15 @@ export async function syncBravoDailyScrimSeason(options?: {
       sourceTeamNames: Set<string>;
     }
   >();
+
+  for (const canonicalTeam of getBravoCanonicalTeams()) {
+    teamMetadata.set(canonicalTeam.id, {
+      teamName: canonicalTeam.name,
+      slotNumber: canonicalTeam.slotNumber,
+      dayNumbers: new Set<number>(),
+      sourceTeamNames: new Set<string>([canonicalTeam.name]),
+    });
+  }
 
   const mappedStandings: TournamentStanding[] = [];
   const playerAggregateMap = new Map<
@@ -310,6 +383,10 @@ export async function syncBravoDailyScrimSeason(options?: {
       mappedStandings.push({
         ...standing,
         teamId: seasonTeamId,
+        slotNumber:
+          standing.slotNumber ??
+          teamMetadata.get(seasonTeamId)?.slotNumber ??
+          resolveBravoTeamIdentity(standing.teamName)?.slotNumber,
         seasonId: BRAVO_SEASON_SLUG,
         seasonTitle: BRAVO_SEASON_SERIES_TITLE,
         seasonDayNumber: dayNumber,
@@ -319,6 +396,10 @@ export async function syncBravoDailyScrimSeason(options?: {
       await saveFirestoreDocument(COLLECTIONS.standings, standing.id, {
         ...standing,
         teamId: seasonTeamId,
+        slotNumber:
+          standing.slotNumber ??
+          teamMetadata.get(seasonTeamId)?.slotNumber ??
+          resolveBravoTeamIdentity(standing.teamName)?.slotNumber,
         seasonId: BRAVO_SEASON_SLUG,
         seasonTitle: BRAVO_SEASON_SERIES_TITLE,
         seasonDayNumber: dayNumber,
@@ -468,29 +549,31 @@ export async function syncBravoDailyScrimSeason(options?: {
     playerIdsByTeamId.set(playerDocument.teamId, currentPlayerIds);
   }
 
-  const seasonTeamDocs = leaderboardEntries.map((entry) => {
-    const metadata = teamMetadata.get(entry.teamId);
-    const existingSeasonTeam = existingSeasonTeamById.get(entry.teamId);
+  const leaderboardEntriesByTeamId = new Map(leaderboardEntries.map((entry) => [entry.teamId, entry]));
+  const seasonTeamDocs = getBravoCanonicalTeams().map((canonicalTeam) => {
+    const metadata = teamMetadata.get(canonicalTeam.id);
+    const existingSeasonTeam = existingSeasonTeamById.get(canonicalTeam.id);
+    const leaderboardEntry = leaderboardEntriesByTeamId.get(canonicalTeam.id);
 
     return {
-      id: entry.teamId,
-      name: entry.teamName,
-      tag: existingSeasonTeam?.tag ?? `S${BRAVO_SEASON_NUMBER}`,
-      slotNumber: metadata?.slotNumber,
+      id: canonicalTeam.id,
+      name: canonicalTeam.name,
+      tag: existingSeasonTeam?.tag ?? canonicalTeam.tag ?? `S${BRAVO_SEASON_NUMBER}`,
+      slotNumber: existingSeasonTeam?.slotNumber ?? metadata?.slotNumber ?? canonicalTeam.slotNumber,
       logoUrl: existingSeasonTeam?.logoUrl ?? metadata?.logoUrl ?? metadata?.logo,
       logo: existingSeasonTeam?.logo ?? metadata?.logo ?? metadata?.logoUrl,
       country: existingSeasonTeam?.country ?? metadata?.country,
-      rank: entry.rank,
-      totalPoints: entry.totalPoints,
-      kills: entry.kills,
-      matches: entry.matches,
-      killPoints: entry.killPoints,
-      placementPoints: entry.placementPoints,
-      averagePlacement: entry.averagePlacement,
-      chickenDinners: entry.chickenDinners,
+      rank: leaderboardEntry?.rank,
+      totalPoints: leaderboardEntry?.totalPoints ?? 0,
+      kills: leaderboardEntry?.kills ?? 0,
+      matches: leaderboardEntry?.matches ?? 0,
+      killPoints: leaderboardEntry?.killPoints ?? 0,
+      placementPoints: leaderboardEntry?.placementPoints ?? 0,
+      averagePlacement: leaderboardEntry?.averagePlacement,
+      chickenDinners: leaderboardEntry?.chickenDinners ?? 0,
       status: existingSeasonTeam?.status ?? "active",
       registrationStatus: existingSeasonTeam?.registrationStatus ?? "approved",
-      playerIds: playerIdsByTeamId.get(entry.teamId) ?? [],
+      playerIds: playerIdsByTeamId.get(canonicalTeam.id) ?? [],
       captainName: existingSeasonTeam?.captainName,
       captainDiscord: existingSeasonTeam?.captainDiscord,
       captainPhone: existingSeasonTeam?.captainPhone,
@@ -498,8 +581,8 @@ export async function syncBravoDailyScrimSeason(options?: {
       scope: "season" as const,
       seasonId: BRAVO_SEASON_SLUG,
       seasonTitle: BRAVO_SEASON_SERIES_TITLE,
-      seasonDayNumbers: entry.dayNumbers,
-      sourceTeamName: metadata?.teamName ?? entry.teamName,
+      seasonDayNumbers: leaderboardEntry?.dayNumbers ?? Array.from(metadata?.dayNumbers ?? []).sort((a, b) => a - b),
+      sourceTeamName: metadata?.teamName ?? canonicalTeam.name,
       sourceProvider: "bravo_season",
     } satisfies Partial<Team> & { id: string; name: string };
   });

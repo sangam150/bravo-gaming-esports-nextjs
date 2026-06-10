@@ -13,7 +13,7 @@ const sections = [
   { id: "leaderboard", label: "Leaderboard" },
   { id: "announcements", label: "Announcements" },
   { id: "registrations", label: "Registrations" },
-  { id: "pubg", label: "Live Import" },
+  { id: "pubg", label: "PUBG Import" },
   { id: "settings", label: "Settings" },
 ] as const;
 

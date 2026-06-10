@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminSidebar, { type AdminSection } from "./AdminSidebar";
 import BulkTeamLogoUpload from "./BulkTeamLogoUpload";
 import FileUpload from "./FileUpload";
+import PubgImportManager from "./PubgImportManager";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { useAdminAuth } from "./AuthProvider";
 import { adminFetch } from "@/lib/admin-api";
@@ -54,7 +55,7 @@ const defaultSeasonForm: Partial<Season> = {
   status: "active",
   startDate: "2026-06-05",
   configuredDays: 15,
-  currentDay: 5,
+  currentDay: 6,
   game: "PUBG PC",
   format: "Squad",
   region: "Global",
@@ -289,7 +290,7 @@ export default function AdminDashboard() {
         method: "POST",
         body: JSON.stringify({
           configuredDays: Number(targetSeason?.configuredDays ?? activeSeason?.configuredDays ?? seasonForm.configuredDays ?? 15),
-          currentDay: Number(targetSeason?.currentDay ?? activeSeason?.currentDay ?? seasonForm.currentDay ?? 5),
+          currentDay: Number(targetSeason?.currentDay ?? activeSeason?.currentDay ?? seasonForm.currentDay ?? 6),
         }),
       });
 
@@ -519,7 +520,7 @@ export default function AdminDashboard() {
         method: "POST",
         body: JSON.stringify({
           configuredDays: Number(activeSeason?.configuredDays ?? seasonForm.configuredDays ?? 15),
-          currentDay: Number(activeSeason?.currentDay ?? seasonForm.currentDay ?? 5),
+          currentDay: Number(activeSeason?.currentDay ?? seasonForm.currentDay ?? 6),
         }),
       });
       setMessage(response.message ?? "Imported Bravo Gaming feed data.");
@@ -686,7 +687,7 @@ export default function AdminDashboard() {
                 </p>
               </div>
               <button type="button" onClick={() => void handleSeasonSync(activeSeason ?? seasonForm)} disabled={syncingSeason} className={btnPrimary}>
-                {syncingSeason ? "Syncing Season..." : "Sync Bravo Daily Scrims"}
+                {syncingSeason ? "Syncing Season..." : "Sync Bravo Season (Day 1-3 + Day 6)"}
               </button>
             </div>
 
@@ -846,7 +847,7 @@ export default function AdminDashboard() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-2xl font-black text-white">{editingTournament ? "Edit Tournament" : "Create Tournament"}</h2>
               <button type="button" onClick={handleImportBravoFeed} disabled={importingBravoFeed} className={btnPrimary}>
-                {importingBravoFeed ? "Importing Feed..." : "Import Bravo Gaming Feed Data"}
+                {importingBravoFeed ? "Importing Feed..." : "Import Reference Day 1-3 Data"}
               </button>
             </div>
             <form onSubmit={handleTournamentSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
@@ -1112,7 +1113,18 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex gap-2">
                     {getScrimMatchIds(s).length > 0 && (
-                      <button type="button" onClick={async () => { setMatchId(formatScrimMatchIds(s)); setImportScrimId(s.id); setSection("pubg"); }} className="btn-secondary !text-[11px]">Import Data</button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setMatchId(formatScrimMatchIds(s));
+                          setImportScrimId(s.id);
+                          setImportTournamentId(s.tournamentId ?? "");
+                          setSection("pubg");
+                        }}
+                        className="btn-secondary !text-[11px]"
+                      >
+                        Import Data
+                      </button>
                     )}
                     <button type="button" onClick={() => { setEditingScrim(s.id); setScrimForm({ ...s, pubgMatchIds: getScrimMatchIds(s), pubgMatchId: getScrimMatchIds(s)[0] }); }} className="text-bravoBlue text-sm hover:underline">Edit</button>
                     <button type="button" onClick={async () => { await adminFetch(`/api/admin/scrims?id=${s.id}`, { method: "DELETE" }); loadData(); }} className="text-bravoRed text-sm hover:underline">Delete</button>
@@ -1232,37 +1244,14 @@ export default function AdminDashboard() {
         )}
 
         {section === "pubg" && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-black text-white">Import Live Match Data</h2>
-            <p className="text-sm text-text-muted">All points, kills, and rankings are imported from the real PUBG PC API. No random or demo data is generated.</p>
-            <div className="esports-card grid gap-4 p-6 sm:grid-cols-2">
-              <textarea className={`${inputClass} sm:col-span-2`} placeholder="PUBG Match IDs (one per line or comma separated)" rows={4} value={matchId} onChange={(e) => setMatchId(e.target.value)} />
-              <select className={inputClass} value={importTournamentId} onChange={(e) => setImportTournamentId(e.target.value)}>
-                <option value="">Link to tournament (optional)</option>
-                {tournaments.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
-              </select>
-              <select className={inputClass} value={importScrimId} onChange={(e) => {
-                const nextScrimId = e.target.value;
-                setImportScrimId(nextScrimId);
-                const selectedScrim = scrims.find((scrim) => scrim.id === nextScrimId);
-                if (selectedScrim) {
-                  setMatchId(formatScrimMatchIds(selectedScrim));
-                }
-              }}>
-                <option value="">Link to scrim (optional)</option>
-                {scrims.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
-              </select>
-              <FileUpload type="match_screenshot" entityId={normalizeMatchIds(matchId)[0] || "match"} label="Result Screenshot" currentUrl={screenshotUrl} onUploaded={setScreenshotUrl} />
-              <div className="sm:col-span-2 flex gap-3">
-                <button type="button" onClick={handleImportMatch} disabled={importing} className={btnPrimary}>
-                  {importing ? "Importing..." : "Import Match Data"}
-                </button>
-              </div>
-            </div>
-            {pubgResult && (
-              <pre className="esports-card max-h-80 overflow-auto p-4 text-xs text-slate-300">{JSON.stringify(pubgResult, null, 2)}</pre>
-            )}
-          </div>
+          <PubgImportManager
+            tournaments={tournaments}
+            scrims={scrims}
+            initialMatchIds={matchId}
+            initialTournamentId={importTournamentId}
+            initialScrimId={importScrimId}
+            onImported={loadData}
+          />
         )}
 
         {section === "settings" && (

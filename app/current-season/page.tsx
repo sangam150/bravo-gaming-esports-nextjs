@@ -24,7 +24,8 @@ export default async function CurrentSeasonPage() {
 
   if (!overview) {
     return (
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="page-shell">
+        <div className="page-inner">
         <section className="page-hero p-8 text-center">
           <p className="section-title">Current Season</p>
           <h1 className="hero-h1 mt-2 !text-4xl">Season data unavailable</h1>
@@ -32,6 +33,7 @@ export default async function CurrentSeasonPage() {
             Import Bravo daily scrim data from admin to initialize the current season.
           </p>
         </section>
+        </div>
       </main>
     );
   }
@@ -40,7 +42,8 @@ export default async function CurrentSeasonPage() {
     overview;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="page-shell">
+      <div className="page-inner">
       <section className="page-hero overflow-hidden p-6 sm:p-8">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_10%,rgba(0,217,126,0.12),transparent_35%),radial-gradient(circle_at_10%_25%,rgba(29,155,240,0.16),transparent_30%)]" />
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -64,7 +67,7 @@ export default async function CurrentSeasonPage() {
         </div>
 
         <div className="relative z-10 mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          {[
+          {[ 
             { label: "Season Start", value: formatDate(season.startDate) },
             { label: "Current Day", value: `Day ${season.currentDay}` },
             { label: "Season Status", value: formatSeasonStatus(season.status) },
@@ -78,6 +81,9 @@ export default async function CurrentSeasonPage() {
             </div>
           ))}
         </div>
+        <p className="relative z-10 mt-4 text-sm text-text-muted">
+          The first Bravo season runs for 15 days starting on June 5, 2026, and can be extended to 30 days if needed.
+        </p>
       </section>
 
       <section className="mt-8 grid gap-6 xl:grid-cols-[1.15fr,1.85fr]">
@@ -158,6 +164,7 @@ export default async function CurrentSeasonPage() {
                 <thead>
                   <tr>
                     <th>#</th>
+                    <th>Slot</th>
                     <th>Team</th>
                     <th>M</th>
                     <th>Kill Pts</th>
@@ -173,6 +180,7 @@ export default async function CurrentSeasonPage() {
                       <td className={row.rank === 1 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>
                         #{row.rank}
                       </td>
+                      <td>{row.slotNumber ? `#${row.slotNumber}` : "-"}</td>
                       <td>
                         <Link href={`/teams/${row.teamId}`} className="flex items-center gap-3 hover:text-accent-blue">
                           <TeamAvatar name={row.team} imageUrl={row.logoUrl} size="sm" />
@@ -246,6 +254,7 @@ export default async function CurrentSeasonPage() {
           ))}
         </div>
       </section>
+      </div>
     </main>
   );
 }

@@ -21,6 +21,7 @@ function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
           <thead>
             <tr>
               <th>#</th>
+              <th>Slot</th>
               <th>Team</th>
               <th>Matches</th>
               <th>Kill Pts</th>
@@ -36,6 +37,7 @@ function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
                 <td className={row.rank === 1 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>
                   #{row.rank}
                 </td>
+                <td className="text-text-muted">{row.slotNumber ? `#${row.slotNumber}` : "-"}</td>
                 <td>
                   <Link href={`/teams/${row.teamId}`} className="flex items-center gap-2 hover:text-accent-blue">
                     <TeamAvatar name={row.team} size="sm" imageUrl={row.logoUrl} />
@@ -76,7 +78,8 @@ export default function LeaderboardPageClient({
   const hasLeaderboardData = initialRows.length > 0 || tournamentLeaderboards.length > 0;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="page-shell">
+      <div className="page-inner">
       <div className="page-hero mb-8">
         <p className="section-title">Competition</p>
         <h1 className="hero-h1 mt-2 !text-4xl">Leaderboard</h1>
@@ -111,6 +114,7 @@ export default function LeaderboardPageClient({
       <p className="mt-6 text-center text-xs text-text-muted">
         Leaderboard updates automatically when live match data is imported.
       </p>
+      </div>
     </main>
   );
 }

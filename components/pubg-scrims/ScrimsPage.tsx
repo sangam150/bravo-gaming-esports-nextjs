@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Tabs from "@/components/ui/Tabs";
+import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
 import type { ScrimDayResult, ScrimDayStatus } from "@/lib/types";
 
 const weekdaySchedule = [
@@ -63,6 +64,14 @@ function getScrimMatchIds(pubgMatchId?: string, pubgMatchIds?: string[]) {
   return Array.from(
     new Set([...(pubgMatchIds ?? []), pubgMatchId].filter((matchId): matchId is string => Boolean(matchId)))
   );
+}
+
+function getAssignedTeamNames(teamIds: string[]) {
+  return teamIds
+    .map((teamId) => resolveBravoTeamIdentity(teamId))
+    .filter((team): team is NonNullable<typeof team> => Boolean(team))
+    .sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam))
+    .map((team) => `#${team.slotNumber} ${team.name}`);
 }
 
 function SchedulePanel() {
@@ -224,6 +233,18 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
                       <span>Match IDs: {getScrimMatchIds(scrim.pubgMatchId, scrim.pubgMatchIds).join(", ") || "Pending"}</span>
                       <span>Teams: {scrim.teamIds?.length ?? 0}</span>
                     </div>
+                    {scrim.teamIds?.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {getAssignedTeamNames(scrim.teamIds).map((teamLabel) => (
+                          <span
+                            key={`${scrim.id}-${teamLabel}`}
+                            className="rounded-full border border-white/10 bg-bg-primary px-2.5 py-1 text-[11px] text-white"
+                          >
+                            {teamLabel}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -246,6 +267,7 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
                     <thead>
                       <tr>
                         <th>#</th>
+                        <th>Slot</th>
                         <th>Team</th>
                         <th>Matches</th>
                         <th>WWCD</th>
@@ -258,6 +280,7 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
                       {day.leaderboard.map((standing, index) => (
                         <tr key={`${day.id}-${standing.teamId ?? standing.teamName}`}>
                           <td>{index + 1}</td>
+                          <td>{standing.slotNumber ? `#${standing.slotNumber}` : "-"}</td>
                           <td className="font-semibold text-white">{standing.teamName}</td>
                           <td>{standing.matches}</td>
                           <td>{standing.wins}</td>
@@ -285,7 +308,8 @@ export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
   const latestDay = days[0];
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="page-shell">
+      <div className="page-inner">
       <div className="page-hero mb-8">
         <p className="section-title">PUBG PC</p>
         <h1 className="hero-h1 mt-2 !text-4xl">Daily Scrims</h1>
@@ -353,6 +377,7 @@ export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
         <Link href="/teams/register" className="btn-primary">
           Join Scrims
         </Link>
+      </div>
       </div>
     </main>
   );

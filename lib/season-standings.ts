@@ -1,4 +1,5 @@
 import type { LeaderboardRow, Team, TournamentStanding } from "./types";
+import { compareBravoTeamSlotOrder } from "./bravo-teams";
 
 export interface SeasonLeaderboardEntry {
   teamId: string;
@@ -13,6 +14,7 @@ export interface SeasonLeaderboardEntry {
   bestPlacement: number;
   dayNumbers: number[];
   rank: number;
+  slotNumber?: number;
   logoUrl?: string;
 }
 
@@ -42,6 +44,7 @@ export function buildSeasonLeaderboard(
       dayNumbers: [],
       placementTotal: 0,
       logoUrl: teamsById?.get(standing.teamId)?.logoUrl ?? teamsById?.get(standing.teamId)?.logo,
+      slotNumber: teamsById?.get(standing.teamId)?.slotNumber,
     };
 
     existingRow.matches += standing.matches;
@@ -73,7 +76,10 @@ export function buildSeasonLeaderboard(
         secondEntry.placementPoints - firstEntry.placementPoints ||
         secondEntry.kills - firstEntry.kills ||
         firstEntry.averagePlacement - secondEntry.averagePlacement ||
-        firstEntry.teamName.localeCompare(secondEntry.teamName)
+        compareBravoTeamSlotOrder(
+          { slotNumber: firstEntry.slotNumber, teamName: firstEntry.teamName },
+          { slotNumber: secondEntry.slotNumber, teamName: secondEntry.teamName }
+        )
     )
     .map((entry, index) => ({
       ...entry,
@@ -86,6 +92,7 @@ export function seasonLeaderboardToRows(entries: SeasonLeaderboardEntry[]): Lead
     rank: entry.rank,
     teamId: entry.teamId,
     team: entry.teamName,
+    slotNumber: entry.slotNumber,
     matches: entry.matches,
     kills: entry.kills,
     killPoints: entry.killPoints,

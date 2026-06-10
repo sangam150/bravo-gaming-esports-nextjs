@@ -31,7 +31,8 @@ export default async function TeamProfilePage({ params }: PageProps) {
   const roster = allPlayers.filter((player) => player.teamId === teamId);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+    <main className="page-shell">
+      <div className="page-inner">
       <section className="page-hero">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-6">
@@ -86,6 +87,7 @@ export default async function TeamProfilePage({ params }: PageProps) {
           )}
         </div>
       </section>
+      </div>
     </main>
   );
 }

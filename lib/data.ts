@@ -17,6 +17,7 @@ import {
   seedTournaments,
   seedVideos,
 } from "./seed-data";
+import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "./bravo-teams";
 import { buildSeasonLeaderboard, seasonLeaderboardToRows } from "./season-standings";
 import type {
   Announcement,
@@ -307,6 +308,7 @@ function aggregateScrimDayLeaderboard(matches: TournamentMatch[]): ScrimDayStand
       const currentStanding = standingsMap.get(teamKey) ?? {
         teamId: teamResult.teamId,
         teamName: teamResult.teamName,
+        slotNumber: teamResult.slotNumber ?? resolveBravoTeamIdentity(teamResult.teamName)?.slotNumber,
         matches: 0,
         wins: 0,
         kills: 0,
@@ -341,7 +343,10 @@ function aggregateScrimDayLeaderboard(matches: TournamentMatch[]): ScrimDayStand
         secondStanding.totalPoints - firstStanding.totalPoints ||
         secondStanding.kills - firstStanding.kills ||
         firstStanding.averagePlacement - secondStanding.averagePlacement ||
-        firstStanding.teamName.localeCompare(secondStanding.teamName)
+        compareBravoTeamSlotOrder(
+          { slotNumber: firstStanding.slotNumber, teamName: firstStanding.teamName },
+          { slotNumber: secondStanding.slotNumber, teamName: secondStanding.teamName }
+        )
     );
 }
 
@@ -464,7 +469,43 @@ export async function getSeasonLeaderboard(seasonId: string): Promise<Leaderboar
   const [standings, teams] = await Promise.all([getSeasonStandings(seasonId), getTeams()]);
   const seasonTeams = teams.filter((team) => team.seasonId === seasonId && team.scope !== "tournament");
   const teamsById = new Map(seasonTeams.map((team) => [team.id, team]));
-  return seasonLeaderboardToRows(buildSeasonLeaderboard(standings, teamsById));
+  const builtEntries = buildSeasonLeaderboard(standings, teamsById);
+  const entryByTeamId = new Set(builtEntries.map((entry) => entry.teamId));
+
+  const paddedEntries = [
+    ...builtEntries,
+    ...seasonTeams
+      .filter((team) => !entryByTeamId.has(team.id))
+      .map((team) => ({
+        teamId: team.id,
+        teamName: team.name,
+        matches: team.matches ?? 0,
+        kills: team.kills ?? 0,
+        killPoints: team.killPoints ?? 0,
+        placementPoints: team.placementPoints ?? 0,
+        totalPoints: team.totalPoints ?? 0,
+        averagePlacement: team.averagePlacement ?? 0,
+        chickenDinners: team.chickenDinners ?? 0,
+        bestPlacement: 0,
+        dayNumbers: team.seasonDayNumbers ?? [],
+        rank: 0,
+        slotNumber: team.slotNumber,
+        logoUrl: team.logoUrl ?? team.logo,
+      })),
+  ]
+    .sort(
+      (firstEntry, secondEntry) =>
+        secondEntry.totalPoints - firstEntry.totalPoints ||
+        secondEntry.placementPoints - firstEntry.placementPoints ||
+        secondEntry.kills - firstEntry.kills ||
+        compareBravoTeamSlotOrder(
+          { slotNumber: firstEntry.slotNumber, teamName: firstEntry.teamName },
+          { slotNumber: secondEntry.slotNumber, teamName: secondEntry.teamName }
+        )
+    )
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+  return seasonLeaderboardToRows(paddedEntries);
 }
 
 export async function getSeasonTeams(seasonId: string): Promise<Team[]> {
@@ -473,7 +514,7 @@ export async function getSeasonTeams(seasonId: string): Promise<Team[]> {
     const teams = await queryFirestoreCollection<Team>(COLLECTIONS.teams, "seasonId", seasonId, 500);
     return teams
       .filter((team) => team.scope === "season")
-      .sort((firstTeam, secondTeam) => (firstTeam.rank ?? 999) - (secondTeam.rank ?? 999));
+      .sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam));
   } catch {
     return [];
   }
@@ -604,12 +645,7 @@ export async function getTournamentTeams(tournamentId: string): Promise<Team[]> 
   if (!isFirebaseConfigured()) return [];
   try {
     const teams = await queryFirestoreCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 100);
-    return teams.sort((firstTeam, secondTeam) => {
-      const firstSlot = firstTeam.slotNumber ?? Number.POSITIVE_INFINITY;
-      const secondSlot = secondTeam.slotNumber ?? Number.POSITIVE_INFINITY;
-      if (firstSlot !== secondSlot) return firstSlot - secondSlot;
-      return (firstTeam.rank ?? Number.POSITIVE_INFINITY) - (secondTeam.rank ?? Number.POSITIVE_INFINITY);
-    });
+    return teams.sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam));
   } catch {
     return [];
   }
@@ -765,19 +801,14 @@ export async function saveTournamentMatch(data: TournamentMatch) {
 }
 
 export async function getTeams(): Promise<Team[]> {
-  const teams = await fromFirestoreOrSeed<Team>(COLLECTIONS.teams, seedTeams, (a, b) => {
-    const firstSlot = a.slotNumber ?? Number.POSITIVE_INFINITY;
-    const secondSlot = b.slotNumber ?? Number.POSITIVE_INFINITY;
-    if (firstSlot !== secondSlot) return firstSlot - secondSlot;
-    return (a.rank ?? 99) - (b.rank ?? 99);
-  }, 500);
+  const teams = await fromFirestoreOrSeed<Team>(COLLECTIONS.teams, seedTeams, (a, b) => compareBravoTeamSlotOrder(a, b), 500);
 
   const visibleTeams = teams.filter((team) => team.scope !== "tournament");
   const currentSeason = await getCurrentSeason();
   if (currentSeason) {
     const currentSeasonTeams = visibleTeams.filter((team) => team.scope === "season" && team.seasonId === currentSeason.id);
     if (currentSeasonTeams.length > 0) {
-      return currentSeasonTeams.sort((firstTeam, secondTeam) => (firstTeam.rank ?? 999) - (secondTeam.rank ?? 999));
+      return currentSeasonTeams.sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam));
     }
   }
 

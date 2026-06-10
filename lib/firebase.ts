@@ -51,6 +51,7 @@ export const COLLECTIONS = {
   videos: "videos",
   pubgMatches: "pubgMatches",
   pubgPlayers: "pubgPlayers",
+  pubgImportWatchers: "pubgImportWatchers",
   errorLogs: "errorLogs",
 } as const;
 

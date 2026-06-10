@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
 import TeamAvatar from "@/components/ui/TeamAvatar";
@@ -8,6 +9,19 @@ import type { Player, Team, Tournament, TournamentMatch, TournamentStanding } fr
 
 function formatLabel(value?: string) {
   return value && value.trim().length > 0 ? value : "Unavailable";
+}
+
+function getTeamProfileHref(teamName: string, fallbackId: string) {
+  return `/teams/${resolveBravoTeamIdentity(teamName)?.id ?? fallbackId}`;
+}
+
+function sortTeamResultsBySlot(teamResults: TournamentMatch["teamResults"]) {
+  return [...(teamResults ?? [])].sort((firstResult, secondResult) =>
+    compareBravoTeamSlotOrder(
+      { slotNumber: firstResult.slotNumber, teamName: firstResult.teamName },
+      { slotNumber: secondResult.slotNumber, teamName: secondResult.teamName }
+    )
+  );
 }
 
 export default function TournamentDetailClient({
@@ -26,7 +40,8 @@ export default function TournamentDetailClient({
   const topStandings = standings.slice(0, 5);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="page-shell">
+      <div className="page-inner">
       <div className="page-hero mb-6 overflow-hidden">
         {tournament.bannerUrl && (
           <div
@@ -42,11 +57,21 @@ export default function TournamentDetailClient({
           <TeamAvatar name={tournament.title} size="lg" imageUrl={tournament.bannerUrl} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-3">
+              {tournament.seasonTitle && (
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+                  {tournament.seasonTitle}
+                </span>
+              )}
               <h1 className="font-display text-2xl font-black uppercase text-white">{tournament.title}</h1>
               <StatusBadge status={tournament.status} />
               <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-accent-blue">
                 {tournament.tier}
               </span>
+              {typeof (tournament.seasonDayNumber ?? tournament.dayNumber) === "number" && (
+                <span className="rounded-full border border-accent-green/25 bg-accent-green/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-accent-green">
+                  Day {tournament.seasonDayNumber ?? tournament.dayNumber}
+                </span>
+              )}
             </div>
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3 xl:grid-cols-6">
               <div>
@@ -125,6 +150,7 @@ export default function TournamentDetailClient({
                         <thead>
                           <tr>
                             <th>#</th>
+                            <th>Slot</th>
                             <th>Team</th>
                             <th>Total</th>
                           </tr>
@@ -133,6 +159,7 @@ export default function TournamentDetailClient({
                           {topStandings.map((standing) => (
                             <tr key={standing.id}>
                               <td>#{standing.rank}</td>
+                              <td>{standing.slotNumber ? `#${standing.slotNumber}` : "-"}</td>
                               <td className="font-semibold">{standing.teamName}</td>
                               <td className="points-cell">{standing.totalPoints}</td>
                             </tr>
@@ -155,6 +182,7 @@ export default function TournamentDetailClient({
                       <thead>
                         <tr>
                           <th>#</th>
+                          <th>Slot</th>
                           <th>Team</th>
                           <th>Matches</th>
                           <th>Placement</th>
@@ -166,6 +194,7 @@ export default function TournamentDetailClient({
                         {standings.map((standing) => (
                           <tr key={standing.id}>
                             <td>#{standing.rank}</td>
+                            <td>{standing.slotNumber ? `#${standing.slotNumber}` : "-"}</td>
                             <td className="font-semibold">{standing.teamName}</td>
                             <td>{standing.matches}</td>
                             <td>{standing.placementPoints}</td>
@@ -201,6 +230,7 @@ export default function TournamentDetailClient({
                         <table className="data-table min-w-full">
                           <thead>
                             <tr>
+                              <th>Slot</th>
                               <th>Placement</th>
                               <th>Team</th>
                               <th>Kills</th>
@@ -209,8 +239,9 @@ export default function TournamentDetailClient({
                             </tr>
                           </thead>
                           <tbody>
-                            {(match.teamResults ?? []).map((teamResult) => (
+                            {sortTeamResultsBySlot(match.teamResults).map((teamResult) => (
                               <tr key={`${match.id}-${teamResult.teamName}`}>
+                                <td>{teamResult.slotNumber ? `#${teamResult.slotNumber}` : "-"}</td>
                                 <td>#{teamResult.placement}</td>
                                 <td>{teamResult.teamName}</td>
                                 <td>{teamResult.kills}</td>
@@ -233,11 +264,17 @@ export default function TournamentDetailClient({
                   <div className="esports-card p-6 text-sm text-text-muted">Team profiles unavailable for this tournament.</div>
                 ) : (
                   teams.map((team) => (
-                    <Link key={team.id} href={`/teams/${team.id}`} className="tournament-card flex items-center gap-3 p-4">
+                    <Link
+                      key={team.id}
+                      href={getTeamProfileHref(team.name, team.id)}
+                      className="tournament-card flex items-center gap-3 p-4"
+                    >
                       <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? team.logo} />
                       <div className="min-w-0">
                         <p className="font-semibold text-white">{team.name}</p>
-                        <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{team.tag ?? "Registered"}</p>
+                        <p className="text-xs uppercase tracking-[0.16em] text-text-muted">
+                          {team.slotNumber ? `Slot ${team.slotNumber}` : team.tag ?? "Registered"}
+                        </p>
                       </div>
                     </Link>
                   ))
@@ -293,6 +330,7 @@ export default function TournamentDetailClient({
           </div>
         )}
       </Tabs>
+      </div>
     </main>
   );
 }

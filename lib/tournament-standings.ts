@@ -1,4 +1,5 @@
 import { placementPoints, totalPoints } from "./pubg";
+import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "./bravo-teams";
 import type { LeaderboardRow, TeamMatchResult, TournamentMatch, TournamentStanding } from "./types";
 
 const MAP_NAME_LOOKUP: Record<string, string> = {
@@ -17,6 +18,7 @@ export function toTeamMatchResults(
   results: Array<{
     teamId?: string | null;
     teamName: string;
+    slotNumber?: number;
     placement: number;
     kills: number;
   }>
@@ -29,6 +31,7 @@ export function toTeamMatchResults(
       return {
         teamId: result.teamId ?? undefined,
         teamName: result.teamName,
+        slotNumber: result.slotNumber ?? resolveBravoTeamIdentity(result.teamName)?.slotNumber,
         placement: result.placement,
         kills: result.kills,
         damage: 0,
@@ -65,6 +68,7 @@ export function buildTournamentStandings(
         tournamentId,
         teamId: result.teamId ?? teamKey,
         teamName: result.teamName,
+        slotNumber: result.slotNumber ?? resolveBravoTeamIdentity(result.teamName)?.slotNumber,
         matches: 0,
         wins: 0,
         kills: 0,
@@ -105,7 +109,10 @@ export function buildTournamentStandings(
         secondStanding.placementPoints - firstStanding.placementPoints ||
         secondStanding.kills - firstStanding.kills ||
         firstStanding.bestPlacement - secondStanding.bestPlacement ||
-        firstStanding.teamName.localeCompare(secondStanding.teamName)
+        compareBravoTeamSlotOrder(
+          { slotNumber: firstStanding.slotNumber, teamName: firstStanding.teamName },
+          { slotNumber: secondStanding.slotNumber, teamName: secondStanding.teamName }
+        )
     )
     .map((standing, index) => ({
       ...standing,
@@ -118,6 +125,7 @@ export function standingsToLeaderboardRows(standings: TournamentStanding[]): Lea
     rank: standing.rank,
     teamId: standing.teamId,
     team: standing.teamName,
+    slotNumber: standing.slotNumber,
     matches: standing.matches,
     kills: standing.kills,
     placement: standing.placementPoints,

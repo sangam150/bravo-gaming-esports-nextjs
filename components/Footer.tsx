@@ -3,8 +3,8 @@ import BravoLogo from "@/components/ui/BravoLogo";
 
 export default function Footer() {
   return (
-    <footer className="mt-12 border-t border-white/[0.08] bg-bg-primary px-4 py-10 sm:px-6">
-      <div className="mx-auto max-w-7xl">
+    <footer className="mt-12 border-t border-white/[0.08] bg-bg-primary px-4 py-10 sm:px-6 lg:px-8">
+      <div className="page-inner">
         <div className="flex flex-col gap-10 lg:flex-row lg:justify-between">
           <div className="max-w-xs">
             <div className="flex items-center gap-3">

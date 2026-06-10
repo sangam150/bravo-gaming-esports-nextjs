@@ -1,8 +1,9 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import { pubgFetch, PUBG_SHARD } from "@/lib/pubg";
-import { saveFirestoreDocument } from "@/lib/firebase";
+import { COLLECTIONS, getFirestoreDocument, saveFirestoreDocument } from "@/lib/firebase";
+import { fetchPubgPlayerRecentMatches } from "@/lib/pubg";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
+import type { PubgPlayerLookup } from "@/lib/types";
 
 export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
@@ -20,17 +21,32 @@ export async function POST(request: Request) {
       return new Response(JSON.stringify({ error: "playerName is required" }), { status: 400 });
     }
 
-    const playerData = await pubgFetch(
-      `/shards/${PUBG_SHARD}/players?filter[playerNames]=${encodeURIComponent(playerName)}`
+    const lookup = await fetchPubgPlayerRecentMatches(playerName, 10);
+    const recentMatches = await Promise.all(
+      lookup.recentMatches.map(async (match) => ({
+        ...match,
+        alreadyImported: Boolean(await getFirestoreDocument(COLLECTIONS.pubgMatches, match.matchId)),
+      }))
     );
 
     let firebaseResult = null;
     if (saveToFirebase) {
-      firebaseResult = await saveFirestoreDocument("pubgPlayers", playerName, playerData);
+      firebaseResult = await saveFirestoreDocument("pubgPlayers", lookup.playerId, {
+        playerName: lookup.playerName,
+        shardId: lookup.shardId,
+        recentMatches,
+      });
     }
 
+    const playerLookup: PubgPlayerLookup = {
+      playerId: lookup.playerId,
+      playerName: lookup.playerName,
+      shardId: lookup.shardId,
+      recentMatches,
+    };
+
     return new Response(
-      JSON.stringify({ success: true, playerData, firebaseResult }),
+      JSON.stringify({ success: true, data: playerLookup, firebaseResult }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {

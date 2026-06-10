@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
     const matchId = req.nextUrl.searchParams.get("matchId");
     if (!matchId) return NextResponse.json({ error: "Missing ?matchId=MATCH_ID" }, { status: 400 });
 
-    const matchData = await pubgFetch(`/shards/${PUBG_SHARD}/matches/${matchId}`, false);
+    const matchData = await pubgFetch(`/shards/${PUBG_SHARD}/matches/${matchId}`);
     const telemetryUrl = extractTelemetryUrl(matchData);
     if (!telemetryUrl) return NextResponse.json({ error: "Telemetry URL not found." }, { status: 404 });
 

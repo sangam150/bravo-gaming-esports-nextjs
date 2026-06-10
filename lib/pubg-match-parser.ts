@@ -7,6 +7,8 @@ export interface ParsedPlayerStat {
   rosterId: string;
   teamName: string;
   kills: number;
+  assists: number;
+  knocks: number;
   damage: number;
   placement: number;
   survivalTime: number;
@@ -52,6 +54,8 @@ export function parseMatchParticipants(matchData: unknown): ParsedPlayerStat[] {
       rosterId,
       teamName: roster?.teamName ?? "Unknown",
       kills: stats.kills ?? 0,
+      assists: stats.assists ?? 0,
+      knocks: stats.DBNOs ?? 0,
       damage: Math.round(stats.damageDealt ?? 0),
       placement: roster?.placement ?? stats.winPlace ?? 99,
       survivalTime: stats.timeSurvived ?? 0,

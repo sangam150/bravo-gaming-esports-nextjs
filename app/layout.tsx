@@ -89,9 +89,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${barlow.variable} ${dmSans.variable} ${jetbrains.variable}`}>
-      <body className="min-h-screen overflow-x-hidden bg-bg-primary font-body text-white antialiased">
+      <body className="flex min-h-screen flex-col overflow-x-hidden bg-bg-primary font-body text-white antialiased">
         <Header />
-        {children}
+        <div className="flex-1">{children}</div>
         <Footer />
       </body>
     </html>

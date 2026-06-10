@@ -8,6 +8,7 @@ import {
   type BravoSourcePlayerStanding,
   type BravoSourceStanding,
 } from "./bravo-feed";
+import { getBravoCanonicalTeamIds, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
 import {
   COLLECTIONS,
   deleteFirestoreDocument,
@@ -40,7 +41,8 @@ function uniqueMapRotation(matches: TournamentMatch[]) {
 }
 
 function buildTeamId(tournamentId: string, teamName: string) {
-  return `${tournamentId}--${slugify(teamName)}`;
+  const resolvedTeam = resolveBravoTeamIdentity(teamName);
+  return `${tournamentId}--${resolvedTeam?.id ?? slugify(teamName)}`;
 }
 
 function buildPlayerId(tournamentId: string, playerId: string, playerName: string) {
@@ -61,13 +63,15 @@ function toStandingDocument(
   tournamentTitle: string,
   dayNumber: number,
   teamId: string,
-  averagePlacement: number
+  averagePlacement: number,
+  slotNumber?: number
 ) {
   return {
     id: buildStandingId(tournamentId, standing.teamName),
     tournamentId,
     teamId,
     teamName: standing.teamName,
+    slotNumber,
     matches: standing.matchesPlayed,
     wins: standing.chickenDinners,
     kills: standing.totalKills,
@@ -92,6 +96,7 @@ function buildPlayerDocument(
   playerStanding: BravoSourcePlayerStanding,
   playerId: string,
   teamId: string | undefined,
+  teamName: string,
   tournamentId: string,
   tournamentTitle: string,
   dayNumber: number
@@ -101,7 +106,7 @@ function buildPlayerDocument(
     name: playerStanding.playerName,
     inGameName: playerStanding.playerName,
     teamId,
-    teamName: playerStanding.teamName,
+    teamName,
     pubgId: playerStanding.playerId,
     pubgName: playerStanding.playerName,
     assists: playerStanding.totalAssists,
@@ -137,12 +142,12 @@ async function deleteMissingDocuments<T extends { id: string }>(
   await Promise.all(deletions);
 }
 
-export async function importBravoGamingFeed() {
+export async function importBravoGamingFeed(options?: { maxDay?: number }) {
   if (!isFirebaseConfigured()) {
     throw new Error("Firebase is not configured. Add FIREBASE_* credentials before importing Bravo feed data.");
   }
 
-  const importedFeed = await fetchBravoFeedTournaments();
+  const importedFeed = await fetchBravoFeedTournaments(options);
   const importSummaries: Array<{
     tournamentId: string;
     title: string;
@@ -159,7 +164,9 @@ export async function importBravoGamingFeed() {
     const tournamentData = tournamentItem.payload.tournament;
 
     const sourceTeamNames = new Set<string>();
-    const teamIdsByName = new Map<string, string>();
+    const canonicalTeamIdsBySourceName = new Map<string, string>();
+    const canonicalTeamNamesBySourceName = new Map<string, string>();
+    const canonicalTeamSlotsBySourceName = new Map<string, number | undefined>();
 
     for (const standing of Array.isArray(tournamentItem.payload.standings) ? tournamentItem.payload.standings : []) {
       sourceTeamNames.add(standing.teamName);
@@ -176,14 +183,22 @@ export async function importBravoGamingFeed() {
     }
 
     for (const sourceTeamName of sourceTeamNames) {
-      teamIdsByName.set(sourceTeamName, buildTeamId(tournamentId, sourceTeamName));
+      const resolvedTeam = resolveBravoTeamIdentity(sourceTeamName);
+      canonicalTeamIdsBySourceName.set(sourceTeamName, resolvedTeam?.id ?? buildTeamId(tournamentId, sourceTeamName));
+      canonicalTeamNamesBySourceName.set(sourceTeamName, resolvedTeam?.name ?? sourceTeamName);
+      canonicalTeamSlotsBySourceName.set(
+        sourceTeamName,
+        resolvedTeam?.slotNumber ?? parseBravoSlotNumber(sourceTeamName)
+      );
     }
 
     const matchDocuments: TournamentMatch[] = tournamentData.matches.map((match) => {
       const teamResults = toTeamMatchResults(
         match.results.map((result) => ({
           ...result,
-          teamId: teamIdsByName.get(result.teamName) ?? null,
+          teamId: canonicalTeamIdsBySourceName.get(result.teamName) ?? null,
+          teamName: canonicalTeamNamesBySourceName.get(result.teamName) ?? result.teamName,
+          slotNumber: canonicalTeamSlotsBySourceName.get(result.teamName),
         }))
       );
       const winner = teamResults.find((teamResult) => teamResult.placement === 1)?.teamName ?? teamResults[0]?.teamName ?? "Unknown";
@@ -213,15 +228,19 @@ export async function importBravoGamingFeed() {
 
     const standingDocuments: TournamentStanding[] = Array.isArray(tournamentItem.payload.standings)
       ? tournamentItem.payload.standings.map((standing) => {
-          const computedStanding = computedStandingsByName.get(standing.teamName);
+          const canonicalTeamName = canonicalTeamNamesBySourceName.get(standing.teamName) ?? standing.teamName;
+          const computedStanding = computedStandingsByName.get(canonicalTeamName);
+          const canonicalTeamId = canonicalTeamIdsBySourceName.get(standing.teamName) ?? buildTeamId(tournamentId, canonicalTeamName);
+          const slotNumber = canonicalTeamSlotsBySourceName.get(standing.teamName);
 
           return toStandingDocument(
-            standing,
+            { ...standing, teamName: canonicalTeamName },
             tournamentId,
             tournamentTitle,
             tournamentItem.dayNumber,
-            teamIdsByName.get(standing.teamName) ?? buildTeamId(tournamentId, standing.teamName),
-            computedStanding?.averagePlacement ?? 0
+            canonicalTeamId,
+            computedStanding?.averagePlacement ?? 0,
+            slotNumber
           );
         })
       : computedStandings.map((standing) => ({
@@ -233,7 +252,8 @@ export async function importBravoGamingFeed() {
       buildPlayerDocument(
         playerStanding,
         buildPlayerId(tournamentId, playerStanding.playerId, playerStanding.playerName),
-        teamIdsByName.get(playerStanding.teamName),
+        canonicalTeamIdsBySourceName.get(playerStanding.teamName),
+        canonicalTeamNamesBySourceName.get(playerStanding.teamName) ?? playerStanding.teamName,
         tournamentId,
         tournamentTitle,
         tournamentItem.dayNumber
@@ -250,14 +270,23 @@ export async function importBravoGamingFeed() {
     const standingsByTeamName = new Map(standingDocuments.map((standing) => [standing.teamName, standing]));
     const teamDocuments = Array.from(sourceTeamNames)
       .sort((firstName, secondName) => (parseNumericSuffix(firstName) ?? 999) - (parseNumericSuffix(secondName) ?? 999))
-      .map((teamName) => {
-        const standing = standingsByTeamName.get(teamName);
+      .reduce<Array<Partial<Team> & { id: string; name: string }>>((documents, sourceTeamName) => {
+        const canonicalTeamName = canonicalTeamNamesBySourceName.get(sourceTeamName) ?? sourceTeamName;
+        const standing = standingsByTeamName.get(canonicalTeamName);
+        const teamId = buildTeamId(tournamentId, canonicalTeamName);
 
-        return {
-          id: teamIdsByName.get(teamName) ?? buildTeamId(tournamentId, teamName),
-          name: teamName,
-          tag: buildBravoDayTag(tournamentItem.dayNumber),
-          slotNumber: parseNumericSuffix(teamName),
+        if (documents.some((document) => document.id === teamId)) {
+          return documents;
+        }
+
+        documents.push({
+          id: teamId,
+          name: canonicalTeamName,
+          tag: resolveBravoTeamIdentity(canonicalTeamName)?.tag ?? buildBravoDayTag(tournamentItem.dayNumber),
+          slotNumber:
+            canonicalTeamSlotsBySourceName.get(sourceTeamName) ??
+            resolveBravoTeamIdentity(canonicalTeamName)?.slotNumber ??
+            parseNumericSuffix(sourceTeamName),
           country: tournamentData.region,
           rank: standing?.rank,
           totalPoints: standing?.totalPoints ?? 0,
@@ -269,24 +298,29 @@ export async function importBravoGamingFeed() {
           chickenDinners: standing?.wins ?? 0,
           status: "active" as const,
           registrationStatus: "approved" as const,
-          playerIds: playerIdsByTeamName.get(teamName) ?? [],
+          playerIds: playerIdsByTeamName.get(canonicalTeamName) ?? [],
           scope: "tournament" as const,
           seasonDayNumbers: [tournamentItem.dayNumber],
           sourceTournamentId: tournamentId,
           sourceTournamentTitle: tournamentTitle,
-          sourceTeamName: teamName,
+          sourceTeamName,
           sourceProvider: "bravo_feed",
-        } satisfies Partial<Team> & { id: string; name: string };
-      });
+        });
+
+        return documents;
+      }, []);
 
     const tournamentDocument = {
       id: tournamentId,
       title: tournamentTitle,
       tier: normalizeTier(tournamentData.tier),
       status: tournamentItem.status,
-      prizePool: `$${tournamentData.prizePool ?? 0}`,
-      teamCount: standingDocuments.length,
-      maxTeams: Math.max(tournamentData.maxSlots ?? standingDocuments.length, standingDocuments.length || 1),
+      prizePool:
+        typeof tournamentData.prizePool === "number" && tournamentData.prizePool > 0
+          ? `NPR ${tournamentData.prizePool.toLocaleString()}`
+          : "Not imported yet",
+      teamCount: teamDocuments.length,
+      maxTeams: Math.max(tournamentData.maxSlots ?? getBravoCanonicalTeamIds().length, teamDocuments.length || 1),
       startDate: tournamentData.startDate?.slice(0, 10) ?? tournamentData.createdAt.slice(0, 10),
       endDate: tournamentData.endDate?.slice(0, 10),
       format: tournamentData.mode ?? "Squad",
@@ -297,7 +331,7 @@ export async function importBravoGamingFeed() {
       rules: tournamentData.rules || undefined,
       mapRotation: uniqueMapRotation(matchDocuments),
       bannerUrl: tournamentData.bannerUrl,
-      registeredTeamIds: teamDocuments.map((team) => team.id),
+      registeredTeamIds: teamDocuments.map((team) => resolveBravoTeamIdentity(team.name)?.id ?? team.id),
       dayNumber: tournamentItem.dayNumber,
       matchCount: matchDocuments.length,
       sourceId: tournamentData.code,
