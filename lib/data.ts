@@ -555,7 +555,6 @@ export async function getCurrentSeasonOverview() {
   const currentTournament =
     orderedTournaments.find((tournament) => tournament.id === currentSeason.currentTournamentId) ??
     orderedTournaments.find((tournament) => tournament.seasonDayNumber === currentSeason.currentDay) ??
-    orderedTournaments.at(-1) ??
     null;
   const matchesPlayed = orderedTournaments.reduce(
     (totalMatches, tournament) => totalMatches + (tournament.matchCount ?? 0),

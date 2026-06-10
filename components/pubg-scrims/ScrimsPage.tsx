@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Tabs from "@/components/ui/Tabs";
 import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
-import type { ScrimDayResult, ScrimDayStatus } from "@/lib/types";
+import type { MatchPlayerResult, ScrimDayResult, ScrimDayStatus, TournamentMatch } from "@/lib/types";
 
 const weekdaySchedule = [
   { day: "Monday", map: "Rondo", time: "8:00 PM NPT" },
@@ -72,6 +72,170 @@ function getAssignedTeamNames(teamIds: string[]) {
     .filter((team): team is NonNullable<typeof team> => Boolean(team))
     .sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam))
     .map((team) => `#${team.slotNumber} ${team.name}`);
+}
+
+function formatPlayedAt(value?: string) {
+  if (!value) return "Schedule unavailable";
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) return value;
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Kathmandu",
+  }).format(parsedDate);
+}
+
+function formatSurvivalTime(totalSeconds?: number) {
+  if (!Number.isFinite(totalSeconds)) return "-";
+  const minutes = Math.floor((totalSeconds ?? 0) / 60);
+  const seconds = Math.floor((totalSeconds ?? 0) % 60);
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function sortTeamResultsBySlot(teamResults: TournamentMatch["teamResults"]) {
+  return [...(teamResults ?? [])].sort((firstResult, secondResult) =>
+    compareBravoTeamSlotOrder(
+      { slotNumber: firstResult.slotNumber, teamName: firstResult.teamName },
+      { slotNumber: secondResult.slotNumber, teamName: secondResult.teamName }
+    )
+  );
+}
+
+function getMatchMvp(match: TournamentMatch): MatchPlayerResult | null {
+  const playerResults = [...(match.playerResults ?? [])];
+  if (playerResults.length === 0) return null;
+
+  return playerResults.sort(
+    (firstPlayer, secondPlayer) =>
+      secondPlayer.totalPoints - firstPlayer.totalPoints ||
+      secondPlayer.kills - firstPlayer.kills ||
+      secondPlayer.damage - firstPlayer.damage ||
+      secondPlayer.assists - firstPlayer.assists ||
+      firstPlayer.playerName.localeCompare(secondPlayer.playerName)
+  )[0] ?? null;
+}
+
+function MatchBreakdownPanel({ matches }: { matches: ScrimDayResult["matches"] }) {
+  if (matches.length === 0) {
+    return (
+      <div className="rounded-card border border-dashed border-white/10 px-4 py-8 text-center text-sm text-text-muted">
+        Data not imported yet for match-by-match results.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {matches.map((match, index) => {
+        const sortedTeamResults = sortTeamResultsBySlot(match.teamResults);
+        const mvp = getMatchMvp(match);
+
+        return (
+          <article key={match.id} className="rounded-card border border-white/10 bg-bg-primary">
+            <div className="flex flex-col gap-4 border-b border-white/10 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-blue">
+                  Match {index + 1}
+                </p>
+                <h5 className="mt-2 text-xl font-black text-white">{match.map}</h5>
+                <p className="mt-1 text-sm text-text-muted">{formatPlayedAt(match.playedAt)}</p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-4">
+                <div className="rounded-card border border-white/10 bg-white/5 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Winner</p>
+                  <p className="mt-2 text-sm font-semibold text-white">{match.winner}</p>
+                </div>
+                <div className="rounded-card border border-white/10 bg-white/5 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Teams</p>
+                  <p className="mt-2 text-lg font-black text-white">{sortedTeamResults.length}</p>
+                </div>
+                <div className="rounded-card border border-white/10 bg-white/5 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Players</p>
+                  <p className="mt-2 text-lg font-black text-white">{match.playerResults?.length ?? 0}</p>
+                </div>
+                <div className="rounded-card border border-white/10 bg-white/5 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Lobby Kills</p>
+                  <p className="mt-2 text-lg font-black text-white">{match.knockouts}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 px-5 py-4 xl:grid-cols-[1.8fr,1fr]">
+              <div className="table-scroll">
+                <table className="data-table min-w-full">
+                  <thead>
+                    <tr>
+                      <th>Place</th>
+                      <th>Slot</th>
+                      <th>Team</th>
+                      <th>Kills</th>
+                      <th>Place Pts</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedTeamResults.map((teamResult) => (
+                      <tr key={`${match.id}-${teamResult.teamName}`}>
+                        <td>#{teamResult.placement}</td>
+                        <td>{teamResult.slotNumber ? `#${teamResult.slotNumber}` : "-"}</td>
+                        <td className="font-semibold text-white">{teamResult.teamName}</td>
+                        <td>{teamResult.kills}</td>
+                        <td>{teamResult.placementPoints}</td>
+                        <td className="points-cell">{teamResult.totalPoints}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="rounded-card border border-accent-blue/20 bg-accent-blue/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-blue">Match MVP</p>
+                {mvp ? (
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <p className="text-lg font-black text-white">{mvp.playerName}</p>
+                      <p className="text-sm text-text-muted">
+                        {mvp.teamName} {mvp.slotNumber ? `| Slot ${mvp.slotNumber}` : ""}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-card border border-white/10 bg-bg-primary px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Kills</p>
+                        <p className="mt-1 font-mono-stat text-white">{mvp.kills}</p>
+                      </div>
+                      <div className="rounded-card border border-white/10 bg-bg-primary px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Assists</p>
+                        <p className="mt-1 font-mono-stat text-white">{mvp.assists}</p>
+                      </div>
+                      <div className="rounded-card border border-white/10 bg-bg-primary px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Damage</p>
+                        <p className="mt-1 font-mono-stat text-white">{mvp.damage.toLocaleString()}</p>
+                      </div>
+                      <div className="rounded-card border border-white/10 bg-bg-primary px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Survival</p>
+                        <p className="mt-1 font-mono-stat text-white">{formatSurvivalTime(mvp.survivalTime)}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-card border border-white/10 bg-bg-primary px-3 py-2">
+                      <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Total Points</p>
+                      <p className="mt-1 text-lg font-black text-accent-green">{mvp.totalPoints}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-text-muted">
+                    MVP data is unavailable because player-level PUBG stats were not stored for this match.
+                  </p>
+                )}
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
 }
 
 function SchedulePanel() {
@@ -293,6 +457,18 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
                   </table>
                 </div>
               )}
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-card border border-white/10 bg-bg-primary p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white">Imported Match Results</h4>
+              <span className="text-xs text-text-muted">
+                {day.matches.length} match{day.matches.length === 1 ? "" : "es"} stored
+              </span>
+            </div>
+            <div className="mt-4">
+              <MatchBreakdownPanel matches={day.matches} />
             </div>
           </div>
         </section>

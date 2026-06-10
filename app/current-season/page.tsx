@@ -55,7 +55,13 @@ export default async function CurrentSeasonPage() {
               data, standings, teams, and leaderboards remain available even if the original source disappears.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <StatusBadge status={currentTournament?.status ?? "LIVE"} />
+              {currentTournament ? (
+                <StatusBadge status={currentTournament.status} />
+              ) : (
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">
+                  Data not imported yet
+                </span>
+              )}
               <span className="rounded-full border border-accent-blue/20 bg-accent-blue/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-accent-blue">
                 Season {season.seasonNumber}
               </span>
