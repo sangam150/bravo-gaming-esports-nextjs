@@ -7,9 +7,6 @@ import TeamAvatar from "@/components/ui/TeamAvatar";
 import type { Tournament } from "@/lib/types";
 
 function TournamentRow({ tournament }: { tournament: Tournament }) {
-  const matchProgress =
-    tournament.status === "LIVE" ? "6/20" : tournament.status === "COMPLETED" ? "20/20" : "0/16";
-
   return (
     <div className="tournament-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
       <TeamAvatar name={tournament.title} size="lg" />
@@ -17,6 +14,16 @@ function TournamentRow({ tournament }: { tournament: Tournament }) {
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="font-display text-base font-bold uppercase text-white">{tournament.title}</h2>
           <StatusBadge status={tournament.status} />
+          <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-accent-blue">
+            {tournament.tier}
+          </span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
+          <span>{tournament.server}</span>
+          <span className="h-1 w-1 rounded-full bg-white/20" />
+          <span>{tournament.format}</span>
+          <span className="h-1 w-1 rounded-full bg-white/20" />
+          <span>{tournament.perspective ?? "TPP"}</span>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
           <div>
@@ -24,7 +31,7 @@ function TournamentRow({ tournament }: { tournament: Tournament }) {
             <p className="font-mono-stat font-bold text-white">{tournament.prizePool}</p>
           </div>
           <div>
-            <p className="text-label uppercase text-text-muted">Teams</p>
+            <p className="text-label uppercase text-text-muted">Teams Joined</p>
             <p className="font-mono-stat font-bold text-white">
               {tournament.teamCount}/{tournament.maxTeams}
             </p>
@@ -35,11 +42,11 @@ function TournamentRow({ tournament }: { tournament: Tournament }) {
           </div>
           <div>
             <p className="text-label uppercase text-text-muted">Matches</p>
-            <p className="font-mono-stat font-bold text-accent-blue">{matchProgress}</p>
+            <p className="font-mono-stat font-bold text-accent-blue">{tournament.matchCount ?? 0}</p>
           </div>
         </div>
       </div>
-      <div className="flex shrink-0 gap-2">
+      <div className="flex shrink-0 flex-wrap gap-2">
         <Link href={`/tournaments/${tournament.id}`} className="btn-outline-blue">
           View Details
         </Link>

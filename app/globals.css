@@ -17,10 +17,24 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
   background: var(--bg-primary);
+  overflow-x: hidden;
+}
+
+main {
+  min-width: 0;
+}
+
+img,
+svg,
+video,
+canvas,
+iframe {
+  max-width: 100%;
 }
 
 body::before {
@@ -172,6 +186,14 @@ body::before {
     @apply px-4 py-3;
   }
 
+  .table-scroll {
+    @apply w-full overflow-x-auto;
+  }
+
+  .table-scroll > table {
+    @apply min-w-[640px];
+  }
+
   .points-cell {
     @apply font-mono-stat font-bold text-accent-green;
   }
@@ -182,11 +204,11 @@ body::before {
 
   /* Tabs */
   .tab-bar {
-    @apply flex flex-wrap gap-1 border-b border-white/[0.08];
+    @apply flex gap-1 overflow-x-auto border-b border-white/[0.08] pb-1;
   }
 
   .tab-item {
-    @apply font-display px-4 py-3 text-label font-bold uppercase tracking-[0.1em] text-text-muted transition;
+    @apply shrink-0 whitespace-nowrap font-display px-4 py-3 text-label font-bold uppercase tracking-[0.1em] text-text-muted transition;
   }
 
   .tab-item-active {

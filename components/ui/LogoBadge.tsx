@@ -14,7 +14,15 @@ export default function LogoBadge({
   };
 
   if (imageUrl) {
-    return <img src={imageUrl} alt={label} className={`shrink-0 border border-white/10 object-cover ${sizes[size]}`} />;
+    return (
+      <img
+        src={imageUrl}
+        alt={label}
+        loading="lazy"
+        decoding="async"
+        className={`shrink-0 border border-white/10 object-cover ${sizes[size]}`}
+      />
+    );
   }
 
   return (

@@ -6,7 +6,36 @@ export type PlayerRole = "IGL" | "Assaulter" | "Support" | "Sniper" | "Substitut
 export type PlayerStatus = "active" | "inactive";
 export type ScrimStatus = "scheduled" | "live" | "completed" | "waiting_for_data";
 export type ScrimDayStatus = ScrimStatus | "mixed";
-export type MatchDataSource = "pubg_api" | "manual_correction";
+export type MatchDataSource = "pubg_api" | "manual_correction" | "external_feed";
+export type SeasonStatus = "active" | "completed" | "archived" | "planned";
+export type SeasonLength = 15 | 30 | number;
+
+export interface Season {
+  id: string;
+  title: string;
+  slug: string;
+  seriesTitle: string;
+  seasonNumber: number;
+  status: SeasonStatus;
+  startDate: string;
+  configuredDays: SeasonLength;
+  currentDay: number;
+  currentTournamentId?: string;
+  endDate?: string;
+  completedAt?: string;
+  archivedAt?: string;
+  endedEarly?: boolean;
+  notes?: string;
+  description?: string;
+  tournamentIds?: string[];
+  game?: string;
+  format?: string;
+  region?: string;
+  perspective?: string;
+  sourceProvider?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export interface Tournament {
   id: string;
@@ -21,12 +50,24 @@ export interface Tournament {
   format: string;
   mode: string;
   server: string;
+  perspective?: string;
   description?: string;
   rules?: string;
   schedule?: string;
   mapRotation?: string[];
   bannerUrl?: string;
   registeredTeamIds?: string[];
+  seasonId?: string;
+  seasonTitle?: string;
+  seasonNumber?: number;
+  seasonDayNumber?: number;
+  dayNumber?: number;
+  matchCount?: number;
+  sourceId?: string;
+  sourceName?: string;
+  sourceStatus?: string;
+  sourceUrl?: string;
+  sourceProvider?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -36,6 +77,8 @@ export interface TournamentMatch {
   tournamentId?: string;
   scrimId?: string;
   pubgMatchId: string;
+  externalMatchId?: string;
+  sequenceNumber?: number;
   map: string;
   winner: string;
   points: number;
@@ -44,6 +87,7 @@ export interface TournamentMatch {
   killPoints?: number;
   playedAt?: string;
   resultScreenshotUrl?: string;
+  sourceUrl?: string;
   dataSource: MatchDataSource;
   syncedAt?: string;
   teamResults?: TeamMatchResult[];
@@ -72,7 +116,10 @@ export interface Team {
   totalPoints: number;
   kills: number;
   matches: number;
+  killPoints?: number;
   placementPoints?: number;
+  averagePlacement?: number;
+  chickenDinners?: number;
   status?: "active" | "pending" | "inactive";
   registrationStatus?: RegistrationStatus;
   playerIds?: string[];
@@ -80,6 +127,14 @@ export interface Team {
   captainDiscord?: string;
   captainPhone?: string;
   captainEmail?: string;
+  scope?: "season" | "tournament";
+  seasonId?: string;
+  seasonTitle?: string;
+  seasonDayNumbers?: number[];
+  sourceTournamentId?: string;
+  sourceTournamentTitle?: string;
+  sourceTeamName?: string;
+  sourceProvider?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -101,6 +156,12 @@ export interface Player {
   email?: string;
   nationality?: string;
   playerStatus?: PlayerStatus;
+  assists?: number;
+  knocks?: number;
+  placementPoints?: number;
+  totalPoints?: number;
+  averageDamage?: number;
+  bestPlacement?: number;
   kills: number;
   damage: number;
   mvpCount: number;
@@ -109,6 +170,14 @@ export interface Player {
   rating?: number;
   winRate?: number;
   isMvpOfWeek?: boolean;
+  scope?: "season" | "tournament";
+  seasonId?: string;
+  seasonTitle?: string;
+  seasonDayNumbers?: number[];
+  sourceTournamentId?: string;
+  sourceTournamentTitle?: string;
+  sourcePlayerId?: string;
+  sourceProvider?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -127,6 +196,10 @@ export interface Scrim {
   status: ScrimStatus;
   announcement?: string;
   mapRotation?: string[];
+  seasonId?: string;
+  seasonTitle?: string;
+  seasonDayNumber?: number;
+  tournamentId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -142,6 +215,31 @@ export interface ScrimDayStanding {
   totalPoints: number;
   bestPlacement: number;
   averagePlacement: number;
+}
+
+export interface TournamentStanding {
+  id: string;
+  tournamentId: string;
+  teamId: string;
+  teamName: string;
+  matches: number;
+  wins: number;
+  kills: number;
+  killPoints: number;
+  placementPoints: number;
+  totalPoints: number;
+  bestPlacement: number;
+  averagePlacement: number;
+  rank: number;
+  seasonId?: string;
+  seasonTitle?: string;
+  seasonDayNumber?: number;
+  scope?: "tournament" | "season";
+  sourceTournamentId?: string;
+  sourceTournamentTitle?: string;
+  sourceProvider?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ScrimDayResult {
@@ -191,6 +289,12 @@ export interface SiteStats {
   prizePoolsAwarded: string;
   communityMembers: number;
   youtubeViews: string;
+  currentSeasonId?: string;
+  currentSeasonTitle?: string;
+  currentSeasonStatus?: SeasonStatus;
+  currentSeasonStart?: string;
+  currentSeasonLength?: SeasonLength;
+  currentDay?: number;
 }
 
 export interface LeaderboardRow {
@@ -199,8 +303,13 @@ export interface LeaderboardRow {
   team: string;
   matches: number;
   kills: number;
+  killPoints?: number;
   placement: number;
   points: number;
+  averagePlacement?: number;
+  chickenDinners?: number;
+  logoUrl?: string;
+  scope?: "season" | "tournament";
 }
 
 export interface StreamSchedule {

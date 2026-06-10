@@ -84,19 +84,19 @@ export default function Header() {
           type="button"
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen(!open)}
-          className="flex h-10 items-center justify-center rounded-btn border border-white/[0.08] bg-bg-card px-3 text-xs font-semibold uppercase tracking-[0.12em] text-white lg:hidden"
+          className="flex h-10 items-center justify-center rounded-btn border border-white/[0.08] bg-bg-card px-3 text-xs font-semibold uppercase tracking-[0.12em] text-white xl:hidden"
         >
           {open ? "Close" : "Menu"}
         </button>
 
-        <nav className="hidden flex-1 items-center justify-between lg:flex">
-          <div className="flex items-center gap-0.5">
+        <nav className="hidden min-w-0 flex-1 items-center justify-between xl:flex">
+          <div className="flex min-w-0 items-center gap-0.5">
             {navItems.map((item) => (
               <div key={item.label} className="group relative">
                 {item.items ? (
                   <button
                     type="button"
-                    className={`flex items-center gap-1 px-3 py-2 font-display text-label font-bold uppercase tracking-[0.1em] transition hover:text-white ${
+                    className={`flex items-center gap-1 px-2.5 py-2 font-display text-[11px] font-bold uppercase tracking-[0.08em] transition hover:text-white ${
                       item.items.some((subItem) => isActive(pathname, subItem.href))
                         ? "text-accent-blue"
                         : "text-text-muted"
@@ -107,13 +107,13 @@ export default function Header() {
                 ) : (
                   <Link
                     href={item.href}
-                    className={`relative px-3 py-2 font-display text-label font-bold uppercase tracking-[0.1em] transition hover:text-white ${
+                    className={`relative px-2.5 py-2 font-display text-[11px] font-bold uppercase tracking-[0.08em] transition hover:text-white ${
                       isActive(pathname, item.href) ? "text-white" : "text-text-muted"
                     }`}
                   >
                     {item.label}
                     {isActive(pathname, item.href) && (
-                      <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-accent-blue" />
+                      <span className="absolute bottom-0 left-2.5 right-2.5 h-0.5 bg-accent-blue" />
                     )}
                   </Link>
                 )}
@@ -147,40 +147,44 @@ export default function Header() {
       </div>
 
       {open && (
-        <div className="border-t border-white/[0.08] bg-bg-card px-4 py-4 lg:hidden">
-          {navItems.map((item) =>
-            item.items ? (
-              <div key={item.label} className="mb-3">
-                <p className="mb-1 px-2 text-label font-bold uppercase text-text-muted">{item.label}</p>
-                {item.items.map((subItem) => (
+        <div className="border-t border-white/[0.08] bg-bg-card xl:hidden">
+          <div className="mx-auto max-h-[calc(100vh-72px)] max-w-7xl overflow-y-auto px-4 py-4 sm:px-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {navItems.map((item) =>
+                item.items ? (
+                  <div key={item.label} className="rounded-card border border-white/5 bg-bg-primary/40 p-3">
+                    <p className="mb-2 px-1 text-label font-bold uppercase text-text-muted">{item.label}</p>
+                    {item.items.map((subItem) => (
+                      <Link
+                        key={subItem.href}
+                        href={subItem.href}
+                        onClick={() => setOpen(false)}
+                        className="block rounded px-3 py-2 text-sm text-white hover:bg-bg-hover"
+                      >
+                        {subItem.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
                   <Link
-                    key={subItem.href}
-                    href={subItem.href}
+                    key={item.href}
+                    href={item.href}
                     onClick={() => setOpen(false)}
-                    className="block rounded px-3 py-2 text-sm text-white hover:bg-bg-hover"
+                    className="rounded-card border border-white/5 bg-bg-primary/40 px-3 py-3 font-bold text-white"
                   >
-                    {subItem.label}
+                    {item.label}
                   </Link>
-                ))}
-              </div>
-            ) : (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className="block rounded px-3 py-2 font-bold text-white"
-              >
-                {item.label}
+                )
+              )}
+            </div>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <Link href="/live-stream" className="btn-watch-live justify-center text-center" onClick={() => setOpen(false)}>
+                Watch Live
               </Link>
-            )
-          )}
-          <div className="mt-3 flex flex-col gap-2">
-            <Link href="/live-stream" className="btn-watch-live text-center" onClick={() => setOpen(false)}>
-              Watch Live
-            </Link>
-            <a href="https://kamaucha.me/bravo" className="btn-discord text-center">
-              Join Discord
-            </a>
+              <a href="https://kamaucha.me/bravo" className="btn-discord justify-center text-center">
+                Join Discord
+              </a>
+            </div>
           </div>
         </div>
       )}

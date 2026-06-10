@@ -11,7 +11,15 @@ export default function TeamAvatar({
   const sizes = { sm: "h-7 w-7 text-[10px]", md: "h-8 w-8 text-[11px]", lg: "h-12 w-12 text-sm" };
 
   if (imageUrl) {
-    return <img src={imageUrl} alt={name} className={`shrink-0 rounded-full object-cover ${sizes[size]}`} />;
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        loading="lazy"
+        decoding="async"
+        className={`shrink-0 rounded-full object-cover ${sizes[size]}`}
+      />
+    );
   }
 
   return (

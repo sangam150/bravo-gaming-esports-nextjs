@@ -4,6 +4,7 @@ import BravoLogo from "@/components/ui/BravoLogo";
 
 const sections = [
   { id: "dashboard", label: "Dashboard" },
+  { id: "seasons", label: "Seasons" },
   { id: "teams", label: "Teams" },
   { id: "players", label: "Players" },
   { id: "scrims", label: "Scrims" },
@@ -32,7 +33,7 @@ export default function AdminSidebar({
   adminEmail?: string;
 }) {
   return (
-    <aside className="esports-card flex w-full flex-col p-4 lg:sticky lg:top-20 lg:w-56 lg:shrink-0">
+    <aside className="esports-card flex w-full flex-col gap-4 p-4 xl:sticky xl:top-20 xl:w-56 xl:shrink-0">
       <div className="mb-6 flex items-center gap-2 border-b border-white/[0.08] pb-4">
         <BravoLogo size={36} />
         <div>
@@ -40,13 +41,13 @@ export default function AdminSidebar({
           <p className="text-[10px] uppercase text-text-muted">Dashboard</p>
         </div>
       </div>
-      <nav className="flex flex-col gap-0.5">
+      <nav className="flex gap-2 overflow-x-auto xl:flex-col xl:gap-0.5 xl:overflow-visible">
         {sections.map((section) => (
           <button
             key={section.id}
             type="button"
             onClick={() => onChange(section.id)}
-            className={`rounded-btn px-3 py-2.5 text-left font-display text-xs font-bold uppercase tracking-wide transition ${
+            className={`shrink-0 rounded-btn px-3 py-2.5 text-left font-display text-xs font-bold uppercase tracking-wide transition ${
               active === section.id
                 ? "bg-accent-blue text-white"
                 : "text-text-muted hover:bg-bg-hover hover:text-white"
@@ -56,7 +57,7 @@ export default function AdminSidebar({
           </button>
         ))}
       </nav>
-      <div className="mt-auto space-y-3 border-t border-white/[0.08] pt-4">
+      <div className="space-y-3 border-t border-white/[0.08] pt-4 xl:mt-auto">
         {adminEmail && <p className="truncate text-[10px] text-text-muted">{adminEmail}</p>}
         <div className="flex items-center gap-2 text-[10px] text-text-muted">
           <span className={`h-1.5 w-1.5 rounded-full ${firebaseConnected ? "bg-accent-green" : "bg-accent-yellow"}`} />

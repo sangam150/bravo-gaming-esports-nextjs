@@ -70,51 +70,57 @@ function SchedulePanel() {
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="esports-card p-6">
         <h3 className="section-heading mb-4">Weekdays</h3>
-        <table className="data-table min-w-full">
-          <tbody>
-            {weekdaySchedule.map((scheduleRow) => (
-              <tr key={scheduleRow.day}>
-                <td className="font-display font-bold uppercase text-white">{scheduleRow.day}</td>
-                <td className="text-accent-blue">{scheduleRow.map}</td>
-                <td className="font-mono-stat text-text-muted">{scheduleRow.time}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-scroll">
+          <table className="data-table min-w-full">
+            <tbody>
+              {weekdaySchedule.map((scheduleRow) => (
+                <tr key={scheduleRow.day}>
+                  <td className="font-display font-bold uppercase text-white">{scheduleRow.day}</td>
+                  <td className="text-accent-blue">{scheduleRow.map}</td>
+                  <td className="font-mono-stat text-text-muted">{scheduleRow.time}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <h3 className="section-heading mb-4 mt-8">Weekends</h3>
-        <table className="data-table min-w-full">
-          <tbody>
-            {weekendSchedule.map((scheduleRow, index) => (
-              <tr key={`${scheduleRow.day}-${index}`}>
-                <td className="font-display font-bold uppercase text-white">{scheduleRow.day}</td>
-                <td className="text-accent-blue">{scheduleRow.map}</td>
-                <td className="font-mono-stat text-text-muted">{scheduleRow.time}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-scroll">
+          <table className="data-table min-w-full">
+            <tbody>
+              {weekendSchedule.map((scheduleRow, index) => (
+                <tr key={`${scheduleRow.day}-${index}`}>
+                  <td className="font-display font-bold uppercase text-white">{scheduleRow.day}</td>
+                  <td className="text-accent-blue">{scheduleRow.map}</td>
+                  <td className="font-mono-stat text-text-muted">{scheduleRow.time}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
       <div className="esports-card p-6">
         <h3 className="section-heading mb-4">Scrim Information</h3>
         <ul className="space-y-2 text-sm text-text-muted">
-          <li>• 4 Matches Per Day (Weekdays)</li>
-          <li>• 5 Matches Per Day (Weekends)</li>
-          <li>• Squad Format</li>
-          <li>• TPP Mode</li>
-          <li>• Asia Server</li>
-          <li>• Point System</li>
+          <li>4 matches per day on weekdays.</li>
+          <li>5 matches per day on weekends.</li>
+          <li>Squad format.</li>
+          <li>TPP mode.</li>
+          <li>Asia server.</li>
+          <li>Point system below.</li>
         </ul>
         <h3 className="section-heading mb-3 mt-8">Point System</h3>
-        <table className="data-table min-w-full">
-          <tbody>
-            {pointSystem.map((pointsRow) => (
-              <tr key={pointsRow.place}>
-                <td className="text-text-muted">{pointsRow.place}</td>
-                <td className="points-cell text-right">{pointsRow.pts} Points</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-scroll">
+          <table className="data-table min-w-full">
+            <tbody>
+              {pointSystem.map((pointsRow) => (
+                <tr key={pointsRow.place}>
+                  <td className="text-text-muted">{pointsRow.place}</td>
+                  <td className="points-cell text-right">{pointsRow.pts} Points</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <p className="mt-4 text-xs text-text-muted">Total Points = Placement Points + Kill Points</p>
       </div>
     </div>
@@ -138,7 +144,7 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
       {days.map((day) => (
         <section key={day.id} className="esports-card p-6">
           <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded-full border border-accent-blue/20 bg-accent-blue/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-accent-blue">
                   {day.label}
@@ -151,8 +157,8 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
               </div>
               <h3 className="mt-4 text-2xl font-black tracking-[-0.03em] text-white">{day.displayDate}</h3>
               <p className="mt-2 text-sm text-text-muted">
-                {day.scrimCount} scrim slot{day.scrimCount === 1 ? "" : "s"} scheduled • {day.completedMatches} match
-                result{day.completedMatches === 1 ? "" : "s"} imported from PUBG API
+                {day.scrimCount} scrim slot{day.scrimCount === 1 ? "" : "s"} scheduled | {day.completedMatches} match
+                result{day.completedMatches === 1 ? "" : "s"} imported from the PUBG API
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -184,7 +190,7 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
 
           <div className="mt-5 grid gap-4 xl:grid-cols-[1.2fr,1.8fr]">
             <div className="rounded-card border border-white/10 bg-bg-primary p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white">Match Slots</h4>
                 <span className="text-xs text-text-muted">{day.matchIds.length} synced</span>
               </div>
@@ -192,10 +198,10 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
                 {day.scrims.map((scrim) => (
                   <div key={scrim.id} className="rounded-card border border-white/10 bg-white/5 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold text-white">{scrim.title}</p>
                         <p className="mt-1 text-xs text-text-muted">
-                          {scrim.map} • {scrim.lobbyTime || "TBA"}
+                          {scrim.map} | {scrim.lobbyTime || "TBA"}
                         </p>
                       </div>
                       <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-300">
@@ -224,7 +230,7 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
             </div>
 
             <div className="rounded-card border border-white/10 bg-bg-primary p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white">Daily Standings</h4>
                 <span className="text-xs text-text-muted">Stored in Firebase after PUBG sync</span>
               </div>
@@ -235,7 +241,7 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
                   populate the table.
                 </div>
               ) : (
-                <div className="mt-4 overflow-x-auto">
+                <div className="table-scroll mt-4">
                   <table className="data-table min-w-full">
                     <thead>
                       <tr>
@@ -315,10 +321,10 @@ export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
             {tab === "Schedule" && <SchedulePanel />}
             {tab === "Rules" && (
               <div className="esports-card p-6 text-sm text-text-muted">
-                <p>• Teams must register before joining scrim lobbies.</p>
-                <p className="mt-2">• Match IDs must be submitted within 30 minutes of completion.</p>
-                <p className="mt-2">• Admin reviews all results before leaderboard updates.</p>
-                <p className="mt-2">• Fair play policy — cheating results in permanent ban.</p>
+                <p>Teams must register before joining scrim lobbies.</p>
+                <p className="mt-2">Match IDs must be submitted within 30 minutes of completion.</p>
+                <p className="mt-2">Admin reviews all results before leaderboard updates.</p>
+                <p className="mt-2">Fair play policy: cheating results in a permanent ban.</p>
               </div>
             )}
             {tab === "How to Join" && (
@@ -345,7 +351,7 @@ export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
           <p className="text-sm text-text-muted">Register your team and compete in our daily scrims.</p>
         </div>
         <Link href="/teams/register" className="btn-primary">
-          Join Scrims →
+          Join Scrims
         </Link>
       </div>
     </main>

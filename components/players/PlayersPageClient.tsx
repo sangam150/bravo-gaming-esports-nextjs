@@ -41,41 +41,43 @@ export default function PlayersPageClient({ initialPlayers }: { initialPlayers: 
       />
 
       <div className="mt-6 esports-card overflow-hidden !p-0">
-        <table className="data-table min-w-full">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Player</th>
-              <th>Team</th>
-              <th>Kills</th>
-              <th>Damage</th>
-              <th>MVP</th>
-              <th>Win Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageRows.map((player, index) => (
-              <tr key={player.id}>
-                <td className="font-mono-stat font-bold text-accent-blue">
-                  #{(page - 1) * perPage + index + 1}
-                </td>
-                <td>
-                  <Link href={`/players/${player.id}`} className="flex items-center gap-2 hover:text-accent-blue">
-                    <TeamAvatar name={player.name} size="sm" />
-                    <span className="font-semibold">{player.name}</span>
-                  </Link>
-                </td>
-                <td className="text-text-muted uppercase">{player.teamName ?? "-"}</td>
-                <td className="font-mono-stat">{player.kills}</td>
-                <td className="font-mono-stat text-text-muted">{player.damage.toLocaleString()}</td>
-                <td className="font-mono-stat">{player.mvpCount}</td>
-                <td className="font-mono-stat text-accent-green">
-                  {typeof player.winRate === "number" ? `${Math.round(player.winRate * 100)}%` : "-"}
-                </td>
+        <div className="table-scroll">
+          <table className="data-table min-w-full">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Team</th>
+                <th>Kills</th>
+                <th>Damage</th>
+                <th>MVP</th>
+                <th>Win Rate</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pageRows.map((player, index) => (
+                <tr key={player.id}>
+                  <td className="font-mono-stat font-bold text-accent-blue">
+                    #{(page - 1) * perPage + index + 1}
+                  </td>
+                  <td>
+                    <Link href={`/players/${player.id}`} className="flex items-center gap-2 hover:text-accent-blue">
+                      <TeamAvatar name={player.name} size="sm" />
+                      <span className="font-semibold">{player.name}</span>
+                    </Link>
+                  </td>
+                  <td className="text-text-muted uppercase">{player.teamName ?? "-"}</td>
+                  <td className="font-mono-stat">{player.kills}</td>
+                  <td className="font-mono-stat text-text-muted">{player.damage.toLocaleString()}</td>
+                  <td className="font-mono-stat">{player.mvpCount}</td>
+                  <td className="font-mono-stat text-accent-green">
+                    {typeof player.winRate === "number" ? `${Math.round(player.winRate * 100)}%` : "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="mt-6 flex items-center justify-center gap-2">

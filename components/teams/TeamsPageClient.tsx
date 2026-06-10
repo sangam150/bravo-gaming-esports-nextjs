@@ -36,7 +36,7 @@ export default function TeamsPageClient({ initialTeams }: { initialTeams: Team[]
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {visibleTeams.map((team) => (
-          <Link key={team.id} href={`/teams/${team.id}`} className="esports-card group p-5 text-center">
+          <Link key={team.id} href={`/teams/${team.id}`} className="esports-card group min-w-0 p-5 text-center">
             <div className="mx-auto">
               <TeamAvatar name={team.name} size="lg" imageUrl={team.logoUrl ?? team.logo} />
             </div>
@@ -46,7 +46,7 @@ export default function TeamsPageClient({ initialTeams }: { initialTeams: Team[]
             <h2 className="mt-4 font-display text-sm font-bold uppercase text-white group-hover:text-accent-blue">
               {team.name}
             </h2>
-            <p className="text-label uppercase text-text-muted">{team.tag ?? team.name}</p>
+            <p className="truncate text-label uppercase text-text-muted">{team.tag ?? team.name}</p>
             <div className="mt-4 flex justify-center gap-6 text-sm">
               <div>
                 <p className="text-label uppercase text-text-muted">Points</p>

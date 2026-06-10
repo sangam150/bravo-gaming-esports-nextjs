@@ -14,7 +14,7 @@ export default async function LiveStreamPage() {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div>
           <div className="mb-4 flex items-center gap-3">
             <span className="live-dot" />

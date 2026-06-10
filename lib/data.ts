@@ -17,6 +17,7 @@ import {
   seedTournaments,
   seedVideos,
 } from "./seed-data";
+import { buildSeasonLeaderboard, seasonLeaderboardToRows } from "./season-standings";
 import type {
   Announcement,
   LeaderboardRow,
@@ -24,12 +25,14 @@ import type {
   Scrim,
   ScrimDayResult,
   ScrimDayStanding,
+  Season,
   SiteStats,
   StreamSchedule,
   Team,
   TeamRegistration,
   Tournament,
   TournamentMatch,
+  TournamentStanding,
   VideoItem,
 } from "./types";
 
@@ -79,6 +82,37 @@ function toOptionalNumber(value: number | undefined) {
   return Number.isFinite(value) ? Number(value) : undefined;
 }
 
+function compareIsoDateDesc(firstValue?: string, secondValue?: string) {
+  return (secondValue ?? "").localeCompare(firstValue ?? "");
+}
+
+function normalizeSeasonPayload(data: Partial<Season> & { title: string; slug?: string }) {
+  return {
+    title: data.title.trim(),
+    slug: cleanString(data.slug) ?? slugify(data.title),
+    seriesTitle: cleanString(data.seriesTitle) ?? data.title.trim(),
+    seasonNumber: Math.max(1, toNumber(data.seasonNumber, 1)),
+    status: data.status ?? "planned",
+    startDate: cleanString(data.startDate) ?? new Date().toISOString().slice(0, 10),
+    configuredDays: Math.max(1, toNumber(data.configuredDays, 15)),
+    currentDay: Math.max(0, toNumber(data.currentDay, 0)),
+    currentTournamentId: cleanString(data.currentTournamentId),
+    endDate: cleanString(data.endDate),
+    completedAt: cleanString(data.completedAt),
+    archivedAt: cleanString(data.archivedAt),
+    endedEarly: Boolean(data.endedEarly),
+    notes: cleanString(data.notes),
+    description: cleanString(data.description),
+    tournamentIds: cleanStringArray(data.tournamentIds),
+    game: cleanString(data.game) ?? "PUBG PC",
+    format: cleanString(data.format) ?? "Squad",
+    region: cleanString(data.region) ?? "Global",
+    perspective: cleanString(data.perspective) ?? "TPP",
+    sourceProvider: cleanString(data.sourceProvider),
+    createdAt: cleanString(data.createdAt),
+  } satisfies Partial<Season> & { title: string; slug: string };
+}
+
 function normalizeTournamentPayload(data: Partial<Tournament> & { title: string }) {
   const registeredTeamIds = cleanStringArray(data.registeredTeamIds) ?? [];
 
@@ -94,12 +128,24 @@ function normalizeTournamentPayload(data: Partial<Tournament> & { title: string 
     format: cleanString(data.format) ?? "TPP Squad",
     mode: cleanString(data.mode) ?? "PUBG PC",
     server: cleanString(data.server) ?? "Asia",
+    perspective: cleanString(data.perspective),
     description: cleanString(data.description),
     rules: cleanString(data.rules),
     schedule: cleanString(data.schedule),
     mapRotation: cleanStringArray(data.mapRotation),
     bannerUrl: cleanString(data.bannerUrl),
     registeredTeamIds,
+    seasonId: cleanString(data.seasonId),
+    seasonTitle: cleanString(data.seasonTitle),
+    seasonNumber: toOptionalNumber(data.seasonNumber),
+    seasonDayNumber: toOptionalNumber(data.seasonDayNumber),
+    dayNumber: toOptionalNumber(data.dayNumber),
+    matchCount: toOptionalNumber(data.matchCount),
+    sourceId: cleanString(data.sourceId),
+    sourceName: cleanString(data.sourceName),
+    sourceStatus: cleanString(data.sourceStatus),
+    sourceUrl: cleanString(data.sourceUrl),
+    sourceProvider: cleanString(data.sourceProvider),
     createdAt: cleanString(data.createdAt),
   } satisfies Partial<Tournament> & { title: string };
 }
@@ -118,7 +164,10 @@ function normalizeTeamPayload(data: Partial<Team> & { name: string }) {
     totalPoints: toNumber(data.totalPoints),
     kills: toNumber(data.kills),
     matches: toNumber(data.matches),
+    killPoints: toOptionalNumber(data.killPoints),
     placementPoints: toOptionalNumber(data.placementPoints),
+    averagePlacement: toOptionalNumber(data.averagePlacement),
+    chickenDinners: toOptionalNumber(data.chickenDinners),
     status: data.status ?? "active",
     registrationStatus: data.registrationStatus ?? "approved",
     playerIds: cleanStringArray(data.playerIds),
@@ -126,6 +175,16 @@ function normalizeTeamPayload(data: Partial<Team> & { name: string }) {
     captainDiscord: cleanString(data.captainDiscord),
     captainPhone: cleanString(data.captainPhone),
     captainEmail: cleanString(data.captainEmail),
+    scope: data.scope,
+    seasonId: cleanString(data.seasonId),
+    seasonTitle: cleanString(data.seasonTitle),
+    seasonDayNumbers: Array.isArray(data.seasonDayNumbers)
+      ? data.seasonDayNumbers.filter((value): value is number => Number.isFinite(value))
+      : undefined,
+    sourceTournamentId: cleanString(data.sourceTournamentId),
+    sourceTournamentTitle: cleanString(data.sourceTournamentTitle),
+    sourceTeamName: cleanString(data.sourceTeamName),
+    sourceProvider: cleanString(data.sourceProvider),
     createdAt: cleanString(data.createdAt),
   } satisfies Partial<Team> & { name: string };
 }
@@ -150,6 +209,12 @@ function normalizePlayerPayload(data: Partial<Player> & { name: string }) {
     email: cleanString(data.email),
     nationality: cleanString(data.nationality),
     playerStatus: data.playerStatus ?? "active",
+    assists: toOptionalNumber(data.assists),
+    knocks: toOptionalNumber(data.knocks),
+    placementPoints: toOptionalNumber(data.placementPoints),
+    totalPoints: toOptionalNumber(data.totalPoints),
+    averageDamage: toOptionalNumber(data.averageDamage),
+    bestPlacement: toOptionalNumber(data.bestPlacement),
     kills: toNumber(data.kills),
     damage: toNumber(data.damage),
     mvpCount: toNumber(data.mvpCount),
@@ -158,6 +223,16 @@ function normalizePlayerPayload(data: Partial<Player> & { name: string }) {
     rating: toOptionalNumber(data.rating),
     winRate: toOptionalNumber(data.winRate),
     isMvpOfWeek: Boolean(data.isMvpOfWeek),
+    scope: data.scope,
+    seasonId: cleanString(data.seasonId),
+    seasonTitle: cleanString(data.seasonTitle),
+    seasonDayNumbers: Array.isArray(data.seasonDayNumbers)
+      ? data.seasonDayNumbers.filter((value): value is number => Number.isFinite(value))
+      : undefined,
+    sourceTournamentId: cleanString(data.sourceTournamentId),
+    sourceTournamentTitle: cleanString(data.sourceTournamentTitle),
+    sourcePlayerId: cleanString(data.sourcePlayerId),
+    sourceProvider: cleanString(data.sourceProvider),
     createdAt: cleanString(data.createdAt),
   } satisfies Partial<Player> & { name: string };
 }
@@ -270,10 +345,15 @@ function aggregateScrimDayLeaderboard(matches: TournamentMatch[]): ScrimDayStand
     );
 }
 
-async function fromFirestoreOrSeed<T>(collection: string, seed: T[], sortFn?: (a: T & { id: string }, b: T & { id: string }) => number): Promise<(T & { id: string })[]> {
+async function fromFirestoreOrSeed<T>(
+  collection: string,
+  seed: T[],
+  sortFn?: (a: T & { id: string }, b: T & { id: string }) => number,
+  limit = 100
+): Promise<(T & { id: string })[]> {
   if (!isFirebaseConfigured()) return seed as (T & { id: string })[];
   try {
-    const docs = await fetchFirestoreCollection<T>(collection);
+    const docs = await fetchFirestoreCollection<T>(collection, limit);
     if (docs.length === 0) return seed as (T & { id: string })[];
     return sortFn ? [...docs].sort(sortFn) : docs;
   } catch {
@@ -296,14 +376,172 @@ export async function getSiteStats(): Promise<SiteStats> {
   if (!isFirebaseConfigured()) return seedStats;
   try {
     const doc = await getFirestoreDocument<SiteStats>(COLLECTIONS.siteStats, "main");
-    return doc ?? seedStats;
+    const mergedStats = { ...seedStats, ...(doc ?? {}) };
+    const currentSeason = await getCurrentSeason();
+
+    if (!currentSeason) {
+      return mergedStats;
+    }
+
+    return {
+      ...mergedStats,
+      currentSeasonId: currentSeason.id,
+      currentSeasonTitle: currentSeason.seriesTitle ?? currentSeason.title,
+      currentSeasonStatus: currentSeason.status,
+      currentSeasonStart: currentSeason.startDate,
+      currentSeasonLength: currentSeason.configuredDays,
+      currentDay: currentSeason.currentDay,
+    };
   } catch {
     return seedStats;
   }
 }
 
+export async function getSeasons(): Promise<Season[]> {
+  return fromFirestoreOrSeed<Season>(COLLECTIONS.seasons, [], (a, b) => {
+    const dateComparison = compareIsoDateDesc(a.startDate, b.startDate);
+    if (dateComparison !== 0) return dateComparison;
+    return (b.seasonNumber ?? 0) - (a.seasonNumber ?? 0);
+  });
+}
+
+export async function getSeason(id: string): Promise<Season | null> {
+  return oneFromFirestoreOrSeed(COLLECTIONS.seasons, id, []);
+}
+
+export async function getCurrentSeason(): Promise<Season | null> {
+  const seasons = await getSeasons();
+  return (
+    seasons.find((season) => season.status === "active") ??
+    seasons.find((season) => season.status === "planned") ??
+    seasons[0] ??
+    null
+  );
+}
+
+export async function saveSeason(data: Partial<Season> & { title: string }, id?: string) {
+  const payload = normalizeSeasonPayload(data);
+  const docId = id ?? payload.slug;
+  if (isFirebaseConfigured()) {
+    await saveFirestoreDocument(COLLECTIONS.seasons, docId, payload as Record<string, unknown>);
+  }
+  return { id: docId, ...payload };
+}
+
+export async function deleteSeason(id: string) {
+  if (isFirebaseConfigured()) {
+    await deleteFirestoreDocument(COLLECTIONS.seasons, id);
+  }
+  return { id, deleted: true };
+}
+
+export async function getSeasonTournaments(seasonId: string): Promise<Tournament[]> {
+  if (!isFirebaseConfigured()) return [];
+  try {
+    const tournaments = await queryFirestoreCollection<Tournament>(COLLECTIONS.tournaments, "seasonId", seasonId, 200);
+    return tournaments.sort(
+      (firstTournament, secondTournament) =>
+        (firstTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) -
+          (secondTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) ||
+        firstTournament.startDate.localeCompare(secondTournament.startDate)
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function getSeasonStandings(seasonId: string): Promise<TournamentStanding[]> {
+  if (!isFirebaseConfigured()) return [];
+  try {
+    const standings = await queryFirestoreCollection<TournamentStanding>(COLLECTIONS.standings, "seasonId", seasonId, 500);
+    return standings.filter((standing) => standing.scope !== "season");
+  } catch {
+    return [];
+  }
+}
+
+export async function getSeasonLeaderboard(seasonId: string): Promise<LeaderboardRow[]> {
+  const [standings, teams] = await Promise.all([getSeasonStandings(seasonId), getTeams()]);
+  const seasonTeams = teams.filter((team) => team.seasonId === seasonId && team.scope !== "tournament");
+  const teamsById = new Map(seasonTeams.map((team) => [team.id, team]));
+  return seasonLeaderboardToRows(buildSeasonLeaderboard(standings, teamsById));
+}
+
+export async function getSeasonTeams(seasonId: string): Promise<Team[]> {
+  if (!isFirebaseConfigured()) return [];
+  try {
+    const teams = await queryFirestoreCollection<Team>(COLLECTIONS.teams, "seasonId", seasonId, 500);
+    return teams
+      .filter((team) => team.scope === "season")
+      .sort((firstTeam, secondTeam) => (firstTeam.rank ?? 999) - (secondTeam.rank ?? 999));
+  } catch {
+    return [];
+  }
+}
+
+export async function getSeasonPlayers(seasonId: string): Promise<Player[]> {
+  if (!isFirebaseConfigured()) return [];
+  try {
+    const players = await queryFirestoreCollection<Player>(COLLECTIONS.players, "seasonId", seasonId, 1500);
+    return players
+      .filter((player) => player.scope === "season")
+      .sort(
+        (firstPlayer, secondPlayer) =>
+          (secondPlayer.totalPoints ?? secondPlayer.rating ?? 0) - (firstPlayer.totalPoints ?? firstPlayer.rating ?? 0)
+      );
+  } catch {
+    return [];
+  }
+}
+
+export async function getCurrentSeasonOverview() {
+  const currentSeason = await getCurrentSeason();
+  if (!currentSeason) return null;
+
+  const [seasonTournaments, seasonLeaderboard, seasonTeams, seasonPlayers] = await Promise.all([
+    getSeasonTournaments(currentSeason.id),
+    getSeasonLeaderboard(currentSeason.id),
+    getSeasonTeams(currentSeason.id),
+    getSeasonPlayers(currentSeason.id),
+  ]);
+
+  const orderedTournaments = [...seasonTournaments].sort(
+    (firstTournament, secondTournament) =>
+      (firstTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) -
+        (secondTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) ||
+      firstTournament.startDate.localeCompare(secondTournament.startDate)
+  );
+  const currentTournament =
+    orderedTournaments.find((tournament) => tournament.id === currentSeason.currentTournamentId) ??
+    orderedTournaments.find((tournament) => tournament.seasonDayNumber === currentSeason.currentDay) ??
+    orderedTournaments.at(-1) ??
+    null;
+  const matchesPlayed = orderedTournaments.reduce(
+    (totalMatches, tournament) => totalMatches + (tournament.matchCount ?? 0),
+    0
+  );
+  const completedDays = orderedTournaments.filter((tournament) => (tournament.matchCount ?? 0) > 0).length;
+
+  return {
+    season: currentSeason,
+    tournaments: orderedTournaments,
+    leaderboard: seasonLeaderboard,
+    teams: seasonTeams,
+    players: seasonPlayers,
+    currentTournament,
+    registeredTeams: seasonTeams.length,
+    matchesPlayed,
+    completedDays,
+    recentResults: orderedTournaments.filter((tournament) => (tournament.matchCount ?? 0) > 0).slice(-3).reverse(),
+  };
+}
+
 export async function getTournaments(status?: string): Promise<Tournament[]> {
-  const all = await fromFirestoreOrSeed<Tournament>(COLLECTIONS.tournaments, seedTournaments);
+  const all = await fromFirestoreOrSeed<Tournament>(COLLECTIONS.tournaments, seedTournaments, (a, b) => {
+    const dateComparison = compareIsoDateDesc(a.startDate, b.startDate);
+    if (dateComparison !== 0) return dateComparison;
+    return a.title.localeCompare(b.title);
+  });
   if (!status) return all;
   return all.filter((t) => t.status === status);
 }
@@ -331,8 +569,62 @@ export async function deleteTournament(id: string) {
 export async function getTournamentMatches(tournamentId: string): Promise<TournamentMatch[]> {
   if (!isFirebaseConfigured()) return [];
   try {
-    const matches = await queryFirestoreCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, "tournamentId", tournamentId);
-    return matches.filter((m) => m.dataSource === "pubg_api" || m.syncedAt);
+    let matches = await queryFirestoreCollection<TournamentMatch>(COLLECTIONS.matches, "tournamentId", tournamentId, 200);
+    if (matches.length === 0) {
+      matches = await queryFirestoreCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, "tournamentId", tournamentId, 200);
+    }
+    return matches
+      .filter((m) => m.dataSource === "pubg_api" || m.syncedAt)
+      .sort(
+        (firstMatch, secondMatch) =>
+          (firstMatch.sequenceNumber ?? Number.POSITIVE_INFINITY) -
+            (secondMatch.sequenceNumber ?? Number.POSITIVE_INFINITY) ||
+          (firstMatch.playedAt ?? "").localeCompare(secondMatch.playedAt ?? "")
+      );
+  } catch {
+    return [];
+  }
+}
+
+export async function getTournamentStandings(tournamentId: string): Promise<TournamentStanding[]> {
+  if (!isFirebaseConfigured()) return [];
+  try {
+    const standings = await queryFirestoreCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 100);
+    return standings.sort(
+      (firstStanding, secondStanding) =>
+        (firstStanding.rank ?? Number.POSITIVE_INFINITY) - (secondStanding.rank ?? Number.POSITIVE_INFINITY) ||
+        secondStanding.totalPoints - firstStanding.totalPoints
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function getTournamentTeams(tournamentId: string): Promise<Team[]> {
+  if (!isFirebaseConfigured()) return [];
+  try {
+    const teams = await queryFirestoreCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 100);
+    return teams.sort((firstTeam, secondTeam) => {
+      const firstSlot = firstTeam.slotNumber ?? Number.POSITIVE_INFINITY;
+      const secondSlot = secondTeam.slotNumber ?? Number.POSITIVE_INFINITY;
+      if (firstSlot !== secondSlot) return firstSlot - secondSlot;
+      return (firstTeam.rank ?? Number.POSITIVE_INFINITY) - (secondTeam.rank ?? Number.POSITIVE_INFINITY);
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getTournamentPlayers(tournamentId: string): Promise<Player[]> {
+  if (!isFirebaseConfigured()) return [];
+  try {
+    const players = await queryFirestoreCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 500);
+    return players.sort((firstPlayer, secondPlayer) => {
+      const secondValue = secondPlayer.totalPoints ?? secondPlayer.rating ?? secondPlayer.kills;
+      const firstValue = firstPlayer.totalPoints ?? firstPlayer.rating ?? firstPlayer.kills;
+      if (secondValue !== firstValue) return secondValue - firstValue;
+      return firstPlayer.name.localeCompare(secondPlayer.name);
+    });
   } catch {
     return [];
   }
@@ -360,7 +652,18 @@ export async function getScrimDayResults(): Promise<ScrimDayResult[]> {
   let matchResults: TournamentMatch[] = [];
   if (isFirebaseConfigured()) {
     try {
-      matchResults = await fetchFirestoreCollection<TournamentMatch>(COLLECTIONS.matchResults, 500);
+      const [liveResults, storedMatches, legacyTournamentMatches] = await Promise.all([
+        fetchFirestoreCollection<TournamentMatch>(COLLECTIONS.matchResults, 500),
+        fetchFirestoreCollection<TournamentMatch>(COLLECTIONS.matches, 500),
+        fetchFirestoreCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, 500),
+      ]);
+
+      const uniqueMatches = new Map<string, TournamentMatch>();
+      for (const match of [...storedMatches, ...legacyTournamentMatches, ...liveResults]) {
+        uniqueMatches.set(match.id, match);
+      }
+
+      matchResults = Array.from(uniqueMatches.values());
     } catch {
       matchResults = [];
     }
@@ -455,18 +758,30 @@ export async function getScrimDayResults(): Promise<ScrimDayResult[]> {
 
 export async function saveTournamentMatch(data: TournamentMatch) {
   if (isFirebaseConfigured()) {
+    await saveFirestoreDocument(COLLECTIONS.matches, data.id, data as unknown as Record<string, unknown>);
     await saveFirestoreDocument(COLLECTIONS.tournamentMatches, data.id, data as unknown as Record<string, unknown>);
   }
   return data;
 }
 
 export async function getTeams(): Promise<Team[]> {
-  return fromFirestoreOrSeed<Team>(COLLECTIONS.teams, seedTeams, (a, b) => {
+  const teams = await fromFirestoreOrSeed<Team>(COLLECTIONS.teams, seedTeams, (a, b) => {
     const firstSlot = a.slotNumber ?? Number.POSITIVE_INFINITY;
     const secondSlot = b.slotNumber ?? Number.POSITIVE_INFINITY;
     if (firstSlot !== secondSlot) return firstSlot - secondSlot;
     return (a.rank ?? 99) - (b.rank ?? 99);
-  });
+  }, 500);
+
+  const visibleTeams = teams.filter((team) => team.scope !== "tournament");
+  const currentSeason = await getCurrentSeason();
+  if (currentSeason) {
+    const currentSeasonTeams = visibleTeams.filter((team) => team.scope === "season" && team.seasonId === currentSeason.id);
+    if (currentSeasonTeams.length > 0) {
+      return currentSeasonTeams.sort((firstTeam, secondTeam) => (firstTeam.rank ?? 999) - (secondTeam.rank ?? 999));
+    }
+  }
+
+  return visibleTeams;
 }
 
 export async function getTeam(id: string): Promise<Team | null> {
@@ -490,7 +805,27 @@ export async function deleteTeam(id: string) {
 }
 
 export async function getPlayers(): Promise<Player[]> {
-  return fromFirestoreOrSeed<Player>(COLLECTIONS.players, seedPlayers, (a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+  const players = await fromFirestoreOrSeed<Player>(
+    COLLECTIONS.players,
+    seedPlayers,
+    (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
+    1500
+  );
+  const visiblePlayers = players.filter((player) => player.scope !== "tournament");
+  const currentSeason = await getCurrentSeason();
+  if (currentSeason) {
+    const currentSeasonPlayers = visiblePlayers.filter(
+      (player) => player.scope === "season" && player.seasonId === currentSeason.id
+    );
+    if (currentSeasonPlayers.length > 0) {
+      return currentSeasonPlayers.sort(
+        (firstPlayer, secondPlayer) =>
+          (secondPlayer.totalPoints ?? secondPlayer.rating ?? 0) - (firstPlayer.totalPoints ?? firstPlayer.rating ?? 0)
+      );
+    }
+  }
+
+  return visiblePlayers;
 }
 
 export async function getPlayer(id: string): Promise<Player | null> {
@@ -519,21 +854,32 @@ export async function deletePlayer(id: string) {
 }
 
 export async function getLeaderboard(): Promise<LeaderboardRow[]> {
+  const currentSeason = await getCurrentSeason();
+  if (currentSeason) {
+    const seasonLeaderboard = await getSeasonLeaderboard(currentSeason.id);
+    if (seasonLeaderboard.length > 0) return seasonLeaderboard;
+  }
+
   if (!isFirebaseConfigured()) return [];
   try {
-    const teams = await fetchFirestoreCollection<Team>(COLLECTIONS.teams, 200);
-    const withLiveData = teams.filter((t) => (t.matches ?? 0) > 0);
-    if (withLiveData.length === 0) return [];
-    return [...withLiveData]
+    const teams = await fetchFirestoreCollection<Team>(COLLECTIONS.teams, 400);
+    const visibleTeams = teams.filter((team) => team.scope !== "tournament" && (team.matches ?? 0) > 0);
+    if (visibleTeams.length === 0) return [];
+    return [...visibleTeams]
       .sort((a, b) => (b.totalPoints ?? 0) - (a.totalPoints ?? 0))
-      .map((t, i) => ({
-        rank: i + 1,
-        teamId: t.id,
-        team: t.name,
-        matches: t.matches,
-        kills: t.kills,
-        placement: t.placementPoints ?? 0,
-        points: t.totalPoints,
+      .map((team, index) => ({
+        rank: index + 1,
+        teamId: team.id,
+        team: team.name,
+        matches: team.matches,
+        kills: team.kills,
+        killPoints: team.killPoints ?? team.kills,
+        placement: team.placementPoints ?? 0,
+        points: team.totalPoints,
+        averagePlacement: team.averagePlacement,
+        chickenDinners: team.chickenDinners,
+        logoUrl: team.logoUrl ?? team.logo,
+        scope: team.scope ?? "season",
       }));
   } catch {
     return [];
@@ -690,18 +1036,20 @@ export async function seedFirestore() {
 }
 
 export async function getAdminDashboardStats() {
-  const [teams, players, tournaments, registrations, scrims] = await Promise.all([
+  const [teams, players, tournaments, registrations, scrims, seasons] = await Promise.all([
     getTeams(),
     getPlayers(),
     getTournaments(),
     getRegistrations(),
     getScrims(),
+    getSeasons(),
   ]);
 
   const completedTournaments = tournaments.filter((t) => t.status === "COMPLETED").length;
   const liveTournaments = tournaments.filter((t) => t.status === "LIVE").length;
-  const totalMatches = teams.reduce((sum, t) => sum + (t.matches ?? 0), 0);
+  const totalMatches = tournaments.reduce((sum, tournament) => sum + (tournament.matchCount ?? 0), 0);
   const pendingRegistrations = registrations.filter((r) => r.status === "pending").length;
+  const activeSeason = seasons.find((season) => season.status === "active") ?? seasons[0];
 
   let recentUploads: { id: string; type: string; uploadedAt: string }[] = [];
   if (isFirebaseConfigured()) {
@@ -725,5 +1073,9 @@ export async function getAdminDashboardStats() {
     recentRegistrations: registrations.slice(0, 5),
     recentUploads,
     firebaseConnected: isFirebaseConfigured(),
+    totalSeasons: seasons.length,
+    activeSeasonTitle: activeSeason?.seriesTitle ?? activeSeason?.title,
+    activeSeasonDay: activeSeason?.currentDay,
+    activeSeasonLength: activeSeason?.configuredDays,
   };
 }

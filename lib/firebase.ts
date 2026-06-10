@@ -2,7 +2,20 @@ import admin from "firebase-admin";
 
 const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+
+function normalizePrivateKey(value?: string) {
+  if (!value) return undefined;
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return undefined;
+
+  const unwrappedValue = trimmedValue.replace(/^['"]+|['"]+$/g, "");
+  const withoutTrailingComma = unwrappedValue.replace(/,\s*$/, "");
+
+  return withoutTrailingComma.replace(/\\n/g, "\n");
+}
+
+const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
 
 export function getStorageBucketCandidates(projectIdOverride = projectId) {
   const candidates = [
@@ -21,7 +34,10 @@ function resolveStorageBucket(projectIdOverride?: string) {
 }
 
 export const COLLECTIONS = {
+  seasons: "seasons",
   tournaments: "tournaments",
+  standings: "standings",
+  matches: "matches",
   teams: "teams",
   players: "players",
   announcements: "announcements",

@@ -1,7 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import TournamentDetailClient from "@/components/tournaments/TournamentDetailClient";
-import { getLeaderboard, getPlayers, getTeams, getTournament, getTournamentMatches } from "@/lib/data";
+import {
+  getPlayers,
+  getTeams,
+  getTournament,
+  getTournamentMatches,
+  getTournamentPlayers,
+  getTournamentStandings,
+  getTournamentTeams,
+} from "@/lib/data";
+import { buildTournamentStandings } from "@/lib/tournament-standings";
 
 type PageProps = { params: Promise<{ tournamentId: string }> };
 
@@ -23,17 +32,30 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function TournamentDetailPage({ params }: PageProps) {
   const { tournamentId } = await params;
-  const [tournament, matches, teams, players, leaderboard] = await Promise.all([
+  const [tournament, matches, tournamentTeams, tournamentPlayers, storedStandings, allTeams, allPlayers] = await Promise.all([
     getTournament(tournamentId),
     getTournamentMatches(tournamentId),
+    getTournamentTeams(tournamentId),
+    getTournamentPlayers(tournamentId),
+    getTournamentStandings(tournamentId),
     getTeams(),
     getPlayers(),
-    getLeaderboard(),
   ]);
 
   if (!tournament) notFound();
 
-  const standings = leaderboard.slice(0, 5).map((r) => ({ team: r.team, points: r.points }));
+  const teams =
+    tournamentTeams.length > 0
+      ? tournamentTeams
+      : allTeams.filter((team) => (tournament.registeredTeamIds ?? []).includes(team.id));
+
+  const players =
+    tournamentPlayers.length > 0
+      ? tournamentPlayers
+      : allPlayers.filter((player) => player.teamId && teams.some((team) => team.id === player.teamId));
+
+  const standings =
+    storedStandings.length > 0 ? storedStandings : buildTournamentStandings(tournamentId, tournament.title, matches);
 
   return (
     <TournamentDetailClient

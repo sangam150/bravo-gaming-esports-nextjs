@@ -38,10 +38,10 @@ export default async function PlayerProfilePage({ params }: PageProps) {
   ];
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8 sm:px-8 lg:py-10">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <section className="page-hero">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-6">
+          <div className="flex min-w-0 items-center gap-6">
             <div
               className={`relative flex h-28 w-28 items-center justify-center rounded-3xl border-2 text-4xl font-black shadow-[0_0_40px_rgba(0,180,255,0.15)] ${
                 player.isMvpOfWeek
@@ -56,9 +56,9 @@ export default async function PlayerProfilePage({ params }: PageProps) {
                 </span>
               )}
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="section-title">Player Profile</p>
-              <h1 className="mt-2 text-4xl font-black text-white">{player.name}</h1>
+              <h1 className="mt-2 break-words text-4xl font-black text-white">{player.name}</h1>
               {player.isMvpOfWeek && (
                 <span className="mt-2 inline-flex rounded-full bg-amber-500/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-400">
                   MVP of the Week

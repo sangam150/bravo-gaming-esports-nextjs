@@ -38,6 +38,13 @@ function buildScrimPayload(body: Record<string, unknown>): Partial<Scrim> {
     mapRotation: Array.isArray(body.mapRotation)
       ? body.mapRotation.filter((value): value is string => typeof value === "string" && Boolean(value))
       : [],
+    seasonId: typeof body.seasonId === "string" ? body.seasonId : undefined,
+    seasonTitle: typeof body.seasonTitle === "string" ? body.seasonTitle : undefined,
+    seasonDayNumber:
+      typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber)
+        ? body.seasonDayNumber
+        : undefined,
+    tournamentId: typeof body.tournamentId === "string" ? body.tournamentId : undefined,
   };
 }
 
