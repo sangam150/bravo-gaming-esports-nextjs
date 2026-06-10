@@ -28,7 +28,7 @@ export default async function CurrentSeasonPage() {
         <div className="page-inner">
         <section className="page-hero p-8 text-center">
           <p className="section-title">Current Season</p>
-          <h1 className="hero-h1 mt-2 !text-4xl">Season data unavailable</h1>
+          <h1 className="hero-h1 mt-2 !text-4xl">Data not imported yet</h1>
           <p className="mt-4 text-text-muted">
             Import Bravo daily scrim data from admin to initialize the current season.
           </p>
@@ -124,7 +124,7 @@ export default async function CurrentSeasonPage() {
             <p className="section-heading !text-sm">Recent Results</p>
             <div className="mt-4 space-y-3">
               {recentResults.length === 0 ? (
-                <p className="text-sm text-text-muted">No completed day results are stored yet.</p>
+                <p className="text-sm text-text-muted">Data not imported yet for completed day results.</p>
               ) : (
                 recentResults.map((tournament) => (
                   <Link
@@ -157,7 +157,7 @@ export default async function CurrentSeasonPage() {
             </p>
           </div>
           {leaderboard.length === 0 ? (
-            <div className="p-8 text-center text-sm text-text-muted">No season standings available yet.</div>
+            <div className="p-8 text-center text-sm text-text-muted">Data not imported yet for season standings.</div>
           ) : (
             <div className="table-scroll">
               <table className="data-table min-w-full">

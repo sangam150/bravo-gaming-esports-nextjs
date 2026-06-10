@@ -40,66 +40,81 @@ export default function PlayersPageClient({ initialPlayers }: { initialPlayers: 
         }}
       />
 
-      <div className="mt-6 esports-card overflow-hidden !p-0">
-        <div className="table-scroll">
-          <table className="data-table min-w-full">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Player</th>
-                <th>Team</th>
-                <th>Kills</th>
-                <th>Damage</th>
-                <th>MVP</th>
-                <th>Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((player, index) => (
-                <tr key={player.id}>
-                  <td className="font-mono-stat font-bold text-accent-blue">
-                    #{(page - 1) * perPage + index + 1}
-                  </td>
-                  <td>
-                    <Link href={`/players/${player.id}`} className="flex items-center gap-2 hover:text-accent-blue">
-                      <TeamAvatar name={player.name} size="sm" />
-                      <span className="font-semibold">{player.name}</span>
-                    </Link>
-                  </td>
-                  <td className="text-text-muted uppercase">{player.teamName ?? "-"}</td>
-                  <td className="font-mono-stat">{player.kills}</td>
-                  <td className="font-mono-stat text-text-muted">{player.damage.toLocaleString()}</td>
-                  <td className="font-mono-stat">{player.mvpCount}</td>
-                  <td className="font-mono-stat text-accent-green">
-                    {typeof player.winRate === "number" ? `${Math.round(player.winRate * 100)}%` : "-"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {filteredPlayers.length === 0 ? (
+        <div className="mt-6 esports-card p-10 text-center">
+          <p className="font-display text-lg font-bold uppercase text-white">
+            {search ? "No players found" : "Data not imported yet"}
+          </p>
+          <p className="mt-2 text-sm text-text-muted">
+            {search
+              ? "Try a different player or team name."
+              : "Player profiles appear here after real Bravo match data is imported."}
+          </p>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="mt-6 esports-card overflow-hidden !p-0">
+            <div className="table-scroll">
+              <table className="data-table min-w-full">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th>Team</th>
+                    <th>Kills</th>
+                    <th>Damage</th>
+                    <th>MVP</th>
+                    <th>Win Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((player, index) => (
+                    <tr key={player.id}>
+                      <td className="font-mono-stat font-bold text-accent-blue">
+                        #{(page - 1) * perPage + index + 1}
+                      </td>
+                      <td>
+                        <Link href={`/players/${player.id}`} className="flex items-center gap-2 hover:text-accent-blue">
+                          <TeamAvatar name={player.name} size="sm" />
+                          <span className="font-semibold">{player.name}</span>
+                        </Link>
+                      </td>
+                      <td className="text-text-muted uppercase">{player.teamName ?? "-"}</td>
+                      <td className="font-mono-stat">{player.kills}</td>
+                      <td className="font-mono-stat text-text-muted">{player.damage.toLocaleString()}</td>
+                      <td className="font-mono-stat">{player.mvpCount}</td>
+                      <td className="font-mono-stat text-accent-green">
+                        {typeof player.winRate === "number" ? `${Math.round(player.winRate * 100)}%` : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-      <div className="mt-6 flex items-center justify-center gap-2">
-        {Array.from({ length: Math.min(totalPages, 3) }, (_, index) => index + 1).map((pageNumber) => (
-          <button
-            key={pageNumber}
-            type="button"
-            onClick={() => setPage(pageNumber)}
-            className={`h-8 w-8 rounded-btn text-sm font-bold ${
-              page === pageNumber ? "bg-accent-blue text-white" : "bg-bg-card text-text-muted"
-            }`}
-          >
-            {pageNumber}
-          </button>
-        ))}
-        {totalPages > 3 && <span className="text-text-muted">...</span>}
-        {page < totalPages && (
-          <button type="button" onClick={() => setPage(page + 1)} className="btn-secondary !py-1.5 !text-[11px]">
-            Next
-          </button>
-        )}
-      </div>
+          <div className="mt-6 flex items-center justify-center gap-2">
+            {Array.from({ length: Math.min(totalPages, 3) }, (_, index) => index + 1).map((pageNumber) => (
+              <button
+                key={pageNumber}
+                type="button"
+                onClick={() => setPage(pageNumber)}
+                className={`h-8 w-8 rounded-btn text-sm font-bold ${
+                  page === pageNumber ? "bg-accent-blue text-white" : "bg-bg-card text-text-muted"
+                }`}
+              >
+                {pageNumber}
+              </button>
+            ))}
+            {totalPages > 3 && <span className="text-text-muted">...</span>}
+            {page < totalPages && (
+              <button type="button" onClick={() => setPage(page + 1)} className="btn-secondary !py-1.5 !text-[11px]">
+                Next
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </main>
   );
 }

@@ -15,6 +15,6 @@ export async function GET(request: Request) {
   return Response.json({
     success: true,
     data: { matches, uploads },
-    message: matches.length === 0 ? "Waiting for live match data" : undefined,
+    message: matches.length === 0 ? "Data not imported yet" : undefined,
   });
 }

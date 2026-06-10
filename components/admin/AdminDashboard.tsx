@@ -140,6 +140,7 @@ export default function AdminDashboard() {
   const [importing, setImporting] = useState(false);
   const [importingBravoFeed, setImportingBravoFeed] = useState(false);
   const [syncingSeason, setSyncingSeason] = useState(false);
+  const [resettingData, setResettingData] = useState(false);
   const [pubgResult, setPubgResult] = useState<unknown>(null);
 
   const leaderboardRows = useMemo(
@@ -446,13 +447,23 @@ export default function AdminDashboard() {
     }
   }
 
-  async function seedDatabase() {
+  async function resetCompetitionData() {
+    const confirmed = window.confirm(
+      "This will permanently delete seasons, tournaments, scrims, imported matches, standings, team/player competition records, and cached PUBG imports. Continue?"
+    );
+    if (!confirmed) return;
+
+    setResettingData(true);
+    setError(null);
+
     try {
-      const res = await adminFetch("/api/admin/seed", { method: "POST" });
-      setMessage(res.data.message);
-      loadData();
+      const res = await adminFetch("/api/admin/reset", { method: "POST" });
+      setMessage(res.message ?? res.data?.message ?? "Competition data reset");
+      await loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setResettingData(false);
     }
   }
 
@@ -619,7 +630,7 @@ export default function AdminDashboard() {
                 <p className="section-heading !text-sm">Recent Live Matches</p>
               </div>
               {liveMatches.length === 0 ? (
-                <p className="p-6 text-center text-sm text-text-muted">Waiting for live match data</p>
+                <p className="p-6 text-center text-sm text-text-muted">Data not imported yet</p>
               ) : (
                 <div className="table-scroll">
                   <table className="data-table min-w-full">
@@ -1139,7 +1150,7 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             <h2 className="text-2xl font-black text-white">Live Match Results</h2>
             {liveMatches.length === 0 ? (
-              <div className="esports-card p-8 text-center text-text-muted">Waiting for live match data. Import a PUBG match ID to populate results.</div>
+              <div className="esports-card p-8 text-center text-text-muted">Data not imported yet. Import a PUBG match ID to populate results.</div>
             ) : (
               <div className="esports-card overflow-hidden">
                 <div className="table-scroll">
@@ -1169,7 +1180,7 @@ export default function AdminDashboard() {
             <h2 className="text-2xl font-black text-white">Points Table</h2>
             <p className="text-sm text-text-muted">Rankings auto-update when live PUBG match data is imported.</p>
             {leaderboardRows.length === 0 ? (
-              <div className="esports-card p-8 text-center text-text-muted">Waiting for live match data</div>
+              <div className="esports-card p-8 text-center text-text-muted">Data not imported yet</div>
             ) : (
               <div className="esports-card overflow-hidden">
                 <div className="table-scroll">
@@ -1287,9 +1298,19 @@ export default function AdminDashboard() {
               )}
             </div>
             <div className="esports-card space-y-4 p-6">
-              <p className="font-semibold text-white">Seed Database</p>
-              <p className="text-sm text-slate-400">Seeds teams, players, tournaments. Does not seed fake match results.</p>
-              <button type="button" onClick={seedDatabase} className={btnPrimary}>Seed Database</button>
+              <p className="font-semibold text-white">Reset Competition Data</p>
+              <p className="text-sm text-slate-400">
+                Clears imported seasons, tournaments, scrims, teams, players, standings, match history, and cached PUBG import records.
+                Announcements, registrations, and uploaded media stay untouched.
+              </p>
+              <button
+                type="button"
+                onClick={resetCompetitionData}
+                disabled={!stats?.firebaseConnected || resettingData}
+                className={`${btnDanger} disabled:cursor-not-allowed disabled:opacity-60`}
+              >
+                {resettingData ? "Resetting..." : "Reset Imported Data"}
+              </button>
             </div>
             <div className="esports-card space-y-4 p-6">
               <p className="font-semibold text-white">Auto-Sync Cron</p>

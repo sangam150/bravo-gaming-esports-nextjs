@@ -9,7 +9,7 @@ function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
   if (rows.length === 0) {
     return (
       <div className="esports-card p-8 text-center text-sm text-text-muted">
-        Standings are not available for this day yet. The tournament record is stored, but no official results have been imported.
+        Data not imported yet. The tournament record exists, but official standings have not been imported yet.
       </div>
     );
   }
@@ -88,9 +88,9 @@ export default function LeaderboardPageClient({
 
       {!hasLeaderboardData ? (
         <div className="esports-card p-10 text-center">
-          <p className="font-display text-lg font-bold uppercase text-white">Waiting for live match data</p>
+          <p className="font-display text-lg font-bold uppercase text-white">Data not imported yet</p>
           <p className="mt-2 text-sm text-text-muted">
-            Standings appear after PUBG PC match results are imported from the live API.
+            Standings appear here after real PUBG PC match results are imported.
           </p>
         </div>
       ) : (
@@ -112,7 +112,7 @@ export default function LeaderboardPageClient({
       )}
 
       <p className="mt-6 text-center text-xs text-text-muted">
-        Leaderboard updates automatically when live match data is imported.
+        Leaderboard updates automatically after real match data is imported.
       </p>
       </div>
     </main>

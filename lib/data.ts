@@ -801,7 +801,7 @@ export async function saveTournamentMatch(data: TournamentMatch) {
 }
 
 export async function getTeams(): Promise<Team[]> {
-  const teams = await fromFirestoreOrSeed<Team>(COLLECTIONS.teams, seedTeams, (a, b) => compareBravoTeamSlotOrder(a, b), 500);
+  const teams = await fromFirestoreOrSeed<Team>(COLLECTIONS.teams, [], (a, b) => compareBravoTeamSlotOrder(a, b), 500);
 
   const visibleTeams = teams.filter((team) => team.scope !== "tournament");
   const currentSeason = await getCurrentSeason();
@@ -816,7 +816,7 @@ export async function getTeams(): Promise<Team[]> {
 }
 
 export async function getTeam(id: string): Promise<Team | null> {
-  return oneFromFirestoreOrSeed(COLLECTIONS.teams, id, seedTeams);
+  return oneFromFirestoreOrSeed(COLLECTIONS.teams, id, []);
 }
 
 export async function saveTeam(data: Partial<Team> & { name: string }, id?: string) {
@@ -838,7 +838,7 @@ export async function deleteTeam(id: string) {
 export async function getPlayers(): Promise<Player[]> {
   const players = await fromFirestoreOrSeed<Player>(
     COLLECTIONS.players,
-    seedPlayers,
+    [],
     (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
     1500
   );
@@ -860,7 +860,7 @@ export async function getPlayers(): Promise<Player[]> {
 }
 
 export async function getPlayer(id: string): Promise<Player | null> {
-  return oneFromFirestoreOrSeed(COLLECTIONS.players, id, seedPlayers);
+  return oneFromFirestoreOrSeed(COLLECTIONS.players, id, []);
 }
 
 export async function getMvpOfWeek(): Promise<Player | null> {

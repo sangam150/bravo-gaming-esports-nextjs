@@ -35,37 +35,50 @@ export default function TeamsPageClient({ initialTeams }: { initialTeams: Team[]
 
       <SearchInput placeholder="Search teams..." value={search} onChange={setSearch} />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {visibleTeams.map((team) => (
-          <Link key={team.id} href={`/teams/${team.id}`} className="esports-card group min-w-0 p-5 text-center">
-            <div className="mx-auto">
-              <TeamAvatar name={team.name} size="lg" imageUrl={team.logoUrl ?? team.logo} />
-            </div>
-            {team.slotNumber && (
-              <p className="mt-4 text-label font-bold uppercase text-accent-blue">Slot {team.slotNumber}</p>
-            )}
-            <h2 className="mt-4 font-display text-sm font-bold uppercase text-white group-hover:text-accent-blue">
-              {team.name}
-            </h2>
-            <p className="truncate text-label uppercase text-text-muted">{team.tag ?? team.name}</p>
-            <div className="mt-4 flex justify-center gap-6 text-sm">
-              <div>
-                <p className="text-label uppercase text-text-muted">Points</p>
-                <p className="font-mono-stat font-bold text-accent-green">{team.totalPoints}</p>
+      {filteredTeams.length === 0 ? (
+        <div className="esports-card mt-6 p-10 text-center">
+          <p className="font-display text-lg font-bold uppercase text-white">
+            {search ? "No teams found" : "Data not imported yet"}
+          </p>
+          <p className="mt-2 text-sm text-text-muted">
+            {search
+              ? "Try a different team name or clear the search."
+              : "Team records appear here after real Bravo scrim or tournament data is imported."}
+          </p>
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {visibleTeams.map((team) => (
+            <Link key={team.id} href={`/teams/${team.id}`} className="esports-card group min-w-0 p-5 text-center">
+              <div className="mx-auto">
+                <TeamAvatar name={team.name} size="lg" imageUrl={team.logoUrl ?? team.logo} />
               </div>
-              <div>
-                <p className="text-label uppercase text-text-muted">Rank</p>
-                <p className="font-mono-stat font-bold text-accent-blue">
-                  {team.rank ? `#${team.rank}` : "-"}
-                </p>
+              {team.slotNumber && (
+                <p className="mt-4 text-label font-bold uppercase text-accent-blue">Slot {team.slotNumber}</p>
+              )}
+              <h2 className="mt-4 font-display text-sm font-bold uppercase text-white group-hover:text-accent-blue">
+                {team.name}
+              </h2>
+              <p className="truncate text-label uppercase text-text-muted">{team.tag ?? team.name}</p>
+              <div className="mt-4 flex justify-center gap-6 text-sm">
+                <div>
+                  <p className="text-label uppercase text-text-muted">Points</p>
+                  <p className="font-mono-stat font-bold text-accent-green">{team.totalPoints}</p>
+                </div>
+                <div>
+                  <p className="text-label uppercase text-text-muted">Rank</p>
+                  <p className="font-mono-stat font-bold text-accent-blue">
+                    {team.rank ? `#${team.rank}` : "-"}
+                  </p>
+                </div>
               </div>
-            </div>
-            <span className="btn-outline-blue mt-4 inline-flex w-full justify-center !text-[11px]">
-              View Profile
-            </span>
-          </Link>
-        ))}
-      </div>
+              <span className="btn-outline-blue mt-4 inline-flex w-full justify-center !text-[11px]">
+                View Profile
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {!showAll && filteredTeams.length > 8 && (
         <div className="mt-8 text-center">

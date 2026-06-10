@@ -42,7 +42,7 @@ const statusClassNames: Record<ScrimDayStatus, string> = {
 };
 
 function getStatusLabel(status: ScrimDayStatus) {
-  if (status === "waiting_for_data") return "Waiting for PUBG data";
+  if (status === "waiting_for_data") return "Data not imported yet";
   if (status === "mixed") return "Mixed status";
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
@@ -140,7 +140,7 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
   if (days.length === 0) {
     return (
       <div className="esports-card p-8 text-center text-text-muted">
-        <p className="font-display font-bold uppercase text-white">Waiting for live match data</p>
+        <p className="font-display font-bold uppercase text-white">Data not imported yet</p>
         <p className="mt-2 text-sm">
           Create scrim entries in admin, import PUBG match IDs, and the daily results will appear here automatically.
         </p>
@@ -258,7 +258,7 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
 
               {day.leaderboard.length === 0 ? (
                 <div className="mt-4 rounded-card border border-dashed border-white/10 px-4 py-8 text-center text-sm text-text-muted">
-                  No imported match results yet for {day.label}. Add the PUBG match ID in admin and import it to
+                  Data not imported yet for {day.label}. Add the PUBG match ID in admin and import it to
                   populate the table.
                 </div>
               ) : (
@@ -334,7 +334,7 @@ export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
         </div>
         <div className="esports-card p-5">
           <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Latest Published</p>
-          <p className="mt-3 text-lg font-black text-white">{latestDay?.label ?? "Awaiting Day 1"}</p>
+          <p className="mt-3 text-lg font-black text-white">{latestDay?.label ?? "Data not imported yet"}</p>
           <p className="mt-1 text-sm text-text-muted">{latestDay?.displayDate ?? "Add a scrim in admin"}</p>
         </div>
       </div>

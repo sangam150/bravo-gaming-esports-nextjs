@@ -9,10 +9,9 @@ import type {
   TournamentMatch,
   VideoItem,
 } from "./types";
-import { getBravoCanonicalTeams } from "./bravo-teams";
 
 export const seedStats: SiteStats = {
-  teamsRegistered: getBravoCanonicalTeams().length,
+  teamsRegistered: 0,
   matchesHosted: 0,
   tournamentsCompleted: 0,
   prizePoolsAwarded: "Not imported yet",
@@ -22,16 +21,7 @@ export const seedStats: SiteStats = {
 
 export const seedTournaments: Tournament[] = [];
 
-export const seedTeams: Team[] = getBravoCanonicalTeams().map((team) => ({
-  ...team,
-  totalPoints: 0,
-  kills: 0,
-  matches: 0,
-  killPoints: 0,
-  placementPoints: 0,
-  registrationStatus: "approved",
-  status: "active",
-}));
+export const seedTeams: Team[] = [];
 
 export const seedPlayers: Player[] = [];
 

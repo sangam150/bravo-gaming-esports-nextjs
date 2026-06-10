@@ -42,7 +42,7 @@ export default function TournamentTabs({
       {activeTab === "Matches" && (
         <div className="mt-8 grid gap-6 lg:grid-cols-3">
           {matches.length === 0 ? (
-            <p className="text-slate-400 lg:col-span-3">Waiting for live match data</p>
+            <p className="text-slate-400 lg:col-span-3">Data not imported yet</p>
           ) : (
             matches.map((match) => (
               <div key={match.id} className="esports-card p-6">
@@ -72,7 +72,7 @@ export default function TournamentTabs({
               <p className="text-sm text-slate-400">{player.teamName}</p>
               <div className="mt-4 flex justify-between text-sm text-slate-300">
                 <span>Kills {player.kills}</span>
-                <span className="text-bravoBlue">{player.rating ?? "—"} rating</span>
+                <span className="text-bravoBlue">{player.rating ?? "-"} rating</span>
               </div>
             </Link>
           ))}
@@ -87,7 +87,7 @@ export default function TournamentTabs({
                 <LogoBadge label={team.name} />
                 <div>
                   <p className="font-semibold text-white">{team.name}</p>
-                  <p className="text-sm text-slate-400">#{team.rank} · {team.totalPoints} pts</p>
+                  <p className="text-sm text-slate-400">#{team.rank} | {team.totalPoints} pts</p>
                 </div>
               </div>
             </Link>

@@ -18,6 +18,10 @@ import {
 
 const statIcons = ["TM", "MH", "TC", "PP", "CM", "YT"];
 
+function formatHeroCount(value: number) {
+  return value > 0 ? `${value}+` : "0";
+}
+
 function countdown(startDate: string) {
   const diff = new Date(startDate).getTime() - Date.now();
   if (diff <= 0) return "Soon";
@@ -39,11 +43,11 @@ export default async function HomePage() {
   ]);
 
   const heroStats = [
-    { label: "Teams Registered", value: `${stats.teamsRegistered}+` },
-    { label: "Matches Hosted", value: `${stats.matchesHosted}+` },
-    { label: "Tournaments Completed", value: `${stats.tournamentsCompleted}+` },
+    { label: "Teams Registered", value: formatHeroCount(stats.teamsRegistered) },
+    { label: "Matches Hosted", value: formatHeroCount(stats.matchesHosted) },
+    { label: "Tournaments Completed", value: formatHeroCount(stats.tournamentsCompleted) },
     { label: "Prize Pools Awarded", value: stats.prizePoolsAwarded },
-    { label: "Community Members", value: `${stats.communityMembers.toLocaleString()}+` },
+    { label: "Community Members", value: stats.communityMembers > 0 ? `${stats.communityMembers.toLocaleString()}+` : "0" },
     { label: "YouTube Views", value: stats.youtubeViews },
   ];
 
@@ -176,7 +180,7 @@ export default async function HomePage() {
               </div>
             </div>
             {currentSeasonOverview.leaderboard.length === 0 ? (
-              <p className="p-6 text-center text-sm text-text-muted">Season standings will appear after the first day is stored.</p>
+              <p className="p-6 text-center text-sm text-text-muted">Data not imported yet for season standings.</p>
             ) : (
               <div className="table-scroll">
                 <table className="data-table min-w-full">
@@ -270,7 +274,7 @@ export default async function HomePage() {
           <SectionHeader title="Live Leaderboard" linkLabel="View Full Leaderboard" linkHref="/leaderboard" />
           <div className="esports-card overflow-hidden !p-0">
             {leaderboard.length === 0 ? (
-              <p className="p-6 text-center text-sm text-text-muted">Waiting for live match data</p>
+              <p className="p-6 text-center text-sm text-text-muted">Data not imported yet</p>
             ) : (
               <div className="table-scroll">
                 <table className="data-table min-w-full">

@@ -6,6 +6,6 @@ export async function GET() {
     success: true,
     data,
     days,
-    message: data.length === 0 ? "Waiting for live match data" : undefined,
+    message: data.length === 0 ? "Data not imported yet" : undefined,
   });
 }
