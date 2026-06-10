@@ -4,16 +4,26 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import SearchInput from "@/components/ui/SearchInput";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { compareBravoTeamSlotOrder } from "@/lib/bravo-teams";
+import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { Team } from "@/lib/types";
 
 export default function TeamsPageClient({ initialTeams }: { initialTeams: Team[] }) {
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const { overview, teams: liveTeams } = useBravoRealtimeData({ teams: initialTeams });
+
+  const visibleSeasonTeams = useMemo(() => {
+    const scopedTeams = overview?.teams?.length ? overview.teams : liveTeams.filter((team) => team.scope !== "tournament");
+    return [...scopedTeams].sort(
+      (firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam)
+    );
+  }, [liveTeams, overview?.teams]);
 
   const filteredTeams = useMemo(() => {
     const query = search.toLowerCase();
-    return initialTeams.filter((team) => team.name.toLowerCase().includes(query));
-  }, [initialTeams, search]);
+    return visibleSeasonTeams.filter((team) => team.name.toLowerCase().includes(query));
+  }, [search, visibleSeasonTeams]);
 
   const visibleTeams = showAll ? filteredTeams : filteredTeams.slice(0, 8);
 

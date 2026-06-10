@@ -14,6 +14,7 @@ import {
 import { importBravoGamingFeed } from "./bravo-feed-import";
 import { buildBravoTournamentTitle } from "./bravo-feed";
 import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "./bravo-teams";
+import { buildPlayerAppearanceMapFromMatches, choosePreferredPlayerTeam } from "./player-team-history";
 import { buildSeasonLeaderboard } from "./season-standings";
 import {
   COLLECTIONS,
@@ -65,6 +66,24 @@ function compareSeasonTeamDocs(
   return compareBravoTeamSlotOrder(firstTeam, secondTeam);
 }
 
+function getMatchMvpPlayerKey(match: TournamentMatch) {
+  const playerResults = [...(match.playerResults ?? [])];
+  if (playerResults.length === 0) return null;
+
+  const mvp =
+    playerResults.sort(
+      (firstPlayer, secondPlayer) =>
+        secondPlayer.totalPoints - firstPlayer.totalPoints ||
+        secondPlayer.kills - firstPlayer.kills ||
+        secondPlayer.damage - firstPlayer.damage ||
+        secondPlayer.assists - firstPlayer.assists ||
+        firstPlayer.playerName.localeCompare(secondPlayer.playerName)
+    )[0] ?? null;
+
+  if (!mvp) return null;
+  return mvp.pubgPlayerId ?? mvp.playerId ?? mvp.playerName;
+}
+
 async function deleteMissingSeasonDocuments<T extends { id: string }>(
   collectionName: string,
   seasonId: string,
@@ -88,10 +107,11 @@ async function deleteMissingSeasonDocuments<T extends { id: string }>(
 }
 
 async function purgeTournamentScope(tournamentId: string) {
-  const [matches, tournamentMatches, matchResults, standings, teams, players] = await Promise.all([
+  const [matches, tournamentMatches, matchResults, matchPlayers, standings, teams, players] = await Promise.all([
     queryFirestoreCollection<TournamentMatch>(COLLECTIONS.matches, "tournamentId", tournamentId, 500),
     queryFirestoreCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, "tournamentId", tournamentId, 500),
     queryFirestoreCollection<TournamentMatch>(COLLECTIONS.matchResults, "tournamentId", tournamentId, 500),
+    queryFirestoreCollection(COLLECTIONS.matchPlayers, "tournamentId", tournamentId, 5000),
     queryFirestoreCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 500),
     queryFirestoreCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 500),
     queryFirestoreCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 1000),
@@ -101,6 +121,7 @@ async function purgeTournamentScope(tournamentId: string) {
     ...matches.map((match) => deleteFirestoreDocument(COLLECTIONS.matches, match.id)),
     ...tournamentMatches.map((match) => deleteFirestoreDocument(COLLECTIONS.tournamentMatches, match.id)),
     ...matchResults.map((match) => deleteFirestoreDocument(COLLECTIONS.matchResults, match.id)),
+    ...matchPlayers.map((matchPlayer) => deleteFirestoreDocument(COLLECTIONS.matchPlayers, matchPlayer.id)),
     ...standings.map((standing) => deleteFirestoreDocument(COLLECTIONS.standings, standing.id)),
     ...teams.map((team) => deleteFirestoreDocument(COLLECTIONS.teams, team.id)),
     ...players.map((player) => deleteFirestoreDocument(COLLECTIONS.players, player.id)),
@@ -271,6 +292,10 @@ export async function syncBravoDailyScrimSeason(options?: {
   const existingSeasonPlayerById = new Map(
     existingSeasonPlayers.filter((player) => player.scope === "season").map((player) => [player.id, player])
   );
+  const seasonAppearanceMap = buildPlayerAppearanceMapFromMatches(
+    tournamentSnapshots.flatMap((snapshot) => snapshot.matches)
+  );
+  const seasonMvpCounts = new Map<string, number>();
 
   const teamMetadata = new Map<
     string,
@@ -311,14 +336,12 @@ export async function syncBravoDailyScrimSeason(options?: {
       matches: number;
       bestPlacement: number;
       dayNumbers: Set<number>;
-      latestDay: number;
+      sourcePlayerKey: string;
     }
   >();
 
   for (const snapshot of tournamentSnapshots) {
     const dayNumber = snapshot.tournament.seasonDayNumber ?? snapshot.tournament.dayNumber ?? 0;
-    const standingByTeamName = new Map(snapshot.standings.map((standing) => [standing.teamName, standing]));
-
     for (const team of snapshot.teams) {
       const sourceTeamName = team.sourceTeamName ?? team.name;
       const seasonTeamId = buildSeasonTeamId(BRAVO_SEASON_SLUG, sourceTeamName);
@@ -395,76 +418,103 @@ export async function syncBravoDailyScrimSeason(options?: {
       });
     }
 
+    const tournamentPlayerLookup = new Map(
+      snapshot.players.flatMap((player) => {
+        const keys = [player.sourcePlayerId, player.pubgId, player.pubgName, player.inGameName, player.name].filter(
+          (value): value is string => Boolean(value)
+        );
+        return keys.map((key) => [key, player] as const);
+      })
+    );
+
+    for (const match of snapshot.matches) {
+      const mvpPlayerKey = getMatchMvpPlayerKey(match);
+      if (mvpPlayerKey) {
+        seasonMvpCounts.set(mvpPlayerKey, (seasonMvpCounts.get(mvpPlayerKey) ?? 0) + 1);
+      }
+
+      for (const playerResult of match.playerResults ?? []) {
+        const sourcePlayerKey = playerResult.pubgPlayerId ?? playerResult.playerId ?? playerResult.playerName;
+        const relatedPlayer =
+          tournamentPlayerLookup.get(sourcePlayerKey) ??
+          tournamentPlayerLookup.get(playerResult.playerName) ??
+          null;
+        const seasonPlayerId = buildSeasonPlayerId(BRAVO_SEASON_SLUG, sourcePlayerKey ?? "", playerResult.playerName);
+        const seasonTeamId =
+          playerResult.teamName && playerResult.teamName.trim().length > 0
+            ? buildSeasonTeamId(BRAVO_SEASON_SLUG, playerResult.teamName)
+            : undefined;
+
+        if (playerResult.teamName && seasonTeamId) {
+          const canonicalTeam = resolveBravoTeamIdentity(playerResult.teamName);
+          const metadata = teamMetadata.get(seasonTeamId) ?? {
+            teamName: canonicalTeam?.name ?? playerResult.teamName,
+            slotNumber: canonicalTeam?.slotNumber,
+            dayNumbers: new Set<number>(),
+            sourceTeamNames: new Set<string>(),
+          };
+
+          metadata.dayNumbers.add(dayNumber);
+          metadata.sourceTeamNames.add(playerResult.teamName);
+          teamMetadata.set(seasonTeamId, metadata);
+        }
+
+        const aggregate = playerAggregateMap.get(seasonPlayerId) ?? {
+          id: seasonPlayerId,
+          name: relatedPlayer?.name ?? playerResult.playerName,
+          inGameName: relatedPlayer?.inGameName ?? playerResult.playerName,
+          teamId: seasonTeamId,
+          teamName: playerResult.teamName,
+          role: relatedPlayer?.role,
+          nationality: relatedPlayer?.nationality,
+          avatarUrl:
+            existingSeasonPlayerById.get(seasonPlayerId)?.avatarUrl ??
+            relatedPlayer?.avatarUrl ??
+            relatedPlayer?.avatar,
+          avatar:
+            existingSeasonPlayerById.get(seasonPlayerId)?.avatar ??
+            relatedPlayer?.avatar ??
+            relatedPlayer?.avatarUrl,
+          pubgId: relatedPlayer?.pubgId ?? sourcePlayerKey,
+          pubgName: relatedPlayer?.pubgName ?? playerResult.playerName,
+          assists: 0,
+          knocks: 0,
+          placementPoints: 0,
+          totalPoints: 0,
+          kills: 0,
+          damage: 0,
+          mvpCount: 0,
+          chickenDinners: 0,
+          matches: 0,
+          bestPlacement: Number.POSITIVE_INFINITY,
+          dayNumbers: new Set<number>(),
+          sourcePlayerKey,
+        };
+
+        aggregate.role = relatedPlayer?.role ?? aggregate.role;
+        aggregate.nationality = relatedPlayer?.nationality ?? aggregate.nationality;
+        aggregate.pubgId = relatedPlayer?.pubgId ?? aggregate.pubgId;
+        aggregate.pubgName = relatedPlayer?.pubgName ?? aggregate.pubgName;
+        aggregate.assists += playerResult.assists;
+        aggregate.knocks += playerResult.knocks;
+        aggregate.placementPoints += playerResult.placementPoints;
+        aggregate.totalPoints += playerResult.totalPoints;
+        aggregate.kills += playerResult.kills;
+        aggregate.damage += playerResult.damage;
+        aggregate.chickenDinners += playerResult.placement === 1 ? 1 : 0;
+        aggregate.matches += 1;
+        aggregate.bestPlacement = Math.min(aggregate.bestPlacement, playerResult.placement);
+        aggregate.dayNumbers.add(dayNumber);
+
+        playerAggregateMap.set(seasonPlayerId, aggregate);
+      }
+    }
+
     for (const player of snapshot.players) {
       const seasonTeamId =
         player.teamName && player.teamName.trim().length > 0
           ? buildSeasonTeamId(BRAVO_SEASON_SLUG, player.teamName)
           : undefined;
-      if (player.teamName && seasonTeamId) {
-        const canonicalTeam = resolveBravoTeamIdentity(player.teamName);
-        const metadata = teamMetadata.get(seasonTeamId) ?? {
-          teamName: canonicalTeam?.name ?? player.teamName,
-          slotNumber: canonicalTeam?.slotNumber,
-          dayNumbers: new Set<number>(),
-          sourceTeamNames: new Set<string>(),
-        };
-
-        metadata.dayNumbers.add(dayNumber);
-        metadata.sourceTeamNames.add(player.teamName);
-        teamMetadata.set(seasonTeamId, metadata);
-      }
-      const sourcePlayerKey = player.sourcePlayerId ?? player.pubgId ?? player.pubgName ?? player.inGameName ?? player.name;
-      const seasonPlayerId = buildSeasonPlayerId(BRAVO_SEASON_SLUG, sourcePlayerKey ?? "", player.name);
-      const relatedStanding = player.teamName ? standingByTeamName.get(player.teamName) : undefined;
-      const aggregate = playerAggregateMap.get(seasonPlayerId) ?? {
-        id: seasonPlayerId,
-        name: player.name,
-        inGameName: player.inGameName ?? player.name,
-        teamId: seasonTeamId,
-        teamName: player.teamName,
-        role: player.role,
-        nationality: player.nationality,
-        avatarUrl: existingSeasonPlayerById.get(seasonPlayerId)?.avatarUrl ?? player.avatarUrl ?? player.avatar,
-        avatar: existingSeasonPlayerById.get(seasonPlayerId)?.avatar ?? player.avatar ?? player.avatarUrl,
-        pubgId: player.pubgId,
-        pubgName: player.pubgName ?? player.inGameName ?? player.name,
-        assists: 0,
-        knocks: 0,
-        placementPoints: 0,
-        totalPoints: 0,
-        kills: 0,
-        damage: 0,
-        mvpCount: 0,
-        chickenDinners: 0,
-        matches: 0,
-        bestPlacement: Number.POSITIVE_INFINITY,
-        dayNumbers: new Set<number>(),
-        latestDay: dayNumber,
-      };
-
-      if (dayNumber >= aggregate.latestDay) {
-        aggregate.teamId = seasonTeamId;
-        aggregate.teamName = player.teamName;
-        aggregate.role = player.role ?? aggregate.role;
-        aggregate.nationality = player.nationality ?? aggregate.nationality;
-        aggregate.pubgId = player.pubgId ?? aggregate.pubgId;
-        aggregate.pubgName = player.pubgName ?? aggregate.pubgName;
-        aggregate.latestDay = dayNumber;
-      }
-
-      aggregate.assists += player.assists ?? 0;
-      aggregate.knocks += player.knocks ?? 0;
-      aggregate.placementPoints += player.placementPoints ?? 0;
-      aggregate.totalPoints += player.totalPoints ?? player.rating ?? 0;
-      aggregate.kills += player.kills;
-      aggregate.damage += player.damage;
-      aggregate.mvpCount += player.mvpCount;
-      aggregate.chickenDinners += relatedStanding?.wins ?? 0;
-      aggregate.matches += player.matches;
-      aggregate.bestPlacement = Math.min(aggregate.bestPlacement, player.bestPlacement ?? Number.POSITIVE_INFINITY);
-      aggregate.dayNumbers.add(dayNumber);
-
-      playerAggregateMap.set(seasonPlayerId, aggregate);
 
       await savePlayer(
         {
@@ -484,20 +534,30 @@ export async function syncBravoDailyScrimSeason(options?: {
 
   const leaderboardEntries = buildSeasonLeaderboard(mappedStandings);
   const playerSummaries = Array.from(playerAggregateMap.values())
-    .map((playerAggregate) => ({
-      ...playerAggregate,
-      dayNumbers: Array.from(playerAggregate.dayNumbers).sort((firstDay, secondDay) => firstDay - secondDay),
-      bestPlacement: Number.isFinite(playerAggregate.bestPlacement) ? playerAggregate.bestPlacement : undefined,
-      averageDamage:
-        playerAggregate.matches > 0
-          ? Number((playerAggregate.damage / playerAggregate.matches).toFixed(2))
-          : undefined,
-      rating: playerAggregate.totalPoints,
-      winRate:
-        playerAggregate.matches > 0
-          ? Number((playerAggregate.chickenDinners / playerAggregate.matches).toFixed(4))
-          : undefined,
-    }))
+    .map((playerAggregate) => {
+      const preferredTeam = choosePreferredPlayerTeam(
+        Array.from(seasonAppearanceMap.get(playerAggregate.sourcePlayerKey)?.values() ?? [])
+      );
+      const resolvedTeamName = preferredTeam?.teamName ?? playerAggregate.teamName;
+
+      return {
+        ...playerAggregate,
+        teamId: resolvedTeamName ? buildSeasonTeamId(BRAVO_SEASON_SLUG, resolvedTeamName) : undefined,
+        teamName: resolvedTeamName,
+        mvpCount: seasonMvpCounts.get(playerAggregate.sourcePlayerKey) ?? 0,
+        dayNumbers: Array.from(playerAggregate.dayNumbers).sort((firstDay, secondDay) => firstDay - secondDay),
+        bestPlacement: Number.isFinite(playerAggregate.bestPlacement) ? playerAggregate.bestPlacement : undefined,
+        averageDamage:
+          playerAggregate.matches > 0
+            ? Number((playerAggregate.damage / playerAggregate.matches).toFixed(2))
+            : undefined,
+        rating: playerAggregate.totalPoints,
+        winRate:
+          playerAggregate.matches > 0
+            ? Number((playerAggregate.chickenDinners / playerAggregate.matches).toFixed(4))
+            : undefined,
+      };
+    })
     .sort(
       (firstPlayer, secondPlayer) =>
         secondPlayer.totalPoints - firstPlayer.totalPoints ||

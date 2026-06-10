@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import FileUpload from "./FileUpload";
 import { adminFetch } from "@/lib/admin-api";
-import type { PubgImportWatcher, PubgPlayerLookup, Scrim, Tournament } from "@/lib/types";
+import type { PubgImportPreview, PubgImportWatcher, PubgPlayerLookup, Scrim, Tournament } from "@/lib/types";
 
 const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
@@ -37,10 +37,12 @@ export default function PubgImportManager({
   const [watchers, setWatchers] = useState<PubgImportWatcher[]>([]);
   const [loadingLookup, setLoadingLookup] = useState(false);
   const [loadingWatchers, setLoadingWatchers] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [savingWatcher, setSavingWatcher] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<PubgImportPreview[]>([]);
   const [importLog, setImportLog] = useState<Array<{ matchId: string; success: boolean; error?: string }>>([]);
 
   const selectedScrim = useMemo(
@@ -178,9 +180,51 @@ export default function PubgImportManager({
 
       setSelectedMatchIds([]);
       setDirectMatchIds("");
+      setPreviews((currentPreviews) =>
+        currentPreviews.filter((preview) => !normalizedMatchIds.includes(preview.matchId))
+      );
       onImported?.();
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function previewMatchIds(matchIds: string[]) {
+    const normalizedMatchIds = Array.from(new Set(matchIds.filter(Boolean)));
+    if (normalizedMatchIds.length === 0) {
+      setError("Select at least one match ID to preview.");
+      return;
+    }
+
+    setPreviewing(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const nextPreviews: PubgImportPreview[] = [];
+      for (const matchId of normalizedMatchIds) {
+        const response = await adminFetch("/api/admin/pubg/match", {
+          method: "POST",
+          body: JSON.stringify({
+            matchId,
+            tournamentId: selectedTournamentId || undefined,
+            scrimId: selectedScrimId || undefined,
+          }),
+        });
+        nextPreviews.push(response.data as PubgImportPreview);
+      }
+
+      setPreviews(nextPreviews);
+      setMessage(
+        nextPreviews.length === 1
+          ? "Import preview loaded for 1 PUBG match."
+          : `Import preview loaded for ${nextPreviews.length} PUBG matches.`
+      );
+    } catch (previewError: unknown) {
+      setPreviews([]);
+      setError(previewError instanceof Error ? previewError.message : String(previewError));
+    } finally {
+      setPreviewing(false);
     }
   }
 
@@ -279,10 +323,12 @@ export default function PubgImportManager({
           value={selectedTournamentId}
           onChange={(event) => setSelectedTournamentId(event.target.value)}
         >
-          <option value="">Link to tournament (optional)</option>
+          <option value="">Assign tournament day (optional)</option>
           {tournaments.map((tournament) => (
             <option key={tournament.id} value={tournament.id}>
-              {tournament.title}
+              {typeof (tournament.seasonDayNumber ?? tournament.dayNumber) === "number"
+                ? `Day ${tournament.seasonDayNumber ?? tournament.dayNumber} - ${tournament.title}`
+                : tournament.title}
             </option>
           ))}
         </select>
@@ -292,10 +338,12 @@ export default function PubgImportManager({
           value={selectedScrimId}
           onChange={(event) => setSelectedScrimId(event.target.value)}
         >
-          <option value="">Link to scrim (optional)</option>
+          <option value="">Assign scrim slot (optional)</option>
           {scrims.map((scrim) => (
             <option key={scrim.id} value={scrim.id}>
-              {scrim.title}
+              {typeof scrim.seasonDayNumber === "number"
+                ? `Day ${scrim.seasonDayNumber} - ${scrim.title}`
+                : scrim.title}
             </option>
           ))}
         </select>
@@ -325,7 +373,7 @@ export default function PubgImportManager({
               <div>
                 <p className="section-heading !text-sm">Recent Match History</p>
                 <p className="mt-1 text-sm text-text-muted">
-                  Select the PUBG match IDs you want to import into the linked tournament or scrim.
+                  Select the PUBG match IDs, assign the correct day, preview the parsed results, then import.
                 </p>
               </div>
               {lookup && (
@@ -385,11 +433,19 @@ export default function PubgImportManager({
             <div className="mt-5 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => void importMatchIds(selectedMatchIds)}
+                onClick={() => void previewMatchIds(selectedMatchIds)}
                 disabled={importing || selectedMatchIds.length === 0}
                 className={btnPrimary}
               >
-                {importing ? "Importing..." : "Import Selected Matches"}
+                {previewing ? "Previewing..." : "Preview Selected Matches"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void importMatchIds(previews.map((preview) => preview.matchId))}
+                disabled={importing || previews.length === 0}
+                className="btn-secondary"
+              >
+                {importing ? "Importing..." : "Import Previewed Matches"}
               </button>
               {lookup && (
                 <button
@@ -419,14 +475,24 @@ export default function PubgImportManager({
               onChange={(event) => setDirectMatchIds(event.target.value)}
             />
             <div className="mt-5">
-              <button
-                type="button"
-                onClick={() => void importMatchIds(normalizeMatchIds(directMatchIds))}
-                disabled={importing}
-                className={btnPrimary}
-              >
-                {importing ? "Importing..." : "Import Direct Match IDs"}
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void previewMatchIds(normalizeMatchIds(directMatchIds))}
+                  disabled={previewing}
+                  className={btnPrimary}
+                >
+                  {previewing ? "Previewing..." : "Preview Direct Match IDs"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void importMatchIds(previews.map((preview) => preview.matchId))}
+                  disabled={importing || previews.length === 0}
+                  className="btn-secondary"
+                >
+                  {importing ? "Importing..." : "Import Previewed Matches"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -512,6 +578,124 @@ export default function PubgImportManager({
                     <span className="ml-2 text-xs uppercase">
                       {entry.success ? "Imported" : entry.error ?? "Failed"}
                     </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {previews.length > 0 && (
+            <div className="esports-card p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="section-heading !text-sm">Import Preview</p>
+                  <p className="mt-1 text-sm text-text-muted">
+                    Review parsed teams, players, and mismatch warnings before saving anything.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void importMatchIds(previews.map((preview) => preview.matchId))}
+                  disabled={importing}
+                  className={btnPrimary}
+                >
+                  {importing ? "Importing..." : "Confirm Import"}
+                </button>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                {previews.map((preview) => (
+                  <div key={preview.matchId} className="rounded-card border border-white/10 bg-bg-primary p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-mono-stat text-sm text-white">{preview.matchId}</p>
+                        <p className="mt-1 text-xs uppercase text-text-muted">
+                          {preview.summary.mapName ?? "Unknown map"} | {preview.summary.gameMode ?? "Unknown mode"}
+                        </p>
+                        <p className="mt-1 text-xs text-text-muted">
+                          {preview.summary.createdAt ? new Date(preview.summary.createdAt).toLocaleString() : "Time unavailable"}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {preview.alreadyImported && (
+                          <span className="rounded-full bg-accent-yellow/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-accent-yellow">
+                            Re-import will update existing records
+                          </span>
+                        )}
+                        {preview.seasonDayNumber && (
+                          <span className="rounded-full bg-accent-blue/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-accent-blue">
+                            Day {preview.seasonDayNumber}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                      <div className="rounded-card border border-white/10 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Teams</p>
+                        <p className="mt-1 font-mono-stat text-white">{preview.detectedTeams}</p>
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Players</p>
+                        <p className="mt-1 font-mono-stat text-white">{preview.detectedPlayers}</p>
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Tournament</p>
+                        <p className="mt-1 text-sm text-white">{preview.tournamentTitle ?? "Not linked"}</p>
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Scrim</p>
+                        <p className="mt-1 text-sm text-white">{preview.scrimTitle ?? "Not linked"}</p>
+                      </div>
+                    </div>
+
+                    {preview.conflicts.length > 0 && (
+                      <div className="mt-4 rounded-card border border-accent-yellow/25 bg-accent-yellow/10 p-4">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-yellow">
+                          Player Team Mismatch Detected
+                        </p>
+                        <div className="mt-3 space-y-2 text-sm text-white">
+                          {preview.conflicts.map((conflict) => (
+                            <p key={`${preview.matchId}-${conflict.playerName}`}>
+                              {conflict.playerName}: {conflict.currentTeamName ?? "No current team"} {"->"}{" "}
+                              {conflict.importedTeamName}
+                            </p>
+                          ))}
+                        </div>
+                        <p className="mt-3 text-xs text-text-muted">
+                          Historical match stats will stay on the imported team. Current team is recalculated from match
+                          history after import.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="mt-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Top Placement Table</p>
+                      <div className="mt-3 table-scroll">
+                        <table className="data-table min-w-full">
+                          <thead>
+                            <tr>
+                              <th>Place</th>
+                              <th>Slot</th>
+                              <th>Team</th>
+                              <th>Kills</th>
+                              <th>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {preview.teamResults.slice(0, 8).map((teamResult) => (
+                              <tr key={`${preview.matchId}-${teamResult.teamName}`}>
+                                <td>#{teamResult.placement}</td>
+                                <td>{teamResult.slotNumber ? `#${teamResult.slotNumber}` : "-"}</td>
+                                <td className="font-semibold text-white">{teamResult.teamName}</td>
+                                <td>{teamResult.kills}</td>
+                                <td className="points-cell">{teamResult.totalPoints}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

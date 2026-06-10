@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import { importPubgMatch } from "@/lib/pubg-sync";
+import { previewPubgMatch } from "@/lib/pubg-sync";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 
@@ -17,10 +17,9 @@ export async function POST(request: Request) {
       return Response.json({ error: "matchId is required" }, { status: 400 });
     }
 
-    const result = await importPubgMatch(matchId, {
+    const result = await previewPubgMatch(matchId, {
       tournamentId: body.tournamentId,
       scrimId: body.scrimId,
-      screenshotUrl: body.screenshotUrl,
     });
 
     return Response.json({ success: true, data: result });

@@ -3,6 +3,7 @@ import { getLiveStreamFeed, getStreams } from "@/lib/data";
 
 export default async function StreamSchedulePage() {
   const [liveFeed, streams] = await Promise.all([getLiveStreamFeed(), getStreams()]);
+  const hasStreams = streams.length > 0;
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10 sm:px-8 lg:py-14">
@@ -41,20 +42,26 @@ export default async function StreamSchedulePage() {
           </div>
           <div className="rounded-[28px] border border-white/10 bg-slate-950/80 p-6">
             <p className="text-lg font-semibold text-white">Follow every stream</p>
-            <div className="mt-4 space-y-3 text-slate-300">
-              {streams.map((stream) => (
-                <div key={stream.id} className="rounded-[20px] border border-white/10 bg-slate-900/80 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold text-white">{stream.title}</p>
-                    <span className={`text-xs font-semibold uppercase ${stream.isLive ? "text-red-300" : "text-accent-blue"}`}>
-                      {stream.isLive ? "Live" : stream.platform ?? "YouTube"}
-                    </span>
+            {hasStreams ? (
+              <div className="mt-4 space-y-3 text-slate-300">
+                {streams.map((stream) => (
+                  <div key={stream.id} className="rounded-[20px] border border-white/10 bg-slate-900/80 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold text-white">{stream.title}</p>
+                      <span className={`text-xs font-semibold uppercase ${stream.isLive ? "text-red-300" : "text-accent-blue"}`}>
+                        {stream.isLive ? "Live" : stream.platform ?? "YouTube"}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-400">{stream.time}</p>
+                    {stream.description && <p className="mt-2 text-sm text-slate-300">{stream.description}</p>}
                   </div>
-                  <p className="mt-2 text-sm text-slate-400">{stream.time}</p>
-                  {stream.description && <p className="mt-2 text-sm text-slate-300">{stream.description}</p>}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-text-muted">
+                Data not imported yet. Add stream schedule entries in Firestore to publish them here.
+              </p>
+            )}
           </div>
         </div>
       </section>

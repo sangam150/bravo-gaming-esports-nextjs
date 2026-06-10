@@ -11,6 +11,7 @@ import {
 import {
   seedAnnouncements,
   seedPlayers,
+  seedSponsors,
   seedStats,
   seedStreams,
   seedTeams,
@@ -22,12 +23,14 @@ import { buildSeasonLeaderboard, seasonLeaderboardToRows } from "./season-standi
 import type {
   Announcement,
   LeaderboardRow,
+  MatchPlayerRecord,
   Player,
   Scrim,
   ScrimDayResult,
   ScrimDayStanding,
   Season,
   SiteStats,
+  SponsorItem,
   StreamSchedule,
   Team,
   TeamRegistration,
@@ -818,6 +821,15 @@ export async function getTeam(id: string): Promise<Team | null> {
   return oneFromFirestoreOrSeed(COLLECTIONS.teams, id, []);
 }
 
+export async function getTeamMatchPlayers(teamName: string): Promise<MatchPlayerRecord[]> {
+  if (!isFirebaseConfigured()) return [];
+  try {
+    return await queryFirestoreCollection<MatchPlayerRecord>(COLLECTIONS.matchPlayers, "teamName", teamName, 2000);
+  } catch {
+    return [];
+  }
+}
+
 export async function saveTeam(data: Partial<Team> & { name: string }, id?: string) {
   const payload = normalizeTeamPayload(data);
   const docId = id ?? slugify(payload.name);
@@ -860,6 +872,20 @@ export async function getPlayers(): Promise<Player[]> {
 
 export async function getPlayer(id: string): Promise<Player | null> {
   return oneFromFirestoreOrSeed(COLLECTIONS.players, id, []);
+}
+
+export async function getPlayerMatchPlayers(sourcePlayerId: string): Promise<MatchPlayerRecord[]> {
+  if (!isFirebaseConfigured()) return [];
+  try {
+    return await queryFirestoreCollection<MatchPlayerRecord>(
+      COLLECTIONS.matchPlayers,
+      "sourcePlayerId",
+      sourcePlayerId,
+      2000
+    );
+  } catch {
+    return [];
+  }
 }
 
 export async function getMvpOfWeek(): Promise<Player | null> {
@@ -974,11 +1000,11 @@ export async function getLiveStreamFeed(): Promise<StreamSchedule> {
 
   return {
     id: activeStream?.id ?? "stream-default",
-    time: activeStream?.time ?? "Live updates",
-    title: activeStream?.title ?? "Bravo Gaming Nepal Live",
+    time: activeStream?.time ?? "Data not imported yet",
+    title: activeStream?.title ?? "Data not imported yet",
     platform: activeStream?.platform ?? "YouTube",
     isLive: activeStream?.isLive ?? false,
-    description: activeStream?.description ?? "PUBG PC Daily Scrims & Tournament Finals",
+    description: activeStream?.description ?? "Create a live stream entry in Firestore to publish the broadcast feed here.",
     viewers: activeStream?.viewers,
     embedUrl: activeStream?.embedUrl ?? buildLiveEmbedUrl(),
     channelUrl: activeStream?.channelUrl ?? buildYouTubeChannelUrl(),
@@ -988,6 +1014,11 @@ export async function getLiveStreamFeed(): Promise<StreamSchedule> {
 
 export async function getVideos(): Promise<VideoItem[]> {
   return fromFirestoreOrSeed(COLLECTIONS.videos, seedVideos);
+}
+
+export async function getSponsors(): Promise<SponsorItem[]> {
+  const sponsors = await fromFirestoreOrSeed<SponsorItem>(COLLECTIONS.sponsors, seedSponsors);
+  return sponsors.filter((sponsor) => sponsor.published !== false);
 }
 
 export async function getRegistrations(): Promise<TeamRegistration[]> {

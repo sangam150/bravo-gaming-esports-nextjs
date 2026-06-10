@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Tabs from "@/components/ui/Tabs";
 import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
+import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { MatchPlayerResult, ScrimDayResult, ScrimDayStatus, TournamentMatch } from "@/lib/types";
 
 const weekdaySchedule = [
@@ -42,7 +43,7 @@ const statusClassNames: Record<ScrimDayStatus, string> = {
 };
 
 function getStatusLabel(status: ScrimDayStatus) {
-  if (status === "waiting_for_data") return "Data not imported yet";
+  if (status === "waiting_for_data") return "Matches not imported yet";
   if (status === "mixed") return "Mixed status";
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
@@ -121,7 +122,7 @@ function MatchBreakdownPanel({ matches }: { matches: ScrimDayResult["matches"] }
   if (matches.length === 0) {
     return (
       <div className="rounded-card border border-dashed border-white/10 px-4 py-8 text-center text-sm text-text-muted">
-        Data not imported yet for match-by-match results.
+        Matches not imported yet for match-by-match results.
       </div>
     );
   }
@@ -304,7 +305,7 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
   if (days.length === 0) {
     return (
       <div className="esports-card p-8 text-center text-text-muted">
-        <p className="font-display font-bold uppercase text-white">Data not imported yet</p>
+        <p className="font-display font-bold uppercase text-white">Matches not imported yet</p>
         <p className="mt-2 text-sm">
           Create scrim entries in admin, import PUBG match IDs, and the daily results will appear here automatically.
         </p>
@@ -422,7 +423,7 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
 
               {day.leaderboard.length === 0 ? (
                 <div className="mt-4 rounded-card border border-dashed border-white/10 px-4 py-8 text-center text-sm text-text-muted">
-                  Data not imported yet for {day.label}. Add the PUBG match ID in admin and import it to
+                  Matches not imported yet for {day.label}. Add the PUBG match ID in admin and import it to
                   populate the table.
                 </div>
               ) : (
@@ -478,10 +479,12 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
 }
 
 export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
-  const totalDays = days.length;
-  const totalMatches = days.reduce((currentTotal, day) => currentTotal + day.completedMatches, 0);
-  const totalScrimSlots = days.reduce((currentTotal, day) => currentTotal + day.scrimCount, 0);
-  const latestDay = days[0];
+  const { scrimDayResults } = useBravoRealtimeData();
+  const activeDays = scrimDayResults.length > 0 ? scrimDayResults : days;
+  const totalDays = activeDays.length;
+  const totalMatches = activeDays.reduce((currentTotal, day) => currentTotal + day.completedMatches, 0);
+  const totalScrimSlots = activeDays.reduce((currentTotal, day) => currentTotal + day.scrimCount, 0);
+  const latestDay = activeDays[0];
 
   return (
     <main className="page-shell">
@@ -509,9 +512,11 @@ export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
           <p className="mt-3 text-3xl font-black text-white">{totalScrimSlots}</p>
         </div>
         <div className="esports-card p-5">
-          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Latest Published</p>
-          <p className="mt-3 text-lg font-black text-white">{latestDay?.label ?? "Data not imported yet"}</p>
-          <p className="mt-1 text-sm text-text-muted">{latestDay?.displayDate ?? "Add a scrim in admin"}</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Active Day</p>
+          <p className="mt-3 text-lg font-black text-white">{latestDay?.label ?? "Day not created yet"}</p>
+          <p className="mt-1 text-sm text-text-muted">
+            {latestDay?.displayDate ?? "Create the next scrim day from admin"}
+          </p>
         </div>
       </div>
 
@@ -540,7 +545,7 @@ export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
                 </Link>
               </div>
             )}
-            {tab === "Daily Results" && <ResultsPanel days={days} />}
+            {tab === "Daily Results" && <ResultsPanel days={activeDays} />}
           </>
         )}
       </Tabs>

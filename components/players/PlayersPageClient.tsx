@@ -4,21 +4,37 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import SearchInput from "@/components/ui/SearchInput";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { Player } from "@/lib/types";
 
 export default function PlayersPageClient({ initialPlayers }: { initialPlayers: Player[] }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const perPage = 10;
+  const { overview, players: livePlayers } = useBravoRealtimeData({ players: initialPlayers });
+
+  const scopedPlayers = useMemo(
+    () =>
+      (overview?.players?.length
+        ? overview.players
+        : livePlayers.filter((player) => player.scope !== "tournament")
+      ).sort(
+        (firstPlayer, secondPlayer) =>
+          (secondPlayer.totalPoints ?? secondPlayer.rating ?? 0) -
+            (firstPlayer.totalPoints ?? firstPlayer.rating ?? 0) ||
+          firstPlayer.name.localeCompare(secondPlayer.name)
+      ),
+    [livePlayers, overview?.players]
+  );
 
   const filteredPlayers = useMemo(() => {
     const query = search.toLowerCase();
-    return initialPlayers.filter(
+    return scopedPlayers.filter(
       (player) =>
         player.name.toLowerCase().includes(query) ||
         (player.teamName ?? "").toLowerCase().includes(query)
     );
-  }, [initialPlayers, search]);
+  }, [scopedPlayers, search]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPlayers.length / perPage));
   const pageRows = filteredPlayers.slice((page - 1) * perPage, page * perPage);

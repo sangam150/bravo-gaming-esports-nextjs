@@ -5,6 +5,15 @@ import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "@/lib/bravo
 import StatusBadge from "@/components/ui/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import {
+  sortTournamentMatches,
+  sortTournamentPlayers,
+  useRealtimeTournament,
+  useRealtimeTournamentMatches,
+  useRealtimeTournamentPlayers,
+  useRealtimeTournamentStandings,
+  useRealtimeTournamentTeams,
+} from "@/lib/realtime-hooks";
 import type { Player, Team, Tournament, TournamentMatch, TournamentStanding } from "@/lib/types";
 
 function formatLabel(value?: string) {
@@ -37,77 +46,92 @@ export default function TournamentDetailClient({
   players: Player[];
   standings: TournamentStanding[];
 }) {
-  const topStandings = standings.slice(0, 5);
+  const { data: liveTournament } = useRealtimeTournament(tournament.id, tournament);
+  const { data: liveMatches } = useRealtimeTournamentMatches(tournament.id, matches);
+  const { data: liveTeams } = useRealtimeTournamentTeams(tournament.id, teams);
+  const { data: livePlayers } = useRealtimeTournamentPlayers(tournament.id, players);
+  const { data: liveStandings } = useRealtimeTournamentStandings(tournament.id, standings);
+
+  const activeTournament = liveTournament ?? tournament;
+  const activeMatches = sortTournamentMatches(liveMatches);
+  const activeTeams = [...liveTeams].sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam));
+  const activePlayers = sortTournamentPlayers(livePlayers);
+  const activeStandings = [...liveStandings].sort(
+    (firstStanding, secondStanding) =>
+      (firstStanding.rank ?? Number.POSITIVE_INFINITY) - (secondStanding.rank ?? Number.POSITIVE_INFINITY) ||
+      secondStanding.totalPoints - firstStanding.totalPoints
+  );
+  const topStandings = activeStandings.slice(0, 5);
 
   return (
     <main className="page-shell">
       <div className="page-inner">
       <div className="page-hero mb-6 overflow-hidden">
-        {tournament.bannerUrl && (
+        {activeTournament.bannerUrl && (
           <div
             className="absolute inset-0 opacity-15"
             style={{
-              backgroundImage: `url(${tournament.bannerUrl})`,
+              backgroundImage: `url(${activeTournament.bannerUrl})`,
               backgroundPosition: "center",
               backgroundSize: "cover",
             }}
           />
         )}
         <div className="relative z-10 flex flex-wrap items-start gap-4">
-          <TeamAvatar name={tournament.title} size="lg" imageUrl={tournament.bannerUrl} />
+          <TeamAvatar name={activeTournament.title} size="lg" imageUrl={activeTournament.bannerUrl} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-3">
-              {tournament.seasonTitle && (
+              {activeTournament.seasonTitle && (
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
-                  {tournament.seasonTitle}
+                  {activeTournament.seasonTitle}
                 </span>
               )}
-              <h1 className="font-display text-2xl font-black uppercase text-white">{tournament.title}</h1>
-              <StatusBadge status={tournament.status} />
+              <h1 className="font-display text-2xl font-black uppercase text-white">{activeTournament.title}</h1>
+              <StatusBadge status={activeTournament.status} />
               <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-accent-blue">
-                {tournament.tier}
+                {activeTournament.tier}
               </span>
-              {typeof (tournament.seasonDayNumber ?? tournament.dayNumber) === "number" && (
+              {typeof (activeTournament.seasonDayNumber ?? activeTournament.dayNumber) === "number" && (
                 <span className="rounded-full border border-accent-green/25 bg-accent-green/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-accent-green">
-                  Day {tournament.seasonDayNumber ?? tournament.dayNumber}
+                  Day {activeTournament.seasonDayNumber ?? activeTournament.dayNumber}
                 </span>
               )}
             </div>
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3 xl:grid-cols-6">
               <div>
                 <span className="text-label uppercase text-text-muted">Region</span>
-                <p className="font-mono-stat text-white">{formatLabel(tournament.server)}</p>
+                <p className="font-mono-stat text-white">{formatLabel(activeTournament.server)}</p>
               </div>
               <div>
                 <span className="text-label uppercase text-text-muted">Mode</span>
-                <p className="font-mono-stat text-white">{formatLabel(tournament.format)}</p>
+                <p className="font-mono-stat text-white">{formatLabel(activeTournament.format)}</p>
               </div>
               <div>
                 <span className="text-label uppercase text-text-muted">Perspective</span>
-                <p className="font-mono-stat text-white">{formatLabel(tournament.perspective)}</p>
+                <p className="font-mono-stat text-white">{formatLabel(activeTournament.perspective)}</p>
               </div>
               <div>
                 <span className="text-label uppercase text-text-muted">Prize Pool</span>
-                <p className="font-mono-stat font-bold text-accent-green">{tournament.prizePool}</p>
+                <p className="font-mono-stat font-bold text-accent-green">{activeTournament.prizePool}</p>
               </div>
               <div>
                 <span className="text-label uppercase text-text-muted">Teams Joined</span>
                 <p className="font-mono-stat text-white">
-                  {tournament.teamCount}/{tournament.maxTeams}
+                  {activeTournament.teamCount}/{activeTournament.maxTeams}
                 </p>
               </div>
               <div>
                 <span className="text-label uppercase text-text-muted">Matches</span>
                 <p className="font-mono-stat text-accent-blue">
-                  {matches.length}/{tournament.matchCount ?? matches.length}
+                  {activeMatches.length}/{activeTournament.matchCount ?? activeMatches.length}
                 </p>
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-3 text-xs uppercase tracking-[0.18em] text-text-muted">
-              <span>Started: {formatLabel(tournament.startDate)}</span>
-              {tournament.endDate && <span>Ended: {tournament.endDate}</span>}
-              {tournament.sourceUrl && (
-                <a href={tournament.sourceUrl} target="_blank" rel="noreferrer" className="text-accent-blue hover:underline">
+              <span>Started: {formatLabel(activeTournament.startDate)}</span>
+              {activeTournament.endDate && <span>Ended: {activeTournament.endDate}</span>}
+              {activeTournament.sourceUrl && (
+                <a href={activeTournament.sourceUrl} target="_blank" rel="noreferrer" className="text-accent-blue hover:underline">
                   Source Feed
                 </a>
               )}
@@ -128,22 +152,22 @@ export default function TournamentDetailClient({
                   <div className="esports-card p-6">
                     <h2 className="section-heading !text-base">About Tournament</h2>
                     <p className="mt-4 text-sm text-text-muted">
-                      {tournament.description || "Description unavailable from the source feed."}
+                      {activeTournament.description || "Description unavailable from the source feed."}
                     </p>
                     <div className="mt-6 grid gap-3 text-sm text-text-muted sm:grid-cols-2">
-                      <p>Format: {formatLabel(tournament.format)}</p>
-                      <p>Game: {formatLabel(tournament.mode)}</p>
-                      <p>Region: {formatLabel(tournament.server)}</p>
-                      <p>Perspective: {formatLabel(tournament.perspective)}</p>
-                      <p>Day: {tournament.dayNumber ? `Day ${tournament.dayNumber}` : "Unavailable"}</p>
-                      <p>Source Status: {formatLabel(tournament.sourceStatus)}</p>
+                      <p>Format: {formatLabel(activeTournament.format)}</p>
+                      <p>Game: {formatLabel(activeTournament.mode)}</p>
+                      <p>Region: {formatLabel(activeTournament.server)}</p>
+                      <p>Perspective: {formatLabel(activeTournament.perspective)}</p>
+                      <p>Day: {activeTournament.dayNumber ? `Day ${activeTournament.dayNumber}` : "Unavailable"}</p>
+                      <p>Source Status: {formatLabel(activeTournament.sourceStatus)}</p>
                     </div>
                   </div>
                 </div>
                 <div className="esports-card p-6">
                   <h2 className="section-heading !text-base">Live Standings Snapshot</h2>
                   {topStandings.length === 0 ? (
-                    <p className="mt-4 text-sm text-text-muted">Standings unavailable.</p>
+                    <p className="mt-4 text-sm text-text-muted">Matches not imported yet for this day.</p>
                   ) : (
                     <div className="table-scroll mt-4">
                       <table className="data-table min-w-full">
@@ -174,8 +198,8 @@ export default function TournamentDetailClient({
 
             {tab === "Standings" && (
               <div className="esports-card overflow-hidden !p-0 lg:col-span-3">
-                {standings.length === 0 ? (
-                  <p className="p-6 text-sm text-text-muted">Standings unavailable for this tournament.</p>
+                {activeStandings.length === 0 ? (
+                  <p className="p-6 text-sm text-text-muted">Matches not imported yet for this day.</p>
                 ) : (
                   <div className="table-scroll">
                     <table className="data-table min-w-full">
@@ -191,7 +215,7 @@ export default function TournamentDetailClient({
                         </tr>
                       </thead>
                       <tbody>
-                        {standings.map((standing) => (
+                        {activeStandings.map((standing) => (
                           <tr key={standing.id}>
                             <td>#{standing.rank}</td>
                             <td>{standing.slotNumber ? `#${standing.slotNumber}` : "-"}</td>
@@ -211,10 +235,10 @@ export default function TournamentDetailClient({
 
             {tab === "Matches" && (
               <div className="space-y-4 lg:col-span-3">
-                {matches.length === 0 ? (
-                  <div className="esports-card p-6 text-sm text-text-muted">Match results unavailable for this tournament.</div>
+                {activeMatches.length === 0 ? (
+                  <div className="esports-card p-6 text-sm text-text-muted">Matches not imported yet for this day.</div>
                 ) : (
-                  matches.map((match) => (
+                  activeMatches.map((match) => (
                     <div key={match.id} className="esports-card overflow-hidden !p-0">
                       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
                         <div>
@@ -260,10 +284,10 @@ export default function TournamentDetailClient({
 
             {tab === "Teams" && (
               <div className="grid gap-3 sm:grid-cols-2 lg:col-span-3 lg:grid-cols-3">
-                {teams.length === 0 ? (
-                  <div className="esports-card p-6 text-sm text-text-muted">Team profiles unavailable for this tournament.</div>
+                {activeTeams.length === 0 ? (
+                  <div className="esports-card p-6 text-sm text-text-muted">Team entries will appear after matches are imported for this day.</div>
                 ) : (
-                  teams.map((team) => (
+                  activeTeams.map((team) => (
                     <Link
                       key={team.id}
                       href={getTeamProfileHref(team.name, team.id)}
@@ -284,8 +308,8 @@ export default function TournamentDetailClient({
 
             {tab === "Players" && (
               <div className="esports-card overflow-hidden !p-0 lg:col-span-3">
-                {players.length === 0 ? (
-                  <p className="p-6 text-sm text-text-muted">Player stats unavailable for this tournament.</p>
+                {activePlayers.length === 0 ? (
+                  <p className="p-6 text-sm text-text-muted">Player stats will appear after matches are imported for this day.</p>
                 ) : (
                   <div className="table-scroll">
                     <table className="data-table min-w-full">
@@ -300,7 +324,7 @@ export default function TournamentDetailClient({
                         </tr>
                       </thead>
                       <tbody>
-                        {players.map((player, index) => (
+                        {activePlayers.map((player, index) => (
                           <tr key={player.id}>
                             <td>#{index + 1}</td>
                             <td className="font-semibold">{player.name}</td>
@@ -322,7 +346,7 @@ export default function TournamentDetailClient({
                 <div className="esports-card p-6">
                   <h2 className="section-heading !text-base">Rules</h2>
                   <p className="mt-4 whitespace-pre-line text-sm text-text-muted">
-                    {tournament.rules || "Rules unavailable from the source feed."}
+                    {activeTournament.rules || "Rules unavailable from the source feed."}
                   </p>
                 </div>
               </div>

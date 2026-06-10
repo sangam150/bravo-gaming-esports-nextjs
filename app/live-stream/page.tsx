@@ -11,6 +11,8 @@ export const revalidate = 300;
 
 export default async function LiveStreamPage() {
   const [liveFeed, streams, videos] = await Promise.all([getLiveStreamFeed(), getStreams(), getVideos()]);
+  const hasStreams = streams.length > 0;
+  const hasVideos = videos.length > 0;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -24,13 +26,19 @@ export default async function LiveStreamPage() {
             {liveFeed.viewers && <span className="font-mono-stat text-sm text-text-muted">{liveFeed.viewers}</span>}
           </div>
           <div className="overflow-hidden rounded-card border border-white/[0.08] bg-black">
-            <iframe
-              className="aspect-video w-full"
-              src={liveFeed.embedUrl}
-              title={liveFeed.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
+            {hasStreams ? (
+              <iframe
+                className="aspect-video w-full"
+                src={liveFeed.embedUrl}
+                title={liveFeed.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : (
+              <div className="flex aspect-video items-center justify-center p-8 text-center text-sm text-text-muted">
+                Data not imported yet. Add a stream entry in Firestore to publish the live player here.
+              </div>
+            )}
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -50,21 +58,25 @@ export default async function LiveStreamPage() {
 
         <aside className="esports-card p-5">
           <h2 className="section-heading !text-base">Upcoming Streams</h2>
-          <div className="mt-4 space-y-3">
-            {streams.map((stream) => (
-              <div key={stream.id} className="border-b border-white/[0.05] pb-3 last:border-0">
-                <p className="text-label uppercase text-text-muted">{stream.time.split(",")[0]}</p>
-                <p className="mt-1 text-sm font-semibold text-white">{stream.title}</p>
-                <span
-                  className={`mt-1 inline-flex font-display text-label font-bold uppercase ${
-                    stream.isLive ? "text-accent-red" : "text-accent-blue"
-                  }`}
-                >
-                  {stream.isLive ? "Live Now" : `${stream.platform ?? "YouTube"} Stream`}
-                </span>
-              </div>
-            ))}
-          </div>
+          {hasStreams ? (
+            <div className="mt-4 space-y-3">
+              {streams.map((stream) => (
+                <div key={stream.id} className="border-b border-white/[0.05] pb-3 last:border-0">
+                  <p className="text-label uppercase text-text-muted">{stream.time.split(",")[0]}</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{stream.title}</p>
+                  <span
+                    className={`mt-1 inline-flex font-display text-label font-bold uppercase ${
+                      stream.isLive ? "text-accent-red" : "text-accent-blue"
+                    }`}
+                  >
+                    {stream.isLive ? "Live Now" : `${stream.platform ?? "YouTube"} Stream`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-text-muted">Data not imported yet for upcoming streams.</p>
+          )}
         </aside>
       </div>
 
@@ -75,17 +87,21 @@ export default async function LiveStreamPage() {
             View All
           </Link>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {videos.map((video) => (
-            <div key={video.id} className="video-card">
-              <div className="relative aspect-video bg-bg-primary" />
-              <div className="p-3">
-                <p className="line-clamp-2 text-sm font-semibold text-white">{video.title}</p>
-                <p className="text-label uppercase text-accent-blue">{video.category}</p>
+        {hasVideos ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {videos.map((video) => (
+              <div key={video.id} className="video-card">
+                <div className="relative aspect-video bg-bg-primary" />
+                <div className="p-3">
+                  <p className="line-clamp-2 text-sm font-semibold text-white">{video.title}</p>
+                  <p className="text-label uppercase text-accent-blue">{video.category}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="esports-card p-6 text-sm text-text-muted">Data not imported yet for published videos.</div>
+        )}
       </section>
     </main>
   );

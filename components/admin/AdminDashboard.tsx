@@ -140,6 +140,7 @@ export default function AdminDashboard() {
   const [importing, setImporting] = useState(false);
   const [importingBravoFeed, setImportingBravoFeed] = useState(false);
   const [syncingSeason, setSyncingSeason] = useState(false);
+  const [creatingNextDay, setCreatingNextDay] = useState(false);
   const [resettingData, setResettingData] = useState(false);
   const [pubgResult, setPubgResult] = useState<unknown>(null);
 
@@ -301,6 +302,29 @@ export default function AdminDashboard() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSyncingSeason(false);
+    }
+  }
+
+  async function handleCreateNextDay(targetSeason?: Season | null) {
+    if (!targetSeason?.id) {
+      setError("Select or create a season before creating the next scrim day.");
+      return;
+    }
+
+    setCreatingNextDay(true);
+    setError(null);
+
+    try {
+      const response = await adminFetch("/api/admin/seasons/create-next-day", {
+        method: "POST",
+        body: JSON.stringify({ seasonId: targetSeason.id }),
+      });
+      setMessage(response.message ?? "Created the next scrim day.");
+      await loadData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCreatingNextDay(false);
     }
   }
 
@@ -697,9 +721,24 @@ export default function AdminDashboard() {
                   Configure the active Bravo daily scrim season, extend it, or rebuild stored day data from the imported feed.
                 </p>
               </div>
-              <button type="button" onClick={() => void handleSeasonSync(activeSeason ?? seasonForm)} disabled={syncingSeason} className={btnPrimary}>
-                {syncingSeason ? "Syncing Season..." : "Sync Bravo Season (Day 1-3 + Day 6)"}
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleCreateNextDay(activeSeason)}
+                  disabled={creatingNextDay || !activeSeason}
+                  className={btnPrimary}
+                >
+                  {creatingNextDay ? "Creating Day..." : `Create Day ${(activeSeason?.currentDay ?? 0) + 1}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSeasonSync(activeSeason ?? seasonForm)}
+                  disabled={syncingSeason}
+                  className="btn-secondary"
+                >
+                  {syncingSeason ? "Syncing Season..." : "Sync Bravo Season (Day 1-3 + Day 6)"}
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSeasonSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
@@ -831,6 +870,9 @@ export default function AdminDashboard() {
                     <div className="mt-5 flex flex-wrap gap-3 text-xs">
                       <button type="button" onClick={() => { setEditingSeason(season.id); setSeasonForm(season); setSection("seasons"); }} className="text-bravoBlue hover:underline">
                         Edit
+                      </button>
+                      <button type="button" onClick={() => void handleCreateNextDay(season)} className="text-accent-blue hover:underline">
+                        Create Day {(season.currentDay ?? 0) + 1}
                       </button>
                       <button type="button" onClick={() => void handleSeasonSync(season)} className="text-accent-green hover:underline">
                         Rebuild

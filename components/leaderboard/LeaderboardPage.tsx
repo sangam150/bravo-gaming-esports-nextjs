@@ -3,13 +3,14 @@
 import Link from "next/link";
 import Tabs from "@/components/ui/Tabs";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { LeaderboardRow } from "@/lib/types";
 
 function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
   if (rows.length === 0) {
     return (
       <div className="esports-card p-8 text-center text-sm text-text-muted">
-        Data not imported yet. The tournament record exists, but official standings have not been imported yet.
+        Matches not imported yet. The tournament record exists, but official standings have not been imported yet.
       </div>
     );
   }
@@ -70,12 +71,16 @@ export default function LeaderboardPageClient({
   overallLabel?: string;
   tournamentLeaderboards?: Array<{ id: string; title: string; subtitle?: string; rows: LeaderboardRow[] }>;
 }) {
+  const { leaderboardRows, overview, tournamentLeaderboards: liveTournamentLeaderboards } = useBravoRealtimeData();
+  const activeRows = overview?.leaderboard?.length ? leaderboardRows : initialRows;
+  const activeTournamentLeaderboards =
+    liveTournamentLeaderboards.length > 0 ? liveTournamentLeaderboards : tournamentLeaderboards;
   const tabs = [
-    ...tournamentLeaderboards.map((leaderboard) => leaderboard.title),
-    ...(initialRows.length > 0 ? [overallLabel] : []),
+    ...activeTournamentLeaderboards.map((leaderboard) => leaderboard.title),
+    ...(activeRows.length > 0 ? [overallLabel] : []),
   ];
 
-  const hasLeaderboardData = initialRows.length > 0 || tournamentLeaderboards.length > 0;
+  const hasLeaderboardData = activeRows.length > 0 || activeTournamentLeaderboards.length > 0;
 
   return (
     <main className="page-shell">
@@ -88,7 +93,7 @@ export default function LeaderboardPageClient({
 
       {!hasLeaderboardData ? (
         <div className="esports-card p-10 text-center">
-          <p className="font-display text-lg font-bold uppercase text-white">Data not imported yet</p>
+          <p className="font-display text-lg font-bold uppercase text-white">Matches not imported yet</p>
           <p className="mt-2 text-sm text-text-muted">
             Standings appear here after real PUBG PC match results are imported.
           </p>
@@ -98,11 +103,12 @@ export default function LeaderboardPageClient({
           {(tab) => (
             <>
               <LeaderboardTable
-                rows={tournamentLeaderboards.find((leaderboard) => leaderboard.title === tab)?.rows ?? initialRows}
+                rows={activeTournamentLeaderboards.find((leaderboard) => leaderboard.title === tab)?.rows ?? activeRows}
               />
-              {tab !== overallLabel && tournamentLeaderboards.some((leaderboard) => leaderboard.title === tab) && (
+              {tab !== overallLabel &&
+                activeTournamentLeaderboards.some((leaderboard) => leaderboard.title === tab) && (
                 <p className="mt-3 text-center text-xs text-text-muted">
-                  {tournamentLeaderboards.find((leaderboard) => leaderboard.title === tab)?.subtitle ??
+                  {activeTournamentLeaderboards.find((leaderboard) => leaderboard.title === tab)?.subtitle ??
                     "Imported directly from Bravo Gaming day results."}
                 </p>
               )}

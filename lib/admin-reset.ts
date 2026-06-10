@@ -17,6 +17,7 @@ const COMPETITION_COLLECTIONS: Array<[ResettableCollectionName, string]> = [
   ["matches", COLLECTIONS.matches],
   ["tournamentMatches", COLLECTIONS.tournamentMatches],
   ["matchResults", COLLECTIONS.matchResults],
+  ["matchPlayers", COLLECTIONS.matchPlayers],
   ["teams", COLLECTIONS.teams],
   ["players", COLLECTIONS.players],
   ["scrims", COLLECTIONS.scrims],

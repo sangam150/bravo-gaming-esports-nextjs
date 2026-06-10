@@ -3,6 +3,7 @@ import {
   getCurrentSeasonOverview,
   getLeaderboard,
   getMvpOfWeek,
+  getSponsors,
   getStreams,
   getTournaments,
   getVideos,
@@ -10,7 +11,7 @@ import {
 } from "@/lib/data";
 
 export async function GET() {
-  const [stats, tournaments, leaderboard, mvp, announcements, streams, videos, currentSeason] = await Promise.all([
+  const [stats, tournaments, leaderboard, mvp, announcements, streams, videos, sponsors, currentSeason] = await Promise.all([
     getSiteStats(),
     getTournaments(),
     getLeaderboard(),
@@ -18,11 +19,12 @@ export async function GET() {
     getAnnouncements(),
     getStreams(),
     getVideos(),
+    getSponsors(),
     getCurrentSeasonOverview(),
   ]);
 
   return Response.json({
     success: true,
-    data: { stats, tournaments, leaderboard, mvp, announcements, streams, videos, currentSeason },
+    data: { stats, tournaments, leaderboard, mvp, announcements, streams, videos, sponsors, currentSeason },
   });
 }

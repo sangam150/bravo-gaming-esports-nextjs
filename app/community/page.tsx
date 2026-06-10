@@ -45,24 +45,28 @@ export default async function CommunityPage() {
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="esports-card p-5">
             <h3 className="section-heading !text-sm">Latest Announcements</h3>
-            <ul className="mt-4 space-y-3">
-              {announcements.map((a) => (
-                <li key={a.id} className="text-sm">
-                  <p className="font-semibold text-white">{a.title}</p>
-                  <p className="text-xs text-text-muted">{a.detail}</p>
-                </li>
-              ))}
-            </ul>
+            {announcements.length === 0 ? (
+              <p className="mt-4 text-sm text-text-muted">Data not imported yet for community announcements.</p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {announcements.map((a) => (
+                  <li key={a.id} className="text-sm">
+                    <p className="font-semibold text-white">{a.title}</p>
+                    <p className="text-xs text-text-muted">{a.detail}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
             <Link href="/news" className="btn-outline-blue mt-4 inline-flex !text-[11px]">View All</Link>
           </div>
           <div className="esports-card p-5">
             <h3 className="section-heading !text-sm">Community Stats</h3>
             <dl className="mt-4 space-y-3">
               {[
-                ["Total Members", "2,380+"],
-                ["Active Members", "1,250+"],
-                ["Online Now", "340+"],
-                ["Total Messages", "15,680+"],
+                ["Registered Teams", teams.length > 0 ? `${teams.length}` : "Data not imported yet"],
+                ["Announcements", announcements.length > 0 ? `${announcements.length}` : "Data not imported yet"],
+                ["Match Data", "Import-driven only"],
+                ["Status", "Realtime after import"],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between text-sm">
                   <dt className="text-text-muted">{k}</dt>

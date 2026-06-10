@@ -355,6 +355,15 @@ export interface VideoItem {
   url?: string;
 }
 
+export interface SponsorItem {
+  id: string;
+  name: string;
+  tier: string;
+  url?: string;
+  logoUrl?: string;
+  published?: boolean;
+}
+
 export interface UploadRecord {
   id: string;
   path: string;
@@ -395,6 +404,37 @@ export interface PubgMatchImport {
   dataSource: MatchDataSource;
 }
 
+export interface MatchPlayerRecord {
+  id: string;
+  matchId: string;
+  pubgMatchId: string;
+  tournamentId?: string;
+  scrimId?: string;
+  seasonId?: string;
+  seasonTitle?: string;
+  seasonDayNumber?: number;
+  map?: string;
+  playedAt?: string;
+  dataSource: MatchDataSource;
+  sourcePlayerId: string;
+  playerId: string;
+  playerName: string;
+  pubgPlayerId?: string;
+  teamId?: string;
+  teamName: string;
+  slotNumber?: number;
+  placement: number;
+  kills: number;
+  assists: number;
+  knocks: number;
+  damage: number;
+  survivalTime: number;
+  placementPoints: number;
+  totalPoints: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PubgPlayerMatchSummary {
   matchId: string;
   mapName: string;
@@ -425,4 +465,51 @@ export interface PubgImportWatcher {
   lastImportedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface PubgImportConflict {
+  type: "player_team_mismatch";
+  playerName: string;
+  pubgPlayerId?: string;
+  currentTeamId?: string;
+  currentTeamName?: string;
+  importedTeamId?: string;
+  importedTeamName: string;
+}
+
+export interface PubgImportPreview {
+  matchId: string;
+  alreadyImported: boolean;
+  summary: {
+    id?: string;
+    mapName?: string;
+    gameMode?: string;
+    createdAt?: string;
+    duration?: number;
+    telemetryUrl?: string | null;
+  };
+  tournamentId?: string;
+  tournamentTitle?: string;
+  scrimId?: string;
+  scrimTitle?: string;
+  seasonId?: string;
+  seasonDayNumber?: number;
+  detectedTeams: number;
+  detectedPlayers: number;
+  teamResults: TeamMatchResult[];
+  playerResults: MatchPlayerResult[];
+  conflicts: PubgImportConflict[];
+}
+
+export interface CurrentSeasonOverview {
+  season: Season;
+  tournaments: Tournament[];
+  leaderboard: LeaderboardRow[];
+  teams: Team[];
+  players: Player[];
+  currentTournament: Tournament | null;
+  registeredTeams: number;
+  matchesPlayed: number;
+  completedDays: number;
+  recentResults: Tournament[];
 }

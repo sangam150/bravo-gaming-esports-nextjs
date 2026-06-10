@@ -2,6 +2,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -19,6 +20,7 @@ export function isClientFirebaseConfigured(): boolean {
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
+let firestore: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 
 export function getFirebaseClientApp(): FirebaseApp {
@@ -34,6 +36,11 @@ export function getFirebaseClientApp(): FirebaseApp {
 export function getClientAuth(): Auth {
   if (!auth) auth = getAuth(getFirebaseClientApp());
   return auth;
+}
+
+export function getClientFirestore(): Firestore {
+  if (!firestore) firestore = getFirestore(getFirebaseClientApp());
+  return firestore;
 }
 
 export function getClientStorage(): FirebaseStorage {

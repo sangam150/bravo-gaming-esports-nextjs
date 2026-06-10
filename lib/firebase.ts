@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import { COLLECTIONS } from "./firestore-collections";
 
 const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -33,27 +34,7 @@ function resolveStorageBucket(projectIdOverride?: string) {
   return getStorageBucketCandidates(projectIdOverride)[0];
 }
 
-export const COLLECTIONS = {
-  seasons: "seasons",
-  tournaments: "tournaments",
-  standings: "standings",
-  matches: "matches",
-  teams: "teams",
-  players: "players",
-  announcements: "announcements",
-  registrations: "registrations",
-  tournamentMatches: "tournamentMatches",
-  scrims: "scrims",
-  matchResults: "matchResults",
-  uploads: "uploads",
-  siteStats: "siteStats",
-  streams: "streams",
-  videos: "videos",
-  pubgMatches: "pubgMatches",
-  pubgPlayers: "pubgPlayers",
-  pubgImportWatchers: "pubgImportWatchers",
-  errorLogs: "errorLogs",
-} as const;
+export { COLLECTIONS };
 
 type FirestoreInput = Record<string, unknown> | unknown[] | string | number | boolean | null | undefined;
 
