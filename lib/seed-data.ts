@@ -12,7 +12,7 @@ import type {
 import { getBravoCanonicalTeams } from "./bravo-teams";
 
 export const seedStats: SiteStats = {
-  teamsRegistered: 17,
+  teamsRegistered: getBravoCanonicalTeams().length,
   matchesHosted: 0,
   tournamentsCompleted: 0,
   prizePoolsAwarded: "Not imported yet",

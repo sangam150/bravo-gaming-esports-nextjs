@@ -20,6 +20,13 @@ export const BRAVO_CANONICAL_TEAMS: BravoCanonicalTeam[] = [
   { id: "sons", name: "Sons", slotNumber: 15 },
   { id: "ace", name: "Ace", slotNumber: 16 },
   { id: "m8", name: "M8", slotNumber: 17 },
+  { id: "arabpati-esports", name: "Arabpati Esports", tag: "AE", slotNumber: 18 },
+  { id: "gedagudi", name: "GedaGudi", tag: "GG", slotNumber: 19 },
+  { id: "the-young-man", name: "The Young Man", tag: "TYM", slotNumber: 20 },
+  { id: "aia-apex-in-action", name: "AIA ( APEX IN ACTION )", tag: "AIA", slotNumber: 21 },
+  { id: "team-69", name: "Team 69", tag: "T69", slotNumber: 22 },
+  { id: "fam", name: "Fam", slotNumber: 23 },
+  { id: "families", name: "Families", slotNumber: 24 },
 ];
 
 const bravoTeamsBySlot = new Map(
