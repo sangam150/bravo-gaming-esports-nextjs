@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { importPubgMatch, importPubgMatches } from "@/lib/pubg-sync";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
-import type { PubgDuplicateMode } from "@/lib/types";
+import type { MatchPlayerResult, PubgDuplicateMode, PubgImportEdit, TeamMatchResult } from "@/lib/types";
 
 function normalizeMatchIds(body: Record<string, unknown>) {
   const rawMatchIds = Array.isArray(body.matchIds)
@@ -38,6 +38,88 @@ function normalizeDaySetup(body: Record<string, unknown>) {
   };
 }
 
+function normalizeTeamResults(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    .map(
+      (item) =>
+        ({
+          teamId: typeof item.teamId === "string" ? item.teamId : undefined,
+          teamName: typeof item.teamName === "string" ? item.teamName : "Unknown Team",
+          slotNumber:
+            typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
+          placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,
+          kills: typeof item.kills === "number" && Number.isFinite(item.kills) ? item.kills : 0,
+          damage: typeof item.damage === "number" && Number.isFinite(item.damage) ? item.damage : 0,
+          placementPoints:
+            typeof item.placementPoints === "number" && Number.isFinite(item.placementPoints)
+              ? item.placementPoints
+              : 0,
+          killPoints:
+            typeof item.killPoints === "number" && Number.isFinite(item.killPoints) ? item.killPoints : 0,
+          totalPoints:
+            typeof item.totalPoints === "number" && Number.isFinite(item.totalPoints) ? item.totalPoints : 0,
+        }) satisfies TeamMatchResult
+    );
+}
+
+function normalizePlayerResults(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    .map(
+      (item) =>
+        ({
+          playerId: typeof item.playerId === "string" ? item.playerId : "",
+          playerName: typeof item.playerName === "string" ? item.playerName : "Unknown Player",
+          pubgPlayerId: typeof item.pubgPlayerId === "string" ? item.pubgPlayerId : undefined,
+          teamId: typeof item.teamId === "string" ? item.teamId : undefined,
+          teamName: typeof item.teamName === "string" ? item.teamName : "Unknown Team",
+          slotNumber:
+            typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
+          placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,
+          kills: typeof item.kills === "number" && Number.isFinite(item.kills) ? item.kills : 0,
+          assists: typeof item.assists === "number" && Number.isFinite(item.assists) ? item.assists : 0,
+          knocks: typeof item.knocks === "number" && Number.isFinite(item.knocks) ? item.knocks : 0,
+          damage: typeof item.damage === "number" && Number.isFinite(item.damage) ? item.damage : 0,
+          survivalTime:
+            typeof item.survivalTime === "number" && Number.isFinite(item.survivalTime) ? item.survivalTime : 0,
+          placementPoints:
+            typeof item.placementPoints === "number" && Number.isFinite(item.placementPoints)
+              ? item.placementPoints
+              : 0,
+          totalPoints:
+            typeof item.totalPoints === "number" && Number.isFinite(item.totalPoints) ? item.totalPoints : 0,
+        }) satisfies MatchPlayerResult
+    );
+}
+
+function normalizeMatchEdits(body: Record<string, unknown>) {
+  if (!Array.isArray(body.matchEdits)) {
+    return undefined;
+  }
+
+  return body.matchEdits
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    .map(
+      (item) =>
+        ({
+          sourceMatchId: typeof item.sourceMatchId === "string" ? item.sourceMatchId : "",
+          matchId: typeof item.matchId === "string" ? item.matchId : undefined,
+          matchNumber:
+            typeof item.matchNumber === "number" && Number.isFinite(item.matchNumber) ? item.matchNumber : undefined,
+          map: typeof item.map === "string" ? item.map : undefined,
+          playedAt: typeof item.playedAt === "string" ? item.playedAt : undefined,
+          teamResults: normalizeTeamResults(item.teamResults),
+          playerResults: normalizePlayerResults(item.playerResults),
+        }) satisfies PubgImportEdit
+    )
+    .filter((item) => Boolean(item.sourceMatchId));
+}
+
 function getErrorStatus(message: string) {
   const normalizedMessage = message.toLowerCase();
   if (normalizedMessage.includes("permission denied") || normalizedMessage.includes("unauthorized")) return 403;
@@ -62,6 +144,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as Record<string, unknown>;
     const matchIds = normalizeMatchIds(body);
     const daySetup = normalizeDaySetup(body);
+    const matchEdits = normalizeMatchEdits(body);
     if (matchIds.length === 0) {
       return Response.json({ error: "At least one PUBG match ID is required." }, { status: 400 });
     }
@@ -80,6 +163,7 @@ export async function POST(request: Request) {
         body.duplicateMode === "skip" || body.duplicateMode === "error" || body.duplicateMode === "overwrite"
           ? (body.duplicateMode as PubgDuplicateMode)
           : "overwrite",
+      matchEdits,
       ...daySetup,
     };
 

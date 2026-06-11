@@ -480,6 +480,7 @@ export interface PubgImportConflict {
 
 export interface PubgImportPreview {
   matchId: string;
+  matchNumber?: number;
   alreadyImported: boolean;
   summary: {
     id?: string;
@@ -500,6 +501,16 @@ export interface PubgImportPreview {
   teamResults: TeamMatchResult[];
   playerResults: MatchPlayerResult[];
   conflicts: PubgImportConflict[];
+}
+
+export interface PubgImportEdit {
+  sourceMatchId: string;
+  matchId?: string;
+  matchNumber?: number;
+  map?: string;
+  playedAt?: string;
+  teamResults?: TeamMatchResult[];
+  playerResults?: MatchPlayerResult[];
 }
 
 export type PubgDuplicateMode = "overwrite" | "skip" | "error";

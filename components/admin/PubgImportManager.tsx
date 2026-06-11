@@ -4,14 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import FileUpload from "./FileUpload";
 import { adminFetch } from "@/lib/admin-api";
 import type {
+  MatchPlayerResult,
   PubgBulkImportResult,
   PubgBulkPreviewResult,
   PubgDuplicateMode,
+  PubgImportEdit,
   PubgImportPreview,
   PubgImportWatcher,
   PubgPlayerLookup,
   Scrim,
   Season,
+  TeamMatchResult,
   Tournament,
 } from "@/lib/types";
 
@@ -19,6 +22,29 @@ const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
 const defaultMapRotation = "Rondo, Erangel, Miramar, Taego";
 const pubgMaps = ["Rondo", "Erangel", "Miramar", "Taego", "Deston", "Vikendi", "Sanhok", "Karakin", "Paramo"];
+const kathmanduDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Kathmandu",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const kathmanduTimeFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Kathmandu",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+type EditablePreview = PubgImportPreview & {
+  sourceMatchId: string;
+  matchId: string;
+  matchNumber: number;
+  matchDate: string;
+  matchTime: string;
+  map: string;
+  teamResults: TeamMatchResult[];
+  playerResults: MatchPlayerResult[];
+};
 
 function normalizeMatchIds(value?: string) {
   return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
@@ -32,6 +58,82 @@ function addDays(startDate: string, dayOffset: number) {
   const [year, month, day] = startDate.split("-").map((value) => Number(value));
   const date = new Date(Date.UTC(year, month - 1, day + dayOffset, 12, 0, 0));
   return date.toISOString().slice(0, 10);
+}
+
+function formatKathmanduDateInput(value?: string) {
+  if (!value) return "";
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) return "";
+
+  const parts = kathmanduDateFormatter.formatToParts(parsedDate);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) return "";
+  return `${year}-${month}-${day}`;
+}
+
+function formatKathmanduTimeInput(value?: string) {
+  if (!value) return "";
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) return "";
+  return kathmanduTimeFormatter.format(parsedDate);
+}
+
+function buildPlayedAtValue(date: string, time: string) {
+  const normalizedDate = date.trim();
+  const normalizedTime = time.trim();
+  if (!normalizedDate) return undefined;
+
+  const safeTime = normalizedTime || "20:00";
+  return `${normalizedDate}T${safeTime}:00+05:45`;
+}
+
+function placementPointsForPlacement(placement: number) {
+  if (placement === 1) return 10;
+  if (placement === 2) return 6;
+  if (placement === 3) return 5;
+  if (placement === 4) return 4;
+  if (placement === 5) return 3;
+  if (placement === 6) return 2;
+  if (placement === 7 || placement === 8) return 1;
+  return 0;
+}
+
+function sortTeamResultsByPlacement(results: TeamMatchResult[]) {
+  return [...results].sort(
+    (firstResult, secondResult) =>
+      firstResult.placement - secondResult.placement ||
+      (firstResult.slotNumber ?? Number.POSITIVE_INFINITY) - (secondResult.slotNumber ?? Number.POSITIVE_INFINITY) ||
+      firstResult.teamName.localeCompare(secondResult.teamName)
+  );
+}
+
+function sortPlayerResultsByPlacement(results: MatchPlayerResult[]) {
+  return [...results].sort(
+    (firstResult, secondResult) =>
+      firstResult.placement - secondResult.placement ||
+      (firstResult.slotNumber ?? Number.POSITIVE_INFINITY) - (secondResult.slotNumber ?? Number.POSITIVE_INFINITY) ||
+      firstResult.playerName.localeCompare(secondResult.playerName)
+  );
+}
+
+function createEditablePreview(preview: PubgImportPreview): EditablePreview {
+  const matchDate = formatKathmanduDateInput(preview.summary.createdAt);
+  const matchTime = formatKathmanduTimeInput(preview.summary.createdAt);
+
+  return {
+    ...preview,
+    sourceMatchId: preview.matchId,
+    matchId: preview.matchId,
+    matchNumber: preview.matchNumber ?? 1,
+    matchDate,
+    matchTime,
+    map: preview.summary.mapName ?? "Unknown",
+    teamResults: sortTeamResultsByPlacement(preview.teamResults.map((teamResult) => ({ ...teamResult }))),
+    playerResults: sortPlayerResultsByPlacement(preview.playerResults.map((playerResult) => ({ ...playerResult }))),
+  };
 }
 
 function sortTournamentsByDay(firstTournament: Tournament, secondTournament: Tournament) {
@@ -98,7 +200,7 @@ export default function PubgImportManager({
   const [savingWatcher, setSavingWatcher] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [previews, setPreviews] = useState<PubgImportPreview[]>([]);
+  const [previewDrafts, setPreviewDrafts] = useState<EditablePreview[]>([]);
   const [previewErrors, setPreviewErrors] = useState<Array<{ matchId: string; error: string; code: string }>>([]);
   const [importLog, setImportLog] = useState<Array<{ matchId: string; success: boolean; skipped?: boolean; error?: string }>>([]);
 
@@ -121,6 +223,10 @@ export default function PubgImportManager({
   const selectedScrim = useMemo(
     () => scrims.find((scrim) => scrim.id === selectedScrimId) ?? null,
     [scrims, selectedScrimId]
+  );
+  const hasEditedMatchIds = useMemo(
+    () => previewDrafts.some((draft) => draft.matchId.trim() !== draft.sourceMatchId),
+    [previewDrafts]
   );
 
   useEffect(() => {
@@ -275,6 +381,147 @@ export default function PubgImportManager({
     };
   }
 
+  function updatePreviewDraft(
+    sourceMatchId: string,
+    updater: (draft: EditablePreview) => EditablePreview
+  ) {
+    setPreviewDrafts((currentDrafts) =>
+      currentDrafts.map((draft) => (draft.sourceMatchId === sourceMatchId ? updater(draft) : draft))
+    );
+  }
+
+  function updateTeamResult(
+    sourceMatchId: string,
+    teamIndex: number,
+    field: keyof TeamMatchResult,
+    rawValue: string
+  ) {
+    updatePreviewDraft(sourceMatchId, (draft) => {
+      const currentTeamResults = [...draft.teamResults];
+      const targetTeam = currentTeamResults[teamIndex];
+      if (!targetTeam) return draft;
+
+      const previousTeamName = targetTeam.teamName;
+      const previousSlotNumber = targetTeam.slotNumber;
+      const updatedTeam = { ...targetTeam };
+
+      if (field === "teamName") {
+        updatedTeam.teamName = rawValue;
+      } else if (field === "slotNumber") {
+        updatedTeam.slotNumber = rawValue ? Number(rawValue) : undefined;
+      } else {
+        const numericValue = rawValue ? Number(rawValue) : 0;
+        if (field === "placement") {
+          updatedTeam.placement = numericValue;
+          updatedTeam.placementPoints = placementPointsForPlacement(numericValue);
+        } else if (field === "kills") {
+          updatedTeam.kills = numericValue;
+          updatedTeam.killPoints = numericValue;
+        } else if (field === "placementPoints") {
+          updatedTeam.placementPoints = numericValue;
+        } else if (field === "killPoints") {
+          updatedTeam.killPoints = numericValue;
+        } else if (field === "damage") {
+          updatedTeam.damage = numericValue;
+        } else if (field === "totalPoints") {
+          updatedTeam.totalPoints = numericValue;
+        }
+      }
+
+      updatedTeam.totalPoints = (updatedTeam.placementPoints ?? 0) + (updatedTeam.killPoints ?? updatedTeam.kills ?? 0);
+      currentTeamResults[teamIndex] = updatedTeam;
+
+      const updatedPlayers = draft.playerResults.map((playerResult) => {
+        const belongsToTeam =
+          playerResult.teamName === previousTeamName &&
+          (playerResult.slotNumber ?? undefined) === previousSlotNumber;
+
+        if (!belongsToTeam) return playerResult;
+
+        return {
+          ...playerResult,
+          teamName: updatedTeam.teamName,
+          slotNumber: updatedTeam.slotNumber,
+          placement: updatedTeam.placement,
+          placementPoints: updatedTeam.placementPoints,
+          totalPoints: updatedTeam.placementPoints + playerResult.kills,
+        };
+      });
+
+      return {
+        ...draft,
+        detectedTeams: currentTeamResults.length,
+        teamResults: sortTeamResultsByPlacement(currentTeamResults),
+        playerResults: sortPlayerResultsByPlacement(updatedPlayers),
+      };
+    });
+  }
+
+  function updatePlayerResult(
+    sourceMatchId: string,
+    playerIndex: number,
+    field: keyof MatchPlayerResult,
+    rawValue: string
+  ) {
+    updatePreviewDraft(sourceMatchId, (draft) => {
+      const currentPlayerResults = [...draft.playerResults];
+      const targetPlayer = currentPlayerResults[playerIndex];
+      if (!targetPlayer) return draft;
+
+      const updatedPlayer = { ...targetPlayer };
+      if (field === "playerName") {
+        updatedPlayer.playerName = rawValue;
+      } else if (field === "teamName") {
+        updatedPlayer.teamName = rawValue;
+      } else if (field === "pubgPlayerId") {
+        updatedPlayer.pubgPlayerId = rawValue || undefined;
+      } else if (field === "slotNumber") {
+        updatedPlayer.slotNumber = rawValue ? Number(rawValue) : undefined;
+      } else {
+        const numericValue = rawValue ? Number(rawValue) : 0;
+        if (field === "placement") {
+          updatedPlayer.placement = numericValue;
+          updatedPlayer.placementPoints = placementPointsForPlacement(numericValue);
+        } else if (field === "kills") {
+          updatedPlayer.kills = numericValue;
+        } else if (field === "assists") {
+          updatedPlayer.assists = numericValue;
+        } else if (field === "knocks") {
+          updatedPlayer.knocks = numericValue;
+        } else if (field === "damage") {
+          updatedPlayer.damage = numericValue;
+        } else if (field === "survivalTime") {
+          updatedPlayer.survivalTime = numericValue;
+        } else if (field === "placementPoints") {
+          updatedPlayer.placementPoints = numericValue;
+        } else if (field === "totalPoints") {
+          updatedPlayer.totalPoints = numericValue;
+        }
+      }
+
+      updatedPlayer.totalPoints = (updatedPlayer.placementPoints ?? 0) + (updatedPlayer.kills ?? 0);
+      currentPlayerResults[playerIndex] = updatedPlayer;
+
+      return {
+        ...draft,
+        detectedPlayers: currentPlayerResults.length,
+        playerResults: sortPlayerResultsByPlacement(currentPlayerResults),
+      };
+    });
+  }
+
+  function buildMatchEditPayload(): PubgImportEdit[] {
+    return previewDrafts.map((draft) => ({
+      sourceMatchId: draft.sourceMatchId,
+      matchId: draft.matchId.trim(),
+      matchNumber: draft.matchNumber,
+      map: draft.map.trim() || undefined,
+      playedAt: buildPlayedAtValue(draft.matchDate, draft.matchTime),
+      teamResults: draft.teamResults,
+      playerResults: draft.playerResults,
+    }));
+  }
+
   async function handlePrepareDay() {
     if (!selectedSeasonId) {
       setError("Select a season before preparing a scrim day.");
@@ -375,7 +622,7 @@ export default function PubgImportManager({
       });
 
       const data = response.data as PubgBulkPreviewResult;
-      setPreviews(data.previews ?? []);
+      setPreviewDrafts((data.previews ?? []).map(createEditablePreview));
       setPreviewErrors(data.errors ?? []);
       applyResolvedDayContext(data.context);
       setMessage(
@@ -384,7 +631,7 @@ export default function PubgImportManager({
           : "No preview could be generated for the provided PUBG match IDs."
       );
     } catch (previewError: unknown) {
-      setPreviews([]);
+      setPreviewDrafts([]);
       setPreviewErrors([]);
       setError(previewError instanceof Error ? previewError.message : String(previewError));
     } finally {
@@ -393,7 +640,13 @@ export default function PubgImportManager({
   }
 
   async function importPreviewedMatches() {
-    const matchIds = previews.map((preview) => preview.matchId);
+    const hasEditedMatchId = previewDrafts.some((draft) => draft.matchId.trim() !== draft.sourceMatchId);
+    if (hasEditedMatchId) {
+      setError("One or more match IDs were changed. Re-preview the edited match IDs before importing.");
+      return;
+    }
+
+    const matchIds = previewDrafts.map((preview) => preview.sourceMatchId);
     if (matchIds.length === 0) {
       setError("Preview at least one PUBG match before importing.");
       return;
@@ -420,6 +673,7 @@ export default function PubgImportManager({
           autoCreateDay: true,
           screenshotUrl: screenshotUrl || undefined,
           duplicateMode,
+          matchEdits: buildMatchEditPayload(),
           ...getDaySetupPayload(),
         }),
       });
@@ -461,7 +715,7 @@ export default function PubgImportManager({
 
       setSelectedMatchIds([]);
       setDirectMatchIds("");
-      setPreviews([]);
+      setPreviewDrafts([]);
       setPreviewErrors([]);
       onImported?.();
     } catch (importError: unknown) {
@@ -654,7 +908,7 @@ export default function PubgImportManager({
 
         <FileUpload
           type="match_screenshot"
-          entityId={previews[0]?.matchId || normalizeMatchIds(directMatchIds)[0] || "match"}
+          entityId={previewDrafts[0]?.matchId || normalizeMatchIds(directMatchIds)[0] || "match"}
           label="Result Screenshot"
           currentUrl={screenshotUrl}
           onUploaded={setScreenshotUrl}
@@ -893,13 +1147,14 @@ export default function PubgImportManager({
             </div>
           )}
 
-          {previews.length > 0 && (
+          {previewDrafts.length > 0 && (
             <div className="esports-card p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="section-heading !text-sm">Import Preview</p>
                   <p className="mt-1 text-sm text-text-muted">
-                    Review duplicates and parsed standings before importing the whole batch.
+                    Verify every fetched match before publishing. Match metadata, teams, players, placements, kills,
+                    and points can be corrected here.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -912,13 +1167,28 @@ export default function PubgImportManager({
                     <option value="skip">Skip Duplicates</option>
                     <option value="error">Stop On Duplicates</option>
                   </select>
-                  <button type="button" onClick={() => void importPreviewedMatches()} disabled={importing} className={btnPrimary}>
+                  {hasEditedMatchIds && (
+                    <button
+                      type="button"
+                      onClick={() => void previewMatchIds(previewDrafts.map((draft) => draft.matchId))}
+                      disabled={previewing}
+                      className="btn-secondary"
+                    >
+                      {previewing ? "Refreshing..." : "Re-Preview Edited IDs"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void importPreviewedMatches()}
+                    disabled={importing || hasEditedMatchIds}
+                    className={btnPrimary}
+                  >
                     {importing ? "Importing..." : "Confirm Bulk Import"}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setPreviews([]);
+                      setPreviewDrafts([]);
                       setPreviewErrors([]);
                     }}
                     className="btn-secondary"
@@ -928,14 +1198,24 @@ export default function PubgImportManager({
                 </div>
               </div>
 
+              {hasEditedMatchIds && (
+                <div className="mt-4 rounded-card border border-accent-yellow/30 bg-accent-yellow/10 px-4 py-3 text-sm text-white">
+                  Match IDs were edited. Refresh the preview before importing so PUBG data is fetched again for those IDs.
+                </div>
+              )}
+
               <div className="mt-5 space-y-4">
-                {previews.map((preview) => (
-                  <div key={preview.matchId} className="rounded-card border border-white/10 bg-bg-primary p-4">
+                {previewDrafts.map((preview, previewIndex) => (
+                  <div key={preview.sourceMatchId} className="rounded-card border border-white/10 bg-bg-primary p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="font-mono-stat text-sm text-white">{preview.matchId}</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-blue">
+                          Match Review {previewIndex + 1}
+                        </p>
+                        <p className="mt-2 font-mono-stat text-sm text-white">{preview.sourceMatchId}</p>
                         <p className="mt-1 text-xs uppercase text-text-muted">
-                          {preview.summary.mapName ?? "Unknown map"} | {preview.summary.gameMode ?? "Unknown mode"}
+                          Fetched from PUBG API: {preview.summary.mapName ?? "Unknown map"} |{" "}
+                          {preview.summary.gameMode ?? "Unknown mode"}
                         </p>
                         <p className="mt-1 text-xs text-text-muted">
                           {preview.summary.createdAt ? new Date(preview.summary.createdAt).toLocaleString() : "Time unavailable"}
@@ -955,14 +1235,100 @@ export default function PubgImportManager({
                       </div>
                     </div>
 
+                    <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                      <div className="rounded-card border border-white/10 px-3 py-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match ID</p>
+                        <input
+                          className={`${inputClass} mt-2`}
+                          value={preview.matchId}
+                          onChange={(event) =>
+                            updatePreviewDraft(preview.sourceMatchId, (draft) => ({
+                              ...draft,
+                              matchId: event.target.value,
+                            }))
+                          }
+                        />
+                        {preview.matchId.trim() !== preview.sourceMatchId && (
+                          <p className="mt-2 text-xs text-accent-yellow">Re-preview required after changing match ID.</p>
+                        )}
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match Number</p>
+                        <input
+                          className={`${inputClass} mt-2`}
+                          type="number"
+                          min={1}
+                          value={preview.matchNumber}
+                          onChange={(event) =>
+                            updatePreviewDraft(preview.sourceMatchId, (draft) => ({
+                              ...draft,
+                              matchNumber: event.target.value ? Number(event.target.value) : draft.matchNumber,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Scrim Day</p>
+                        <input
+                          className={`${inputClass} mt-2`}
+                          type="number"
+                          min={1}
+                          value={selectedDayNumber}
+                          onChange={(event) => setSelectedDayNumber(event.target.value ? Number(event.target.value) : "")}
+                        />
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Map</p>
+                        <input
+                          className={`${inputClass} mt-2`}
+                          list="pubg-map-options"
+                          value={preview.map}
+                          onChange={(event) =>
+                            updatePreviewDraft(preview.sourceMatchId, (draft) => ({
+                              ...draft,
+                              map: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match Date</p>
+                        <input
+                          className={`${inputClass} mt-2`}
+                          type="date"
+                          value={preview.matchDate}
+                          onChange={(event) =>
+                            updatePreviewDraft(preview.sourceMatchId, (draft) => ({
+                              ...draft,
+                              matchDate: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match Time</p>
+                        <input
+                          className={`${inputClass} mt-2`}
+                          type="time"
+                          value={preview.matchTime}
+                          onChange={(event) =>
+                            updatePreviewDraft(preview.sourceMatchId, (draft) => ({
+                              ...draft,
+                              matchTime: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+
                     <div className="mt-4 grid gap-3 sm:grid-cols-4">
                       <div className="rounded-card border border-white/10 px-3 py-2">
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Teams</p>
-                        <p className="mt-1 font-mono-stat text-white">{preview.detectedTeams}</p>
+                        <p className="mt-1 font-mono-stat text-white">{preview.teamResults.length}</p>
                       </div>
                       <div className="rounded-card border border-white/10 px-3 py-2">
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Players</p>
-                        <p className="mt-1 font-mono-stat text-white">{preview.detectedPlayers}</p>
+                        <p className="mt-1 font-mono-stat text-white">{preview.playerResults.length}</p>
                       </div>
                       <div className="rounded-card border border-white/10 px-3 py-2">
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Tournament</p>
@@ -993,26 +1359,278 @@ export default function PubgImportManager({
                     )}
 
                     <div className="mt-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Top Placement Table</p>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">
+                          Team Verification
+                        </p>
+                        <p className="text-xs text-text-muted">Edit team names, slots, placements, kills, and points before publishing.</p>
+                      </div>
                       <div className="mt-3 table-scroll">
                         <table className="data-table min-w-full">
                           <thead>
                             <tr>
+                              <th>Match</th>
                               <th>Place</th>
                               <th>Slot</th>
                               <th>Team</th>
                               <th>Kills</th>
+                              <th>Place Pts</th>
+                              <th>Kill Pts</th>
                               <th>Total</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {preview.teamResults.slice(0, 8).map((teamResult) => (
-                              <tr key={`${preview.matchId}-${teamResult.teamName}`}>
-                                <td>#{teamResult.placement}</td>
-                                <td>{teamResult.slotNumber ? `#${teamResult.slotNumber}` : "-"}</td>
-                                <td className="font-semibold text-white">{teamResult.teamName}</td>
-                                <td>{teamResult.kills}</td>
-                                <td className="points-cell">{teamResult.totalPoints}</td>
+                            {preview.teamResults.map((teamResult, teamIndex) => (
+                              <tr key={`${preview.sourceMatchId}-${teamIndex}`}>
+                                <td>#{preview.matchNumber}</td>
+                                <td>
+                                  <input
+                                    className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={1}
+                                    value={teamResult.placement}
+                                    onChange={(event) =>
+                                      updateTeamResult(preview.sourceMatchId, teamIndex, "placement", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={1}
+                                    value={teamResult.slotNumber ?? ""}
+                                    onChange={(event) =>
+                                      updateTeamResult(preview.sourceMatchId, teamIndex, "slotNumber", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="min-w-[180px] rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    value={teamResult.teamName}
+                                    onChange={(event) =>
+                                      updateTeamResult(preview.sourceMatchId, teamIndex, "teamName", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={teamResult.kills}
+                                    onChange={(event) =>
+                                      updateTeamResult(preview.sourceMatchId, teamIndex, "kills", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={teamResult.placementPoints}
+                                    onChange={(event) =>
+                                      updateTeamResult(
+                                        preview.sourceMatchId,
+                                        teamIndex,
+                                        "placementPoints",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={teamResult.killPoints}
+                                    onChange={(event) =>
+                                      updateTeamResult(preview.sourceMatchId, teamIndex, "killPoints", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={teamResult.totalPoints}
+                                    onChange={(event) =>
+                                      updateTeamResult(preview.sourceMatchId, teamIndex, "totalPoints", event.target.value)
+                                    }
+                                  />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">
+                          Player Verification
+                        </p>
+                        <p className="text-xs text-text-muted">
+                          Review player mapping, kills, assists, damage, survival time, and points before approval.
+                        </p>
+                      </div>
+                      <div className="mt-3 table-scroll">
+                        <table className="data-table min-w-[1200px]">
+                          <thead>
+                            <tr>
+                              <th>Player</th>
+                              <th>PUBG ID</th>
+                              <th>Team</th>
+                              <th>Slot</th>
+                              <th>Place</th>
+                              <th>Kills</th>
+                              <th>Assists</th>
+                              <th>Knocks</th>
+                              <th>Damage</th>
+                              <th>Survival</th>
+                              <th>Place Pts</th>
+                              <th>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {preview.playerResults.map((playerResult, playerIndex) => (
+                              <tr key={`${preview.sourceMatchId}-${playerIndex}-${playerResult.playerName}`}>
+                                <td>
+                                  <input
+                                    className="min-w-[160px] rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    value={playerResult.playerName}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "playerName", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="min-w-[160px] rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    value={playerResult.pubgPlayerId ?? ""}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "pubgPlayerId", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="min-w-[160px] rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    value={playerResult.teamName}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "teamName", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={1}
+                                    value={playerResult.slotNumber ?? ""}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "slotNumber", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={1}
+                                    value={playerResult.placement}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "placement", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={playerResult.kills}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "kills", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={playerResult.assists}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "assists", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={playerResult.knocks}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "knocks", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={playerResult.damage}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "damage", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={playerResult.survivalTime}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "survivalTime", event.target.value)
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={playerResult.placementPoints}
+                                    onChange={(event) =>
+                                      updatePlayerResult(
+                                        preview.sourceMatchId,
+                                        playerIndex,
+                                        "placementPoints",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    type="number"
+                                    min={0}
+                                    value={playerResult.totalPoints}
+                                    onChange={(event) =>
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "totalPoints", event.target.value)
+                                    }
+                                  />
+                                </td>
                               </tr>
                             ))}
                           </tbody>

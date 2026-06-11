@@ -24,6 +24,7 @@ import type {
   PubgBulkPreviewResult,
   PubgImportConflict,
   PubgImportContext,
+  PubgImportEdit,
   PubgImportIssue,
   PubgImportPreview,
   PubgMatchImport,
@@ -64,7 +65,7 @@ function normalizeTeamResults(results: TeamMatchResult[]): TeamMatchResult[] {
 
       return {
         ...result,
-        teamId: resolvedTeam?.id ?? result.teamId ?? slugify(result.teamName),
+        teamId: resolvedTeam?.id ?? slugify(result.teamName),
         teamName: resolvedTeam?.name ?? result.teamName,
         slotNumber: resolvedTeam?.slotNumber ?? result.slotNumber,
       };
@@ -139,6 +140,7 @@ type ImportTargetOptions = {
   dayMap?: string;
   dayLobbyTime?: string;
   dayMapRotation?: string[];
+  matchEdits?: PubgImportEdit[];
 };
 
 type ResolvedImportContext = {
@@ -231,6 +233,144 @@ function getSeasonDayOverrides(options?: ImportTargetOptions) {
     dayLobbyTime,
     dayMapRotation,
   };
+}
+
+function normalizeImportEdits(edits?: PubgImportEdit[]) {
+  if (!edits?.length) {
+    return new Map<string, PubgImportEdit>();
+  }
+
+  const normalizedEdits = new Map<string, PubgImportEdit>();
+  for (const edit of edits) {
+    const sourceMatchId = edit.sourceMatchId?.trim();
+    if (!sourceMatchId) {
+      continue;
+    }
+
+    normalizedEdits.set(sourceMatchId, {
+      sourceMatchId,
+      matchId: edit.matchId?.trim() || undefined,
+      matchNumber: Number.isFinite(edit.matchNumber) ? Number(edit.matchNumber) : undefined,
+      map: edit.map?.trim() || undefined,
+      playedAt: edit.playedAt?.trim() || undefined,
+      teamResults: edit.teamResults?.map((result) => ({ ...result })) ?? undefined,
+      playerResults: edit.playerResults?.map((result) => ({ ...result })) ?? undefined,
+    });
+  }
+
+  return normalizedEdits;
+}
+
+function normalizeEditedTeamResults(results: TeamMatchResult[]) {
+  return normalizeTeamResults(
+    results.map((result) => {
+      const kills = Number.isFinite(result.kills) ? Number(result.kills) : 0;
+      const placement = Number.isFinite(result.placement) ? Number(result.placement) : 0;
+      const placementPointsValue = Number.isFinite(result.placementPoints)
+        ? Number(result.placementPoints)
+        : placementPoints(placement);
+      const killPointsValue = kills;
+
+      return {
+        ...result,
+        placement,
+        kills,
+        damage: Number.isFinite(result.damage) ? Number(result.damage) : 0,
+        placementPoints: placementPointsValue,
+        killPoints: killPointsValue,
+        totalPoints: placementPointsValue + killPointsValue,
+      };
+    })
+  );
+}
+
+function normalizeEditedPlayerResults(
+  results: MatchPlayerResult[],
+  teamResults: TeamMatchResult[]
+) {
+  const teamByKey = new Map<string, TeamMatchResult>();
+  for (const teamResult of teamResults) {
+    teamByKey.set(teamResult.teamName.trim().toLowerCase(), teamResult);
+    if (teamResult.teamId) {
+      teamByKey.set(teamResult.teamId.trim().toLowerCase(), teamResult);
+    }
+  }
+
+  return results
+    .map((result) => {
+      const teamKey = result.teamName.trim().toLowerCase();
+      const teamResult = teamByKey.get(teamKey);
+      const placement = Number.isFinite(result.placement)
+        ? Number(result.placement)
+        : (teamResult?.placement ?? 0);
+      const placementPointsValue = Number.isFinite(result.placementPoints)
+        ? Number(result.placementPoints)
+        : (teamResult?.placementPoints ?? placementPoints(placement));
+      const kills = Number.isFinite(result.kills) ? Number(result.kills) : 0;
+      const resolvedTeam = resolveBravoTeamIdentity(teamResult?.teamName ?? result.teamName);
+
+      return {
+        ...result,
+        teamId: resolvedTeam?.id ?? teamResult?.teamId ?? slugify(result.teamName),
+        teamName: resolvedTeam?.name ?? teamResult?.teamName ?? result.teamName,
+        slotNumber: resolvedTeam?.slotNumber ?? teamResult?.slotNumber ?? result.slotNumber,
+        placement,
+        kills,
+        assists: Number.isFinite(result.assists) ? Number(result.assists) : 0,
+        knocks: Number.isFinite(result.knocks) ? Number(result.knocks) : 0,
+        damage: Number.isFinite(result.damage) ? Number(result.damage) : 0,
+        survivalTime: Number.isFinite(result.survivalTime) ? Number(result.survivalTime) : 0,
+        placementPoints: placementPointsValue,
+        totalPoints: placementPointsValue + kills,
+      } satisfies MatchPlayerResult;
+    })
+    .sort((firstPlayer, secondPlayer) => {
+      if ((firstPlayer.slotNumber ?? Number.POSITIVE_INFINITY) !== (secondPlayer.slotNumber ?? Number.POSITIVE_INFINITY)) {
+        return (firstPlayer.slotNumber ?? Number.POSITIVE_INFINITY) - (secondPlayer.slotNumber ?? Number.POSITIVE_INFINITY);
+      }
+
+      return firstPlayer.playerName.localeCompare(secondPlayer.playerName);
+    });
+}
+
+function applyImportEdit(
+  matchRecord: TournamentMatch,
+  edit?: PubgImportEdit
+) {
+  if (!edit) {
+    return matchRecord;
+  }
+
+  if (edit.matchId && edit.matchId !== matchRecord.pubgMatchId) {
+    throw new Error(
+      `Match ID mismatch for ${matchRecord.pubgMatchId}. Refresh preview after changing the match ID before importing.`
+    );
+  }
+
+  const teamResults = edit.teamResults?.length
+    ? normalizeEditedTeamResults(edit.teamResults)
+    : (matchRecord.teamResults ?? []);
+  const playerResults = edit.playerResults?.length
+    ? normalizeEditedPlayerResults(edit.playerResults, teamResults)
+    : (matchRecord.playerResults ?? []);
+  const winner =
+    teamResults.find((teamResult) => teamResult.placement === 1)?.teamName ??
+    teamResults[0]?.teamName ??
+    matchRecord.winner;
+
+  return {
+    ...matchRecord,
+    map: edit.map ?? matchRecord.map,
+    playedAt: edit.playedAt ?? matchRecord.playedAt,
+    sequenceNumber: edit.matchNumber ?? matchRecord.sequenceNumber,
+    winner,
+    points: teamResults[0]?.totalPoints ?? matchRecord.points,
+    knockouts: teamResults.reduce((totalKills, teamResult) => totalKills + teamResult.kills, 0),
+    placementPoints: teamResults[0]?.placementPoints ?? matchRecord.placementPoints,
+    killPoints: teamResults[0]?.killPoints ?? matchRecord.killPoints,
+    teamResults,
+    playerResults,
+  } satisfies TournamentMatch;
 }
 
 async function loadSeasonPlayers() {
@@ -811,6 +951,17 @@ export async function previewPubgMatches(
     }
   }
 
+  if (context.tournamentId && previews.length > 0) {
+    const matchNumbers = await getMatchSequenceNumbers(
+      context.tournamentId,
+      previews.map((preview) => preview.matchId)
+    );
+
+    for (const preview of previews) {
+      preview.matchNumber = matchNumbers.get(preview.matchId);
+    }
+  }
+
   return {
     context: toImportContext(context),
     previews,
@@ -843,6 +994,7 @@ export async function importPubgMatches(
   }
 
   const duplicateMode = options?.duplicateMode ?? "overwrite";
+  const matchEdits = normalizeImportEdits(options?.matchEdits);
   const [context, existingPlayers] = await Promise.all([
     resolveImportContext({ ...options, requireDay: true, autoCreateDay: options?.autoCreateDay ?? true }),
     loadSeasonPlayers(),
@@ -912,17 +1064,25 @@ export async function importPubgMatches(
       previewResults.map((item) => item.preview.matchId)
     );
 
-    const importedMatchRecords = previewResults.map(({ preview, matchRecord }) => ({
-      preview,
-      matchRecord: {
-        ...matchRecord,
-        tournamentId: context.tournamentId,
-        scrimId: context.scrim?.id,
-        sequenceNumber: sequenceNumberByMatchId.get(preview.matchId),
-        resultScreenshotUrl: options?.screenshotUrl,
-        syncedAt: now,
-      } satisfies TournamentMatch,
-    }));
+    const importedMatchRecords = previewResults.map(({ preview, matchRecord }) => {
+      const edit = matchEdits.get(preview.matchId);
+      const editedMatchRecord = applyImportEdit(matchRecord, edit);
+
+      return {
+        preview,
+        matchRecord: {
+          ...editedMatchRecord,
+          tournamentId: context.tournamentId,
+          scrimId: context.scrim?.id,
+          sequenceNumber:
+            edit?.matchNumber ??
+            editedMatchRecord.sequenceNumber ??
+            sequenceNumberByMatchId.get(preview.matchId),
+          resultScreenshotUrl: options?.screenshotUrl,
+          syncedAt: now,
+        } satisfies TournamentMatch,
+      };
+    });
 
     const mergedPubgMatchIds = Array.from(
       new Set([
@@ -938,9 +1098,9 @@ export async function importPubgMatches(
       const importRecord: PubgMatchImport = {
         id: preview.matchId,
         pubgMatchId: preview.matchId,
-        mapName: preview.summary.mapName ?? "Unknown",
+        mapName: matchRecord.map,
         gameMode: preview.summary.gameMode ?? "unknown",
-        createdAt: preview.summary.createdAt ?? now,
+        createdAt: matchRecord.playedAt ?? preview.summary.createdAt ?? now,
         duration: preview.summary.duration,
         tournamentId: context.tournamentId,
         scrimId: context.scrim.id,
