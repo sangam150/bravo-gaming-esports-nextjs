@@ -36,6 +36,7 @@ const bravoTeamsBySlot = new Map(
 function normalizeTeamKey(value?: string | null) {
   return value
     ?.toLowerCase()
+    .replace(/^\s*\d{1,2}[\s.)\-:]+/g, "")
     .replace(/[()[\]#]/g, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
@@ -74,6 +75,11 @@ export function parseBravoSlotNumber(value?: string | null) {
 
   const trimmedValue = value.trim();
   if (!trimmedValue) return undefined;
+
+  const numberedNameMatch = trimmedValue.match(/^(\d{1,2})[\s.)\-:]+[a-z]/i);
+  if (numberedNameMatch) {
+    return Number(numberedNameMatch[1]);
+  }
 
   const teamSlotMatch = trimmedValue.match(/(?:team|slot)\s*[-#:]*\s*(\d{1,2})/i);
   if (teamSlotMatch) {

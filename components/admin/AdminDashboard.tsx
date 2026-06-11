@@ -8,6 +8,7 @@ import PubgImportManager from "./PubgImportManager";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { useAdminAuth } from "./AuthProvider";
 import { adminFetch } from "@/lib/admin-api";
+import { compareTeamLeaderboardPerformance } from "@/lib/ranking-sort";
 import type {
   Announcement,
   Player,
@@ -165,7 +166,7 @@ export default function AdminDashboard() {
     () =>
       [...teams]
         .filter((t) => (t.matches ?? 0) > 0)
-        .sort((a, b) => (b.totalPoints ?? 0) - (a.totalPoints ?? 0))
+        .sort((firstTeam, secondTeam) => compareTeamLeaderboardPerformance(firstTeam, secondTeam))
         .map((t, i) => ({ ...t, rank: i + 1 })),
     [teams]
   );

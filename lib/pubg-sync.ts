@@ -1,7 +1,7 @@
 import { ensureSeasonDay, getSeasonDayContext } from "./admin-season-days";
 import { getCurrentSeason, getTournament, getTournamentMatches } from "./data";
 import { BRAVO_DAILY_SCRIMS_SEASON, syncBravoDailyScrimSeason } from "./bravo-season-sync";
-import { buildFallbackTeamNameFromSlot, getBravoCanonicalTeams, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
+import { buildFallbackTeamNameFromSlot, canonicalizeBravoTeamName, getBravoCanonicalTeams, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
 import {
   COLLECTIONS,
   commitFirestoreWriteOperations,
@@ -14,6 +14,7 @@ import {
 import { aggregateTeamResults, parseMatchParticipants, type ParsedPlayerStat } from "./pubg-match-parser";
 import { buildPlayerAppearanceMapFromMatches, choosePreferredPlayerTeam } from "./player-team-history";
 import { placementPoints, pubgFetch, PUBG_SHARD, summarizeMatch } from "./pubg";
+import { compareMvpRankingPlayers, comparePlayerLeaderboardPerformance } from "./ranking-sort";
 import { buildTournamentStandings } from "./tournament-standings";
 import type {
   MatchPlayerRecord,
@@ -748,13 +749,14 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
     })
     .sort(
       (firstPlayer, secondPlayer) =>
-        (secondPlayer.totalPoints ?? 0) - (firstPlayer.totalPoints ?? 0) ||
-        secondPlayer.kills - firstPlayer.kills ||
-        firstPlayer.name.localeCompare(secondPlayer.name)
+        comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer)
     );
 
-  if (playerDocuments.length > 0) {
-    playerDocuments[0].isMvpOfWeek = true;
+  const mvpOfWeek = [...playerDocuments].sort((firstPlayer, secondPlayer) =>
+    compareMvpRankingPlayers(firstPlayer, secondPlayer)
+  )[0];
+  if (mvpOfWeek) {
+    mvpOfWeek.isMvpOfWeek = true;
   }
 
   const playerIdsByTeamId = new Map<string, string[]>();
@@ -909,6 +911,41 @@ function deriveScrimImportStatus(scrim: Scrim, pubgMatchIds: string[]) {
   }
 
   return pubgMatchIds.length >= expectedMatchCount ? "completed" : "live";
+}
+
+function normalizeStoredMatchForDisplay(match: TournamentMatch): TournamentMatch {
+  return {
+    ...match,
+    winner: canonicalizeBravoTeamName(match.winner),
+    teamResults: (match.teamResults ?? []).map((teamResult) => {
+      const resolvedTeam = resolveBravoTeamIdentity(teamResult.teamName);
+      const inferredSlotNumber =
+        resolvedTeam?.slotNumber ?? teamResult.slotNumber ?? parseBravoSlotNumber(teamResult.teamName);
+      const normalizedTeamName =
+        resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? teamResult.teamName;
+
+      return {
+        ...teamResult,
+        teamId: resolvedTeam?.id ?? teamResult.teamId ?? slugify(normalizedTeamName),
+        teamName: normalizedTeamName,
+        slotNumber: inferredSlotNumber,
+      };
+    }),
+    playerResults: (match.playerResults ?? []).map((playerResult) => {
+      const resolvedTeam = resolveBravoTeamIdentity(playerResult.teamName);
+      const inferredSlotNumber =
+        resolvedTeam?.slotNumber ?? playerResult.slotNumber ?? parseBravoSlotNumber(playerResult.teamName);
+      const normalizedTeamName =
+        resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? playerResult.teamName;
+
+      return {
+        ...playerResult,
+        teamId: resolvedTeam?.id ?? playerResult.teamId ?? slugify(normalizedTeamName),
+        teamName: normalizedTeamName,
+        slotNumber: inferredSlotNumber,
+      };
+    }),
+  };
 }
 
 async function getMatchSequenceNumbers(tournamentId: string, matchIds: string[]) {
@@ -1236,12 +1273,15 @@ export async function importPubgMatch(
 export async function getLiveMatchResults(limit = 20) {
   try {
     const docs = await fetchFirestoreCollection<TournamentMatch>(COLLECTIONS.matchResults, limit);
-    return docs.sort((firstMatch, secondMatch) => (secondMatch.syncedAt ?? "").localeCompare(firstMatch.syncedAt ?? ""));
+    return docs
+      .map(normalizeStoredMatchForDisplay)
+      .sort((firstMatch, secondMatch) => (secondMatch.syncedAt ?? "").localeCompare(firstMatch.syncedAt ?? ""));
   } catch {
     return [];
   }
 }
 
 export async function getMatchResult(matchId: string) {
-  return getFirestoreDocument<TournamentMatch>(COLLECTIONS.matchResults, matchId);
+  const match = await getFirestoreDocument<TournamentMatch>(COLLECTIONS.matchResults, matchId);
+  return match ? normalizeStoredMatchForDisplay(match) : null;
 }

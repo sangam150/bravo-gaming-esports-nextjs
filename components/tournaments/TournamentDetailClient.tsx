@@ -5,6 +5,7 @@ import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "@/lib/bravo
 import StatusBadge from "@/components/ui/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { compareMatchTeamResults, sortTournamentStandings } from "@/lib/ranking-sort";
 import {
   sortTournamentMatches,
   sortTournamentPlayers,
@@ -24,12 +25,9 @@ function getTeamProfileHref(teamName: string, fallbackId: string) {
   return `/teams/${resolveBravoTeamIdentity(teamName)?.id ?? fallbackId}`;
 }
 
-function sortTeamResultsBySlot(teamResults: TournamentMatch["teamResults"]) {
+function sortTeamResultsByPlacement(teamResults: TournamentMatch["teamResults"]) {
   return [...(teamResults ?? [])].sort((firstResult, secondResult) =>
-    compareBravoTeamSlotOrder(
-      { slotNumber: firstResult.slotNumber, teamName: firstResult.teamName },
-      { slotNumber: secondResult.slotNumber, teamName: secondResult.teamName }
-    )
+    compareMatchTeamResults(firstResult, secondResult)
   );
 }
 
@@ -56,11 +54,7 @@ export default function TournamentDetailClient({
   const activeMatches = sortTournamentMatches(liveMatches);
   const activeTeams = [...liveTeams].sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam));
   const activePlayers = sortTournamentPlayers(livePlayers);
-  const activeStandings = [...liveStandings].sort(
-    (firstStanding, secondStanding) =>
-      (firstStanding.rank ?? Number.POSITIVE_INFINITY) - (secondStanding.rank ?? Number.POSITIVE_INFINITY) ||
-      secondStanding.totalPoints - firstStanding.totalPoints
-  );
+  const activeStandings = sortTournamentStandings(liveStandings);
   const topStandings = activeStandings.slice(0, 5);
 
   return (
@@ -266,7 +260,7 @@ export default function TournamentDetailClient({
                             </tr>
                           </thead>
                           <tbody>
-                            {sortTeamResultsBySlot(match.teamResults).map((teamResult) => (
+                            {sortTeamResultsByPlacement(match.teamResults).map((teamResult) => (
                               <tr key={`${match.id}-${teamResult.teamName}`}>
                                 <td>{teamResult.slotNumber ? `#${teamResult.slotNumber}` : "-"}</td>
                                 <td>#{teamResult.placement}</td>

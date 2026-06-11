@@ -1,5 +1,6 @@
 import { placementPoints, totalPoints } from "./pubg";
-import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "./bravo-teams";
+import { resolveBravoTeamIdentity } from "./bravo-teams";
+import { compareMatchTeamResults, compareTeamLeaderboardPerformance } from "./ranking-sort";
 import type { LeaderboardRow, TeamMatchResult, TournamentMatch, TournamentStanding } from "./types";
 
 const MAP_NAME_LOOKUP: Record<string, string> = {
@@ -40,12 +41,7 @@ export function toTeamMatchResults(
         totalPoints: totalPoints(result.placement, result.kills),
       } satisfies TeamMatchResult;
     })
-    .sort(
-      (firstResult, secondResult) =>
-        firstResult.placement - secondResult.placement ||
-        secondResult.kills - firstResult.kills ||
-        firstResult.teamName.localeCompare(secondResult.teamName)
-    );
+    .sort((firstResult, secondResult) => compareMatchTeamResults(firstResult, secondResult));
 }
 
 export function buildTournamentStandings(
@@ -57,6 +53,8 @@ export function buildTournamentStandings(
     string,
     Omit<TournamentStanding, "rank"> & {
       placementTotal: number;
+      latestPlayedAt?: string;
+      sequenceNumber?: number;
     }
   >();
 
@@ -78,6 +76,8 @@ export function buildTournamentStandings(
         bestPlacement: Number.POSITIVE_INFINITY,
         averagePlacement: 0,
         placementTotal: 0,
+        latestPlayedAt: match.playedAt,
+        sequenceNumber: match.sequenceNumber,
         sourceTournamentId: tournamentId,
         sourceTournamentTitle: tournamentTitle,
         sourceProvider: "bravo_feed",
@@ -91,6 +91,12 @@ export function buildTournamentStandings(
       standing.totalPoints += result.totalPoints ?? totalPoints(result.placement, result.kills);
       standing.bestPlacement = Math.min(standing.bestPlacement, result.placement);
       standing.placementTotal += result.placement;
+      if ((match.playedAt ?? "").localeCompare(standing.latestPlayedAt ?? "") >= 0) {
+        standing.latestPlayedAt = match.playedAt;
+      }
+      if ((match.sequenceNumber ?? Number.NEGATIVE_INFINITY) >= (standing.sequenceNumber ?? Number.NEGATIVE_INFINITY)) {
+        standing.sequenceNumber = match.sequenceNumber;
+      }
 
       standingsMap.set(teamKey, standing);
     }
@@ -104,15 +110,7 @@ export function buildTournamentStandings(
       rank: 0,
     }))
     .sort(
-      (firstStanding, secondStanding) =>
-        secondStanding.totalPoints - firstStanding.totalPoints ||
-        secondStanding.placementPoints - firstStanding.placementPoints ||
-        secondStanding.kills - firstStanding.kills ||
-        firstStanding.bestPlacement - secondStanding.bestPlacement ||
-        compareBravoTeamSlotOrder(
-          { slotNumber: firstStanding.slotNumber, teamName: firstStanding.teamName },
-          { slotNumber: secondStanding.slotNumber, teamName: secondStanding.teamName }
-        )
+      (firstStanding, secondStanding) => compareTeamLeaderboardPerformance(firstStanding, secondStanding)
     )
     .map((standing, index) => ({
       ...standing,

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Tabs from "@/components/ui/Tabs";
 import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
+import { compareMatchTeamResults } from "@/lib/ranking-sort";
 import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { MatchPlayerResult, ScrimDayResult, ScrimDayStatus, TournamentMatch } from "@/lib/types";
 
@@ -95,12 +96,9 @@ function formatSurvivalTime(totalSeconds?: number) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function sortTeamResultsBySlot(teamResults: TournamentMatch["teamResults"]) {
+function sortTeamResultsByPlacement(teamResults: TournamentMatch["teamResults"]) {
   return [...(teamResults ?? [])].sort((firstResult, secondResult) =>
-    compareBravoTeamSlotOrder(
-      { slotNumber: firstResult.slotNumber, teamName: firstResult.teamName },
-      { slotNumber: secondResult.slotNumber, teamName: secondResult.teamName }
-    )
+    compareMatchTeamResults(firstResult, secondResult)
   );
 }
 
@@ -130,7 +128,7 @@ function MatchBreakdownPanel({ matches }: { matches: ScrimDayResult["matches"] }
   return (
     <div className="space-y-4">
       {matches.map((match, index) => {
-        const sortedTeamResults = sortTeamResultsBySlot(match.teamResults);
+        const sortedTeamResults = sortTeamResultsByPlacement(match.teamResults);
         const mvp = getMatchMvp(match);
 
         return (

@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import FileUpload from "./FileUpload";
 import { adminFetch } from "@/lib/admin-api";
+import {
+  buildFallbackTeamNameFromSlot,
+  parseBravoSlotNumber,
+  resolveBravoTeamIdentity,
+} from "@/lib/bravo-teams";
+import { compareMatchPlayerResults, compareMatchTeamResults } from "@/lib/ranking-sort";
 import type {
   MatchPlayerResult,
   PubgBulkImportResult,
@@ -61,6 +67,33 @@ type SeasonDraft = {
   region: string;
   perspective: string;
 };
+
+function toFiniteNumber(value?: number) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function resolvePreviewTeamAssignment(
+  teamName?: string,
+  slotNumber?: number,
+  preferredField: "teamName" | "slotNumber" = "teamName"
+) {
+  const trimmedTeamName = teamName?.trim();
+  const safeSlotNumber = toFiniteNumber(slotNumber);
+  const resolvedByName = trimmedTeamName ? resolveBravoTeamIdentity(trimmedTeamName) : null;
+  const resolvedBySlot =
+    typeof safeSlotNumber === "number"
+      ? resolveBravoTeamIdentity(`slot ${safeSlotNumber}`) ?? resolveBravoTeamIdentity(String(safeSlotNumber))
+      : null;
+  const resolvedTeam = preferredField === "slotNumber" ? resolvedBySlot ?? resolvedByName : resolvedByName ?? resolvedBySlot;
+  const inferredSlotNumber =
+    resolvedTeam?.slotNumber ?? safeSlotNumber ?? parseBravoSlotNumber(trimmedTeamName);
+
+  return {
+    teamId: resolvedTeam?.id,
+    teamName: resolvedTeam?.name ?? trimmedTeamName ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? "Unknown Team",
+    slotNumber: inferredSlotNumber,
+  };
+}
 
 function normalizeMatchIds(value?: string) {
   return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
@@ -152,27 +185,101 @@ function placementPointsForPlacement(placement: number) {
   return 0;
 }
 
+function normalizePreviewTeamResult(
+  teamResult: TeamMatchResult,
+  preferredField: "teamName" | "slotNumber" = "teamName"
+): TeamMatchResult {
+  const assignment = resolvePreviewTeamAssignment(teamResult.teamName, teamResult.slotNumber, preferredField);
+  const placement = Number.isFinite(teamResult.placement) ? Number(teamResult.placement) : 0;
+  const kills = Number.isFinite(teamResult.kills) ? Number(teamResult.kills) : 0;
+  const placementPointsValue = Number.isFinite(teamResult.placementPoints)
+    ? Number(teamResult.placementPoints)
+    : placementPointsForPlacement(placement);
+  const killPointsValue = Number.isFinite(teamResult.killPoints) ? Number(teamResult.killPoints) : kills;
+
+  return {
+    ...teamResult,
+    teamId: assignment.teamId ?? teamResult.teamId,
+    teamName: assignment.teamName,
+    slotNumber: assignment.slotNumber,
+    placement,
+    kills,
+    damage: Number.isFinite(teamResult.damage) ? Number(teamResult.damage) : 0,
+    placementPoints: placementPointsValue,
+    killPoints: killPointsValue,
+    totalPoints: placementPointsValue + killPointsValue,
+  };
+}
+
+function normalizePreviewPlayerResult(
+  playerResult: MatchPlayerResult,
+  teamResults: TeamMatchResult[],
+  preferredField: "teamName" | "slotNumber" = "teamName"
+): MatchPlayerResult {
+  const assignment = resolvePreviewTeamAssignment(playerResult.teamName, playerResult.slotNumber, preferredField);
+  const matchedTeam =
+    teamResults.find(
+      (teamResult) =>
+        (assignment.slotNumber && teamResult.slotNumber === assignment.slotNumber) ||
+        teamResult.teamName.trim().toLowerCase() === assignment.teamName.trim().toLowerCase()
+    ) ?? null;
+  const placement = Number.isFinite(playerResult.placement)
+    ? Number(playerResult.placement)
+    : (matchedTeam?.placement ?? 0);
+  const placementPointsValue = Number.isFinite(playerResult.placementPoints)
+    ? Number(playerResult.placementPoints)
+    : (matchedTeam?.placementPoints ?? placementPointsForPlacement(placement));
+  const kills = Number.isFinite(playerResult.kills) ? Number(playerResult.kills) : 0;
+
+  return {
+    ...playerResult,
+    teamId: assignment.teamId ?? matchedTeam?.teamId ?? playerResult.teamId,
+    teamName: matchedTeam?.teamName ?? assignment.teamName,
+    slotNumber: matchedTeam?.slotNumber ?? assignment.slotNumber,
+    placement,
+    kills,
+    assists: Number.isFinite(playerResult.assists) ? Number(playerResult.assists) : 0,
+    knocks: Number.isFinite(playerResult.knocks) ? Number(playerResult.knocks) : 0,
+    damage: Number.isFinite(playerResult.damage) ? Number(playerResult.damage) : 0,
+    survivalTime: Number.isFinite(playerResult.survivalTime) ? Number(playerResult.survivalTime) : 0,
+    placementPoints: placementPointsValue,
+    totalPoints: placementPointsValue + kills,
+  };
+}
+
 function sortTeamResultsByPlacement(results: TeamMatchResult[]) {
   return [...results].sort(
-    (firstResult, secondResult) =>
-      firstResult.placement - secondResult.placement ||
-      (firstResult.slotNumber ?? Number.POSITIVE_INFINITY) - (secondResult.slotNumber ?? Number.POSITIVE_INFINITY) ||
-      firstResult.teamName.localeCompare(secondResult.teamName)
+    (firstResult, secondResult) => compareMatchTeamResults(firstResult, secondResult)
   );
 }
 
 function sortPlayerResultsByPlacement(results: MatchPlayerResult[]) {
   return [...results].sort(
-    (firstResult, secondResult) =>
-      firstResult.placement - secondResult.placement ||
-      (firstResult.slotNumber ?? Number.POSITIVE_INFINITY) - (secondResult.slotNumber ?? Number.POSITIVE_INFINITY) ||
-      firstResult.playerName.localeCompare(secondResult.playerName)
+    (firstResult, secondResult) => compareMatchPlayerResults(firstResult, secondResult)
   );
+}
+
+function normalizePreviewResults(teamResults: TeamMatchResult[], playerResults: MatchPlayerResult[]) {
+  const normalizedTeamResults = sortTeamResultsByPlacement(
+    teamResults.map((teamResult) => normalizePreviewTeamResult(teamResult))
+  );
+  const normalizedPlayerResults = sortPlayerResultsByPlacement(
+    playerResults.map((playerResult) => normalizePreviewPlayerResult(playerResult, normalizedTeamResults))
+  );
+
+  return {
+    teamResults: normalizedTeamResults,
+    playerResults: normalizedPlayerResults,
+  };
 }
 
 function createEditablePreview(preview: PubgImportPreview): EditablePreview {
   const matchDate = formatKathmanduDateInput(preview.summary.createdAt);
   const matchTime = formatKathmanduTimeInput(preview.summary.createdAt);
+  const normalizedResults = normalizePreviewResults(
+    preview.teamResults.map((teamResult) => ({ ...teamResult })),
+    preview.playerResults.map((playerResult) => ({ ...playerResult }))
+  );
 
   return {
     ...preview,
@@ -182,8 +289,8 @@ function createEditablePreview(preview: PubgImportPreview): EditablePreview {
     matchDate,
     matchTime,
     map: preview.summary.mapName ?? "Unknown",
-    teamResults: sortTeamResultsByPlacement(preview.teamResults.map((teamResult) => ({ ...teamResult }))),
-    playerResults: sortPlayerResultsByPlacement(preview.playerResults.map((playerResult) => ({ ...playerResult }))),
+    teamResults: normalizedResults.teamResults,
+    playerResults: normalizedResults.playerResults,
   };
 }
 
@@ -549,8 +656,11 @@ export default function PubgImportManager({
         }
       }
 
-      updatedTeam.totalPoints = (updatedTeam.placementPoints ?? 0) + (updatedTeam.killPoints ?? updatedTeam.kills ?? 0);
-      currentTeamResults[teamIndex] = updatedTeam;
+      currentTeamResults[teamIndex] = normalizePreviewTeamResult(
+        updatedTeam,
+        field === "slotNumber" ? "slotNumber" : "teamName"
+      );
+      const normalizedUpdatedTeam = currentTeamResults[teamIndex];
 
       const updatedPlayers = draft.playerResults.map((playerResult) => {
         const belongsToTeam =
@@ -561,19 +671,20 @@ export default function PubgImportManager({
 
         return {
           ...playerResult,
-          teamName: updatedTeam.teamName,
-          slotNumber: updatedTeam.slotNumber,
-          placement: updatedTeam.placement,
-          placementPoints: updatedTeam.placementPoints,
-          totalPoints: updatedTeam.placementPoints + playerResult.kills,
+          teamName: normalizedUpdatedTeam.teamName,
+          slotNumber: normalizedUpdatedTeam.slotNumber,
+          placement: normalizedUpdatedTeam.placement,
+          placementPoints: normalizedUpdatedTeam.placementPoints,
+          totalPoints: normalizedUpdatedTeam.placementPoints + playerResult.kills,
         };
       });
+      const normalizedResults = normalizePreviewResults(currentTeamResults, updatedPlayers);
 
       return {
         ...draft,
-        detectedTeams: currentTeamResults.length,
-        teamResults: sortTeamResultsByPlacement(currentTeamResults),
-        playerResults: sortPlayerResultsByPlacement(updatedPlayers),
+        detectedTeams: normalizedResults.teamResults.length,
+        teamResults: normalizedResults.teamResults,
+        playerResults: normalizedResults.playerResults,
       };
     });
   }
@@ -620,45 +731,58 @@ export default function PubgImportManager({
         }
       }
 
-      updatedPlayer.totalPoints = (updatedPlayer.placementPoints ?? 0) + (updatedPlayer.kills ?? 0);
-      currentPlayerResults[playerIndex] = updatedPlayer;
+      currentPlayerResults[playerIndex] = normalizePreviewPlayerResult(
+        updatedPlayer,
+        draft.teamResults,
+        field === "slotNumber" ? "slotNumber" : "teamName"
+      );
+      const normalizedResults = normalizePreviewResults(draft.teamResults, currentPlayerResults);
 
       return {
         ...draft,
-        detectedPlayers: currentPlayerResults.length,
-        playerResults: sortPlayerResultsByPlacement(currentPlayerResults),
+        detectedPlayers: normalizedResults.playerResults.length,
+        teamResults: normalizedResults.teamResults,
+        playerResults: normalizedResults.playerResults,
       };
     });
   }
 
   function buildMatchEditPayload(): PubgImportEdit[] {
-    return previewDrafts.map((draft) => ({
-      sourceMatchId: draft.sourceMatchId,
-      matchId: draft.matchId.trim(),
-      matchNumber: draft.matchNumber,
-      map: draft.map.trim() || undefined,
-      playedAt: buildPlayedAtValue(draft.matchDate, draft.matchTime),
-      teamResults: draft.teamResults,
-      playerResults: draft.playerResults,
-    }));
+    return previewDrafts.map((draft) => {
+      const normalizedResults = normalizePreviewResults(draft.teamResults, draft.playerResults);
+
+      return {
+        sourceMatchId: draft.sourceMatchId,
+        matchId: draft.matchId.trim(),
+        matchNumber: draft.matchNumber,
+        map: draft.map.trim() || undefined,
+        playedAt: buildPlayedAtValue(draft.matchDate, draft.matchTime),
+        teamResults: normalizedResults.teamResults,
+        playerResults: normalizedResults.playerResults,
+      };
+    });
   }
 
   function buildPendingPreviewPayload(): PubgImportBatchPreviewMatch[] {
-    return previewDrafts.map((draft) => ({
-      sourceMatchId: draft.sourceMatchId,
-      matchId: draft.matchId.trim(),
-      matchNumber: draft.matchNumber,
-      map: draft.map.trim() || undefined,
-      matchDate: draft.matchDate || undefined,
-      matchTime: draft.matchTime || undefined,
-      alreadyImported: draft.alreadyImported,
-      summary: draft.summary,
-      tournamentTitle: draft.tournamentTitle,
-      scrimTitle: draft.scrimTitle,
-      teamResults: draft.teamResults,
-      playerResults: draft.playerResults,
-      conflicts: draft.conflicts,
-    }));
+    return previewDrafts.map((draft) => {
+      const normalizedResults = normalizePreviewResults(draft.teamResults, draft.playerResults);
+
+      return {
+        sourceMatchId: draft.sourceMatchId,
+        matchId: draft.matchId.trim(),
+        matchNumber: draft.matchNumber,
+        map: draft.map.trim() || undefined,
+        matchDate: draft.matchDate || undefined,
+        matchTime: draft.matchTime || undefined,
+        alreadyImported: draft.alreadyImported,
+        summary: draft.summary,
+        tournamentTitle: draft.tournamentTitle,
+        scrimTitle: draft.scrimTitle,
+        teamResults: normalizedResults.teamResults,
+        playerResults: normalizedResults.playerResults,
+        conflicts: draft.conflicts,
+      };
+    });
   }
 
   async function handlePrepareDay() {

@@ -1,5 +1,5 @@
 import type { LeaderboardRow, Team, TournamentStanding } from "./types";
-import { compareBravoTeamSlotOrder } from "./bravo-teams";
+import { compareTeamLeaderboardPerformance } from "./ranking-sort";
 
 export interface SeasonLeaderboardEntry {
   teamId: string;
@@ -26,6 +26,8 @@ export function buildSeasonLeaderboard(
     string,
     Omit<SeasonLeaderboardEntry, "rank" | "averagePlacement"> & {
       placementTotal: number;
+      latestDayNumber?: number;
+      latestUpdatedAt?: string;
     }
   >();
 
@@ -43,6 +45,8 @@ export function buildSeasonLeaderboard(
       bestPlacement: Number.POSITIVE_INFINITY,
       dayNumbers: [],
       placementTotal: 0,
+      latestDayNumber: standing.seasonDayNumber,
+      latestUpdatedAt: standing.updatedAt,
       logoUrl: teamsById?.get(standing.teamId)?.logoUrl ?? teamsById?.get(standing.teamId)?.logo,
       slotNumber: teamsById?.get(standing.teamId)?.slotNumber,
     };
@@ -58,6 +62,10 @@ export function buildSeasonLeaderboard(
     if (typeof standing.seasonDayNumber === "number" && !existingRow.dayNumbers.includes(standing.seasonDayNumber)) {
       existingRow.dayNumbers.push(standing.seasonDayNumber);
     }
+    existingRow.latestDayNumber = Math.max(existingRow.latestDayNumber ?? 0, standing.seasonDayNumber ?? 0);
+    if ((standing.updatedAt ?? "").localeCompare(existingRow.latestUpdatedAt ?? "") >= 0) {
+      existingRow.latestUpdatedAt = standing.updatedAt;
+    }
 
     leaderboardMap.set(teamKey, existingRow);
   }
@@ -71,15 +79,7 @@ export function buildSeasonLeaderboard(
       rank: 0,
     }))
     .sort(
-      (firstEntry, secondEntry) =>
-        secondEntry.totalPoints - firstEntry.totalPoints ||
-        secondEntry.placementPoints - firstEntry.placementPoints ||
-        secondEntry.kills - firstEntry.kills ||
-        firstEntry.averagePlacement - secondEntry.averagePlacement ||
-        compareBravoTeamSlotOrder(
-          { slotNumber: firstEntry.slotNumber, teamName: firstEntry.teamName },
-          { slotNumber: secondEntry.slotNumber, teamName: secondEntry.teamName }
-        )
+      (firstEntry, secondEntry) => compareTeamLeaderboardPerformance(firstEntry, secondEntry)
     )
     .map((entry, index) => ({
       ...entry,

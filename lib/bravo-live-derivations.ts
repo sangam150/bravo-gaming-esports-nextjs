@@ -1,4 +1,16 @@
-import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "./bravo-teams";
+import {
+  buildFallbackTeamNameFromSlot,
+  canonicalizeBravoTeamName,
+  compareBravoTeamSlotOrder,
+  parseBravoSlotNumber,
+  resolveBravoTeamIdentity,
+} from "./bravo-teams";
+import {
+  compareMatchSequenceOrder,
+  comparePlayerLeaderboardPerformance,
+  compareTeamLeaderboardPerformance,
+  sortScrimDayStandings,
+} from "./ranking-sort";
 import { buildSeasonLeaderboard, seasonLeaderboardToRows } from "./season-standings";
 import type {
   CurrentSeasonOverview,
@@ -56,31 +68,67 @@ function sortTournamentsByDay(firstTournament: Tournament, secondTournament: Tou
 }
 
 function sortPlayers(firstPlayer: Player, secondPlayer: Player) {
-  return (
-    (secondPlayer.totalPoints ?? secondPlayer.rating ?? 0) - (firstPlayer.totalPoints ?? firstPlayer.rating ?? 0) ||
-    firstPlayer.name.localeCompare(secondPlayer.name)
-  );
+  return comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer);
 }
 
 function sortStandings(firstStanding: TournamentStanding, secondStanding: TournamentStanding) {
-  return (
-    (firstStanding.rank ?? Number.POSITIVE_INFINITY) - (secondStanding.rank ?? Number.POSITIVE_INFINITY) ||
-    secondStanding.totalPoints - firstStanding.totalPoints
-  );
+  return compareTeamLeaderboardPerformance(firstStanding, secondStanding);
 }
 
 function sortTeams(firstTeam: Team, secondTeam: Team) {
   return compareBravoTeamSlotOrder(firstTeam, secondTeam);
 }
 
+function normalizeTeam(team: Team): Team {
+  const resolvedTeam = resolveBravoTeamIdentity(team.name ?? team.id ?? team.sourceTeamName);
+  const inferredSlotNumber =
+    resolvedTeam?.slotNumber ?? team.slotNumber ?? parseBravoSlotNumber(team.name) ?? parseBravoSlotNumber(team.sourceTeamName);
+
+  return {
+    ...team,
+    name: resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? team.name,
+    tag: resolvedTeam?.tag ?? team.tag,
+    slotNumber: inferredSlotNumber,
+  };
+}
+
+function normalizeTournamentMatch(match: TournamentMatch): TournamentMatch {
+  return {
+    ...match,
+    winner: canonicalizeBravoTeamName(match.winner),
+    teamResults: (match.teamResults ?? []).map((teamResult) => {
+      const resolvedTeam = resolveBravoTeamIdentity(teamResult.teamName);
+      const inferredSlotNumber =
+        resolvedTeam?.slotNumber ?? teamResult.slotNumber ?? parseBravoSlotNumber(teamResult.teamName);
+
+      return {
+        ...teamResult,
+        teamId: resolvedTeam?.id ?? teamResult.teamId,
+        teamName: resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? teamResult.teamName,
+        slotNumber: inferredSlotNumber,
+      };
+    }),
+    playerResults: (match.playerResults ?? []).map((playerResult) => {
+      const resolvedTeam = resolveBravoTeamIdentity(playerResult.teamName);
+      const inferredSlotNumber =
+        resolvedTeam?.slotNumber ?? playerResult.slotNumber ?? parseBravoSlotNumber(playerResult.teamName);
+
+      return {
+        ...playerResult,
+        teamId: resolvedTeam?.id ?? playerResult.teamId,
+        teamName:
+          resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? playerResult.teamName,
+        slotNumber: inferredSlotNumber,
+      };
+    }),
+  };
+}
+
 export function buildFallbackLeaderboardRows(teams: Team[]): LeaderboardRow[] {
   return [...teams]
+    .map(normalizeTeam)
     .filter((team) => team.scope !== "tournament" && (team.matches ?? 0) > 0)
-    .sort(
-      (firstTeam, secondTeam) =>
-        (secondTeam.totalPoints ?? 0) - (firstTeam.totalPoints ?? 0) ||
-        compareBravoTeamSlotOrder(firstTeam, secondTeam)
-    )
+    .sort((firstTeam, secondTeam) => compareTeamLeaderboardPerformance(firstTeam, secondTeam))
     .map((team, index) => ({
       rank: index + 1,
       teamId: team.id,
@@ -118,6 +166,7 @@ export function buildCurrentSeasonOverviewFromCollections(input: {
 
   const seasonTeams = input.teams
     .filter((team) => team.seasonId === currentSeason.id && team.scope === "season")
+    .map(normalizeTeam)
     .sort(sortTeams);
 
   const seasonPlayers = input.players
@@ -175,8 +224,8 @@ export function buildTournamentLeaderboardGroups(input: {
         .map((standing) => ({
           rank: standing.rank,
           teamId: standing.teamId,
-          team: standing.teamName,
-          slotNumber: standing.slotNumber,
+          team: canonicalizeBravoTeamName(standing.teamName),
+          slotNumber: standing.slotNumber ?? resolveBravoTeamIdentity(standing.teamName)?.slotNumber,
           matches: standing.matches,
           kills: standing.kills,
           killPoints: standing.killPoints,
@@ -246,6 +295,8 @@ function aggregateScrimDayLeaderboard(matches: TournamentMatch[]): ScrimDayStand
     string,
     ScrimDayStanding & {
       placementTotal: number;
+      latestPlayedAt?: string;
+      sequenceNumber?: number;
     }
   >();
 
@@ -265,6 +316,8 @@ function aggregateScrimDayLeaderboard(matches: TournamentMatch[]): ScrimDayStand
         bestPlacement: Number.POSITIVE_INFINITY,
         averagePlacement: 0,
         placementTotal: 0,
+        latestPlayedAt: match.playedAt,
+        sequenceNumber: match.sequenceNumber,
       };
 
       currentStanding.matches += 1;
@@ -275,26 +328,24 @@ function aggregateScrimDayLeaderboard(matches: TournamentMatch[]): ScrimDayStand
       currentStanding.totalPoints += teamResult.totalPoints;
       currentStanding.bestPlacement = Math.min(currentStanding.bestPlacement, teamResult.placement);
       currentStanding.placementTotal += teamResult.placement;
+      if ((match.playedAt ?? "").localeCompare(currentStanding.latestPlayedAt ?? "") >= 0) {
+        currentStanding.latestPlayedAt = match.playedAt;
+      }
+      if ((match.sequenceNumber ?? Number.NEGATIVE_INFINITY) >= (currentStanding.sequenceNumber ?? Number.NEGATIVE_INFINITY)) {
+        currentStanding.sequenceNumber = match.sequenceNumber;
+      }
 
       standingsMap.set(teamKey, currentStanding);
     }
   }
 
-  return Array.from(standingsMap.values())
+  return sortScrimDayStandings(
+    Array.from(standingsMap.values())
     .map(({ placementTotal, ...standing }) => ({
       ...standing,
       averagePlacement: Number((placementTotal / standing.matches).toFixed(2)),
     }))
-    .sort(
-      (firstStanding, secondStanding) =>
-        secondStanding.totalPoints - firstStanding.totalPoints ||
-        secondStanding.kills - firstStanding.kills ||
-        firstStanding.averagePlacement - secondStanding.averagePlacement ||
-        compareBravoTeamSlotOrder(
-          { slotNumber: firstStanding.slotNumber, teamName: firstStanding.teamName },
-          { slotNumber: secondStanding.slotNumber, teamName: secondStanding.teamName }
-        )
-    );
+  );
 }
 
 export function mergeUniqueMatches(matchCollections: TournamentMatch[][]) {
@@ -314,7 +365,7 @@ export function buildScrimDayResultsFromCollections(
   matchCollections: TournamentMatch[][]
 ): ScrimDayResult[] {
   if (scrims.length === 0) return [];
-  const matchResults = mergeUniqueMatches(matchCollections);
+  const matchResults = mergeUniqueMatches(matchCollections).map(normalizeTournamentMatch);
 
   const scrimsByDate = new Map<string, Scrim[]>();
   for (const scrim of scrims) {
@@ -356,9 +407,7 @@ export function buildScrimDayResultsFromCollections(
       }
 
       const dayMatches = Array.from(dayMatchesMap.values()).sort((firstMatch, secondMatch) =>
-        (firstMatch.playedAt ?? firstMatch.syncedAt ?? "").localeCompare(
-          secondMatch.playedAt ?? secondMatch.syncedAt ?? ""
-        )
+        compareMatchSequenceOrder(firstMatch, secondMatch)
       );
 
       const announcements = dayScrims

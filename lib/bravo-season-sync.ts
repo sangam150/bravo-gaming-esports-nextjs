@@ -15,6 +15,7 @@ import { importBravoGamingFeed } from "./bravo-feed-import";
 import { buildBravoTournamentTitle } from "./bravo-feed";
 import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "./bravo-teams";
 import { buildPlayerAppearanceMapFromMatches, choosePreferredPlayerTeam } from "./player-team-history";
+import { compareMvpRankingPlayers, comparePlayerLeaderboardPerformance } from "./ranking-sort";
 import { buildSeasonLeaderboard } from "./season-standings";
 import {
   COLLECTIONS,
@@ -560,12 +561,14 @@ export async function syncBravoDailyScrimSeason(options?: {
     })
     .sort(
       (firstPlayer, secondPlayer) =>
-        secondPlayer.totalPoints - firstPlayer.totalPoints ||
-        secondPlayer.kills - firstPlayer.kills ||
-        firstPlayer.name.localeCompare(secondPlayer.name)
+        comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer)
     );
 
-  const seasonPlayerDocs = playerSummaries.map((playerSummary, index) =>
+  const mvpOfWeek = [...playerSummaries].sort((firstPlayer, secondPlayer) =>
+    compareMvpRankingPlayers(firstPlayer, secondPlayer)
+  )[0];
+
+  const seasonPlayerDocs = playerSummaries.map((playerSummary) =>
     ({
       id: playerSummary.id,
       name: playerSummary.name,
@@ -592,7 +595,7 @@ export async function syncBravoDailyScrimSeason(options?: {
       matches: playerSummary.matches,
       rating: playerSummary.rating,
       winRate: playerSummary.winRate,
-      isMvpOfWeek: index === 0,
+      isMvpOfWeek: playerSummary.id === mvpOfWeek?.id,
       scope: "season",
       seasonId: BRAVO_SEASON_SLUG,
       seasonTitle: BRAVO_SEASON_SERIES_TITLE,

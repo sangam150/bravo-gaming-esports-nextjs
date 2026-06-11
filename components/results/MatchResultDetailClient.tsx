@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { compareBravoTeamSlotOrder } from "@/lib/bravo-teams";
+import { compareMatchPlayerResults, compareMatchTeamResults } from "@/lib/ranking-sort";
 import { useRealtimeMatchResult } from "@/lib/realtime-hooks";
 import type { MatchPlayerResult, TournamentMatch } from "@/lib/types";
 
@@ -27,12 +27,7 @@ function formatSurvivalTime(totalSeconds?: number) {
 
 function sortTeamResults(match: TournamentMatch) {
   return [...(match.teamResults ?? [])].sort(
-    (firstResult, secondResult) =>
-      firstResult.placement - secondResult.placement ||
-      compareBravoTeamSlotOrder(
-        { slotNumber: firstResult.slotNumber, teamName: firstResult.teamName },
-        { slotNumber: secondResult.slotNumber, teamName: secondResult.teamName }
-      )
+    (firstResult, secondResult) => compareMatchTeamResults(firstResult, secondResult)
   );
 }
 
@@ -56,6 +51,9 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
   const { data: liveMatch } = useRealtimeMatchResult(initialMatch.id, initialMatch);
   const activeMatch = liveMatch ?? initialMatch;
   const sortedTeamResults = sortTeamResults(activeMatch);
+  const sortedPlayerResults = [...(activeMatch.playerResults ?? [])].sort((firstPlayer, secondPlayer) =>
+    compareMatchPlayerResults(firstPlayer, secondPlayer)
+  );
   const mvp = getMvp(activeMatch);
 
   return (
@@ -194,7 +192,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                   </tr>
                 </thead>
                 <tbody>
-                  {activeMatch.playerResults.map((playerResult) => (
+                  {sortedPlayerResults.map((playerResult) => (
                     <tr key={`${activeMatch.id}-${playerResult.pubgPlayerId ?? playerResult.playerName}`}>
                       <td className="font-semibold text-white">{playerResult.playerName}</td>
                       <td>{playerResult.teamName}</td>

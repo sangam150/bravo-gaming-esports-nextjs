@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import SearchInput from "@/components/ui/SearchInput";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { comparePlayerLeaderboardPerformance } from "@/lib/ranking-sort";
 import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { Player } from "@/lib/types";
 
@@ -30,10 +31,7 @@ export default function PlayersPageClient({ initialPlayers }: { initialPlayers: 
         ? overview.players
         : livePlayers.filter((player) => player.scope !== "tournament")
       ).sort(
-        (firstPlayer, secondPlayer) =>
-          (secondPlayer.totalPoints ?? secondPlayer.rating ?? 0) -
-            (firstPlayer.totalPoints ?? firstPlayer.rating ?? 0) ||
-          firstPlayer.name.localeCompare(secondPlayer.name)
+        (firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer)
       ),
     [livePlayers, overview?.players]
   );

@@ -10,6 +10,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.1",
     "firebase": "^12.14.0",
     "firebase-admin": "^13.10.0",
     "next": "latest",
