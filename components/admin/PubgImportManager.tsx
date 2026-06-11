@@ -20,6 +20,7 @@ import type {
 
 const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
+const btnSecondary = "btn-secondary disabled:opacity-60";
 const defaultMapRotation = "Rondo, Erangel, Miramar, Taego";
 const pubgMaps = ["Rondo", "Erangel", "Miramar", "Taego", "Deston", "Vikendi", "Sanhok", "Karakin", "Paramo"];
 const defaultSeasonSeriesTitle = "BRAVO GAMING ESPORTS DAILY PUBG PC SCRIMS";
@@ -47,12 +48,47 @@ type EditablePreview = PubgImportPreview & {
   playerResults: MatchPlayerResult[];
 };
 
+type SeasonDraft = {
+  title: string;
+  seriesTitle: string;
+  seasonNumber: number;
+  startDate: string;
+  configuredDays: number;
+  status: Season["status"];
+  game: string;
+  format: string;
+  region: string;
+  perspective: string;
+};
+
 function normalizeMatchIds(value?: string) {
   return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
 }
 
 function normalizeMapRotation(value?: string) {
   return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function buildSeasonDraft(seasonNumber: number): SeasonDraft {
+  return {
+    title: `${defaultSeasonSeriesTitle} Season ${seasonNumber}`,
+    seriesTitle: defaultSeasonSeriesTitle,
+    seasonNumber,
+    startDate: getTodayInKathmandu(),
+    configuredDays: 15,
+    status: "active",
+    game: "PUBG PC",
+    format: "Squad",
+    region: "Global",
+    perspective: "TPP",
+  };
 }
 
 function addDays(startDate: string, dayOffset: number) {
@@ -210,6 +246,7 @@ export default function PubgImportManager({
   const [loadingWatchers, setLoadingWatchers] = useState(false);
   const [preparingDay, setPreparingDay] = useState(false);
   const [creatingSeason, setCreatingSeason] = useState(false);
+  const [showSeasonForm, setShowSeasonForm] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [savingWatcher, setSavingWatcher] = useState(false);
@@ -218,6 +255,12 @@ export default function PubgImportManager({
   const [previewDrafts, setPreviewDrafts] = useState<EditablePreview[]>([]);
   const [previewErrors, setPreviewErrors] = useState<Array<{ matchId: string; error: string; code: string }>>([]);
   const [importLog, setImportLog] = useState<Array<{ matchId: string; success: boolean; skipped?: boolean; error?: string }>>([]);
+  const [seasonDraft, setSeasonDraft] = useState<SeasonDraft>(() => buildSeasonDraft(1));
+
+  const nextSeasonNumber = useMemo(
+    () => seasons.reduce((highestSeasonNumber, season) => Math.max(highestSeasonNumber, season.seasonNumber ?? 0), 0) + 1,
+    [seasons]
+  );
 
   const selectedSeason = useMemo(
     () => seasons.find((season) => season.id === selectedSeasonId) ?? null,
@@ -239,6 +282,34 @@ export default function PubgImportManager({
     () => scrims.find((scrim) => scrim.id === selectedScrimId) ?? null,
     [scrims, selectedScrimId]
   );
+  const selectedDayTournament = useMemo(() => {
+    if (selectedDayNumber === "") return null;
+    return (
+      seasonTournaments.find(
+        (tournament) => (tournament.seasonDayNumber ?? tournament.dayNumber) === Number(selectedDayNumber)
+      ) ?? null
+    );
+  }, [seasonTournaments, selectedDayNumber]);
+  const selectedDayScrim = useMemo(() => {
+    if (selectedDayNumber === "") return null;
+    return (
+      seasonScrims.find(
+        (scrim) =>
+          scrim.seasonDayNumber === Number(selectedDayNumber) ||
+          (selectedDayTournament ? scrim.tournamentId === selectedDayTournament.id : false)
+      ) ?? null
+    );
+  }, [seasonScrims, selectedDayNumber, selectedDayTournament]);
+  const nextAvailableDayNumber = useMemo(() => {
+    const highestSeasonDay = Math.max(
+      selectedSeason?.currentDay ?? 0,
+      ...seasonTournaments.map((tournament) => tournament.seasonDayNumber ?? tournament.dayNumber ?? 0),
+      ...seasonScrims.map((scrim) => scrim.seasonDayNumber ?? 0)
+    );
+
+    return Math.max(highestSeasonDay + 1, 1);
+  }, [seasonScrims, seasonTournaments, selectedSeason]);
+  const selectedDayExists = Boolean(selectedDayTournament || selectedDayScrim);
   const hasEditedMatchIds = useMemo(
     () => previewDrafts.some((draft) => draft.matchId.trim() !== draft.sourceMatchId),
     [previewDrafts]
@@ -264,6 +335,13 @@ export default function PubgImportManager({
       setSelectedSeasonId(fallbackSeasonId);
     }
   }, [activeSeasonId, seasons, selectedSeasonId]);
+
+  useEffect(() => {
+    if (seasons.length === 0 && !showSeasonForm && !selectedSeasonId) {
+      setSeasonDraft(buildSeasonDraft(nextSeasonNumber));
+      setShowSeasonForm(true);
+    }
+  }, [nextSeasonNumber, seasons.length, selectedSeasonId, showSeasonForm]);
 
   useEffect(() => {
     if (initialMatchIds) {
@@ -408,6 +486,18 @@ export default function PubgImportManager({
       dayLobbyTime: dayLobbyTime.trim() || undefined,
       dayMapRotation: normalizedRotation.length > 0 ? normalizedRotation : undefined,
     };
+  }
+
+  function resetSeasonDraft(targetSeasonNumber = nextSeasonNumber) {
+    setSeasonDraft(buildSeasonDraft(targetSeasonNumber));
+  }
+
+  function toggleSeasonForm() {
+    if (!showSeasonForm) {
+      resetSeasonDraft(nextSeasonNumber);
+    }
+
+    setShowSeasonForm((currentValue) => !currentValue);
   }
 
   function updatePreviewDraft(
@@ -595,46 +685,90 @@ export default function PubgImportManager({
     }
   }
 
-  async function handleCreateDefaultSeason() {
+  async function createSeasonFromDraft(draft: SeasonDraft, options?: { prepareDayOne?: boolean }) {
     setCreatingSeason(true);
     setError(null);
     setMessage(null);
 
     try {
-      const seasonNumber = Math.max(1, seasons.length + 1);
+      const normalizedSeriesTitle = draft.seriesTitle.trim() || defaultSeasonSeriesTitle;
+      const normalizedSeasonNumber = Math.max(1, Number(draft.seasonNumber) || nextSeasonNumber);
+      const normalizedTitle =
+        draft.title.trim() || `${normalizedSeriesTitle} Season ${normalizedSeasonNumber}`;
+      const normalizedConfiguredDays = Math.max(1, Number(draft.configuredDays) || 15);
+
       const response = await adminFetch("/api/seasons", {
         method: "POST",
         body: JSON.stringify({
-          title: `${defaultSeasonSeriesTitle} Season ${seasonNumber}`,
-          slug: `bravo-gaming-esports-daily-pubg-pc-scrims-season-${seasonNumber}`,
-          seriesTitle: defaultSeasonSeriesTitle,
-          seasonNumber,
-          status: "active",
-          startDate: getTodayInKathmandu(),
-          configuredDays: 15,
+          title: normalizedTitle,
+          slug: slugify(normalizedTitle),
+          seriesTitle: normalizedSeriesTitle,
+          seasonNumber: normalizedSeasonNumber,
+          status: draft.status,
+          startDate: draft.startDate || getTodayInKathmandu(),
+          configuredDays: normalizedConfiguredDays,
           currentDay: 0,
-          game: "PUBG PC",
-          format: "Squad",
-          region: "Global",
-          perspective: "TPP",
+          game: draft.game.trim() || "PUBG PC",
+          format: draft.format.trim() || "Squad",
+          region: draft.region.trim() || "Global",
+          perspective: draft.perspective.trim() || "TPP",
         }),
       });
 
       const createdSeason = response.data as Season;
       setSelectedSeasonId(createdSeason.id);
+      setSelectedTournamentId("");
+      setSelectedScrimId("");
       setSelectedDayNumber(1);
       setDayTitle(`Day 1 - ${createdSeason.seriesTitle ?? createdSeason.title}`);
       setDayDate(createdSeason.startDate);
       setDayMap("Rondo");
       setDayLobbyTime("8:00 PM NPT");
       setDayMapRotation(defaultMapRotation);
-      setMessage(response.message ?? "Created the default season. You can prepare Day 1 now.");
+
+      if (options?.prepareDayOne) {
+        const preparedDayResponse = await adminFetch("/api/admin/seasons/create-next-day", {
+          method: "POST",
+          body: JSON.stringify({
+            seasonId: createdSeason.id,
+            targetDayNumber: 1,
+            dayTitle: `Day 1 - ${createdSeason.seriesTitle ?? createdSeason.title}`,
+            dayDate: createdSeason.startDate,
+            dayMap: "Rondo",
+            dayLobbyTime: "8:00 PM NPT",
+            dayMapRotation: normalizeMapRotation(defaultMapRotation),
+          }),
+        });
+
+        applyResolvedDayContext({
+          seasonId: createdSeason.id,
+          seasonDayNumber: 1,
+          tournamentId: preparedDayResponse.data?.tournament?.id,
+          scrimId: preparedDayResponse.data?.scrim?.id,
+        });
+        setMessage(
+          preparedDayResponse.message ?? `Created ${createdSeason.title} and prepared Day 1 for imports.`
+        );
+      } else {
+        setMessage(response.message ?? "Created the season. You can prepare Day 1 now.");
+      }
+
+      setShowSeasonForm(false);
+      resetSeasonDraft(Math.max(normalizedSeasonNumber + 1, nextSeasonNumber + 1));
       onImported?.();
     } catch (seasonError: unknown) {
       setError(seasonError instanceof Error ? seasonError.message : String(seasonError));
     } finally {
       setCreatingSeason(false);
     }
+  }
+
+  async function handleCreateDefaultSeason() {
+    await createSeasonFromDraft(buildSeasonDraft(nextSeasonNumber));
+  }
+
+  async function handleCreateSeason(prepareDayOne = false) {
+    await createSeasonFromDraft(seasonDraft, { prepareDayOne });
   }
 
   async function handleLookup() {
@@ -878,24 +1012,149 @@ export default function PubgImportManager({
         </div>
       )}
 
-      {seasons.length === 0 && (
-        <div className="esports-card flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+      <div className="esports-card p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="section-heading !text-sm">Season Required</p>
+            <p className="section-heading !text-sm">Season Setup</p>
             <p className="mt-1 text-sm text-text-muted">
-              No season exists yet, so the scrim importer has nothing to attach new days and matches to.
+              Create a season here if needed, then create the scrim day before previewing or importing PUBG matches.
             </p>
+            {selectedSeason && (
+              <p className="mt-2 text-xs text-text-muted">
+                Selected season: {selectedSeason.seriesTitle ?? selectedSeason.title} | Current day:{" "}
+                {selectedSeason.currentDay || 0} | Next available day: {nextAvailableDayNumber}
+              </p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => void handleCreateDefaultSeason()}
-            disabled={creatingSeason}
-            className={btnPrimary}
-          >
-            {creatingSeason ? "Creating Season..." : "Create Default Season"}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={toggleSeasonForm} className={btnSecondary}>
+              {showSeasonForm ? "Hide Season Form" : "Create New Season"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCreateDefaultSeason()}
+              disabled={creatingSeason}
+              className={btnPrimary}
+            >
+              {creatingSeason ? "Creating Season..." : "Quick Create Default Season"}
+            </button>
+          </div>
         </div>
-      )}
+
+        {showSeasonForm && (
+          <div className="mt-5 grid gap-4 border-t border-white/10 pt-5 xl:grid-cols-2">
+            <input
+              className={inputClass}
+              placeholder="Season title"
+              value={seasonDraft.title}
+              onChange={(event) => setSeasonDraft((currentDraft) => ({ ...currentDraft, title: event.target.value }))}
+            />
+            <input
+              className={inputClass}
+              placeholder="Series title"
+              value={seasonDraft.seriesTitle}
+              onChange={(event) =>
+                setSeasonDraft((currentDraft) => ({ ...currentDraft, seriesTitle: event.target.value }))
+              }
+            />
+            <input
+              className={inputClass}
+              type="number"
+              min={1}
+              placeholder="Season number"
+              value={seasonDraft.seasonNumber}
+              onChange={(event) =>
+                setSeasonDraft((currentDraft) => ({
+                  ...currentDraft,
+                  seasonNumber: event.target.value ? Number(event.target.value) : nextSeasonNumber,
+                }))
+              }
+            />
+            <select
+              className={inputClass}
+              value={seasonDraft.status}
+              onChange={(event) =>
+                setSeasonDraft((currentDraft) => ({
+                  ...currentDraft,
+                  status: event.target.value as Season["status"],
+                }))
+              }
+            >
+              <option value="active">active</option>
+              <option value="planned">planned</option>
+            </select>
+            <input
+              className={inputClass}
+              type="date"
+              value={seasonDraft.startDate}
+              onChange={(event) =>
+                setSeasonDraft((currentDraft) => ({ ...currentDraft, startDate: event.target.value }))
+              }
+            />
+            <input
+              className={inputClass}
+              type="number"
+              min={1}
+              placeholder="Configured days"
+              value={seasonDraft.configuredDays}
+              onChange={(event) =>
+                setSeasonDraft((currentDraft) => ({
+                  ...currentDraft,
+                  configuredDays: event.target.value ? Number(event.target.value) : 15,
+                }))
+              }
+            />
+            <input
+              className={inputClass}
+              placeholder="Game"
+              value={seasonDraft.game}
+              onChange={(event) => setSeasonDraft((currentDraft) => ({ ...currentDraft, game: event.target.value }))}
+            />
+            <input
+              className={inputClass}
+              placeholder="Format"
+              value={seasonDraft.format}
+              onChange={(event) =>
+                setSeasonDraft((currentDraft) => ({ ...currentDraft, format: event.target.value }))
+              }
+            />
+            <input
+              className={inputClass}
+              placeholder="Region"
+              value={seasonDraft.region}
+              onChange={(event) =>
+                setSeasonDraft((currentDraft) => ({ ...currentDraft, region: event.target.value }))
+              }
+            />
+            <input
+              className={inputClass}
+              placeholder="Perspective"
+              value={seasonDraft.perspective}
+              onChange={(event) =>
+                setSeasonDraft((currentDraft) => ({ ...currentDraft, perspective: event.target.value }))
+              }
+            />
+            <div className="flex flex-wrap gap-3 xl:col-span-2">
+              <button
+                type="button"
+                onClick={() => void handleCreateSeason(false)}
+                disabled={creatingSeason}
+                className={btnPrimary}
+              >
+                {creatingSeason ? "Creating Season..." : "Create Season"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCreateSeason(true)}
+                disabled={creatingSeason}
+                className={btnSecondary}
+              >
+                {creatingSeason ? "Preparing..." : "Create Season + Day 1"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="esports-card grid gap-4 p-6 xl:grid-cols-2">
         <select
@@ -916,9 +1175,9 @@ export default function PubgImportManager({
           ))}
         </select>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <input
-            className={inputClass}
+            className={`${inputClass} flex-1`}
             type="number"
             min={1}
             placeholder="Scrim day number"
@@ -927,9 +1186,35 @@ export default function PubgImportManager({
               setSelectedDayNumber(event.target.value ? Number(event.target.value) : "")
             }
           />
-          <button type="button" onClick={() => void handlePrepareDay()} disabled={preparingDay} className={btnPrimary}>
-            {preparingDay ? "Preparing..." : "Prepare Day"}
+          <button
+            type="button"
+            onClick={() => setSelectedDayNumber(nextAvailableDayNumber)}
+            disabled={!selectedSeason}
+            className={btnSecondary}
+          >
+            Use Next Day
           </button>
+          <button type="button" onClick={() => void handlePrepareDay()} disabled={preparingDay} className={btnPrimary}>
+            {preparingDay
+              ? "Preparing..."
+              : selectedDayNumber === ""
+              ? "Create Day"
+              : selectedDayExists
+              ? `Update Day ${selectedDayNumber}`
+              : `Create Day ${selectedDayNumber}`}
+          </button>
+        </div>
+
+        <div className="xl:col-span-2">
+          <p className="text-xs text-text-muted">
+            {selectedSeason
+              ? selectedDayNumber === ""
+                ? `Choose a day number or use Next Day (${nextAvailableDayNumber}).`
+                : selectedDayExists
+                ? `${getDayLabel(Number(selectedDayNumber))} already exists. Saving here will update its title, date, map, and linked import target.`
+                : `${getDayLabel(Number(selectedDayNumber))} does not exist yet. Saving here will create the tournament day and scrim automatically.`
+              : "Create or select a season first, then create the scrim day here."}
+          </p>
         </div>
 
         <select
