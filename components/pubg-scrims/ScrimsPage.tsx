@@ -479,7 +479,13 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
 }
 
 export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
-  const { scrimDayResults } = useBravoRealtimeData();
+  const { scrimDayResults } = useBravoRealtimeData(undefined, {
+    seasons: false,
+    tournaments: false,
+    standings: false,
+    teams: false,
+    players: false,
+  });
   const activeDays = scrimDayResults.length > 0 ? scrimDayResults : days;
   const totalDays = activeDays.length;
   const totalMatches = activeDays.reduce((currentTotal, day) => currentTotal + day.completedMatches, 0);

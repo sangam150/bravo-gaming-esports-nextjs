@@ -11,7 +11,18 @@ export default function PlayersPageClient({ initialPlayers }: { initialPlayers: 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const perPage = 10;
-  const { overview, players: livePlayers } = useBravoRealtimeData({ players: initialPlayers });
+  const { overview, players: livePlayers } = useBravoRealtimeData(
+    { players: initialPlayers },
+    {
+      seasons: false,
+      tournaments: false,
+      standings: false,
+      teams: false,
+      scrims: false,
+      matches: false,
+      matchResults: false,
+    }
+  );
 
   const scopedPlayers = useMemo(
     () =>

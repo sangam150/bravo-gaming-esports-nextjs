@@ -66,7 +66,11 @@ export default function HomePageClient({
   initialSponsors: SponsorItem[];
   initialOverview: CurrentSeasonOverview | null;
 }) {
-  const liveCompetition = useBravoRealtimeData();
+  const liveCompetition = useBravoRealtimeData(undefined, {
+    scrims: false,
+    matches: false,
+    matchResults: false,
+  });
   const { data: liveStatsDoc } = useRealtimeSiteStats(initialStats);
   const { data: liveAnnouncements } = useRealtimeAnnouncements(initialAnnouncements);
   const { data: liveStreams } = useRealtimeStreams(initialStreams);

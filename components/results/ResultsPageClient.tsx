@@ -13,7 +13,11 @@ export default function ResultsPageClient({
   initialOverview: CurrentSeasonOverview | null;
   initialDayResults: ScrimDayResult[];
 }) {
-  const { overview, scrimDayResults } = useBravoRealtimeData();
+  const { overview, scrimDayResults } = useBravoRealtimeData(undefined, {
+    standings: false,
+    teams: false,
+    players: false,
+  });
   const activeOverview = overview ?? initialOverview;
   const activeDayResults = scrimDayResults.length > 0 ? scrimDayResults : initialDayResults;
   const tournamentsByDayNumber = new Map(

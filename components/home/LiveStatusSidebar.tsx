@@ -38,7 +38,13 @@ function buildStatusItems(day: ReturnType<typeof useBravoRealtimeData>["scrimDay
 }
 
 export default function LiveStatusSidebar() {
-  const { scrimDayResults } = useBravoRealtimeData();
+  const { scrimDayResults } = useBravoRealtimeData(undefined, {
+    seasons: false,
+    tournaments: false,
+    standings: false,
+    teams: false,
+    players: false,
+  });
   const latestDay = scrimDayResults[0];
   const statusItems = buildStatusItems(latestDay);
   const hasData = statusItems.length > 0;

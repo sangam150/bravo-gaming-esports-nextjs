@@ -229,6 +229,18 @@ function buildScrimDayStatus(scrims: Scrim[]): ScrimDayResult["status"] {
   return "mixed";
 }
 
+function resolveScrimDayNumber(scrims: Scrim[], fallbackDayNumber: number) {
+  const explicitDayNumbers = scrims
+    .map((scrim) => scrim.seasonDayNumber)
+    .filter((dayNumber): dayNumber is number => Number.isFinite(dayNumber));
+
+  if (explicitDayNumbers.length === 0) {
+    return fallbackDayNumber;
+  }
+
+  return Math.max(...explicitDayNumbers);
+}
+
 function aggregateScrimDayLeaderboard(matches: TournamentMatch[]): ScrimDayStanding[] {
   const standingsMap = new Map<
     string,
@@ -370,13 +382,15 @@ export function buildScrimDayResultsFromCollections(
         ...dayScrims.map((scrim) => scrim.updatedAt),
       ]
         .filter((timestamp): timestamp is string => Boolean(timestamp))
-        .sort((firstTimestamp, secondTimestamp) => firstTimestamp.localeCompare(secondTimestamp))
-        .at(-1);
+          .sort((firstTimestamp, secondTimestamp) => firstTimestamp.localeCompare(secondTimestamp))
+          .at(-1);
+      const resolvedDayNumber = resolveScrimDayNumber(dayScrims, dayIndex + 1);
 
       return {
         id: `scrim-day-${dateKey}`,
-        dayNumber: dayIndex + 1,
-        label: `Day ${dayIndex + 1}`,
+        dayNumber: resolvedDayNumber,
+        seasonDayNumber: resolvedDayNumber,
+        label: `Day ${resolvedDayNumber}`,
         date: dateKey,
         displayDate: formatKathmanduDate(dateKey),
         status: buildScrimDayStatus(dayScrims),
@@ -391,7 +405,10 @@ export function buildScrimDayResultsFromCollections(
         lastUpdatedAt: latestUpdatedAt,
       } satisfies ScrimDayResult;
     })
-    .sort((firstDay, secondDay) => secondDay.date.localeCompare(firstDay.date));
+    .sort(
+      (firstDay, secondDay) =>
+        secondDay.dayNumber - firstDay.dayNumber || secondDay.date.localeCompare(firstDay.date)
+    );
 }
 
 export function getMatchMvp(match: TournamentMatch): MatchPlayerResult | null {

@@ -27,7 +27,18 @@ export default function TeamProfileClient({
   initialMatchPlayers: MatchPlayerRecord[];
 }) {
   const { data: liveTeam } = useRealtimeTeam(initialTeam.id, initialTeam);
-  const { overview, players: livePlayers } = useBravoRealtimeData({ players: initialPlayers });
+  const { overview, players: livePlayers } = useBravoRealtimeData(
+    { players: initialPlayers },
+    {
+      seasons: false,
+      tournaments: false,
+      standings: false,
+      teams: false,
+      scrims: false,
+      matches: false,
+      matchResults: false,
+    }
+  );
   const activeTeam = liveTeam ?? initialTeam;
   const playerPool = overview?.players?.length ? overview.players : livePlayers.filter((player) => player.scope !== "tournament");
   const currentRoster = playerPool.filter(

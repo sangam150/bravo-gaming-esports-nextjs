@@ -36,6 +36,20 @@ function resolveStorageBucket(projectIdOverride?: string) {
 
 export { COLLECTIONS };
 
+export type FirestoreWriteOperation =
+  | {
+      type: "set";
+      collectionName: string;
+      docId: string;
+      data: Record<string, unknown>;
+      merge?: boolean;
+    }
+  | {
+      type: "delete";
+      collectionName: string;
+      docId: string;
+    };
+
 type FirestoreInput = Record<string, unknown> | unknown[] | string | number | boolean | null | undefined;
 
 function sanitizeFirestoreValue(value: FirestoreInput): FirestoreInput {
@@ -145,4 +159,40 @@ export async function queryFirestoreCollection<T = Record<string, unknown>>(
   const db = getFirestore();
   const snapshot = await db.collection(collectionName).where(field, "==", value).limit(limit).get();
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as T & { id: string }));
+}
+
+export async function commitFirestoreWriteOperations(
+  operations: FirestoreWriteOperation[],
+  chunkSize = 400
+) {
+  if (operations.length === 0) {
+    return { committedOperations: 0, batches: 0 };
+  }
+
+  const db = getFirestore();
+  const now = new Date().toISOString();
+
+  for (let index = 0; index < operations.length; index += chunkSize) {
+    const batch = db.batch();
+    const chunk = operations.slice(index, index + chunkSize);
+
+    for (const operation of chunk) {
+      const docRef = db.collection(operation.collectionName).doc(operation.docId);
+
+      if (operation.type === "delete") {
+        batch.delete(docRef);
+        continue;
+      }
+
+      const payload = sanitizeFirestoreData({ ...operation.data, updatedAt: now });
+      batch.set(docRef, payload, { merge: operation.merge ?? true });
+    }
+
+    await batch.commit();
+  }
+
+  return {
+    committedOperations: operations.length,
+    batches: Math.ceil(operations.length / chunkSize),
+  };
 }

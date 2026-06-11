@@ -1,14 +1,15 @@
-import { getTournament, getTournamentMatches } from "./data";
+import { ensureSeasonDay, getSeasonDayContext } from "./admin-season-days";
+import { getCurrentSeason, getTournament, getTournamentMatches } from "./data";
 import { BRAVO_DAILY_SCRIMS_SEASON, syncBravoDailyScrimSeason } from "./bravo-season-sync";
 import { getBravoCanonicalTeams, resolveBravoTeamIdentity } from "./bravo-teams";
 import {
   COLLECTIONS,
-  deleteFirestoreDocument,
+  commitFirestoreWriteOperations,
   fetchFirestoreCollection,
+  type FirestoreWriteOperation,
   getFirestoreDocument,
   isFirebaseConfigured,
   queryFirestoreCollection,
-  saveFirestoreDocument,
 } from "./firebase";
 import { aggregateTeamResults, parseMatchParticipants, type ParsedPlayerStat } from "./pubg-match-parser";
 import { buildPlayerAppearanceMapFromMatches, choosePreferredPlayerTeam } from "./player-team-history";
@@ -18,9 +19,15 @@ import type {
   MatchPlayerRecord,
   MatchPlayerResult,
   Player,
+  PubgBulkImportResult,
+  PubgBulkImportResultItem,
+  PubgBulkPreviewResult,
   PubgImportConflict,
+  PubgImportContext,
+  PubgImportIssue,
   PubgImportPreview,
   PubgMatchImport,
+  PubgDuplicateMode,
   Scrim,
   Season,
   Team,
@@ -121,35 +128,191 @@ function getMatchMvpPlayerKey(match: TournamentMatch) {
   return mvp.pubgPlayerId ?? mvp.playerId ?? mvp.playerName;
 }
 
-async function deleteMissingDocuments<T extends { id: string }>(
-  existingDocuments: T[],
-  keepIds: Set<string>,
-  collectionName: string
-) {
-  await Promise.all(
-    existingDocuments
-      .filter((document) => !keepIds.has(document.id))
-      .map((document) => deleteFirestoreDocument(collectionName, document.id))
-  );
+type ImportTargetOptions = {
+  tournamentId?: string;
+  scrimId?: string;
+  seasonId?: string;
+  seasonDayNumber?: number;
+  autoCreateDay?: boolean;
+  dayTitle?: string;
+  dayDate?: string;
+  dayMap?: string;
+  dayLobbyTime?: string;
+  dayMapRotation?: string[];
+};
+
+type ResolvedImportContext = {
+  scrim: Scrim | null;
+  tournamentId?: string;
+  tournament: Tournament | null;
+  seasonId?: string;
+  seasonTitle?: string;
+  seasonDayNumber?: number;
+  createdDay?: boolean;
+};
+
+function toImportContext(context: ResolvedImportContext): PubgImportContext {
+  return {
+    seasonId: context.seasonId,
+    seasonTitle: context.seasonTitle,
+    seasonDayNumber: context.seasonDayNumber,
+    tournamentId: context.tournamentId,
+    tournamentTitle: context.tournament?.title,
+    scrimId: context.scrim?.id,
+    scrimTitle: context.scrim?.title,
+    createdDay: context.createdDay,
+  };
 }
 
-async function resolveTournamentContext(options?: { tournamentId?: string; scrimId?: string }) {
-  const scrim = options?.scrimId
+function classifyImportIssue(
+  matchId: string,
+  error: unknown,
+  options?: { alreadyImported?: boolean }
+): PubgImportIssue {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalizedMessage = message.toLowerCase();
+
+  let code: PubgImportIssue["code"] = "unknown_error";
+  if (normalizedMessage.includes("permission denied") || normalizedMessage.includes("unauthorized")) {
+    code = "permission_denied";
+  } else if (
+    normalizedMessage.includes("pubg api error 404") ||
+    normalizedMessage.includes("invalid match id") ||
+    normalizedMessage.includes("no match found")
+  ) {
+    code = "invalid_match_id";
+  } else if (normalizedMessage.includes("quota") || normalizedMessage.includes("resource-exhausted")) {
+    code = "quota_exceeded";
+  } else if (normalizedMessage.includes("duplicate match")) {
+    code = "duplicate_match";
+  } else if (normalizedMessage.includes("scrim day missing")) {
+    code = "scrim_day_missing";
+  } else if (normalizedMessage.includes("database write failed") || normalizedMessage.includes("firestore")) {
+    code = "database_write_failed";
+  } else if (normalizedMessage.includes("pubg api error") || normalizedMessage.includes("pubg api failed")) {
+    code = "pubg_api_failed";
+  }
+
+  return {
+    matchId,
+    error: message,
+    code,
+    alreadyImported: options?.alreadyImported,
+  };
+}
+
+function cleanImportString(value?: string | null) {
+  const normalizedValue = value?.trim();
+  return normalizedValue ? normalizedValue : undefined;
+}
+
+function cleanImportStringArray(values?: string[] | null) {
+  if (!values?.length) return undefined;
+
+  const normalizedValues = Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+  return normalizedValues.length > 0 ? normalizedValues : undefined;
+}
+
+function getSeasonDayOverrides(options?: ImportTargetOptions) {
+  const dayTitle = cleanImportString(options?.dayTitle);
+  const dayDate = cleanImportString(options?.dayDate);
+  const dayMap = cleanImportString(options?.dayMap);
+  const dayLobbyTime = cleanImportString(options?.dayLobbyTime);
+  const dayMapRotation = cleanImportStringArray(options?.dayMapRotation);
+
+  if (!dayTitle && !dayDate && !dayMap && !dayLobbyTime && !dayMapRotation?.length) {
+    return undefined;
+  }
+
+  return {
+    dayTitle,
+    dayDate,
+    dayMap,
+    dayLobbyTime,
+    dayMapRotation,
+  };
+}
+
+async function loadSeasonPlayers() {
+  if (!isFirebaseConfigured()) {
+    return [];
+  }
+
+  return fetchFirestoreCollection<Player>(COLLECTIONS.players, 2000).catch(() => []);
+}
+
+async function resolveImportContext(
+  options?: ImportTargetOptions & { requireDay?: boolean }
+): Promise<ResolvedImportContext> {
+  const initialScrim = options?.scrimId
     ? await getFirestoreDocument<Scrim>(COLLECTIONS.scrims, options.scrimId)
     : null;
-  const tournamentId = options?.tournamentId ?? scrim?.tournamentId;
-  const tournament = tournamentId ? await getTournament(tournamentId) : null;
+  let scrim = initialScrim;
+  let tournamentId = options?.tournamentId ?? initialScrim?.tournamentId;
+  let tournament = tournamentId ? await getTournament(tournamentId) : null;
+  let createdDay = false;
 
-  return { scrim, tournamentId, tournament };
+  const currentSeason = !options?.seasonId && !tournament?.seasonId && !scrim?.seasonId ? await getCurrentSeason() : null;
+  const requestedSeasonId = options?.seasonId ?? tournament?.seasonId ?? scrim?.seasonId ?? currentSeason?.id;
+  const requestedDayNumber =
+    options?.seasonDayNumber ??
+    tournament?.seasonDayNumber ??
+    tournament?.dayNumber ??
+    scrim?.seasonDayNumber ??
+    currentSeason?.currentDay;
+  const dayOverrides = getSeasonDayOverrides(options);
+
+  if (requestedSeasonId && requestedDayNumber && (!tournament || !scrim || dayOverrides)) {
+    if (options?.autoCreateDay !== false || dayOverrides) {
+      const ensuredDay = await ensureSeasonDay(requestedSeasonId, requestedDayNumber, {
+        createIfMissing: options?.autoCreateDay !== false,
+        overrides: dayOverrides,
+      });
+      tournament = ensuredDay.tournament;
+      scrim = ensuredDay.scrim;
+      tournamentId = ensuredDay.tournament.id;
+      createdDay = ensuredDay.created;
+    } else {
+      const dayContext = await getSeasonDayContext(requestedSeasonId, requestedDayNumber);
+      tournament = tournament ?? dayContext.tournament;
+      scrim = scrim ?? dayContext.scrim;
+      tournamentId = tournament?.id ?? tournamentId;
+    }
+  }
+
+  if (tournament && !scrim && tournament.seasonId && (tournament.seasonDayNumber ?? tournament.dayNumber)) {
+    const dayContext = await getSeasonDayContext(
+      tournament.seasonId,
+      tournament.seasonDayNumber ?? tournament.dayNumber ?? 0
+    );
+    scrim = dayContext.scrim;
+  }
+
+  if (options?.requireDay && (!tournament || !scrim)) {
+    throw new Error("Scrim day missing. Select or create a scrim day first.");
+  }
+
+  return {
+    scrim,
+    tournamentId: tournament?.id ?? tournamentId,
+    tournament,
+    seasonId: requestedSeasonId ?? tournament?.seasonId ?? scrim?.seasonId,
+    seasonTitle: tournament?.seasonTitle ?? scrim?.seasonTitle ?? currentSeason?.seriesTitle ?? currentSeason?.title,
+    seasonDayNumber: requestedDayNumber,
+    createdDay,
+  };
 }
 
-async function detectImportConflicts(playerResults: MatchPlayerResult[]): Promise<PubgImportConflict[]> {
+async function detectImportConflicts(
+  playerResults: MatchPlayerResult[],
+  existingPlayers?: Player[]
+): Promise<PubgImportConflict[]> {
   if (!isFirebaseConfigured() || playerResults.length === 0) {
     return [];
   }
 
-  const existingPlayers = await fetchFirestoreCollection<Player>(COLLECTIONS.players, 2000).catch(() => []);
-  const scopedPlayers = existingPlayers
+  const players = existingPlayers ?? (await fetchFirestoreCollection<Player>(COLLECTIONS.players, 2000).catch(() => []));
+  const scopedPlayers = players
     .filter((player) => player.scope === "season" || !player.scope)
     .sort((firstPlayer, secondPlayer) => {
       if ((firstPlayer.scope === "season") !== (secondPlayer.scope === "season")) {
@@ -203,13 +366,15 @@ async function detectImportConflicts(playerResults: MatchPlayerResult[]): Promis
 
 async function buildPubgMatchPreview(
   matchId: string,
-  options?: { tournamentId?: string; scrimId?: string }
+  options?: ImportTargetOptions,
+  existingPlayers?: Player[],
+  resolvedContext?: ResolvedImportContext
 ): Promise<{
   preview: PubgImportPreview;
-  context: Awaited<ReturnType<typeof resolveTournamentContext>>;
+  context: ResolvedImportContext;
   matchRecord: TournamentMatch;
 }> {
-  const context = await resolveTournamentContext(options);
+  const context = resolvedContext ?? (await resolveImportContext(options));
   const matchData = await pubgFetch(`/shards/${PUBG_SHARD}/matches/${matchId}`);
   const summary = summarizeMatch(matchData);
   const parsedPlayers = parseMatchParticipants(matchData);
@@ -222,7 +387,7 @@ async function buildPubgMatchPreview(
     id: matchId,
     pubgMatchId: matchId,
     tournamentId: context.tournamentId,
-    scrimId: options?.scrimId,
+    scrimId: context.scrim?.id ?? options?.scrimId,
     map: summary.mapName ?? "Unknown",
     winner,
     points: teamResults[0]?.totalPoints ?? 0,
@@ -236,11 +401,8 @@ async function buildPubgMatchPreview(
     playerResults,
   };
 
-  const conflicts = await detectImportConflicts(playerResults);
-  const alreadyImported = Boolean(
-    (await getFirestoreDocument(COLLECTIONS.pubgMatches, matchId)) ??
-      (await getFirestoreDocument(COLLECTIONS.matches, matchId))
-  );
+  const conflicts = await detectImportConflicts(playerResults, existingPlayers);
+  const alreadyImported = Boolean(await getFirestoreDocument(COLLECTIONS.matches, matchId));
 
   return {
     context,
@@ -253,8 +415,12 @@ async function buildPubgMatchPreview(
       tournamentTitle: context.tournament?.title,
       scrimId: context.scrim?.id,
       scrimTitle: context.scrim?.title,
-      seasonId: context.tournament?.seasonId,
-      seasonDayNumber: context.tournament?.seasonDayNumber ?? context.tournament?.dayNumber ?? context.scrim?.seasonDayNumber,
+      seasonId: context.seasonId ?? context.tournament?.seasonId,
+      seasonDayNumber:
+        context.seasonDayNumber ??
+        context.tournament?.seasonDayNumber ??
+        context.tournament?.dayNumber ??
+        context.scrim?.seasonDayNumber,
       detectedTeams: teamResults.length,
       detectedPlayers: playerResults.length,
       teamResults,
@@ -486,49 +652,80 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
     } satisfies Partial<Team> & { id: string; name: string };
   });
 
-  await Promise.all([
-    deleteMissingDocuments(existingStandings, new Set(standings.map((standing) => standing.id)), COLLECTIONS.standings),
-    deleteMissingDocuments(existingTeams, new Set(teamDocuments.map((team) => team.id)), COLLECTIONS.teams),
-    deleteMissingDocuments(existingPlayers, new Set(playerDocuments.map((player) => player.id)), COLLECTIONS.players),
-    deleteMissingDocuments(
-      existingMatchPlayers,
-      new Set(matchPlayerDocuments.map((matchPlayer) => matchPlayer.id)),
-      COLLECTIONS.matchPlayers
-    ),
-  ]);
+  const standingIds = new Set(standings.map((standing) => standing.id));
+  const teamIds = new Set(teamDocuments.map((team) => team.id));
+  const playerIds = new Set(playerDocuments.map((player) => player.id));
+  const matchPlayerIds = new Set(matchPlayerDocuments.map((matchPlayer) => matchPlayer.id));
 
-  await Promise.all(
-    standings.map((standing) =>
-      saveFirestoreDocument(COLLECTIONS.standings, standing.id, standing as unknown as Record<string, unknown>)
-    )
-  );
-  await Promise.all(teamDocuments.map((team) => saveFirestoreDocument(COLLECTIONS.teams, team.id, team as Record<string, unknown>)));
-  await Promise.all(
-    playerDocuments.map((player) =>
-      saveFirestoreDocument(COLLECTIONS.players, player.id, player as unknown as Record<string, unknown>)
-    )
-  );
-  await Promise.all(
-    matchPlayerDocuments.map((matchPlayer) =>
-      saveFirestoreDocument(COLLECTIONS.matchPlayers, matchPlayer.id, matchPlayer as unknown as Record<string, unknown>)
-    )
-  );
+  const operations: FirestoreWriteOperation[] = [
+    ...existingStandings
+      .filter((standing) => !standingIds.has(standing.id))
+      .map((standing) => ({ type: "delete" as const, collectionName: COLLECTIONS.standings, docId: standing.id })),
+    ...existingTeams
+      .filter((team) => !teamIds.has(team.id))
+      .map((team) => ({ type: "delete" as const, collectionName: COLLECTIONS.teams, docId: team.id })),
+    ...existingPlayers
+      .filter((player) => !playerIds.has(player.id))
+      .map((player) => ({ type: "delete" as const, collectionName: COLLECTIONS.players, docId: player.id })),
+    ...existingMatchPlayers
+      .filter((matchPlayer) => !matchPlayerIds.has(matchPlayer.id))
+      .map((matchPlayer) => ({
+        type: "delete" as const,
+        collectionName: COLLECTIONS.matchPlayers,
+        docId: matchPlayer.id,
+      })),
+    ...standings.map((standing) => ({
+      type: "set" as const,
+      collectionName: COLLECTIONS.standings,
+      docId: standing.id,
+      data: standing as unknown as Record<string, unknown>,
+      merge: true,
+    })),
+    ...teamDocuments.map((team) => ({
+      type: "set" as const,
+      collectionName: COLLECTIONS.teams,
+      docId: team.id,
+      data: team as unknown as Record<string, unknown>,
+      merge: true,
+    })),
+    ...playerDocuments.map((player) => ({
+      type: "set" as const,
+      collectionName: COLLECTIONS.players,
+      docId: player.id,
+      data: player as unknown as Record<string, unknown>,
+      merge: true,
+    })),
+    ...matchPlayerDocuments.map((matchPlayer) => ({
+      type: "set" as const,
+      collectionName: COLLECTIONS.matchPlayers,
+      docId: matchPlayer.id,
+      data: matchPlayer as unknown as Record<string, unknown>,
+      merge: true,
+    })),
+    {
+      type: "set" as const,
+      collectionName: COLLECTIONS.tournaments,
+      docId: tournamentId,
+      data: {
+        matchCount: matches.length,
+        teamCount:
+          currentTournament.registeredTeamIds && currentTournament.registeredTeamIds.length > 0
+            ? currentTournament.registeredTeamIds.length
+            : teamDocuments.length,
+        registeredTeamIds:
+          currentTournament.registeredTeamIds && currentTournament.registeredTeamIds.length > 0
+            ? currentTournament.registeredTeamIds
+            : teamDocuments.map((team) => resolveBravoTeamIdentity(team.name)?.id ?? team.id),
+        status:
+          matches.length > 0 && currentTournament.status !== "COMPLETED"
+            ? "LIVE"
+            : currentTournament.status,
+      },
+      merge: true,
+    },
+  ];
 
-  await saveFirestoreDocument(COLLECTIONS.tournaments, tournamentId, {
-    matchCount: matches.length,
-    teamCount:
-      currentTournament.registeredTeamIds && currentTournament.registeredTeamIds.length > 0
-        ? currentTournament.registeredTeamIds.length
-        : teamDocuments.length,
-    registeredTeamIds:
-      currentTournament.registeredTeamIds && currentTournament.registeredTeamIds.length > 0
-        ? currentTournament.registeredTeamIds
-        : teamDocuments.map((team) => resolveBravoTeamIdentity(team.name)?.id ?? team.id),
-    status:
-      matches.length > 0 && currentTournament.status !== "COMPLETED"
-        ? "LIVE"
-        : currentTournament.status,
-  });
+  await commitFirestoreWriteOperations(operations);
 }
 
 async function syncBravoSeasonIfNeeded(tournament?: Tournament | null) {
@@ -544,87 +741,318 @@ async function syncBravoSeasonIfNeeded(tournament?: Tournament | null) {
   });
 }
 
-export async function previewPubgMatch(
-  matchId: string,
-  options?: { tournamentId?: string; scrimId?: string }
-): Promise<PubgImportPreview> {
-  const { preview } = await buildPubgMatchPreview(matchId, options);
-  return preview;
+function normalizeRequestedMatchIds(matchIds: string[]) {
+  return Array.from(new Set(matchIds.map((matchId) => matchId.trim()).filter(Boolean)));
 }
 
-export async function importPubgMatch(
+function deriveScrimImportStatus(scrim: Scrim, pubgMatchIds: string[]) {
+  const expectedMatchCount = Math.max(scrim.mapRotation?.length ?? 0, pubgMatchIds.length, 1);
+  if (pubgMatchIds.length === 0) {
+    return "waiting_for_data" as const;
+  }
+
+  return pubgMatchIds.length >= expectedMatchCount ? "completed" : "live";
+}
+
+async function getMatchSequenceNumbers(tournamentId: string, matchIds: string[]) {
+  const existingMatches = await getTournamentMatches(tournamentId);
+  const sequenceNumberByMatchId = new Map<string, number>();
+
+  for (const existingMatch of existingMatches) {
+    if (typeof existingMatch.sequenceNumber === "number" && Number.isFinite(existingMatch.sequenceNumber)) {
+      sequenceNumberByMatchId.set(existingMatch.pubgMatchId, existingMatch.sequenceNumber);
+    }
+  }
+
+  let nextSequenceNumber = Math.max(0, ...Array.from(sequenceNumberByMatchId.values()));
+  for (const matchId of matchIds) {
+    if (!sequenceNumberByMatchId.has(matchId)) {
+      nextSequenceNumber += 1;
+      sequenceNumberByMatchId.set(matchId, nextSequenceNumber);
+    }
+  }
+
+  return sequenceNumberByMatchId;
+}
+
+export async function previewPubgMatches(
+  matchIds: string[],
+  options?: ImportTargetOptions
+): Promise<PubgBulkPreviewResult> {
+  const normalizedMatchIds = normalizeRequestedMatchIds(matchIds);
+  if (normalizedMatchIds.length === 0) {
+    throw new Error("At least one PUBG match ID is required.");
+  }
+
+  const [context, existingPlayers] = await Promise.all([
+    resolveImportContext({ ...options, requireDay: true, autoCreateDay: options?.autoCreateDay ?? true }),
+    loadSeasonPlayers(),
+  ]);
+
+  const previews: PubgImportPreview[] = [];
+  const errors: PubgImportIssue[] = [];
+
+  for (const matchId of normalizedMatchIds) {
+    try {
+      const { preview } = await buildPubgMatchPreview(
+        matchId,
+        {
+          tournamentId: context.tournamentId,
+          scrimId: context.scrim?.id,
+          seasonId: context.seasonId,
+          seasonDayNumber: context.seasonDayNumber,
+        },
+        existingPlayers,
+        context
+      );
+      previews.push(preview);
+    } catch (error: unknown) {
+      errors.push(classifyImportIssue(matchId, error));
+    }
+  }
+
+  return {
+    context: toImportContext(context),
+    previews,
+    errors,
+  };
+}
+
+export async function previewPubgMatch(
   matchId: string,
-  options?: { tournamentId?: string; scrimId?: string; screenshotUrl?: string }
-) {
+  options?: ImportTargetOptions
+): Promise<PubgImportPreview> {
+  const result = await previewPubgMatches([matchId], options);
+  if (result.previews.length === 0) {
+    throw new Error(result.errors[0]?.error ?? "Preview failed.");
+  }
+  return result.previews[0];
+}
+
+export async function importPubgMatches(
+  matchIds: string[],
+  options?: ImportTargetOptions & { screenshotUrl?: string; duplicateMode?: PubgDuplicateMode }
+): Promise<PubgBulkImportResult> {
   if (!isFirebaseConfigured()) {
     throw new Error("Firebase is not configured. Add FIREBASE_* credentials before importing PUBG data.");
   }
 
-  const { context, preview, matchRecord: previewMatchRecord } = await buildPubgMatchPreview(matchId, options);
-  const now = new Date().toISOString();
-  const matchRecord: TournamentMatch = {
-    ...previewMatchRecord,
-    resultScreenshotUrl: options?.screenshotUrl,
-    syncedAt: now,
-  };
-  const matchPlayerDocuments = buildMatchPlayerRecords(matchRecord, context.tournament);
+  const normalizedMatchIds = normalizeRequestedMatchIds(matchIds);
+  if (normalizedMatchIds.length === 0) {
+    throw new Error("At least one PUBG match ID is required.");
+  }
 
-  const importRecord: PubgMatchImport = {
-    id: matchId,
-    pubgMatchId: matchId,
-    mapName: preview.summary.mapName ?? "Unknown",
-    gameMode: preview.summary.gameMode ?? "unknown",
-    createdAt: preview.summary.createdAt ?? now,
-    duration: preview.summary.duration,
-    tournamentId: context.tournamentId,
-    scrimId: options?.scrimId,
-    syncedAt: now,
-    teamResults: matchRecord.teamResults ?? [],
-    playerResults: matchRecord.playerResults ?? [],
-    dataSource: "pubg_api",
-  };
-
-  await Promise.all([
-    saveFirestoreDocument(COLLECTIONS.pubgMatches, matchId, { ...preview.summary, ...importRecord }),
-    saveFirestoreDocument(COLLECTIONS.matchResults, matchId, matchRecord as unknown as Record<string, unknown>),
-    saveFirestoreDocument(COLLECTIONS.matches, matchId, matchRecord as unknown as Record<string, unknown>),
-    saveFirestoreDocument(COLLECTIONS.tournamentMatches, matchId, matchRecord as unknown as Record<string, unknown>),
-    ...matchPlayerDocuments.map((matchPlayer) =>
-      saveFirestoreDocument(COLLECTIONS.matchPlayers, matchPlayer.id, matchPlayer as unknown as Record<string, unknown>)
-    ),
+  const duplicateMode = options?.duplicateMode ?? "overwrite";
+  const [context, existingPlayers] = await Promise.all([
+    resolveImportContext({ ...options, requireDay: true, autoCreateDay: options?.autoCreateDay ?? true }),
+    loadSeasonPlayers(),
   ]);
 
-  if (options?.scrimId) {
-    const existingScrim = await getFirestoreDocument<Scrim>(COLLECTIONS.scrims, options.scrimId);
-    const pubgMatchIds = Array.from(
-      new Set(
-        [...(existingScrim?.pubgMatchIds ?? []), existingScrim?.pubgMatchId, matchId].filter(
-          (value): value is string => Boolean(value)
-        )
-      )
+  if (!context.tournamentId || !context.tournament || !context.scrim) {
+    throw new Error("Scrim day missing. Select or create a scrim day first.");
+  }
+
+  const previewResults: Array<{
+    preview: PubgImportPreview;
+    matchRecord: TournamentMatch;
+  }> = [];
+  const results: PubgBulkImportResultItem[] = [];
+
+  for (const matchId of normalizedMatchIds) {
+    try {
+      const { preview, matchRecord } = await buildPubgMatchPreview(
+        matchId,
+        {
+          tournamentId: context.tournamentId,
+          scrimId: context.scrim.id,
+          seasonId: context.seasonId,
+          seasonDayNumber: context.seasonDayNumber,
+        },
+        existingPlayers,
+        context
+      );
+
+      if (preview.alreadyImported && duplicateMode === "skip") {
+        results.push({
+          matchId,
+          success: true,
+          skipped: true,
+          alreadyImported: true,
+        });
+        continue;
+      }
+
+      if (preview.alreadyImported && duplicateMode === "error") {
+        results.push({
+          matchId,
+          success: false,
+          alreadyImported: true,
+          error: "Duplicate match. This PUBG match is already imported.",
+          code: "duplicate_match",
+        });
+        continue;
+      }
+
+      previewResults.push({ preview, matchRecord });
+    } catch (error: unknown) {
+      const issue = classifyImportIssue(matchId, error);
+      results.push({
+        matchId,
+        success: false,
+        error: issue.error,
+        code: issue.code,
+      });
+    }
+  }
+
+  if (previewResults.length > 0) {
+    const now = new Date().toISOString();
+    const sequenceNumberByMatchId = await getMatchSequenceNumbers(
+      context.tournamentId,
+      previewResults.map((item) => item.preview.matchId)
     );
 
-    await saveFirestoreDocument(COLLECTIONS.scrims, options.scrimId, {
-      pubgMatchId: pubgMatchIds[0] ?? matchId,
-      pubgMatchIds,
-      tournamentId: existingScrim?.tournamentId ?? context.tournamentId,
-      status: "completed",
-      updatedAt: now,
-    });
-  }
+    const importedMatchRecords = previewResults.map(({ preview, matchRecord }) => ({
+      preview,
+      matchRecord: {
+        ...matchRecord,
+        tournamentId: context.tournamentId,
+        scrimId: context.scrim?.id,
+        sequenceNumber: sequenceNumberByMatchId.get(preview.matchId),
+        resultScreenshotUrl: options?.screenshotUrl,
+        syncedAt: now,
+      } satisfies TournamentMatch,
+    }));
 
-  if (context.tournamentId) {
+    const mergedPubgMatchIds = Array.from(
+      new Set([
+        ...(context.scrim.pubgMatchIds ?? []),
+        context.scrim.pubgMatchId,
+        ...importedMatchRecords.map((item) => item.preview.matchId),
+      ].filter((matchId): matchId is string => Boolean(matchId)))
+    );
+
+    const operations: FirestoreWriteOperation[] = [];
+    for (const { preview, matchRecord } of importedMatchRecords) {
+      const matchPlayerDocuments = buildMatchPlayerRecords(matchRecord, context.tournament);
+      const importRecord: PubgMatchImport = {
+        id: preview.matchId,
+        pubgMatchId: preview.matchId,
+        mapName: preview.summary.mapName ?? "Unknown",
+        gameMode: preview.summary.gameMode ?? "unknown",
+        createdAt: preview.summary.createdAt ?? now,
+        duration: preview.summary.duration,
+        tournamentId: context.tournamentId,
+        scrimId: context.scrim.id,
+        syncedAt: now,
+        teamResults: matchRecord.teamResults ?? [],
+        playerResults: matchRecord.playerResults ?? [],
+        dataSource: "pubg_api",
+      };
+
+      operations.push(
+        {
+          type: "set",
+          collectionName: COLLECTIONS.pubgMatches,
+          docId: preview.matchId,
+          data: { ...preview.summary, ...importRecord },
+          merge: true,
+        },
+        {
+          type: "set",
+          collectionName: COLLECTIONS.matchResults,
+          docId: preview.matchId,
+          data: matchRecord as unknown as Record<string, unknown>,
+          merge: true,
+        },
+        {
+          type: "set",
+          collectionName: COLLECTIONS.matches,
+          docId: preview.matchId,
+          data: matchRecord as unknown as Record<string, unknown>,
+          merge: true,
+        },
+        {
+          type: "set",
+          collectionName: COLLECTIONS.tournamentMatches,
+          docId: preview.matchId,
+          data: matchRecord as unknown as Record<string, unknown>,
+          merge: true,
+        },
+        ...matchPlayerDocuments.map((matchPlayer) => ({
+          type: "set" as const,
+          collectionName: COLLECTIONS.matchPlayers,
+          docId: matchPlayer.id,
+          data: matchPlayer as unknown as Record<string, unknown>,
+          merge: true,
+        }))
+      );
+    }
+
+    operations.push({
+      type: "set",
+      collectionName: COLLECTIONS.scrims,
+      docId: context.scrim.id,
+      data: {
+        pubgMatchId: mergedPubgMatchIds[0],
+        pubgMatchIds: mergedPubgMatchIds,
+        tournamentId: context.tournamentId,
+        status: deriveScrimImportStatus(context.scrim, mergedPubgMatchIds),
+        announcement:
+          mergedPubgMatchIds.length > 0
+            ? context.scrim.announcement === "Matches not imported yet."
+              ? ""
+              : context.scrim.announcement
+            : context.scrim.announcement,
+      },
+      merge: true,
+    });
+
+    try {
+      await commitFirestoreWriteOperations(operations);
+    } catch (error: unknown) {
+      throw new Error(
+        `Database write failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
     await syncTournamentDerivedData(context.tournamentId, context.tournament);
     await syncBravoSeasonIfNeeded(context.tournament);
+
+    for (const { preview } of importedMatchRecords) {
+      results.push({
+        matchId: preview.matchId,
+        success: true,
+        alreadyImported: preview.alreadyImported,
+      });
+    }
   }
+
+  return {
+    context: toImportContext(context),
+    results,
+    importedCount: results.filter((result) => result.success && !result.skipped).length,
+    skippedCount: results.filter((result) => result.skipped).length,
+    failedCount: results.filter((result) => !result.success).length,
+  };
+}
+
+export async function importPubgMatch(
+  matchId: string,
+  options?: ImportTargetOptions & { screenshotUrl?: string; duplicateMode?: PubgDuplicateMode }
+) {
+  const preview = await previewPubgMatch(matchId, options);
+  const result = await importPubgMatches([matchId], options);
+  const importedMatch = await getFirestoreDocument<TournamentMatch>(COLLECTIONS.matches, matchId);
 
   return {
     summary: preview.summary,
     preview,
-    teamResults: matchRecord.teamResults,
-    playerResults: matchRecord.playerResults,
-    matchRecord,
-    players: matchRecord.playerResults?.length ?? 0,
+    teamResults: importedMatch?.teamResults ?? preview.teamResults,
+    playerResults: importedMatch?.playerResults ?? preview.playerResults,
+    matchRecord: importedMatch,
+    players: importedMatch?.playerResults?.length ?? preview.playerResults.length,
+    importResult: result,
   };
 }
 

@@ -136,13 +136,10 @@ export default function AdminDashboard() {
   const [matchId, setMatchId] = useState("");
   const [importTournamentId, setImportTournamentId] = useState("");
   const [importScrimId, setImportScrimId] = useState("");
-  const [screenshotUrl, setScreenshotUrl] = useState("");
-  const [importing, setImporting] = useState(false);
   const [importingBravoFeed, setImportingBravoFeed] = useState(false);
   const [syncingSeason, setSyncingSeason] = useState(false);
   const [creatingNextDay, setCreatingNextDay] = useState(false);
   const [resettingData, setResettingData] = useState(false);
-  const [pubgResult, setPubgResult] = useState<unknown>(null);
 
   const leaderboardRows = useMemo(
     () =>
@@ -488,61 +485,6 @@ export default function AdminDashboard() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setResettingData(false);
-    }
-  }
-
-  async function handleImportMatch() {
-    const matchIds = normalizeMatchIds(matchId);
-    if (matchIds.length === 0) {
-      setError("PUBG Match ID is required");
-      return;
-    }
-
-    setImporting(true);
-    setError(null);
-    try {
-      const results: Array<{ matchId: string; success: boolean; data?: unknown; error?: string }> = [];
-
-      for (const currentMatchId of matchIds) {
-        try {
-          const res = await adminFetch("/api/admin/matches/import", {
-            method: "POST",
-            body: JSON.stringify({
-              matchId: currentMatchId,
-              tournamentId: importTournamentId || undefined,
-              scrimId: importScrimId || undefined,
-              screenshotUrl: screenshotUrl || undefined,
-            }),
-          });
-          results.push({ matchId: currentMatchId, success: true, data: res.data });
-        } catch (err: unknown) {
-          results.push({
-            matchId: currentMatchId,
-            success: false,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
-      }
-
-      const successfulImports = results.filter((result) => result.success);
-      const failedImports = results.filter((result) => !result.success);
-
-      setPubgResult(matchIds.length === 1 ? successfulImports[0]?.data ?? failedImports[0] : results);
-
-      if (failedImports.length > 0) {
-        setError(`Imported ${successfulImports.length}/${matchIds.length} PUBG match IDs. Check the result log below.`);
-      } else {
-        setMessage(
-          matchIds.length === 1
-            ? "Live match data imported from PUBG API"
-            : `${successfulImports.length} PUBG match results imported from the API`
-        );
-      }
-
-      setMatchId("");
-      loadData();
-    } finally {
-      setImporting(false);
     }
   }
 
@@ -1298,8 +1240,10 @@ export default function AdminDashboard() {
 
         {section === "pubg" && (
           <PubgImportManager
+            seasons={seasons}
             tournaments={tournaments}
             scrims={scrims}
+            activeSeasonId={activeSeason?.id}
             initialMatchIds={matchId}
             initialTournamentId={importTournamentId}
             initialScrimId={importScrimId}

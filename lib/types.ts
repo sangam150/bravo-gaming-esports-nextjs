@@ -266,6 +266,7 @@ export interface TournamentStanding {
 export interface ScrimDayResult {
   id: string;
   dayNumber: number;
+  seasonDayNumber?: number;
   label: string;
   date: string;
   displayDate: string;
@@ -499,6 +500,57 @@ export interface PubgImportPreview {
   teamResults: TeamMatchResult[];
   playerResults: MatchPlayerResult[];
   conflicts: PubgImportConflict[];
+}
+
+export type PubgDuplicateMode = "overwrite" | "skip" | "error";
+
+export interface PubgImportContext {
+  seasonId?: string;
+  seasonTitle?: string;
+  seasonDayNumber?: number;
+  tournamentId?: string;
+  tournamentTitle?: string;
+  scrimId?: string;
+  scrimTitle?: string;
+  createdDay?: boolean;
+}
+
+export interface PubgImportIssue {
+  matchId: string;
+  error: string;
+  code:
+    | "invalid_match_id"
+    | "pubg_api_failed"
+    | "scrim_day_missing"
+    | "permission_denied"
+    | "quota_exceeded"
+    | "duplicate_match"
+    | "database_write_failed"
+    | "unknown_error";
+  alreadyImported?: boolean;
+}
+
+export interface PubgBulkPreviewResult {
+  context: PubgImportContext;
+  previews: PubgImportPreview[];
+  errors: PubgImportIssue[];
+}
+
+export interface PubgBulkImportResultItem {
+  matchId: string;
+  success: boolean;
+  skipped?: boolean;
+  alreadyImported?: boolean;
+  error?: string;
+  code?: PubgImportIssue["code"];
+}
+
+export interface PubgBulkImportResult {
+  context: PubgImportContext;
+  results: PubgBulkImportResultItem[];
+  importedCount: number;
+  skippedCount: number;
+  failedCount: number;
 }
 
 export interface CurrentSeasonOverview {

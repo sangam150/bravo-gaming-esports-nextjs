@@ -38,13 +38,13 @@ import type {
 
 type FirestoreRecord = { id: string };
 
-function useCollectionSnapshot<T extends FirestoreRecord>(collectionName: string, initialData: T[]) {
+function useCollectionSnapshot<T extends FirestoreRecord>(collectionName: string, initialData: T[], enabled = true) {
   const [data, setData] = useState<T[]>(initialData);
-  const [loading, setLoading] = useState(isClientFirebaseConfigured());
+  const [loading, setLoading] = useState(enabled && isClientFirebaseConfigured());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isClientFirebaseConfigured()) {
+    if (!enabled || !isClientFirebaseConfigured()) {
       setLoading(false);
       return;
     }
@@ -63,7 +63,7 @@ function useCollectionSnapshot<T extends FirestoreRecord>(collectionName: string
     );
 
     return unsubscribe;
-  }, [collectionName]);
+  }, [collectionName, enabled]);
 
   return { data, loading, error };
 }
@@ -146,15 +146,44 @@ export function useBravoRealtimeData(initial?: {
   scrims?: Scrim[];
   matches?: TournamentMatch[];
   matchResults?: TournamentMatch[];
+}, options?: {
+  seasons?: boolean;
+  tournaments?: boolean;
+  standings?: boolean;
+  teams?: boolean;
+  players?: boolean;
+  scrims?: boolean;
+  matches?: boolean;
+  matchResults?: boolean;
 }) {
-  const seasonsState = useCollectionSnapshot<Season>(COLLECTIONS.seasons, initial?.seasons ?? []);
-  const tournamentsState = useCollectionSnapshot<Tournament>(COLLECTIONS.tournaments, initial?.tournaments ?? []);
-  const standingsState = useCollectionSnapshot<TournamentStanding>(COLLECTIONS.standings, initial?.standings ?? []);
-  const teamsState = useCollectionSnapshot<Team>(COLLECTIONS.teams, initial?.teams ?? []);
-  const playersState = useCollectionSnapshot<Player>(COLLECTIONS.players, initial?.players ?? []);
-  const scrimsState = useCollectionSnapshot<Scrim>(COLLECTIONS.scrims, initial?.scrims ?? []);
-  const matchesState = useCollectionSnapshot<TournamentMatch>(COLLECTIONS.matches, initial?.matches ?? []);
-  const matchResultsState = useCollectionSnapshot<TournamentMatch>(COLLECTIONS.matchResults, initial?.matchResults ?? []);
+  const seasonsState = useCollectionSnapshot<Season>(COLLECTIONS.seasons, initial?.seasons ?? [], options?.seasons !== false);
+  const tournamentsState = useCollectionSnapshot<Tournament>(
+    COLLECTIONS.tournaments,
+    initial?.tournaments ?? [],
+    options?.tournaments !== false
+  );
+  const standingsState = useCollectionSnapshot<TournamentStanding>(
+    COLLECTIONS.standings,
+    initial?.standings ?? [],
+    options?.standings !== false
+  );
+  const teamsState = useCollectionSnapshot<Team>(COLLECTIONS.teams, initial?.teams ?? [], options?.teams !== false);
+  const playersState = useCollectionSnapshot<Player>(
+    COLLECTIONS.players,
+    initial?.players ?? [],
+    options?.players !== false
+  );
+  const scrimsState = useCollectionSnapshot<Scrim>(COLLECTIONS.scrims, initial?.scrims ?? [], options?.scrims !== false);
+  const matchesState = useCollectionSnapshot<TournamentMatch>(
+    COLLECTIONS.matches,
+    initial?.matches ?? [],
+    options?.matches !== false
+  );
+  const matchResultsState = useCollectionSnapshot<TournamentMatch>(
+    COLLECTIONS.matchResults,
+    initial?.matchResults ?? [],
+    options?.matchResults !== false
+  );
 
   const overview = useMemo(
     () =>

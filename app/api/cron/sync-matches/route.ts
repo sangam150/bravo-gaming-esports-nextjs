@@ -1,6 +1,6 @@
 import { fetchPubgPlayerRecentMatches } from "@/lib/pubg";
 import { COLLECTIONS, fetchFirestoreCollection, getFirestoreDocument, saveFirestoreDocument } from "@/lib/firebase";
-import { importPubgMatch } from "@/lib/pubg-sync";
+import { importPubgMatches } from "@/lib/pubg-sync";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import type { PubgImportWatcher, Scrim } from "@/lib/types";
@@ -30,11 +30,23 @@ export async function GET(request: Request) {
       const matchIds = Array.from(
         new Set([...(scrim.pubgMatchIds ?? []), scrim.pubgMatchId].filter((matchId): matchId is string => Boolean(matchId)))
       );
-      for (const matchId of matchIds) {
-        try {
-          await importPubgMatch(matchId, { scrimId: scrim.id });
-          results.push({ source: "scrim", id: scrim.id, matchId, ok: true });
-        } catch (error: unknown) {
+      try {
+        const importResult = await importPubgMatches(matchIds, {
+          scrimId: scrim.id,
+          duplicateMode: "overwrite",
+        });
+
+        for (const result of importResult.results) {
+          results.push({
+            source: "scrim",
+            id: scrim.id,
+            matchId: result.matchId,
+            ok: result.success,
+            error: result.success ? undefined : result.error,
+          });
+        }
+      } catch (error: unknown) {
+        for (const matchId of matchIds) {
           results.push({
             source: "scrim",
             id: scrim.id,
@@ -53,6 +65,7 @@ export async function GET(request: Request) {
         const lookup = await fetchPubgPlayerRecentMatches(watcher.playerName, 10);
         const knownMatchIds = new Set(watcher.importedMatchIds ?? []);
         const importedThisRun: string[] = [];
+        const pendingMatchIds: string[] = [];
 
         for (const match of lookup.recentMatches) {
           if (knownMatchIds.has(match.matchId)) {
@@ -64,23 +77,43 @@ export async function GET(request: Request) {
             knownMatchIds.add(match.matchId);
             continue;
           }
+          pendingMatchIds.push(match.matchId);
+        }
 
+        if (pendingMatchIds.length > 0) {
           try {
-            await importPubgMatch(match.matchId, {
+            const importResult = await importPubgMatches(pendingMatchIds, {
               tournamentId: watcher.tournamentId,
               scrimId: watcher.scrimId,
+              duplicateMode: "overwrite",
             });
-            knownMatchIds.add(match.matchId);
-            importedThisRun.push(match.matchId);
-            results.push({ source: "watcher", id: watcher.id, matchId: match.matchId, ok: true });
+
+            for (const result of importResult.results) {
+              if (result.success) {
+                knownMatchIds.add(result.matchId);
+                if (!result.skipped) {
+                  importedThisRun.push(result.matchId);
+                }
+              }
+
+              results.push({
+                source: "watcher",
+                id: watcher.id,
+                matchId: result.matchId,
+                ok: result.success,
+                error: result.success ? undefined : result.error,
+              });
+            }
           } catch (error: unknown) {
-            results.push({
-              source: "watcher",
-              id: watcher.id,
-              matchId: match.matchId,
-              ok: false,
-              error: error instanceof Error ? error.message : String(error),
-            });
+            for (const matchId of pendingMatchIds) {
+              results.push({
+                source: "watcher",
+                id: watcher.id,
+                matchId,
+                ok: false,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
           }
         }
 

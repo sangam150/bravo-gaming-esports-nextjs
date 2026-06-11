@@ -71,7 +71,15 @@ export default function LeaderboardPageClient({
   overallLabel?: string;
   tournamentLeaderboards?: Array<{ id: string; title: string; subtitle?: string; rows: LeaderboardRow[] }>;
 }) {
-  const { leaderboardRows, overview, tournamentLeaderboards: liveTournamentLeaderboards } = useBravoRealtimeData();
+  const { leaderboardRows, overview, tournamentLeaderboards: liveTournamentLeaderboards } = useBravoRealtimeData(
+    undefined,
+    {
+      players: false,
+      scrims: false,
+      matches: false,
+      matchResults: false,
+    }
+  );
   const activeRows = overview?.leaderboard?.length ? leaderboardRows : initialRows;
   const activeTournamentLeaderboards =
     liveTournamentLeaderboards.length > 0 ? liveTournamentLeaderboards : tournamentLeaderboards;

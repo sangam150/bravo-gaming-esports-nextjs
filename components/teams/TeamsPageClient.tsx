@@ -11,7 +11,18 @@ import type { Team } from "@/lib/types";
 export default function TeamsPageClient({ initialTeams }: { initialTeams: Team[] }) {
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
-  const { overview, teams: liveTeams } = useBravoRealtimeData({ teams: initialTeams });
+  const { overview, teams: liveTeams } = useBravoRealtimeData(
+    { teams: initialTeams },
+    {
+      seasons: false,
+      tournaments: false,
+      standings: false,
+      players: false,
+      scrims: false,
+      matches: false,
+      matchResults: false,
+    }
+  );
 
   const visibleSeasonTeams = useMemo(() => {
     const scopedTeams = overview?.teams?.length ? overview.teams : liveTeams.filter((team) => team.scope !== "tournament");

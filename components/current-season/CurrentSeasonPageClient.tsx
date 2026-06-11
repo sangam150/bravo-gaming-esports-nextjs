@@ -23,7 +23,11 @@ function formatSeasonStatus(value: string) {
 }
 
 export default function CurrentSeasonPageClient({ initialOverview }: { initialOverview: CurrentSeasonOverview | null }) {
-  const { overview } = useBravoRealtimeData();
+  const { overview } = useBravoRealtimeData(undefined, {
+    scrims: false,
+    matches: false,
+    matchResults: false,
+  });
   const activeOverview = overview ?? initialOverview;
 
   if (!activeOverview) {
