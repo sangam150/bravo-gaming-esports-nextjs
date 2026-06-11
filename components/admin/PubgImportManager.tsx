@@ -22,6 +22,7 @@ const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
 const defaultMapRotation = "Rondo, Erangel, Miramar, Taego";
 const pubgMaps = ["Rondo", "Erangel", "Miramar", "Taego", "Deston", "Vikendi", "Sanhok", "Karakin", "Paramo"];
+const defaultSeasonSeriesTitle = "BRAVO GAMING ESPORTS DAILY PUBG PC SCRIMS";
 const kathmanduDateFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Kathmandu",
   year: "numeric",
@@ -58,6 +59,19 @@ function addDays(startDate: string, dayOffset: number) {
   const [year, month, day] = startDate.split("-").map((value) => Number(value));
   const date = new Date(Date.UTC(year, month - 1, day + dayOffset, 12, 0, 0));
   return date.toISOString().slice(0, 10);
+}
+
+function getTodayInKathmandu() {
+  const dateParts = kathmanduDateFormatter.formatToParts(new Date());
+  const year = dateParts.find((part) => part.type === "year")?.value;
+  const month = dateParts.find((part) => part.type === "month")?.value;
+  const day = dateParts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  return `${year}-${month}-${day}`;
 }
 
 function formatKathmanduDateInput(value?: string) {
@@ -195,6 +209,7 @@ export default function PubgImportManager({
   const [loadingLookup, setLoadingLookup] = useState(false);
   const [loadingWatchers, setLoadingWatchers] = useState(false);
   const [preparingDay, setPreparingDay] = useState(false);
+  const [creatingSeason, setCreatingSeason] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [savingWatcher, setSavingWatcher] = useState(false);
@@ -235,6 +250,20 @@ export default function PubgImportManager({
       setSelectedDayNumber(selectedSeason.currentDay);
     }
   }, [selectedDayNumber, selectedSeason]);
+
+  useEffect(() => {
+    if (selectedSeasonId) {
+      const selectedSeasonStillExists = seasons.some((season) => season.id === selectedSeasonId);
+      if (selectedSeasonStillExists) {
+        return;
+      }
+    }
+
+    const fallbackSeasonId = activeSeasonId ?? seasons[0]?.id ?? "";
+    if (fallbackSeasonId && fallbackSeasonId !== selectedSeasonId) {
+      setSelectedSeasonId(fallbackSeasonId);
+    }
+  }, [activeSeasonId, seasons, selectedSeasonId]);
 
   useEffect(() => {
     if (initialMatchIds) {
@@ -524,7 +553,11 @@ export default function PubgImportManager({
 
   async function handlePrepareDay() {
     if (!selectedSeasonId) {
-      setError("Select a season before preparing a scrim day.");
+      setError(
+        seasons.length === 0
+          ? "Create a season first, then prepare the scrim day."
+          : "Select a season before preparing a scrim day."
+      );
       return;
     }
 
@@ -559,6 +592,48 @@ export default function PubgImportManager({
       setError(prepareError instanceof Error ? prepareError.message : String(prepareError));
     } finally {
       setPreparingDay(false);
+    }
+  }
+
+  async function handleCreateDefaultSeason() {
+    setCreatingSeason(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const seasonNumber = Math.max(1, seasons.length + 1);
+      const response = await adminFetch("/api/seasons", {
+        method: "POST",
+        body: JSON.stringify({
+          title: `${defaultSeasonSeriesTitle} Season ${seasonNumber}`,
+          slug: `bravo-gaming-esports-daily-pubg-pc-scrims-season-${seasonNumber}`,
+          seriesTitle: defaultSeasonSeriesTitle,
+          seasonNumber,
+          status: "active",
+          startDate: getTodayInKathmandu(),
+          configuredDays: 15,
+          currentDay: 0,
+          game: "PUBG PC",
+          format: "Squad",
+          region: "Global",
+          perspective: "TPP",
+        }),
+      });
+
+      const createdSeason = response.data as Season;
+      setSelectedSeasonId(createdSeason.id);
+      setSelectedDayNumber(1);
+      setDayTitle(`Day 1 - ${createdSeason.seriesTitle ?? createdSeason.title}`);
+      setDayDate(createdSeason.startDate);
+      setDayMap("Rondo");
+      setDayLobbyTime("8:00 PM NPT");
+      setDayMapRotation(defaultMapRotation);
+      setMessage(response.message ?? "Created the default season. You can prepare Day 1 now.");
+      onImported?.();
+    } catch (seasonError: unknown) {
+      setError(seasonError instanceof Error ? seasonError.message : String(seasonError));
+    } finally {
+      setCreatingSeason(false);
     }
   }
 
@@ -803,10 +878,30 @@ export default function PubgImportManager({
         </div>
       )}
 
+      {seasons.length === 0 && (
+        <div className="esports-card flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="section-heading !text-sm">Season Required</p>
+            <p className="mt-1 text-sm text-text-muted">
+              No season exists yet, so the scrim importer has nothing to attach new days and matches to.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleCreateDefaultSeason()}
+            disabled={creatingSeason}
+            className={btnPrimary}
+          >
+            {creatingSeason ? "Creating Season..." : "Create Default Season"}
+          </button>
+        </div>
+      )}
+
       <div className="esports-card grid gap-4 p-6 xl:grid-cols-2">
         <select
           className={inputClass}
           value={selectedSeasonId}
+          disabled={seasons.length === 0}
           onChange={(event) => {
             setSelectedSeasonId(event.target.value);
             setSelectedTournamentId("");
