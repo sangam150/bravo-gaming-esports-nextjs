@@ -564,6 +564,52 @@ export interface PubgBulkImportResult {
   failedCount: number;
 }
 
+export type PubgImportBatchStatus = "pending" | "approved" | "rejected";
+
+export interface PubgImportBatchPreviewMatch {
+  sourceMatchId: string;
+  matchId: string;
+  matchNumber?: number;
+  map?: string;
+  matchDate?: string;
+  matchTime?: string;
+  alreadyImported?: boolean;
+  summary: PubgImportPreview["summary"];
+  tournamentTitle?: string;
+  scrimTitle?: string;
+  teamResults: TeamMatchResult[];
+  playerResults: MatchPlayerResult[];
+  conflicts: PubgImportConflict[];
+}
+
+export interface PubgImportBatch {
+  id: string;
+  status: PubgImportBatchStatus;
+  seasonId?: string;
+  seasonTitle?: string;
+  seasonDayNumber?: number;
+  tournamentId?: string;
+  tournamentTitle?: string;
+  scrimId?: string;
+  scrimTitle?: string;
+  dayTitle?: string;
+  dayDate?: string;
+  dayMap?: string;
+  dayLobbyTime?: string;
+  dayMapRotation?: string[];
+  matchIds: string[];
+  duplicateMode: PubgDuplicateMode;
+  screenshotUrl?: string;
+  previews: PubgImportBatchPreviewMatch[];
+  matchEdits: PubgImportEdit[];
+  importResult?: PubgBulkImportResult;
+  rejectedReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  approvedAt?: string;
+  rejectedAt?: string;
+}
+
 export interface CurrentSeasonOverview {
   season: Season;
   tournaments: Tournament[];

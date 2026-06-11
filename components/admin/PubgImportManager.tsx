@@ -6,6 +6,7 @@ import { adminFetch } from "@/lib/admin-api";
 import type {
   MatchPlayerResult,
   PubgBulkImportResult,
+  PubgImportBatchPreviewMatch,
   PubgBulkPreviewResult,
   PubgDuplicateMode,
   PubgImportEdit,
@@ -248,6 +249,7 @@ export default function PubgImportManager({
   const [creatingSeason, setCreatingSeason] = useState(false);
   const [showSeasonForm, setShowSeasonForm] = useState(false);
   const [previewing, setPreviewing] = useState(false);
+  const [queueingPending, setQueueingPending] = useState(false);
   const [importing, setImporting] = useState(false);
   const [savingWatcher, setSavingWatcher] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -641,6 +643,24 @@ export default function PubgImportManager({
     }));
   }
 
+  function buildPendingPreviewPayload(): PubgImportBatchPreviewMatch[] {
+    return previewDrafts.map((draft) => ({
+      sourceMatchId: draft.sourceMatchId,
+      matchId: draft.matchId.trim(),
+      matchNumber: draft.matchNumber,
+      map: draft.map.trim() || undefined,
+      matchDate: draft.matchDate || undefined,
+      matchTime: draft.matchTime || undefined,
+      alreadyImported: draft.alreadyImported,
+      summary: draft.summary,
+      tournamentTitle: draft.tournamentTitle,
+      scrimTitle: draft.scrimTitle,
+      teamResults: draft.teamResults,
+      playerResults: draft.playerResults,
+      conflicts: draft.conflicts,
+    }));
+  }
+
   async function handlePrepareDay() {
     if (!selectedSeasonId) {
       setError(
@@ -934,6 +954,57 @@ export default function PubgImportManager({
     }
   }
 
+  async function savePreviewedMatchesToPending() {
+    if (!selectedSeasonId || selectedDayNumber === "") {
+      setError("Select or prepare a scrim day before saving pending imports.");
+      return;
+    }
+
+    if (previewDrafts.length === 0) {
+      setError("Preview at least one PUBG match before saving to pending imports.");
+      return;
+    }
+
+    if (hasEditedMatchIds) {
+      setError("Re-preview edited match IDs before saving them to pending imports.");
+      return;
+    }
+
+    setQueueingPending(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await adminFetch("/api/admin/pending-imports", {
+        method: "POST",
+        body: JSON.stringify({
+          seasonId: selectedSeasonId,
+          seasonTitle: selectedSeason?.seriesTitle ?? selectedSeason?.title,
+          seasonDayNumber: Number(selectedDayNumber),
+          tournamentId: selectedTournamentId || undefined,
+          tournamentTitle: selectedTournament?.title,
+          scrimId: selectedScrimId || undefined,
+          scrimTitle: selectedScrim?.title,
+          matchIds: previewDrafts.map((draft) => draft.matchId.trim()),
+          duplicateMode,
+          screenshotUrl: screenshotUrl || undefined,
+          matchEdits: buildMatchEditPayload(),
+          previews: buildPendingPreviewPayload(),
+          ...getDaySetupPayload(),
+        }),
+      });
+
+      setMessage(response.message ?? "Saved the preview to pending imports.");
+      setPreviewDrafts([]);
+      setPreviewErrors([]);
+      onImported?.();
+    } catch (queueError: unknown) {
+      setError(queueError instanceof Error ? queueError.message : String(queueError));
+    } finally {
+      setQueueingPending(false);
+    }
+  }
+
   async function handleSaveWatcher() {
     if (!lookup) {
       setError("Fetch a PUBG player first before enabling auto-import.");
@@ -996,7 +1067,7 @@ export default function PubgImportManager({
       <div>
         <h2 className="text-2xl font-black text-white">PUBG Match Import</h2>
         <p className="mt-2 text-sm text-text-muted">
-          Select or prepare the scrim day first, preview one or many PUBG match IDs, then import them in one batch.
+          Create the day, fetch PUBG matches, verify the preview, save to pending, then approve and publish.
         </p>
       </div>
 
@@ -1559,11 +1630,19 @@ export default function PubgImportManager({
                   )}
                   <button
                     type="button"
+                    onClick={() => void savePreviewedMatchesToPending()}
+                    disabled={queueingPending || hasEditedMatchIds}
+                    className="btn-secondary"
+                  >
+                    {queueingPending ? "Saving..." : "Save Draft"}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => void importPreviewedMatches()}
                     disabled={importing || hasEditedMatchIds}
                     className={btnPrimary}
                   >
-                    {importing ? "Importing..." : "Confirm Bulk Import"}
+                    {importing ? "Publishing..." : "Approve & Publish Now"}
                   </button>
                   <button
                     type="button"

@@ -1,7 +1,7 @@
 import { ensureSeasonDay, getSeasonDayContext } from "./admin-season-days";
 import { getCurrentSeason, getTournament, getTournamentMatches } from "./data";
 import { BRAVO_DAILY_SCRIMS_SEASON, syncBravoDailyScrimSeason } from "./bravo-season-sync";
-import { getBravoCanonicalTeams, resolveBravoTeamIdentity } from "./bravo-teams";
+import { buildFallbackTeamNameFromSlot, getBravoCanonicalTeams, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
 import {
   COLLECTIONS,
   commitFirestoreWriteOperations,
@@ -62,12 +62,16 @@ function normalizeTeamResults(results: TeamMatchResult[]): TeamMatchResult[] {
   return results
     .map((result) => {
       const resolvedTeam = resolveBravoTeamIdentity(result.teamName);
+      const inferredSlotNumber =
+        resolvedTeam?.slotNumber ?? result.slotNumber ?? parseBravoSlotNumber(result.teamName);
+      const normalizedName =
+        resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? result.teamName;
 
       return {
         ...result,
-        teamId: resolvedTeam?.id ?? slugify(result.teamName),
-        teamName: resolvedTeam?.name ?? result.teamName,
-        slotNumber: resolvedTeam?.slotNumber ?? result.slotNumber,
+        teamId: resolvedTeam?.id ?? slugify(normalizedName),
+        teamName: normalizedName,
+        slotNumber: inferredSlotNumber,
       };
     })
     .sort((firstResult, secondResult) => {
@@ -83,15 +87,18 @@ function buildPlayerResults(players: ParsedPlayerStat[]): MatchPlayerResult[] {
   return players
     .map((player) => {
       const resolvedTeam = resolveBravoTeamIdentity(player.teamName);
+      const inferredSlotNumber = resolvedTeam?.slotNumber ?? parseBravoSlotNumber(player.teamName);
+      const normalizedTeamName =
+        resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? player.teamName;
       const normalizedPlacementPoints = placementPoints(player.placement);
 
       return {
         playerId: player.playerId,
         pubgPlayerId: player.playerId,
         playerName: player.playerName,
-        teamId: resolvedTeam?.id ?? slugify(player.teamName),
-        teamName: resolvedTeam?.name ?? player.teamName,
-        slotNumber: resolvedTeam?.slotNumber,
+        teamId: resolvedTeam?.id ?? slugify(normalizedTeamName),
+        teamName: normalizedTeamName,
+        slotNumber: inferredSlotNumber,
         placement: player.placement,
         kills: player.kills,
         assists: player.assists,
@@ -308,12 +315,22 @@ function normalizeEditedPlayerResults(
         : (teamResult?.placementPoints ?? placementPoints(placement));
       const kills = Number.isFinite(result.kills) ? Number(result.kills) : 0;
       const resolvedTeam = resolveBravoTeamIdentity(teamResult?.teamName ?? result.teamName);
+      const inferredSlotNumber =
+        resolvedTeam?.slotNumber ??
+        teamResult?.slotNumber ??
+        result.slotNumber ??
+        parseBravoSlotNumber(teamResult?.teamName ?? result.teamName);
+      const normalizedTeamName =
+        resolvedTeam?.name ??
+        teamResult?.teamName ??
+        buildFallbackTeamNameFromSlot(inferredSlotNumber) ??
+        result.teamName;
 
       return {
         ...result,
-        teamId: resolvedTeam?.id ?? teamResult?.teamId ?? slugify(result.teamName),
-        teamName: resolvedTeam?.name ?? teamResult?.teamName ?? result.teamName,
-        slotNumber: resolvedTeam?.slotNumber ?? teamResult?.slotNumber ?? result.slotNumber,
+        teamId: resolvedTeam?.id ?? teamResult?.teamId ?? slugify(normalizedTeamName),
+        teamName: normalizedTeamName,
+        slotNumber: inferredSlotNumber,
         placement,
         kills,
         assists: Number.isFinite(result.assists) ? Number(result.assists) : 0,

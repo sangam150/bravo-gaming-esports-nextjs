@@ -18,7 +18,7 @@ import {
   seedTournaments,
   seedVideos,
 } from "./seed-data";
-import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "./bravo-teams";
+import { buildFallbackTeamNameFromSlot, compareBravoTeamSlotOrder, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
 import { buildSeasonLeaderboard, seasonLeaderboardToRows } from "./season-standings";
 import type {
   Announcement,
@@ -156,11 +156,17 @@ function normalizeTournamentPayload(data: Partial<Tournament> & { title: string 
 
 function normalizeTeamPayload(data: Partial<Team> & { name: string }) {
   const canonicalLogo = cleanString(data.logoUrl ?? data.logo);
+  const resolvedTeam = resolveBravoTeamIdentity(data.name);
+  const inferredSlotNumber = resolvedTeam?.slotNumber ?? parseBravoSlotNumber(data.name) ?? toOptionalNumber(data.slotNumber);
+  const normalizedName =
+    resolvedTeam?.name ??
+    buildFallbackTeamNameFromSlot(inferredSlotNumber) ??
+    data.name.trim();
 
   return {
-    name: data.name.trim(),
-    tag: cleanString(data.tag),
-    slotNumber: toOptionalNumber(data.slotNumber),
+    name: normalizedName,
+    tag: resolvedTeam?.tag ?? cleanString(data.tag),
+    slotNumber: inferredSlotNumber,
     logo: canonicalLogo,
     logoUrl: canonicalLogo,
     country: cleanString(data.country),
@@ -849,7 +855,7 @@ export async function getTeamMatchPlayers(teamName: string): Promise<MatchPlayer
 
 export async function saveTeam(data: Partial<Team> & { name: string }, id?: string) {
   const payload = normalizeTeamPayload(data);
-  const docId = id ?? slugify(payload.name);
+  const docId = id ?? resolveBravoTeamIdentity(payload.name)?.id ?? slugify(payload.name);
   if (isFirebaseConfigured()) {
     await saveFirestoreDocument(COLLECTIONS.teams, docId, payload as Record<string, unknown>);
   }

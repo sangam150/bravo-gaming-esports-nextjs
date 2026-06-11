@@ -121,6 +121,23 @@ export default function ResultsPageClient({
                     </div>
                   )}
 
+                  <div className="mt-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Match Results</p>
+                    {day.matches.length === 0 ? (
+                      <div className="mt-3 rounded-card border border-dashed border-white/10 p-4 text-sm text-text-muted">
+                        Waiting for match imports
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {day.matches.map((match, matchIndex) => (
+                          <Link key={match.id} href={`/results/matches/${match.id}`} className="btn-secondary">
+                            Match {match.sequenceNumber ?? matchIndex + 1}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="mt-5 flex flex-wrap gap-2">
                     {tournament && (
                       <Link href={`/tournaments/${tournament.id}`} className="btn-outline-blue">

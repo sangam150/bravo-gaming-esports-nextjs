@@ -5,15 +5,17 @@ import BravoLogo from "@/components/ui/BravoLogo";
 const sections = [
   { id: "dashboard", label: "Dashboard" },
   { id: "seasons", label: "Seasons" },
+  { id: "scrims", label: "Days" },
+  { id: "pendingImports", label: "Pending Imports" },
+  { id: "approvedImports", label: "Approved Imports" },
+  { id: "pubg", label: "PUBG Import" },
   { id: "teams", label: "Teams" },
   { id: "players", label: "Players" },
-  { id: "scrims", label: "Scrims" },
-  { id: "matches", label: "Matches" },
   { id: "tournaments", label: "Tournaments" },
-  { id: "leaderboard", label: "Leaderboard" },
+  { id: "leaderboard", label: "Leaderboards" },
+  { id: "matches", label: "Statistics" },
   { id: "announcements", label: "Announcements" },
   { id: "registrations", label: "Registrations" },
-  { id: "pubg", label: "PUBG Import" },
   { id: "settings", label: "Settings" },
 ] as const;
 

@@ -295,6 +295,10 @@ export function useRealtimeMatches(initialMatches: TournamentMatch[] = []) {
   return useCollectionSnapshot<TournamentMatch>(COLLECTIONS.matches, initialMatches);
 }
 
+export function useRealtimeMatchResult(matchId: string, initialMatch: TournamentMatch | null) {
+  return useDocumentSnapshot<TournamentMatch>(COLLECTIONS.matchResults, matchId, initialMatch);
+}
+
 export function useRealtimeTeam(teamId: string, initialTeam: Team | null) {
   return useDocumentSnapshot<Team>(COLLECTIONS.teams, teamId, initialTeam);
 }

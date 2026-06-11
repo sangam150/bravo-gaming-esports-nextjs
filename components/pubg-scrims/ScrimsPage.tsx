@@ -142,6 +142,9 @@ function MatchBreakdownPanel({ matches }: { matches: ScrimDayResult["matches"] }
                 </p>
                 <h5 className="mt-2 text-xl font-black text-white">{match.map}</h5>
                 <p className="mt-1 text-sm text-text-muted">{formatPlayedAt(match.playedAt)}</p>
+                <Link href={`/results/matches/${match.id}`} className="mt-3 inline-flex text-sm font-semibold text-accent-blue hover:underline">
+                  Open Match Result Page
+                </Link>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-4">

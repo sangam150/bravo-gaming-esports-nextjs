@@ -23,6 +23,7 @@ const COMPETITION_COLLECTIONS: Array<[ResettableCollectionName, string]> = [
   ["scrims", COLLECTIONS.scrims],
   ["pubgMatches", COLLECTIONS.pubgMatches],
   ["pubgPlayers", COLLECTIONS.pubgPlayers],
+  ["pubgImportBatches", COLLECTIONS.pubgImportBatches],
   ["pubgImportWatchers", COLLECTIONS.pubgImportWatchers],
   ["siteStats", COLLECTIONS.siteStats],
 ];

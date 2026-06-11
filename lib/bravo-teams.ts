@@ -87,6 +87,11 @@ export function parseBravoSlotNumber(value?: string | null) {
   return undefined;
 }
 
+export function buildFallbackTeamNameFromSlot(slotNumber?: number) {
+  if (!Number.isFinite(slotNumber)) return undefined;
+  return `Team Slot ${slotNumber}`;
+}
+
 export function resolveBravoTeamIdentity(value?: string | null) {
   const normalizedKey = normalizeTeamKey(value);
   if (normalizedKey) {

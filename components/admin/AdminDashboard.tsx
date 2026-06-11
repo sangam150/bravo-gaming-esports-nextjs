@@ -13,6 +13,7 @@ import type {
   Player,
   PlayerRole,
   PlayerStatus,
+  PubgImportBatch,
   RegistrationStatus,
   Scrim,
   ScrimStatus,
@@ -83,6 +84,23 @@ function formatScrimMatchIds(scrim?: Partial<Scrim>) {
   return getScrimMatchIds(scrim).join("\n");
 }
 
+function sortSeasonTournamentsByDay(firstTournament: Tournament, secondTournament: Tournament) {
+  return (
+    (firstTournament.seasonDayNumber ?? firstTournament.dayNumber ?? Number.POSITIVE_INFINITY) -
+      (secondTournament.seasonDayNumber ?? secondTournament.dayNumber ?? Number.POSITIVE_INFINITY) ||
+    (firstTournament.startDate ?? "").localeCompare(secondTournament.startDate ?? "") ||
+    firstTournament.title.localeCompare(secondTournament.title)
+  );
+}
+
+function sortSeasonScrimsByDay(firstScrim: Scrim, secondScrim: Scrim) {
+  return (
+    (firstScrim.seasonDayNumber ?? Number.POSITIVE_INFINITY) - (secondScrim.seasonDayNumber ?? Number.POSITIVE_INFINITY) ||
+    (firstScrim.date ?? "").localeCompare(secondScrim.date ?? "") ||
+    firstScrim.title.localeCompare(secondScrim.title)
+  );
+}
+
 export default function AdminDashboard() {
   const { user, logout } = useAdminAuth();
   const [section, setSection] = useState<AdminSection>("dashboard");
@@ -95,6 +113,7 @@ export default function AdminDashboard() {
   const [registrations, setRegistrations] = useState<TeamRegistration[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [liveMatches, setLiveMatches] = useState<TournamentMatch[]>([]);
+  const [importBatches, setImportBatches] = useState<PubgImportBatch[]>([]);
   const [recentUploads, setRecentUploads] = useState<UploadRecord[]>([]);
   const [errorLogs, setErrorLogs] = useState<ErrorLogRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -139,6 +158,7 @@ export default function AdminDashboard() {
   const [importingBravoFeed, setImportingBravoFeed] = useState(false);
   const [syncingSeason, setSyncingSeason] = useState(false);
   const [creatingNextDay, setCreatingNextDay] = useState(false);
+  const [processingImportBatchId, setProcessingImportBatchId] = useState<string | null>(null);
   const [resettingData, setResettingData] = useState(false);
 
   const leaderboardRows = useMemo(
@@ -157,6 +177,28 @@ export default function AdminDashboard() {
   const activeSeason = useMemo(
     () => seasons.find((season) => season.status === "active") ?? seasons[0] ?? null,
     [seasons]
+  );
+  const activeSeasonTournaments = useMemo(
+    () =>
+      activeSeason
+        ? tournaments.filter((tournament) => tournament.seasonId === activeSeason.id).sort(sortSeasonTournamentsByDay)
+        : [],
+    [activeSeason, tournaments]
+  );
+  const activeSeasonScrims = useMemo(
+    () =>
+      activeSeason
+        ? scrims.filter((scrim) => scrim.seasonId === activeSeason.id).sort(sortSeasonScrimsByDay)
+        : [],
+    [activeSeason, scrims]
+  );
+  const pendingImportBatches = useMemo(
+    () => importBatches.filter((batch) => batch.status === "pending"),
+    [importBatches]
+  );
+  const processedImportBatches = useMemo(
+    () => importBatches.filter((batch) => batch.status !== "pending"),
+    [importBatches]
   );
 
   const loadData = useCallback(async () => {
@@ -179,22 +221,25 @@ export default function AdminDashboard() {
       setAnnouncements(announcementsRes.data);
 
       try {
-        const [regRes, scrimRes, matchRes, errorRes] = await Promise.all([
+        const [regRes, scrimRes, matchRes, errorRes, importBatchRes] = await Promise.all([
           adminFetch("/api/registrations"),
           adminFetch("/api/admin/scrims"),
           adminFetch("/api/admin/matches"),
           adminFetch("/api/admin/errors?limit=10"),
+          adminFetch("/api/admin/pending-imports"),
         ]);
         setRegistrations(regRes.data);
         setScrims(scrimRes.data);
         setLiveMatches(matchRes.data?.matches ?? []);
         setRecentUploads(matchRes.data?.uploads ?? []);
         setErrorLogs(errorRes.data ?? []);
+        setImportBatches(importBatchRes.data ?? []);
       } catch {
         setRegistrations([]);
         setScrims([]);
         setLiveMatches([]);
         setErrorLogs([]);
+        setImportBatches([]);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -322,6 +367,44 @@ export default function AdminDashboard() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setCreatingNextDay(false);
+    }
+  }
+
+  async function handleImportBatchAction(batchId: string, action: "approve" | "reject") {
+    setProcessingImportBatchId(batchId);
+    setError(null);
+
+    try {
+      const response = await adminFetch(`/api/admin/pending-imports/${batchId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action }),
+      });
+      setMessage(
+        response.message ??
+          (action === "approve" ? "Pending import approved and published." : "Pending import rejected.")
+      );
+      await loadData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessingImportBatchId(null);
+    }
+  }
+
+  async function handleDeleteImportBatch(batchId: string) {
+    setProcessingImportBatchId(batchId);
+    setError(null);
+
+    try {
+      const response = await adminFetch(`/api/admin/pending-imports/${batchId}`, {
+        method: "DELETE",
+      });
+      setMessage(response.message ?? "Import batch deleted.");
+      await loadData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessingImportBatchId(null);
     }
   }
 
@@ -1039,7 +1122,107 @@ export default function AdminDashboard() {
 
         {section === "scrims" && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-black text-white">{editingScrim ? "Edit Scrim" : "Create Daily Scrim"}</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-black text-white">Day Manager</h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  Daily workflow: create the next day, import PUBG matches, verify them, then approve and publish.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleCreateNextDay(activeSeason)}
+                disabled={creatingNextDay || !activeSeason}
+                className={btnPrimary}
+              >
+                {creatingNextDay ? "Creating Day..." : `Create New Day (${(activeSeason?.currentDay ?? 0) + 1})`}
+              </button>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              {activeSeasonTournaments.length === 0 ? (
+                <div className="esports-card p-6 text-sm text-text-muted xl:col-span-2">
+                  Create a season and then create the first day to start the tournament workflow.
+                </div>
+              ) : (
+                activeSeasonTournaments.map((tournament) => {
+                  const linkedScrim =
+                    activeSeasonScrims.find((scrim) => scrim.tournamentId === tournament.id) ??
+                    activeSeasonScrims.find(
+                      (scrim) => scrim.seasonDayNumber === (tournament.seasonDayNumber ?? tournament.dayNumber)
+                    );
+                  const dayNumber = tournament.seasonDayNumber ?? tournament.dayNumber ?? "-";
+
+                  return (
+                    <div key={tournament.id} className="esports-card p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-blue">
+                            Day {dayNumber}
+                          </p>
+                          <p className="mt-2 font-semibold text-white">{tournament.title}</p>
+                          <p className="mt-1 text-sm text-text-muted">
+                            {linkedScrim?.date ?? tournament.startDate} | {linkedScrim?.map ?? "Map pending"} |{" "}
+                            {linkedScrim?.lobbyTime ?? "8:00 PM NPT"}
+                          </p>
+                        </div>
+                        <StatusBadge status={tournament.status} />
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-card border border-white/10 bg-bg-primary p-3">
+                          <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match IDs</p>
+                          <p className="mt-2 font-mono-stat text-white">{getScrimMatchIds(linkedScrim).length}</p>
+                        </div>
+                        <div className="rounded-card border border-white/10 bg-bg-primary p-3">
+                          <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Teams</p>
+                          <p className="mt-2 font-mono-stat text-white">{linkedScrim?.teamIds?.length ?? 0}</p>
+                        </div>
+                        <div className="rounded-card border border-white/10 bg-bg-primary p-3">
+                          <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Import Status</p>
+                          <p className="mt-2 text-sm font-semibold text-white">
+                            {linkedScrim?.status === "waiting_for_data"
+                              ? "Waiting for match imports"
+                              : linkedScrim?.status ?? "Not created"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMatchId(formatScrimMatchIds(linkedScrim));
+                            setImportScrimId(linkedScrim?.id ?? "");
+                            setImportTournamentId(tournament.id);
+                            setSection("pubg");
+                          }}
+                          className="btn-secondary !text-[11px]"
+                        >
+                          Open Import Workflow
+                        </button>
+                        {linkedScrim && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingScrim(linkedScrim.id);
+                              setScrimForm({
+                                ...linkedScrim,
+                                pubgMatchIds: getScrimMatchIds(linkedScrim),
+                                pubgMatchId: getScrimMatchIds(linkedScrim)[0],
+                              });
+                            }}
+                            className="text-bravoBlue text-sm hover:underline"
+                          >
+                            Edit Day
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <h3 className="text-xl font-black text-white">{editingScrim ? "Edit Day Record" : "Manual Day Record"}</h3>
             <form onSubmit={handleScrimSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
               <input className={inputClass} placeholder="Title" value={scrimForm.title ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, title: e.target.value })} required />
               <input className={inputClass} type="date" value={scrimForm.date ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, date: e.target.value })} required />
@@ -1130,9 +1313,269 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {section === "pendingImports" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-black text-white">Pending Imports</h2>
+              <p className="mt-1 text-sm text-text-muted">
+                Reviewed PUBG match batches stay here until you approve and publish them.
+              </p>
+            </div>
+            {pendingImportBatches.length === 0 ? (
+              <div className="esports-card p-8 text-center text-text-muted">
+                No pending imports right now. Save a reviewed preview from the PUBG import workflow to see it here.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingImportBatches.map((batch) => (
+                  <div key={batch.id} className="esports-card p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-blue">
+                          Day {batch.seasonDayNumber ?? "-"} Pending Review
+                        </p>
+                        <p className="mt-2 font-semibold text-white">
+                          {batch.dayTitle ?? batch.scrimTitle ?? batch.tournamentTitle ?? "Pending PUBG Import"}
+                        </p>
+                        <p className="mt-1 text-sm text-text-muted">
+                          {batch.dayDate ?? "Date pending"} | {batch.dayMap ?? "Map pending"} |{" "}
+                          {batch.previews?.length ?? 0} match{(batch.previews?.length ?? 0) === 1 ? "" : "es"}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-accent-yellow/30 bg-accent-yellow/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-accent-yellow">
+                        Pending
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      {(batch.previews ?? []).map((preview) => (
+                        <div key={`${batch.id}-${preview.sourceMatchId}`} className="rounded-card border border-white/10 bg-bg-primary p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.14em] text-text-muted">
+                                Match {preview.matchNumber ?? "-"}
+                              </p>
+                              <p className="mt-2 font-mono text-xs text-white">{preview.matchId}</p>
+                              <p className="mt-1 text-sm text-text-muted">
+                                {preview.map ?? preview.summary.mapName ?? "Map pending"}
+                              </p>
+                              <p className="mt-1 text-xs text-text-muted">
+                                {preview.matchDate ?? "Date pending"} {preview.matchTime ?? ""}
+                              </p>
+                            </div>
+                            <div className="text-right text-xs text-text-muted">
+                              <p>{preview.teamResults.length} teams</p>
+                              <p>{preview.playerResults.length} players</p>
+                            </div>
+                          </div>
+
+                          {preview.teamResults.length > 0 && (
+                            <div className="mt-3 table-scroll">
+                              <table className="data-table min-w-full text-xs">
+                                <thead>
+                                  <tr>
+                                    <th>Slot</th>
+                                    <th>Team</th>
+                                    <th>Place</th>
+                                    <th>K</th>
+                                    <th>Pts</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {preview.teamResults.slice(0, 6).map((teamResult) => (
+                                    <tr key={`${preview.matchId}-${teamResult.teamName}`}>
+                                      <td>{teamResult.slotNumber ? `#${teamResult.slotNumber}` : "-"}</td>
+                                      <td>{teamResult.teamName}</td>
+                                      <td>#{teamResult.placement}</td>
+                                      <td>{teamResult.kills}</td>
+                                      <td>{teamResult.totalPoints}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                          {preview.playerResults.length > 0 && (
+                            <div className="mt-3 table-scroll">
+                              <table className="data-table min-w-full text-xs">
+                                <thead>
+                                  <tr>
+                                    <th>Player</th>
+                                    <th>Team</th>
+                                    <th>K</th>
+                                    <th>Dmg</th>
+                                    <th>A</th>
+                                    <th>Pts</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {preview.playerResults.slice(0, 8).map((playerResult) => (
+                                    <tr key={`${preview.matchId}-${playerResult.pubgPlayerId ?? playerResult.playerName}`}>
+                                      <td>{playerResult.playerName}</td>
+                                      <td>{playerResult.teamName}</td>
+                                      <td>{playerResult.kills}</td>
+                                      <td>{playerResult.damage}</td>
+                                      <td>{playerResult.assists}</td>
+                                      <td>{playerResult.totalPoints}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                          {preview.conflicts?.length > 0 && (
+                            <div className="mt-3 rounded-card border border-accent-yellow/25 bg-accent-yellow/10 px-3 py-2 text-xs text-white">
+                              {preview.conflicts.length} player-team mismatch
+                              {preview.conflicts.length === 1 ? "" : "es"} detected
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleImportBatchAction(batch.id, "approve")}
+                        disabled={processingImportBatchId === batch.id}
+                        className={btnPrimary}
+                      >
+                        {processingImportBatchId === batch.id ? "Publishing..." : "Approve & Publish"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleImportBatchAction(batch.id, "reject")}
+                        disabled={processingImportBatchId === batch.id}
+                        className="btn-secondary"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMatchId((batch.matchIds ?? []).join("\n"));
+                          setImportTournamentId(batch.tournamentId ?? "");
+                          setImportScrimId(batch.scrimId ?? "");
+                          setSection("pubg");
+                        }}
+                        className="text-bravoBlue text-sm hover:underline"
+                      >
+                        Open In Importer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteImportBatch(batch.id)}
+                        disabled={processingImportBatchId === batch.id}
+                        className="text-bravoRed text-sm hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {section === "approvedImports" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-black text-white">Approved Imports</h2>
+              <p className="mt-1 text-sm text-text-muted">
+                Published and rejected PUBG import batches stay here as the admin audit trail.
+              </p>
+            </div>
+            {processedImportBatches.length === 0 ? (
+              <div className="esports-card p-8 text-center text-text-muted">
+                No approved or rejected import batches yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {processedImportBatches.map((batch) => (
+                  <div key={batch.id} className="esports-card p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-blue">
+                          Day {batch.seasonDayNumber ?? "-"} Import History
+                        </p>
+                        <p className="mt-2 font-semibold text-white">
+                          {batch.dayTitle ?? batch.scrimTitle ?? batch.tournamentTitle ?? "PUBG Import Batch"}
+                        </p>
+                        <p className="mt-1 text-sm text-text-muted">
+                          {batch.previews?.length ?? 0} match{(batch.previews?.length ?? 0) === 1 ? "" : "es"} |{" "}
+                          {batch.approvedAt
+                            ? `Published ${new Date(batch.approvedAt).toLocaleString()}`
+                            : batch.rejectedAt
+                            ? `Rejected ${new Date(batch.rejectedAt).toLocaleString()}`
+                            : "Awaiting timestamp"}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${
+                          batch.status === "approved"
+                            ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
+                            : "border-accent-red/30 bg-accent-red/10 text-accent-red"
+                        }`}
+                      >
+                        {batch.status}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-card border border-white/10 bg-bg-primary p-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match Count</p>
+                        <p className="mt-2 font-mono-stat text-white">{batch.matchIds?.length ?? 0}</p>
+                      </div>
+                      <div className="rounded-card border border-white/10 bg-bg-primary p-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Imported</p>
+                        <p className="mt-2 font-mono-stat text-white">{batch.importResult?.importedCount ?? 0}</p>
+                      </div>
+                      <div className="rounded-card border border-white/10 bg-bg-primary p-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Failed</p>
+                        <p className="mt-2 font-mono-stat text-white">{batch.importResult?.failedCount ?? 0}</p>
+                      </div>
+                    </div>
+                    {batch.rejectedReason && (
+                      <p className="mt-4 text-sm text-text-muted">Rejected reason: {batch.rejectedReason}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {section === "matches" && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-black text-white">Live Match Results</h2>
+            <h2 className="text-2xl font-black text-white">Statistics</h2>
+            <p className="text-sm text-text-muted">
+              Live published match results and the current overall team leaderboard.
+            </p>
+            {leaderboardRows.length > 0 && (
+              <div className="esports-card overflow-hidden">
+                <div className="border-b border-white/10 px-5 py-4">
+                  <p className="font-semibold text-white">Overall Leaderboard</p>
+                </div>
+                <div className="table-scroll">
+                  <table className="data-table min-w-full">
+                    <thead><tr><th>#</th><th>Slot</th><th>Team</th><th>M</th><th>K</th><th>Place Pts</th><th>Total</th></tr></thead>
+                    <tbody>
+                      {leaderboardRows.map((team) => (
+                        <tr key={team.id}>
+                          <td className="font-mono-stat text-accent-blue">#{team.rank}</td>
+                          <td>{team.slotNumber ? `#${team.slotNumber}` : "-"}</td>
+                          <td className="font-semibold">{team.name}</td>
+                          <td>{team.matches}</td>
+                          <td>{team.kills}</td>
+                          <td>{team.placementPoints ?? 0}</td>
+                          <td className="points-cell">{team.totalPoints}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             {liveMatches.length === 0 ? (
               <div className="esports-card p-8 text-center text-text-muted">Data not imported yet. Import a PUBG match ID to populate results.</div>
             ) : (

@@ -18,6 +18,7 @@ export const COLLECTIONS = {
   sponsors: "sponsors",
   pubgMatches: "pubgMatches",
   pubgPlayers: "pubgPlayers",
+  pubgImportBatches: "pubgImportBatches",
   pubgImportWatchers: "pubgImportWatchers",
   errorLogs: "errorLogs",
 } as const;

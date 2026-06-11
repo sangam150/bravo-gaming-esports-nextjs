@@ -26,13 +26,15 @@ export function parseMatchParticipants(matchData: unknown): ParsedPlayerStat[] {
 
   const included = data.included ?? [];
   const rosters = new Map<string, { teamName: string; placement: number }>();
+  let fallbackTeamNumber = 0;
 
   for (const item of included) {
     if (item.type === "roster") {
       const stats = item.attributes?.stats as { rank?: number } | undefined;
       const team = item.attributes?.teamId as string | undefined;
+      fallbackTeamNumber += 1;
       rosters.set(item.id, {
-        teamName: team || `Team ${item.id.slice(0, 4)}`,
+        teamName: team || `Team ${fallbackTeamNumber}`,
         placement: stats?.rank ?? 99,
       });
     }
