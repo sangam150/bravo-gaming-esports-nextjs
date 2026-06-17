@@ -59,7 +59,7 @@ export default async function StreamSchedulePage() {
               </div>
             ) : (
               <p className="mt-4 text-sm text-text-muted">
-                Data not imported yet. Add stream schedule entries in Firestore to publish them here.
+                Stream schedule entries will appear here once they are published from admin.
               </p>
             )}
           </div>

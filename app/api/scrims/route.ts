@@ -6,6 +6,6 @@ export async function GET() {
     success: true,
     data,
     days,
-    message: data.length === 0 ? "Data not imported yet" : undefined,
+    message: data.length === 0 ? "Match data will appear once results are published." : undefined,
   });
 }

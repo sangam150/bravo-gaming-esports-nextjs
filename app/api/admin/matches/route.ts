@@ -1,7 +1,6 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { getLiveMatchResults } from "@/lib/pubg-sync";
-import { COLLECTIONS, fetchFirestoreCollection } from "@/lib/firebase";
-import type { UploadRecord } from "@/lib/types";
+import { getRecentUploadRecords } from "@/lib/upload-records";
 
 export async function GET(request: Request) {
   const unauthorized = await requireAdmin(request);
@@ -9,12 +8,12 @@ export async function GET(request: Request) {
 
   const [matches, uploads] = await Promise.all([
     getLiveMatchResults(30),
-    fetchFirestoreCollection<UploadRecord>(COLLECTIONS.uploads, 10).catch(() => []),
+    getRecentUploadRecords(10).catch(() => []),
   ]);
 
   return Response.json({
     success: true,
     data: { matches, uploads },
-    message: matches.length === 0 ? "Data not imported yet" : undefined,
+    message: matches.length === 0 ? "Match results will appear once results are published." : undefined,
   });
 }

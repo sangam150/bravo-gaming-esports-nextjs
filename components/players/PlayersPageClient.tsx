@@ -68,7 +68,7 @@ export default function PlayersPageClient({ initialPlayers }: { initialPlayers: 
       {filteredPlayers.length === 0 ? (
         <div className="mt-6 esports-card p-10 text-center">
           <p className="font-display text-lg font-bold uppercase text-white">
-            {search ? "No players found" : "Data not imported yet"}
+            {search ? "No players found" : "Player profiles will appear after admin approval."}
           </p>
           <p className="mt-2 text-sm text-text-muted">
             {search

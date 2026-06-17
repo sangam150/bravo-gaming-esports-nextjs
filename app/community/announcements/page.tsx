@@ -25,7 +25,7 @@ export default async function CommunityAnnouncementsPage() {
 
         {announcements.length === 0 ? (
           <div className="mt-10 rounded-[28px] border border-dashed border-white/10 bg-slate-950/80 p-8 text-center text-sm text-text-muted">
-            Data not imported yet. Publish announcements from admin to populate the community feed.
+            Community announcements will appear here after they are published from admin.
           </div>
         ) : (
           <div className="mt-10 space-y-6">

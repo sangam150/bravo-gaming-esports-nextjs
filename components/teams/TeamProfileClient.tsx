@@ -92,7 +92,7 @@ export default function TeamProfileClient({
             <div className="esports-card p-6">
               <p className="section-heading !text-sm">Current Roster</p>
               {currentRoster.length === 0 ? (
-                <p className="mt-4 text-sm text-text-muted">Data not imported yet for the current roster.</p>
+                <p className="mt-4 text-sm text-text-muted">Current roster details will appear here after admin approval.</p>
               ) : (
                 <div className="mt-4 grid gap-3">
                   {currentRoster.map((player) => (
@@ -154,7 +154,7 @@ export default function TeamProfileClient({
               </p>
             </div>
             {orderedMatchPlayers.length === 0 ? (
-              <div className="p-8 text-center text-sm text-text-muted">Data not imported yet for historical match appearances.</div>
+              <div className="p-8 text-center text-sm text-text-muted">Historical match appearances will appear here after results are approved.</div>
             ) : (
               <div className="table-scroll">
                 <table className="data-table min-w-full">

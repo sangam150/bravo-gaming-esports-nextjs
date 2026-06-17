@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const SESSION_COOKIE = "bravo_admin_session";
+const SESSION_COOKIE = "bravo_session";
 
 export function proxy(request: NextRequest) {
   if (!request.nextUrl.pathname.startsWith("/admin")) {

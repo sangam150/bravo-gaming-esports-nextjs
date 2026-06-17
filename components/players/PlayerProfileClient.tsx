@@ -106,7 +106,7 @@ export default function PlayerProfileClient({
             <div className="esports-card p-6">
               <p className="section-heading !text-sm">Team History</p>
               {teamHistory.length === 0 ? (
-                <p className="mt-4 text-sm text-text-muted">Data not imported yet for this player&apos;s team history.</p>
+                <p className="mt-4 text-sm text-text-muted">Team history will appear here after approved match results are available.</p>
               ) : (
                 <div className="mt-4 space-y-3">
                   {teamHistory.map((teamEntry) => (
@@ -138,7 +138,7 @@ export default function PlayerProfileClient({
               </p>
             </div>
             {orderedMatchPlayers.length === 0 ? (
-              <div className="p-8 text-center text-sm text-text-muted">Data not imported yet for player match history.</div>
+              <div className="p-8 text-center text-sm text-text-muted">Player match history will appear here after approved results are available.</div>
             ) : (
               <div className="table-scroll">
                 <table className="data-table min-w-full">

@@ -44,7 +44,7 @@ async function deleteEntireCollection(collectionName: string) {
 
 export async function resetCompetitionData(): Promise<AdminResetSummary> {
   if (!isFirebaseConfigured()) {
-    throw new Error("Firebase is not configured. Connect Firestore before running a data reset.");
+    throw new Error("Supabase is not configured. Connect the Supabase data store before running a data reset.");
   }
 
   const deletedEntries = await Promise.all(

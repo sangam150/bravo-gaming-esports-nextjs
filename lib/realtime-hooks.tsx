@@ -2,15 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  where,
-  type DocumentData,
-  type FirestoreError,
-} from "firebase/firestore";
-import {
   buildFallbackTeamNameFromSlot,
   canonicalizeBravoTeamName,
   parseBravoSlotNumber,
@@ -22,8 +13,13 @@ import {
   comparePlayerLeaderboardPerformance,
 } from "./ranking-sort";
 import { buildCurrentSeasonOverviewFromCollections, buildFallbackLeaderboardRows, buildScrimDayResultsFromCollections, buildTournamentLeaderboardGroups } from "./bravo-live-derivations";
-import { COLLECTIONS } from "./firestore-collections";
-import { getClientFirestore, isClientFirebaseConfigured } from "./firebase-client";
+import { COLLECTIONS } from "./document-collections";
+import { getSupabaseBrowserClient } from "./supabase/browser-client";
+import { isSupabaseConfigured } from "./supabase/env";
+import {
+  SUPABASE_DOCUMENT_STORE_TABLE,
+  mapSupabaseDocumentStoreRow,
+} from "./supabase/document-store";
 import type {
   Announcement,
   CurrentSeasonOverview,
@@ -48,7 +44,7 @@ import type {
   VideoItem,
 } from "./types";
 
-type FirestoreRecord = { id: string };
+type DocumentRecord = { id: string };
 
 function toFiniteNumber(value?: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -151,100 +147,223 @@ function normalizeRealtimeMatchPlayerRecord(matchPlayer: MatchPlayerRecord): Mat
   };
 }
 
-function useCollectionSnapshot<T extends FirestoreRecord>(collectionName: string, initialData: T[], enabled = true) {
+function canUseSupabaseRealtime() {
+  return isSupabaseConfigured();
+}
+
+function getRealtimeErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+async function fetchSupabaseCollectionSnapshot<T extends DocumentRecord>(collectionName: string, limit = 1000) {
+  const { data, error } = await getSupabaseBrowserClient()
+    .from(SUPABASE_DOCUMENT_STORE_TABLE)
+    .select("collection_name,id,data,created_at,updated_at")
+    .eq("collection_name", collectionName)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map((row) => mapSupabaseDocumentStoreRow<T>(row));
+}
+
+async function fetchSupabaseDocumentSnapshot<T extends DocumentRecord>(collectionName: string, id: string) {
+  const { data, error } = await getSupabaseBrowserClient()
+    .from(SUPABASE_DOCUMENT_STORE_TABLE)
+    .select("collection_name,id,data,created_at,updated_at")
+    .eq("collection_name", collectionName)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? mapSupabaseDocumentStoreRow<T>(data) : null;
+}
+
+function matchesSupabaseFieldValue(record: Record<string, unknown>, field: string, value: string) {
+  return record[field] === value;
+}
+
+async function fetchSupabaseWhereSnapshot<T extends DocumentRecord>(
+  collectionName: string,
+  field: string,
+  value: string,
+  limit = 1000
+) {
+  const records = await fetchSupabaseCollectionSnapshot<T>(collectionName, limit);
+  return records.filter((record) => matchesSupabaseFieldValue(record as Record<string, unknown>, field, value));
+}
+
+function useCollectionSnapshot<T extends DocumentRecord>(collectionName: string, initialData: T[], enabled = true) {
   const [data, setData] = useState<T[]>(initialData);
-  const [loading, setLoading] = useState(enabled && isClientFirebaseConfigured());
+  const [loading, setLoading] = useState(enabled && canUseSupabaseRealtime());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!enabled || !isClientFirebaseConfigured()) {
+    if (!enabled || !canUseSupabaseRealtime()) {
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onSnapshot(
-      collection(getClientFirestore(), collectionName),
-      (snapshot) => {
-        setData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as T));
+    let active = true;
+    const client = getSupabaseBrowserClient();
+    const channel = client.channel(`app-documents:${collectionName}`);
+
+    const load = async () => {
+      try {
+        const rows = await fetchSupabaseCollectionSnapshot<T>(collectionName, 2000);
+        if (!active) return;
+        setData(rows);
         setLoading(false);
         setError(null);
-      },
-      (snapshotError: FirestoreError) => {
+      } catch (snapshotError: unknown) {
+        if (!active) return;
         setLoading(false);
-        setError(snapshotError.message);
+        setError(getRealtimeErrorMessage(snapshotError));
       }
-    );
+    };
 
-    return unsubscribe;
+    void load();
+
+    channel
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: SUPABASE_DOCUMENT_STORE_TABLE,
+        filter: `collection_name=eq.${collectionName}`,
+      }, () => {
+        void load();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      void client.removeChannel(channel);
+    };
   }, [collectionName, enabled]);
 
   return { data, loading, error };
 }
 
-function useWhereSnapshot<T extends FirestoreRecord>(
+function useWhereSnapshot<T extends DocumentRecord>(
   collectionName: string,
   field: string,
   value: string | undefined,
   initialData: T[]
 ) {
   const [data, setData] = useState<T[]>(initialData);
-  const [loading, setLoading] = useState(Boolean(value) && isClientFirebaseConfigured());
+  const [loading, setLoading] = useState(Boolean(value) && canUseSupabaseRealtime());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!value || !isClientFirebaseConfigured()) {
+    if (!value || !canUseSupabaseRealtime()) {
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onSnapshot(
-      query(collection(getClientFirestore(), collectionName), where(field, "==", value)),
-      (snapshot) => {
-        setData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as T));
+    let active = true;
+    const client = getSupabaseBrowserClient();
+    const channel = client.channel(`app-documents:${collectionName}:${field}:${value}`);
+
+    const load = async () => {
+      try {
+        const rows = await fetchSupabaseWhereSnapshot<T>(collectionName, field, value, 2500);
+        if (!active) return;
+        setData(rows);
         setLoading(false);
         setError(null);
-      },
-      (snapshotError: FirestoreError) => {
+      } catch (snapshotError: unknown) {
+        if (!active) return;
         setLoading(false);
-        setError(snapshotError.message);
+        setError(getRealtimeErrorMessage(snapshotError));
       }
-    );
+    };
 
-    return unsubscribe;
+    void load();
+
+    channel
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: SUPABASE_DOCUMENT_STORE_TABLE,
+        filter: `collection_name=eq.${collectionName}`,
+      }, () => {
+        void load();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      void client.removeChannel(channel);
+    };
   }, [collectionName, field, value]);
 
   return { data, loading, error };
 }
 
-function useDocumentSnapshot<T extends FirestoreRecord>(
+function useDocumentSnapshot<T extends DocumentRecord>(
   collectionName: string,
   id: string | undefined,
   initialData: T | null
 ) {
   const [data, setData] = useState<T | null>(initialData);
-  const [loading, setLoading] = useState(Boolean(id) && isClientFirebaseConfigured());
+  const [loading, setLoading] = useState(Boolean(id) && canUseSupabaseRealtime());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id || !isClientFirebaseConfigured()) {
+    if (!id || !canUseSupabaseRealtime()) {
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onSnapshot(
-      doc(getClientFirestore(), collectionName, id),
-      (snapshot) => {
-        setData(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as T) : null);
+    let active = true;
+    const client = getSupabaseBrowserClient();
+    const channel = client.channel(`app-documents:${collectionName}:${id}`);
+
+    const load = async () => {
+      try {
+        const document = await fetchSupabaseDocumentSnapshot<T>(collectionName, id);
+        if (!active) return;
+        setData(document);
         setLoading(false);
         setError(null);
-      },
-      (snapshotError: FirestoreError) => {
+      } catch (snapshotError: unknown) {
+        if (!active) return;
         setLoading(false);
-        setError(snapshotError.message);
+        setError(getRealtimeErrorMessage(snapshotError));
       }
-    );
+    };
 
-    return unsubscribe;
+    void load();
+
+    channel
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: SUPABASE_DOCUMENT_STORE_TABLE,
+        filter: `collection_name=eq.${collectionName}`,
+      }, () => {
+        void load();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      void client.removeChannel(channel);
+    };
   }, [collectionName, id]);
 
   return { data, loading, error };
@@ -351,7 +470,7 @@ export function useBravoRealtimeData(initial?: {
   );
 
   return {
-    configured: isClientFirebaseConfigured(),
+    configured: canUseSupabaseRealtime(),
     seasons: seasonsState.data,
     tournaments: tournamentsState.data,
     standings: normalizedStandings,
@@ -402,10 +521,10 @@ export function useRealtimeSponsors(initialSponsors: SponsorItem[] = []) {
 }
 
 export function useRealtimeSiteStats(initialStats: SiteStats | null) {
-  return useDocumentSnapshot<SiteStats & FirestoreRecord>(
+  return useDocumentSnapshot<SiteStats & DocumentRecord>(
     COLLECTIONS.siteStats,
     "main",
-    initialStats ? ({ id: "main", ...initialStats } as SiteStats & FirestoreRecord) : null
+    initialStats ? ({ id: "main", ...initialStats } as SiteStats & DocumentRecord) : null
   );
 }
 

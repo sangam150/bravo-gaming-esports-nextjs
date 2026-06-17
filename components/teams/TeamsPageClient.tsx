@@ -59,7 +59,7 @@ export default function TeamsPageClient({ initialTeams }: { initialTeams: Team[]
       {filteredTeams.length === 0 ? (
         <div className="esports-card mt-6 p-10 text-center">
           <p className="font-display text-lg font-bold uppercase text-white">
-            {search ? "No teams found" : "Data not imported yet"}
+            {search ? "No teams found" : "Team profiles will appear after admin approval."}
           </p>
           <p className="mt-2 text-sm text-text-muted">
             {search

@@ -1,16 +1,14 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  type User,
-} from "firebase/auth";
-import { getClientAuth, isClientFirebaseConfigured } from "@/lib/firebase-client";
+import type { User } from "@supabase/supabase-js";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 type AuthContextValue = {
   user: User | null;
+  role: string | null;
+  isAdmin: boolean;
   loading: boolean;
   configured: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -27,19 +25,23 @@ export function useAdminAuth() {
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const configured = isClientFirebaseConfigured();
+  const configured = isSupabaseConfigured();
 
-  const establishSession = useCallback(async (idToken: string) => {
+  const establishSession = useCallback(async (accessToken: string) => {
     const response = await fetch("/api/auth/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify({ accessToken }),
       credentials: "include",
     });
-    return response.json().catch(() => ({ success: false, claimsUpdated: false })) as Promise<{
+    return response.json().catch(() => ({ success: false })) as Promise<{
       success?: boolean;
-      claimsUpdated?: boolean;
+      user?: {
+        role?: string;
+        isAdmin?: boolean;
+      };
     }>;
   }, []);
 
@@ -53,59 +55,119 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    const auth = getClientAuth();
-    const unsub = onAuthStateChanged(auth, async (nextUser) => {
-      setUser(nextUser);
-      if (nextUser) {
-        try {
-          const token = await nextUser.getIdToken();
-          const session = await establishSession(token);
-          if (session.claimsUpdated) {
-            await nextUser.getIdToken(true);
-          }
-        } catch {
-          /* session cookie optional fallback */
-        }
+    const supabase = getSupabaseBrowserClient();
+    let active = true;
+
+    void supabase.auth.getSession().then(async ({ data, error }) => {
+      if (!active) return;
+
+      if (error) {
+        setLoading(false);
+        return;
       }
+
+      const nextUser = data.session?.user ?? null;
+      setUser(nextUser);
+
+      if (data.session?.access_token) {
+        try {
+          const sessionData = await establishSession(data.session.access_token);
+          setRole(sessionData.user?.role ?? null);
+        } catch {
+          /* browser session can stay active even if the admin cookie refresh fails */
+          setRole(null);
+        }
+      } else {
+        setRole(null);
+      }
+
       setLoading(false);
     });
-    return () => unsub();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!active) return;
+
+      setUser(session?.user ?? null);
+
+      try {
+        if (session?.access_token) {
+          const sessionData = await establishSession(session.access_token);
+          setRole(sessionData.user?.role ?? null);
+        } else {
+          await clearSession();
+          setRole(null);
+        }
+      } catch {
+        /* cookie sync failure should not crash the auth provider */
+        setRole(null);
+      }
+
+      setLoading(false);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, [configured, establishSession]);
 
   const login = useCallback(
     async (email: string, password: string) => {
-      if (!configured) throw new Error("Firebase client is not configured");
-      const auth = getClientAuth();
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const token = await cred.user.getIdToken();
-      const res = await fetch("/api/auth/session", {
+      if (!configured) throw new Error("Supabase is not configured");
+
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.session?.access_token || !data.user) {
+        throw new Error("Admin login failed");
+      }
+
+      const sessionResponse = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: token }),
+        body: JSON.stringify({ accessToken: data.session.access_token }),
         credentials: "include",
       });
-      const data = await res.json();
-      if (!res.ok) {
-        await signOut(auth);
-        throw new Error(data.error || "Admin login failed");
+      const sessionData = await sessionResponse.json().catch(() => ({}));
+
+      if (!sessionResponse.ok) {
+        await supabase.auth.signOut();
+        throw new Error(sessionData.error || "Admin login failed");
       }
-      if (data.claimsUpdated) {
-        await cred.user.getIdToken(true);
+
+      if (!sessionData.user?.isAdmin) {
+        await clearSession();
+        await supabase.auth.signOut();
+        throw new Error("This account does not have admin access.");
       }
-      setUser(cred.user);
+
+      setUser(data.user);
+      setRole(sessionData.user?.role ?? null);
     },
-    [configured]
+    [configured, clearSession]
   );
 
   const logout = useCallback(async () => {
     await clearSession();
-    if (configured) await signOut(getClientAuth());
+    if (configured) {
+      await getSupabaseBrowserClient().auth.signOut();
+    }
     setUser(null);
+    setRole(null);
   }, [configured, clearSession]);
 
   const value = useMemo(
-    () => ({ user, loading, configured, login, logout }),
-    [user, loading, configured, login, logout]
+    () => ({ user, role, isAdmin: role === "super_admin" || role === "admin" || role === "moderator", loading, configured, login, logout }),
+    [user, role, loading, configured, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

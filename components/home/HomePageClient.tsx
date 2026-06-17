@@ -42,7 +42,12 @@ function countdown(startDate: string) {
 }
 
 function isPlaceholderValue(value: string) {
-  return value.trim().toLowerCase().includes("not imported yet");
+  const normalizedValue = value.trim().toLowerCase();
+  return (
+    normalizedValue.includes("not imported yet") ||
+    normalizedValue.includes("updates soon") ||
+    normalizedValue.includes("coming soon")
+  );
 }
 
 export default function HomePageClient({
@@ -126,7 +131,7 @@ export default function HomePageClient({
     { label: "Prize Pools Awarded", value: activeStats.prizePoolsAwarded },
     {
       label: "Community Members",
-      value: activeStats.communityMembers > 0 ? `${activeStats.communityMembers.toLocaleString()}+` : "Not imported yet",
+      value: activeStats.communityMembers > 0 ? `${activeStats.communityMembers.toLocaleString()}+` : "Community updates soon",
     },
     { label: "YouTube Views", value: activeStats.youtubeViews },
   ];
@@ -256,7 +261,7 @@ export default function HomePageClient({
               <p className="mt-4 text-sm text-text-muted">
                 {activeOverview.currentTournament?.matchCount
                   ? "Current day match data is syncing into standings automatically."
-                  : "Matches not imported yet for the active day."}
+                  : "Active-day results will appear here after admin approval."}
               </p>
             </div>
 
@@ -273,7 +278,7 @@ export default function HomePageClient({
                 </div>
               </div>
               {activeOverview.leaderboard.length === 0 ? (
-                <div className="p-6 text-center text-sm text-text-muted">Matches not imported yet for season standings.</div>
+                <div className="p-6 text-center text-sm text-text-muted">Season standings will appear here after approved results are published.</div>
               ) : (
                 <div className="table-scroll">
                   <table className="data-table min-w-full">
@@ -357,7 +362,7 @@ export default function HomePageClient({
                         </div>
                         {(tournament.matchCount ?? 0) === 0 && (
                           <p className="mt-2 text-xs uppercase tracking-[0.1em] text-text-muted">
-                            Matches not imported yet
+                            Results pending
                           </p>
                         )}
                       </div>
@@ -373,7 +378,7 @@ export default function HomePageClient({
             <div className="esports-card overflow-hidden !p-0">
               {activeLeaderboard.length === 0 ? (
                 <div className="flex min-h-[220px] items-center justify-center p-6 text-center text-sm text-text-muted">
-                  Matches not imported yet. The leaderboard will populate automatically after imports.
+                  Approved results will populate the leaderboard automatically.
                 </div>
               ) : (
                 <div className="table-scroll">
@@ -448,7 +453,7 @@ export default function HomePageClient({
               </div>
             ) : (
               <div className="esports-card flex min-h-[220px] items-center justify-center p-6 text-center text-sm text-text-muted">
-                Matches not imported yet for MVP rankings.
+                MVP rankings will appear after the first approved results are published.
               </div>
             )}
           </div>
@@ -459,7 +464,7 @@ export default function HomePageClient({
             <SectionHeader title="Latest Videos" linkLabel="View All" linkHref="/videos" />
             {activeVideos.length === 0 ? (
               <div className="esports-card p-6 text-center text-sm text-text-muted">
-                Video content is stored in Firestore and will appear here after publishing.
+                Published videos will appear here once the media team adds them from admin.
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
@@ -510,7 +515,7 @@ export default function HomePageClient({
             <SectionHeader title="Upcoming Streams" linkLabel="View Schedule" linkHref="/stream-schedule" />
             {activeStreams.length === 0 ? (
               <div className="esports-card p-6 text-center text-sm text-text-muted">
-                Stream schedule data is published from Firestore and will appear here automatically.
+                Stream schedule entries will appear here automatically after publishing.
               </div>
             ) : (
               <div className="space-y-3">

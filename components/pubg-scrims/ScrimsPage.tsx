@@ -44,7 +44,7 @@ const statusClassNames: Record<ScrimDayStatus, string> = {
 };
 
 function getStatusLabel(status: ScrimDayStatus) {
-  if (status === "waiting_for_data") return "Matches not imported yet";
+  if (status === "waiting_for_data") return "Results pending";
   if (status === "mixed") return "Mixed status";
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
@@ -120,7 +120,7 @@ function MatchBreakdownPanel({ matches }: { matches: ScrimDayResult["matches"] }
   if (matches.length === 0) {
     return (
       <div className="rounded-card border border-dashed border-white/10 px-4 py-8 text-center text-sm text-text-muted">
-        Matches not imported yet for match-by-match results.
+        Match-by-match results will be published after admin approval.
       </div>
     );
   }
@@ -305,8 +305,8 @@ function SchedulePanel() {
 function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
   if (days.length === 0) {
     return (
-      <div className="esports-card p-8 text-center text-text-muted">
-        <p className="font-display font-bold uppercase text-white">Matches not imported yet</p>
+        <div className="esports-card p-8 text-center text-text-muted">
+        <p className="font-display font-bold uppercase text-white">Results pending</p>
         <p className="mt-2 text-sm">
           Create scrim entries in admin, import PUBG match IDs, and the daily results will appear here automatically.
         </p>
@@ -419,12 +419,12 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
             <div className="rounded-card border border-white/10 bg-bg-primary p-4">
               <div className="flex items-center justify-between gap-3">
                 <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-white">Daily Standings</h4>
-                <span className="text-xs text-text-muted">Stored in Firebase after PUBG sync</span>
+                <span className="text-xs text-text-muted">Stored in the Bravo data hub after PUBG sync</span>
               </div>
 
               {day.leaderboard.length === 0 ? (
                 <div className="mt-4 rounded-card border border-dashed border-white/10 px-4 py-8 text-center text-sm text-text-muted">
-                  Matches not imported yet for {day.label}. Add the PUBG match ID in admin and import it to
+                  Results for {day.label} will be published after admin approval. Add the PUBG match ID in admin and import it to
                   populate the table.
                 </div>
               ) : (
@@ -501,7 +501,7 @@ export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
         <h1 className="hero-h1 mt-2 !text-4xl">Daily Scrims</h1>
         <p className="mt-3 max-w-3xl text-text-muted">
           Competitive scrim rooms with verified daily standings. Each day&apos;s results are fetched from the PUBG API,
-          stored in Firebase, and displayed here as Day 1, Day 2, Day 3, and beyond.
+          stored in Bravo&apos;s Supabase-backed data hub, and displayed here as Day 1, Day 2, Day 3, and beyond.
         </p>
       </div>
 

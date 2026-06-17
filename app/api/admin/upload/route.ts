@@ -1,15 +1,16 @@
-import { requireAdmin } from "@/lib/admin-auth";
-import { COLLECTIONS, createFirestoreDocument } from "@/lib/firebase";
-import { buildStoragePath, deleteFromStorageByUrl, uploadToStorage } from "@/lib/firebase-storage";
+import { getRequestSession, requireAdmin } from "@/lib/admin-auth";
+import { buildStoragePath, deleteFromStorageByUrl, uploadToStorage } from "@/lib/supabase-storage";
+import { createUploadRecord } from "@/lib/upload-records";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
-import { normalizeUploadType, resolveImageContentType, validateImageUpload } from "@/lib/upload-config";
+import { normalizeUploadType, resolveUploadContentType, validateUpload } from "@/lib/upload-config";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const session = await getRequestSession(request);
 
   const limited = enforceRateLimit(request, { key: "admin-upload", maxRequests: 20, windowMs: 60_000 });
   if (limited) return limited;
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "file and type are required" }, { status: 400 });
     }
 
-    const validationError = validateImageUpload({
+    const validationError = validateUpload({
       type,
       fileName: file.name,
       contentType: file.type,
@@ -37,19 +38,20 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const contentType = resolveImageContentType(file.name, file.type) || "application/octet-stream";
-    const path = buildStoragePath(type, entityId, file.name);
-    const url = await uploadToStorage(buffer, path, contentType);
+    const contentType = (type && resolveUploadContentType(type, file.name, file.type)) || "application/octet-stream";
+    const { bucket, path } = buildStoragePath(type, entityId, file.name);
+    const url = await uploadToStorage(bucket, path, buffer, contentType);
 
-    const record = await createFirestoreDocument(COLLECTIONS.uploads, {
-      path,
-      url,
-      type,
-      entityId,
+    const record = await createUploadRecord({
+      fileUrl: url,
+      filePath: path,
+      fileType: type,
+      relatedType: "admin_upload",
+      relatedId: entityId,
+      uploadedBy: session?.profileId ?? null,
       fileName: file.name,
       contentType,
       sizeBytes: file.size,
-      uploadedAt: new Date().toISOString(),
     });
 
     if (previousUrl && previousUrl !== url) {

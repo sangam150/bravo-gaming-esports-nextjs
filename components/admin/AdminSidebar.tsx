@@ -24,16 +24,20 @@ export type AdminSection = (typeof sections)[number]["id"];
 export default function AdminSidebar({
   active,
   onChange,
-  firebaseConnected,
+  dataConnected,
+  dataBackend,
   onLogout,
   adminEmail,
 }: {
   active: AdminSection;
   onChange: (section: AdminSection) => void;
-  firebaseConnected: boolean;
+  dataConnected: boolean;
+  dataBackend?: string | null;
   onLogout?: () => void;
   adminEmail?: string;
 }) {
+  const backendLabel = dataBackend ? `${dataBackend[0].toUpperCase()}${dataBackend.slice(1)} data connected` : null;
+
   return (
     <aside className="esports-card flex w-full flex-col gap-4 p-4 xl:sticky xl:top-20 xl:w-56 xl:shrink-0">
       <div className="mb-6 flex items-center gap-2 border-b border-white/[0.08] pb-4">
@@ -62,8 +66,8 @@ export default function AdminSidebar({
       <div className="space-y-3 border-t border-white/[0.08] pt-4 xl:mt-auto">
         {adminEmail && <p className="truncate text-[10px] text-text-muted">{adminEmail}</p>}
         <div className="flex items-center gap-2 text-[10px] text-text-muted">
-          <span className={`h-1.5 w-1.5 rounded-full ${firebaseConnected ? "bg-accent-green" : "bg-accent-yellow"}`} />
-          {firebaseConnected ? "Firebase connected" : "Seed data mode"}
+          <span className={`h-1.5 w-1.5 rounded-full ${dataConnected ? "bg-accent-green" : "bg-accent-yellow"}`} />
+          {dataConnected ? backendLabel ?? "Live data connected" : "Seed data mode"}
         </div>
         {onLogout && (
           <button type="button" onClick={onLogout} className="w-full rounded-btn border border-white/10 px-3 py-2 text-left text-[10px] font-bold uppercase text-text-muted hover:bg-bg-hover hover:text-white">

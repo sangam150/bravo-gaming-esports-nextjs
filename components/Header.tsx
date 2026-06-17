@@ -10,13 +10,19 @@ const navItems = [
   {
     label: "PUBG PC",
     items: [
+      { label: "Dashboard", href: "/pubg" },
+      { label: "Events", href: "/pubg/events" },
+      { label: "Results", href: "/pubg/results" },
+      { label: "Leaderboards", href: "/pubg/leaderboards" },
+      { label: "Teams", href: "/pubg/teams" },
+      { label: "Players", href: "/pubg/players" },
+      { label: "Compare", href: "/pubg/compare" },
+      { label: "Fantasy", href: "/pubg/fantasy" },
+      { label: "Access", href: "/pubg/access" },
       { label: "Daily Scrims", href: "/pubg-scrims" },
       { label: "Tournaments", href: "/tournaments" },
       { label: "Schedule", href: "/schedule" },
-      { label: "Results", href: "/results" },
       { label: "Leaderboard", href: "/leaderboard" },
-      { label: "Teams", href: "/teams" },
-      { label: "Players", href: "/players" },
       { label: "MVP Rankings", href: "/mvp-ranking" },
       { label: "Hall of Fame", href: "/hall-of-fame" },
     ],
@@ -46,6 +52,13 @@ const navItems = [
       { label: "Announcements", href: "/community/announcements" },
       { label: "Giveaways", href: "/giveaways" },
       { label: "Feedback", href: "/feedback" },
+    ],
+  },
+  {
+    label: "Portal",
+    items: [
+      { label: "IGL Panel", href: "/team" },
+      { label: "Admin Panel", href: "/admin" },
     ],
   },
   {
@@ -136,8 +149,14 @@ export default function Header() {
             ))}
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/team" className="btn-secondary !px-4 !py-2">
+              Team IGL
+            </Link>
             <Link href="/live-stream" className="btn-watch-live !px-4 !py-2">
               <span className="live-dot h-1.5 w-1.5" /> Watch Live
+            </Link>
+            <Link href="/admin" className="rounded-btn border border-white/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.08em] text-text-muted transition hover:bg-white/[0.04] hover:text-white">
+              Admin
             </Link>
             <a href="https://kamaucha.me/bravo" target="_blank" rel="noreferrer" className="btn-discord !px-4 !py-2">
               Join Discord
@@ -178,8 +197,14 @@ export default function Header() {
               )}
             </div>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <Link href="/team" className="btn-secondary justify-center text-center" onClick={() => setOpen(false)}>
+                Team IGL
+              </Link>
               <Link href="/live-stream" className="btn-watch-live justify-center text-center" onClick={() => setOpen(false)}>
                 Watch Live
+              </Link>
+              <Link href="/admin" className="rounded-btn border border-white/10 px-4 py-2 text-center text-sm font-bold uppercase tracking-[0.08em] text-text-muted hover:bg-bg-hover hover:text-white" onClick={() => setOpen(false)}>
+                Admin
               </Link>
               <a href="https://kamaucha.me/bravo" className="btn-discord justify-center text-center">
                 Join Discord

@@ -46,7 +46,7 @@ export default async function CommunityPage() {
           <div className="esports-card p-5">
             <h3 className="section-heading !text-sm">Latest Announcements</h3>
             {announcements.length === 0 ? (
-              <p className="mt-4 text-sm text-text-muted">Data not imported yet for community announcements.</p>
+              <p className="mt-4 text-sm text-text-muted">Community announcements will appear here after publishing.</p>
             ) : (
               <ul className="mt-4 space-y-3">
                 {announcements.map((a) => (
@@ -63,8 +63,8 @@ export default async function CommunityPage() {
             <h3 className="section-heading !text-sm">Community Stats</h3>
             <dl className="mt-4 space-y-3">
               {[
-                ["Registered Teams", teams.length > 0 ? `${teams.length}` : "Data not imported yet"],
-                ["Announcements", announcements.length > 0 ? `${announcements.length}` : "Data not imported yet"],
+                ["Registered Teams", teams.length > 0 ? `${teams.length}` : "Publishing soon"],
+                ["Announcements", announcements.length > 0 ? `${announcements.length}` : "Publishing soon"],
                 ["Match Data", "Import-driven only"],
                 ["Status", "Realtime after import"],
               ].map(([k, v]) => (

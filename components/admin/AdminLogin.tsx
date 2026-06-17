@@ -31,7 +31,7 @@ export default function AdminLogin() {
           <div className="mx-auto w-fit"><BravoLogo size={56} /></div>
           <h1 className="mt-4 font-display text-2xl font-black uppercase text-white">Admin Login</h1>
           <p className="mt-3 text-sm text-text-muted">
-            Firebase client is not configured. Add NEXT_PUBLIC_FIREBASE_* variables and ADMIN_EMAIL to your environment.
+            Supabase auth is not configured. Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and your admin user records.
           </p>
         </div>
       </div>
@@ -45,7 +45,7 @@ export default function AdminLogin() {
           <div className="mx-auto w-fit"><BravoLogo size={56} /></div>
           <p className="section-title mt-4">Staff Only</p>
           <h1 className="mt-2 font-display text-3xl font-black uppercase text-white">Admin Login</h1>
-          <p className="mt-2 text-sm text-text-muted">Sign in with your authorized Firebase admin account.</p>
+          <p className="mt-2 text-sm text-text-muted">Sign in with your authorized Supabase admin account.</p>
         </div>
 
         {error && (

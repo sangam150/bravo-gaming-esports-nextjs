@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const playerName = body.playerName?.trim();
-    const saveToFirebase = Boolean(body.saveToFirebase);
+    const shouldSaveLookup = Boolean(body.saveLookup ?? body.saveToFirebase);
 
     if (!playerName) {
       return new Response(JSON.stringify({ error: "playerName is required" }), { status: 400 });
@@ -29,9 +29,9 @@ export async function POST(request: Request) {
       }))
     );
 
-    let firebaseResult = null;
-    if (saveToFirebase) {
-      firebaseResult = await saveFirestoreDocument("pubgPlayers", lookup.playerId, {
+    let savedLookup = null;
+    if (shouldSaveLookup) {
+      savedLookup = await saveFirestoreDocument("pubgPlayers", lookup.playerId, {
         playerName: lookup.playerName,
         shardId: lookup.shardId,
         recentMatches,
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     };
 
     return new Response(
-      JSON.stringify({ success: true, data: playerLookup, firebaseResult }),
+      JSON.stringify({ success: true, data: playerLookup, savedLookup }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {

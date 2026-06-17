@@ -214,7 +214,7 @@ export async function ensureSeasonDay(
   options?: { createIfMissing?: boolean; overrides?: SeasonDayOverrides }
 ) {
   if (!isFirebaseConfigured()) {
-    throw new Error("Firebase is not configured. Connect Firestore before creating a new scrim day.");
+    throw new Error("Supabase is not configured. Connect the Supabase data store before creating a new scrim day.");
   }
 
   if (!Number.isFinite(seasonDayNumber) || seasonDayNumber < 1) {
@@ -279,7 +279,7 @@ export async function ensureSeasonDay(
 
 export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDayOverrides) {
   if (!isFirebaseConfigured()) {
-    throw new Error("Firebase is not configured. Connect Firestore before creating a new scrim day.");
+    throw new Error("Supabase is not configured. Connect the Supabase data store before creating a new scrim day.");
   }
 
   const { season, seasonTournaments, seasonTeams, seasonScrims } = await loadSeasonDayCollections(seasonId);

@@ -1,10 +1,23 @@
 create extension if not exists pgcrypto;
 
+create table if not exists public.app_documents (
+  collection_name text not null,
+  id text not null,
+  data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  primary key (collection_name, id)
+);
+
+create index if not exists app_documents_collection_name_idx on public.app_documents (collection_name);
+create index if not exists app_documents_collection_updated_at_idx on public.app_documents (collection_name, updated_at desc);
+
 create type public.user_role as enum (
   'super_admin',
   'admin',
   'moderator',
   'team_igl',
+  'caster',
   'viewer'
 );
 
@@ -34,6 +47,17 @@ create table if not exists public.users (
   role public.user_role not null default 'viewer',
   team_id uuid,
   created_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.profiles (
+  id uuid primary key default gen_random_uuid(),
+  auth_user_id uuid not null unique,
+  email text not null unique,
+  display_name text,
+  role public.user_role not null default 'viewer',
+  team_id uuid,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
 );
 
 create table if not exists public.seasons (
@@ -75,6 +99,18 @@ create table if not exists public.events (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.events add column if not exists name text;
+alter table public.events add column if not exists slug text;
+alter table public.events add column if not exists type text;
+alter table public.events add column if not exists mode text;
+alter table public.events add column if not exists perspective text;
+alter table public.events add column if not exists prize_pool text;
+alter table public.events add column if not exists rules text;
+alter table public.events add column if not exists stream_url text;
+alter table public.events add column if not exists discord_url text;
+alter table public.events add column if not exists published boolean not null default false;
+create unique index if not exists events_slug_unique_idx on public.events (slug);
+
 create table if not exists public.teams (
   id uuid primary key default gen_random_uuid(),
   slot_number integer unique,
@@ -86,6 +122,10 @@ create table if not exists public.teams (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.teams add column if not exists tag text;
+alter table public.teams add column if not exists region text;
+alter table public.teams add column if not exists is_active boolean not null default true;
 
 create unique index if not exists teams_name_lower_unique_idx on public.teams (lower(name));
 
@@ -99,6 +139,9 @@ create table if not exists public.players (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.players add column if not exists avatar_url text;
+alter table public.players add column if not exists is_active boolean not null default true;
 
 create unique index if not exists players_pubg_name_lower_unique_idx on public.players (lower(pubg_name));
 
@@ -116,6 +159,11 @@ create table if not exists public.matches (
   updated_at timestamptz not null default timezone('utc', now()),
   unique (day_id, match_number)
 );
+
+alter table public.matches add column if not exists event_id uuid references public.events(id) on delete set null;
+alter table public.matches add column if not exists map_name text;
+alter table public.matches add column if not exists start_time timestamptz;
+alter table public.matches add column if not exists vod_url text;
 
 create table if not exists public.match_players (
   id uuid primary key default gen_random_uuid(),
@@ -188,13 +236,108 @@ create table if not exists public.import_logs (
 create table if not exists public.roster_requests (
   id uuid primary key default gen_random_uuid(),
   team_id uuid not null references public.teams(id) on delete cascade,
-  requested_by uuid not null references public.users(id) on delete cascade,
+  requested_by uuid not null references public.profiles(id) on delete cascade,
   request_type text not null,
+  old_player_id uuid references public.players(id) on delete set null,
+  new_player_name text,
+  new_player_pubg_name text,
   payload jsonb not null default '{}'::jsonb,
   status public.request_status not null default 'pending',
   admin_note text,
   created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
   reviewed_at timestamptz
+);
+
+create table if not exists public.team_roster_history (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references public.teams(id) on delete cascade,
+  player_id uuid not null references public.players(id) on delete cascade,
+  start_date date not null,
+  end_date date,
+  status text not null default 'active',
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.event_teams (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.events(id) on delete cascade,
+  team_id uuid not null references public.teams(id) on delete cascade,
+  slot_number integer,
+  status text not null default 'registered',
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (event_id, team_id)
+);
+
+create table if not exists public.match_team_results (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references public.matches(id) on delete cascade,
+  team_id uuid not null references public.teams(id) on delete cascade,
+  placement integer not null default 0,
+  kills integer not null default 0,
+  placement_points integer not null default 0,
+  kill_points integer not null default 0,
+  total_points integer not null default 0,
+  wwcd boolean not null default false,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (match_id, team_id)
+);
+
+create table if not exists public.match_player_results (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references public.matches(id) on delete cascade,
+  player_id uuid not null references public.players(id) on delete cascade,
+  team_id uuid references public.teams(id) on delete set null,
+  kills integer not null default 0,
+  assists integer not null default 0,
+  knocks integer not null default 0,
+  damage integer not null default 0,
+  survival_time integer not null default 0,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (match_id, player_id)
+);
+
+create table if not exists public.moss_submissions (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid references public.events(id) on delete set null,
+  match_id uuid references public.matches(id) on delete set null,
+  team_id uuid not null references public.teams(id) on delete cascade,
+  player_id uuid references public.players(id) on delete set null,
+  file_url text,
+  external_link text,
+  status text not null default 'submitted',
+  admin_note text,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.uploads (
+  id uuid primary key default gen_random_uuid(),
+  file_url text not null,
+  file_path text,
+  file_type text not null,
+  related_type text not null,
+  related_id uuid,
+  uploaded_by uuid references public.profiles(id) on delete set null,
+  file_name text,
+  content_type text,
+  size_bytes bigint,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references public.profiles(id) on delete set null,
+  action text not null,
+  entity_type text not null,
+  entity_id uuid,
+  old_data jsonb,
+  new_data jsonb,
+  created_at timestamptz not null default timezone('utc', now())
 );
 
 create table if not exists public.announcements (
@@ -239,12 +382,16 @@ create table if not exists public.settings (
 alter table public.users add constraint users_team_id_fkey
   foreign key (team_id) references public.teams(id) on delete set null;
 
+alter table public.profiles add constraint profiles_team_id_fkey
+  foreign key (team_id) references public.teams(id) on delete set null;
+
 create or replace function public.current_user_role()
 returns public.user_role
 language sql
 stable
 as $$
   select coalesce(
+    (select role from public.profiles where auth_user_id = auth.uid() limit 1),
     (select role from public.users where auth_user_id = auth.uid() limit 1),
     'viewer'::public.user_role
   );
@@ -255,7 +402,10 @@ returns uuid
 language sql
 stable
 as $$
-  select team_id from public.users where auth_user_id = auth.uid() limit 1;
+  select coalesce(
+    (select team_id from public.profiles where auth_user_id = auth.uid() limit 1),
+    (select team_id from public.users where auth_user_id = auth.uid() limit 1)
+  );
 $$;
 
 create or replace function public.is_admin_role()
@@ -448,21 +598,30 @@ select
 from aggregated;
 
 alter table public.users enable row level security;
+alter table public.profiles enable row level security;
 alter table public.seasons enable row level security;
 alter table public.days enable row level security;
 alter table public.events enable row level security;
+alter table public.event_teams enable row level security;
 alter table public.teams enable row level security;
 alter table public.players enable row level security;
+alter table public.team_roster_history enable row level security;
 alter table public.matches enable row level security;
+alter table public.match_team_results enable row level security;
+alter table public.match_player_results enable row level security;
 alter table public.match_players enable row level security;
 alter table public.match_results enable row level security;
 alter table public.pending_imports enable row level security;
 alter table public.import_logs enable row level security;
 alter table public.roster_requests enable row level security;
+alter table public.moss_submissions enable row level security;
+alter table public.uploads enable row level security;
+alter table public.audit_logs enable row level security;
 alter table public.announcements enable row level security;
 alter table public.sponsors enable row level security;
 alter table public.videos enable row level security;
 alter table public.settings enable row level security;
+alter table public.app_documents enable row level security;
 
 create policy "public read seasons" on public.seasons
 for select using (true);
@@ -471,12 +630,18 @@ create policy "public read days" on public.days
 for select using (true);
 
 create policy "public read events" on public.events
-for select using (true);
+for select using (coalesce(published, true));
 
 create policy "public read teams" on public.teams
 for select using (true);
 
 create policy "public read players" on public.players
+for select using (true);
+
+create policy "public read event teams" on public.event_teams
+for select using (true);
+
+create policy "public read roster history" on public.team_roster_history
 for select using (true);
 
 create policy "public read announcements" on public.announcements
@@ -514,7 +679,31 @@ for select using (
   )
 );
 
+create policy "public read approved team results" on public.match_team_results
+for select using (
+  exists (
+    select 1
+    from public.matches m
+    where m.id = match_team_results.match_id
+      and m.status in ('approved', 'published')
+  )
+);
+
+create policy "public read approved player results" on public.match_player_results
+for select using (
+  exists (
+    select 1
+    from public.matches m
+    where m.id = match_player_results.match_id
+      and m.status in ('approved', 'published')
+  )
+);
+
 create policy "admin manage all users" on public.users
+for all using (public.is_admin_role())
+with check (public.is_admin_role());
+
+create policy "admin manage all profiles" on public.profiles
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
@@ -522,6 +711,13 @@ create policy "self read user profile" on public.users
 for select using (auth.uid() = auth_user_id);
 
 create policy "self update user profile" on public.users
+for update using (auth.uid() = auth_user_id)
+with check (auth.uid() = auth_user_id);
+
+create policy "self read profile" on public.profiles
+for select using (auth.uid() = auth_user_id);
+
+create policy "self update profile" on public.profiles
 for update using (auth.uid() = auth_user_id)
 with check (auth.uid() = auth_user_id);
 
@@ -537,6 +733,10 @@ create policy "admin manage events" on public.events
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+create policy "admin manage event teams" on public.event_teams
+for all using (public.is_admin_role())
+with check (public.is_admin_role());
+
 create policy "admin manage teams" on public.teams
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
@@ -545,7 +745,19 @@ create policy "admin manage players" on public.players
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+create policy "admin manage roster history" on public.team_roster_history
+for all using (public.is_admin_role())
+with check (public.is_admin_role());
+
 create policy "admin manage matches" on public.matches
+for all using (public.is_admin_role())
+with check (public.is_admin_role());
+
+create policy "admin manage team results" on public.match_team_results
+for all using (public.is_admin_role())
+with check (public.is_admin_role());
+
+create policy "admin manage player results" on public.match_player_results
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
@@ -580,6 +792,13 @@ create policy "admin manage settings" on public.settings
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+create policy "public read app documents" on public.app_documents
+for select using (true);
+
+create policy "admin manage app documents" on public.app_documents
+for all using (public.is_admin_role())
+with check (public.is_admin_role());
+
 create policy "admin read roster requests" on public.roster_requests
 for select using (public.is_admin_role());
 
@@ -599,58 +818,91 @@ for select using (
   and team_id = public.current_user_team_id()
 );
 
+create policy "admin manage moss submissions" on public.moss_submissions
+for all using (public.is_admin_role())
+with check (public.is_admin_role());
+
+create policy "igl submit own team moss" on public.moss_submissions
+for insert with check (
+  public.current_user_role() = 'team_igl'
+  and team_id = public.current_user_team_id()
+);
+
+create policy "igl read own team moss" on public.moss_submissions
+for select using (
+  public.current_user_role() = 'team_igl'
+  and team_id = public.current_user_team_id()
+);
+
+create policy "admin manage uploads" on public.uploads
+for all using (public.is_admin_role())
+with check (public.is_admin_role());
+
+create policy "igl read own team uploads" on public.uploads
+for select using (
+  public.current_user_role() = 'team_igl'
+  and related_id = public.current_user_team_id()
+);
+
+create policy "igl create own team uploads" on public.uploads
+for insert with check (
+  public.current_user_role() = 'team_igl'
+  and related_id = public.current_user_team_id()
+);
+
+create policy "admin read audit logs" on public.audit_logs
+for select using (public.is_admin_role());
+
 insert into storage.buckets (id, name, public)
 values
   ('team-logos', 'team-logos', true),
-  ('player-photos', 'player-photos', true),
-  ('tournament-banners', 'tournament-banners', true),
+  ('player-avatars', 'player-avatars', true),
+  ('event-banners', 'event-banners', true),
   ('sponsor-logos', 'sponsor-logos', true),
-  ('website-assets', 'website-assets', true)
+  ('result-screenshots', 'result-screenshots', true),
+  ('moss-files', 'moss-files', true),
+  ('stream-assets', 'stream-assets', true)
 on conflict (id) do nothing;
 
 create policy "public read public storage buckets"
 on storage.objects
 for select
-using (bucket_id in ('team-logos', 'player-photos', 'tournament-banners', 'sponsor-logos', 'website-assets'));
+using (bucket_id in ('team-logos', 'player-avatars', 'event-banners', 'sponsor-logos', 'result-screenshots', 'moss-files', 'stream-assets'));
 
 create policy "admin manage storage buckets"
 on storage.objects
 for all
 using (
-  bucket_id in ('team-logos', 'player-photos', 'tournament-banners', 'sponsor-logos', 'website-assets')
+  bucket_id in ('team-logos', 'player-avatars', 'event-banners', 'sponsor-logos', 'result-screenshots', 'moss-files', 'stream-assets')
   and public.is_admin_role()
 )
 with check (
-  bucket_id in ('team-logos', 'player-photos', 'tournament-banners', 'sponsor-logos', 'website-assets')
+  bucket_id in ('team-logos', 'player-avatars', 'event-banners', 'sponsor-logos', 'result-screenshots', 'moss-files', 'stream-assets')
   and public.is_admin_role()
 );
 
 insert into public.teams (slot_number, name, short_name, description, status)
 values
   (1, 'FYB Esports', 'FYB', 'Default Bravo slot team', 'active'),
-  (2, 'Mandem', 'MANDEM', 'Default Bravo slot team', 'active'),
+  (2, 'Mandem BoyZ', 'MBZ', 'Default Bravo slot team', 'active'),
   (3, 'The Lost MC Esports', 'LMC', 'Default Bravo slot team', 'active'),
-  (4, 'FYB FAN BOY', 'FYBFB', 'Default Bravo slot team', 'active'),
-  (5, 'Omega Tactix', 'OTX', 'Default Bravo slot team', 'active'),
-  (6, 'NPL', 'NPL', 'Default Bravo slot team', 'active'),
-  (7, 'N3P', 'N3P', 'Default Bravo slot team', 'active'),
-  (8, 'Team HAKU', 'HAKU', 'Default Bravo slot team', 'active'),
-  (9, 'LootAddicts', 'LA', 'Default Bravo slot team', 'active'),
-  (10, 'Mujuverse', 'MV', 'Default Bravo slot team', 'active'),
-  (11, 'Lang Tang Gang (LTG)', 'LTG', 'Default Bravo slot team', 'active'),
-  (12, 'Kaal', 'KAAL', 'Default Bravo slot team', 'active'),
-  (13, 'Bir Gorkhali', 'BG', 'Default Bravo slot team', 'active'),
-  (14, 'Illumaniti Gamers', 'IG', 'Default Bravo slot team', 'active'),
-  (15, 'Sons', 'SONS', 'Default Bravo slot team', 'active'),
-  (16, 'Ace', 'ACE', 'Default Bravo slot team', 'active'),
-  (17, 'M8', 'M8', 'Default Bravo slot team', 'active'),
+  (4, 'Omega Tactix', 'OTX', 'Default Bravo slot team', 'active'),
+  (5, 'NPL', 'NPL', 'Default Bravo slot team', 'active'),
+  (6, 'Near Edge Protocol', 'N3P', 'Default Bravo slot team', 'active'),
+  (7, 'Team HAKU', 'HAKU', 'Default Bravo slot team', 'active'),
+  (8, 'Loot Addicts', 'LA', 'Default Bravo slot team', 'active'),
+  (9, 'Mujuverse', 'MV', 'Default Bravo slot team', 'active'),
+  (10, 'Lang Tang Gang', 'LTG', 'Default Bravo slot team', 'active'),
+  (11, 'KDS', 'KDS', 'Default Bravo slot team', 'active'),
+  (12, 'Bir Gorkhali', 'BG', 'Default Bravo slot team', 'active'),
+  (13, 'Illumaniti Gamers', 'IG', 'Default Bravo slot team', 'active'),
+  (14, 'Sons of Nepal', 'SONS', 'Default Bravo slot team', 'active'),
+  (15, 'Ace', 'ACE', 'Default Bravo slot team', 'active'),
+  (16, 'M8', 'M8', 'Default Bravo slot team', 'active'),
+  (17, '69 Esports', '69ES', 'Default Bravo slot team', 'active'),
   (18, 'Arabpati Esports', 'AE', 'Default Bravo slot team', 'active'),
-  (19, 'GedaGudi', 'GG', 'Default Bravo slot team', 'active'),
-  (20, 'The Young Man', 'TYM', 'Default Bravo slot team', 'active'),
-  (21, 'AIA (APEX IN ACTION)', 'AIA', 'Default Bravo slot team', 'active'),
-  (22, 'Team 69', 'T69', 'Default Bravo slot team', 'active'),
-  (23, 'Fam', 'FAM', 'Default Bravo slot team', 'active'),
-  (24, 'Families', 'FAMILIES', 'Default Bravo slot team', 'active')
+  (19, 'Fam', 'FAM', 'Default Bravo slot team', 'active'),
+  (20, 'Families', 'FAMILIES', 'Default Bravo slot team', 'active')
 on conflict (slot_number) do update
 set
   name = excluded.name,
@@ -667,6 +919,401 @@ values
   ('discord_invite_url', jsonb_build_object('value', ''))
 on conflict (key) do nothing;
 
+insert into public.app_documents (collection_name, id, data)
+values
+  (
+    'siteStats',
+    'main',
+    jsonb_build_object(
+      'teamsRegistered', 24,
+      'matchesHosted', 0,
+      'tournamentsCompleted', 0,
+      'prizePoolsAwarded', 'Season updates soon',
+      'communityMembers', 0,
+      'youtubeViews', 'Channel updates soon',
+      'currentDay', 0
+    )
+  ),
+  (
+    'teams',
+    'fyb-esports',
+    jsonb_build_object(
+      'name', 'FYB Esports',
+      'tag', 'FYB',
+      'slotNumber', 1,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'mandem',
+    jsonb_build_object(
+      'name', 'Mandem',
+      'slotNumber', 2,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'the-lost-mc-esports',
+    jsonb_build_object(
+      'name', 'The Lost MC Esports',
+      'tag', 'LMC',
+      'slotNumber', 3,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'fyb-fan-boy',
+    jsonb_build_object(
+      'name', 'FYB FAN BOY',
+      'tag', 'FYBFB',
+      'slotNumber', 4,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'omega-tactix',
+    jsonb_build_object(
+      'name', 'Omega Tactix',
+      'tag', 'OTX',
+      'slotNumber', 5,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'npl',
+    jsonb_build_object(
+      'name', 'NPL',
+      'slotNumber', 6,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'n3p',
+    jsonb_build_object(
+      'name', 'N3P',
+      'slotNumber', 7,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'team-haku',
+    jsonb_build_object(
+      'name', 'Team HAKU',
+      'tag', 'HAKU',
+      'slotNumber', 8,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'lootaddicts',
+    jsonb_build_object(
+      'name', 'LootAddicts',
+      'tag', 'LA',
+      'slotNumber', 9,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'mujuverse',
+    jsonb_build_object(
+      'name', 'Mujuverse',
+      'tag', 'MV',
+      'slotNumber', 10,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'lang-tang-gang-ltg',
+    jsonb_build_object(
+      'name', 'Lang Tang Gang (LTG)',
+      'tag', 'LTG',
+      'slotNumber', 11,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'kaal',
+    jsonb_build_object(
+      'name', 'Kaal',
+      'slotNumber', 12,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'bir-gorkhali',
+    jsonb_build_object(
+      'name', 'Bir Gorkhali',
+      'tag', 'BG',
+      'slotNumber', 13,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'illumaniti-gamers',
+    jsonb_build_object(
+      'name', 'Illumaniti Gamers',
+      'tag', 'IG',
+      'slotNumber', 14,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'sons',
+    jsonb_build_object(
+      'name', 'Sons',
+      'slotNumber', 15,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'ace',
+    jsonb_build_object(
+      'name', 'Ace',
+      'slotNumber', 16,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'm8',
+    jsonb_build_object(
+      'name', 'M8',
+      'slotNumber', 17,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'arabpati-esports',
+    jsonb_build_object(
+      'name', 'Arabpati Esports',
+      'tag', 'AE',
+      'slotNumber', 18,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'gedagudi',
+    jsonb_build_object(
+      'name', 'GedaGudi',
+      'tag', 'GG',
+      'slotNumber', 19,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'the-young-man',
+    jsonb_build_object(
+      'name', 'The Young Man',
+      'tag', 'TYM',
+      'slotNumber', 20,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'aia-apex-in-action',
+    jsonb_build_object(
+      'name', 'AIA ( APEX IN ACTION )',
+      'tag', 'AIA',
+      'slotNumber', 21,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'team-69',
+    jsonb_build_object(
+      'name', 'Team 69',
+      'tag', 'T69',
+      'slotNumber', 22,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'fam',
+    jsonb_build_object(
+      'name', 'Fam',
+      'slotNumber', 23,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  ),
+  (
+    'teams',
+    'families',
+    jsonb_build_object(
+      'name', 'Families',
+      'slotNumber', 24,
+      'totalPoints', 0,
+      'kills', 0,
+      'matches', 0,
+      'killPoints', 0,
+      'placementPoints', 0,
+      'status', 'active',
+      'registrationStatus', 'approved'
+    )
+  )
+on conflict (collection_name, id) do update
+set
+  data = excluded.data,
+  updated_at = timezone('utc', now());
+
 create trigger seasons_set_updated_at
 before update on public.seasons
 for each row execute function public.set_updated_at();
@@ -675,8 +1322,16 @@ create trigger days_set_updated_at
 before update on public.days
 for each row execute function public.set_updated_at();
 
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute function public.set_updated_at();
+
 create trigger events_set_updated_at
 before update on public.events
+for each row execute function public.set_updated_at();
+
+create trigger event_teams_set_updated_at
+before update on public.event_teams
 for each row execute function public.set_updated_at();
 
 create trigger teams_set_updated_at
@@ -687,12 +1342,32 @@ create trigger players_set_updated_at
 before update on public.players
 for each row execute function public.set_updated_at();
 
+create trigger team_roster_history_set_updated_at
+before update on public.team_roster_history
+for each row execute function public.set_updated_at();
+
 create trigger matches_set_updated_at
 before update on public.matches
 for each row execute function public.set_updated_at();
 
+create trigger match_team_results_set_updated_at
+before update on public.match_team_results
+for each row execute function public.set_updated_at();
+
+create trigger match_player_results_set_updated_at
+before update on public.match_player_results
+for each row execute function public.set_updated_at();
+
 create trigger pending_imports_set_updated_at
 before update on public.pending_imports
+for each row execute function public.set_updated_at();
+
+create trigger roster_requests_set_updated_at
+before update on public.roster_requests
+for each row execute function public.set_updated_at();
+
+create trigger moss_submissions_set_updated_at
+before update on public.moss_submissions
 for each row execute function public.set_updated_at();
 
 create trigger announcements_set_updated_at
@@ -709,4 +1384,8 @@ for each row execute function public.set_updated_at();
 
 create trigger settings_set_updated_at
 before update on public.settings
+for each row execute function public.set_updated_at();
+
+create trigger app_documents_set_updated_at
+before update on public.app_documents
 for each row execute function public.set_updated_at();

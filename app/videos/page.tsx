@@ -12,7 +12,7 @@ export default async function VideosPage() {
             <p className="section-title">Videos & Highlights</p>
             <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] text-white sm:text-5xl">Stream Clips & Replay</h1>
             <p className="mt-5 max-w-2xl text-slate-300">
-              Stored Bravo videos and highlight reels appear here after they are published to Firestore.
+              Stored Bravo videos and highlight reels appear here after they are published from admin.
             </p>
           </div>
           <Link
@@ -26,7 +26,7 @@ export default async function VideosPage() {
 
         {videos.length === 0 ? (
           <div className="mt-10 rounded-[28px] border border-dashed border-white/10 bg-slate-950/80 p-8 text-center text-sm text-text-muted">
-            Data not imported yet. Add videos in Firestore to publish them on this page.
+            Videos will appear here after the content team publishes them from admin.
           </div>
         ) : (
           <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">

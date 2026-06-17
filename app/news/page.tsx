@@ -21,7 +21,7 @@ export default async function NewsPage() {
         <div className="mt-10 space-y-6">
           {updates.length === 0 ? (
             <div className="esports-card p-8 text-center text-sm text-text-muted">
-              Data not imported yet. Publish announcements from the admin dashboard to populate this page.
+              Announcements will appear here after they are published from the admin dashboard.
             </div>
           ) : (
             updates.map((item) => (

@@ -1,5 +1,6 @@
 import type { UploadType } from "./upload-config";
 
+export type PlatformRole = "super_admin" | "admin" | "moderator" | "team_igl" | "caster" | "viewer";
 export type TournamentStatus = "LIVE" | "OPEN" | "REGISTERING" | "UPCOMING" | "COMPLETED";
 export type RegistrationStatus = "pending" | "approved" | "rejected";
 export type PlayerRole = "IGL" | "Assaulter" | "Support" | "Sniper" | "Substitute";
@@ -375,6 +376,101 @@ export interface UploadRecord {
   contentType?: string;
   sizeBytes?: number;
   uploadedAt: string;
+}
+
+export interface AuthenticatedUserProfile {
+  profileId: string | null;
+  uid: string;
+  email: string;
+  role: PlatformRole | string;
+  teamId: string | null;
+  displayName: string | null;
+  isAdmin: boolean;
+}
+
+export type RosterRequestType =
+  | "add_player"
+  | "remove_player"
+  | "update_pubg_name"
+  | "roster_change"
+  | "logo_update";
+
+export type ReviewStatus = "pending" | "approved" | "rejected" | "review_later";
+
+export interface TeamRosterRequest {
+  id: string;
+  teamId: string;
+  requestedBy: string | null;
+  requestType: RosterRequestType | string;
+  status: ReviewStatus;
+  adminNote?: string | null;
+  oldPlayerId?: string | null;
+  newPlayerName?: string | null;
+  newPlayerPubgName?: string | null;
+  payload?: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface MossSubmission {
+  id: string;
+  eventId?: string | null;
+  eventName?: string | null;
+  matchId?: string | null;
+  teamId: string;
+  playerId?: string | null;
+  fileUrl?: string | null;
+  externalLink?: string | null;
+  status: "submitted" | "approved" | "rejected";
+  adminNote?: string | null;
+  createdAt: string;
+}
+
+export interface TeamEventSummary {
+  id: string;
+  name: string;
+  slug?: string | null;
+  status: string;
+  type?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  rules?: string | null;
+}
+
+export interface TeamRecentMatch {
+  matchId: string;
+  eventName?: string | null;
+  matchNumber?: number | null;
+  mapName?: string | null;
+  startTime?: string | null;
+  placement: number;
+  kills: number;
+  totalPoints: number;
+  wwcd: boolean;
+  vodUrl?: string | null;
+}
+
+export interface TeamWorkspaceData {
+  user: AuthenticatedUserProfile;
+  team: {
+    id: string;
+    name: string;
+    tag?: string | null;
+    logoUrl?: string | null;
+    region?: string | null;
+    slotNumber?: number | null;
+    isActive?: boolean | null;
+  } | null;
+  roster: Array<{
+    id: string;
+    pubgName: string;
+    avatarUrl?: string | null;
+    isActive?: boolean | null;
+  }>;
+  requests: TeamRosterRequest[];
+  mossSubmissions: MossSubmission[];
+  upcomingEvents: TeamEventSummary[];
+  recentMatches: TeamRecentMatch[];
 }
 
 export interface ErrorLogRecord {

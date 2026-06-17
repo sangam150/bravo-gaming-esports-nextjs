@@ -1,10 +1,9 @@
 import {
-  createAdminSessionCookie,
-  ensureAdminCustomClaim,
+  createSessionCookie,
   SESSION_COOKIE,
   SESSION_MAX_AGE,
-  verifyAdminToken,
-} from "@/lib/firebase-auth-server";
+  verifyAccessToken,
+} from "@/lib/supabase-auth-server";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 
@@ -13,17 +12,30 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   try {
-    const { idToken } = await request.json();
-    if (!idToken) {
-      return Response.json({ error: "idToken is required" }, { status: 400 });
+    const body = await request.json();
+    const accessToken =
+      typeof body.accessToken === "string"
+        ? body.accessToken
+        : typeof body.idToken === "string"
+          ? body.idToken
+          : "";
+
+    if (!accessToken) {
+      return Response.json({ error: "accessToken is required" }, { status: 400 });
     }
-    const decoded = await verifyAdminToken(idToken);
-    const claimsUpdated = await ensureAdminCustomClaim(decoded.uid);
-    const sessionCookie = await createAdminSessionCookie(idToken, SESSION_MAX_AGE * 1000);
+    const decoded = await verifyAccessToken(accessToken);
+    const sessionCookie = await createSessionCookie(accessToken, SESSION_MAX_AGE * 1000);
     const response = Response.json({
       success: true,
-      claimsUpdated,
-      user: { uid: decoded.uid, email: decoded.email },
+      user: {
+        profileId: decoded.profileId,
+        uid: decoded.uid,
+        email: decoded.email,
+        role: decoded.role,
+        teamId: decoded.teamId,
+        displayName: decoded.displayName,
+        isAdmin: decoded.isAdmin,
+      },
     });
     const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
     response.headers.append(

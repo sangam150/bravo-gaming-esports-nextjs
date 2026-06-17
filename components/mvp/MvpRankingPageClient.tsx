@@ -53,7 +53,7 @@ export default function MvpRankingPageClient({
 
         {activePlayers.length === 0 ? (
           <section className="esports-card mt-8 p-10 text-center">
-            <p className="font-display text-lg font-bold uppercase text-white">Matches not imported yet</p>
+            <p className="font-display text-lg font-bold uppercase text-white">Rankings pending</p>
             <p className="mt-2 text-sm text-text-muted">
               MVP rankings will appear automatically after player statistics are imported.
             </p>

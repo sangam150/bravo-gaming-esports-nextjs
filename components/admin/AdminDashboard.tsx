@@ -38,7 +38,9 @@ type DashboardStats = {
   pendingRegistrations: number;
   recentRegistrations: TeamRegistration[];
   recentUploads: UploadRecord[];
-  firebaseConnected: boolean;
+  dataConnected: boolean;
+  dataAdminConnected?: boolean;
+  dataBackend?: string | null;
   totalSeasons?: number;
   activeSeasonTitle?: string;
   activeSeasonDay?: number;
@@ -610,7 +612,8 @@ export default function AdminDashboard() {
       <AdminSidebar
         active={section}
         onChange={setSection}
-        firebaseConnected={stats?.firebaseConnected ?? false}
+        dataConnected={stats?.dataConnected ?? false}
+        dataBackend={stats?.dataBackend}
         onLogout={() => void logout()}
         adminEmail={user?.email ?? undefined}
       />
@@ -680,7 +683,7 @@ export default function AdminDashboard() {
                 <p className="section-heading !text-sm">Recent Live Matches</p>
               </div>
               {liveMatches.length === 0 ? (
-                <p className="p-6 text-center text-sm text-text-muted">Data not imported yet</p>
+                <p className="p-6 text-center text-sm text-text-muted">Match data will appear once results are published.</p>
               ) : (
                 <div className="table-scroll">
                   <table className="data-table min-w-full">
@@ -857,7 +860,7 @@ export default function AdminDashboard() {
             <div className="grid gap-4 xl:grid-cols-3">
               {seasons.length === 0 ? (
                 <div className="esports-card p-6 text-sm text-text-muted xl:col-span-3">
-                  No seasons saved yet. Use the sync button to create the active Bravo season in Firestore.
+                  No seasons saved yet. Use the sync button to create the active Bravo season in the Bravo data hub.
                 </div>
               ) : (
                 seasons.map((season) => (
@@ -1578,7 +1581,7 @@ export default function AdminDashboard() {
               </div>
             )}
             {liveMatches.length === 0 ? (
-              <div className="esports-card p-8 text-center text-text-muted">Data not imported yet. Import a PUBG match ID to populate results.</div>
+              <div className="esports-card p-8 text-center text-text-muted">Match data will appear once results are published.</div>
             ) : (
               <div className="esports-card overflow-hidden">
                 <div className="table-scroll">
@@ -1608,7 +1611,7 @@ export default function AdminDashboard() {
             <h2 className="text-2xl font-black text-white">Points Table</h2>
             <p className="text-sm text-text-muted">Rankings auto-update when live PUBG match data is imported.</p>
             {leaderboardRows.length === 0 ? (
-              <div className="esports-card p-8 text-center text-text-muted">Data not imported yet</div>
+              <div className="esports-card p-8 text-center text-text-muted">Results will be published after admin approval.</div>
             ) : (
               <div className="esports-card overflow-hidden">
                 <div className="table-scroll">
@@ -1699,9 +1702,11 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             <h2 className="text-2xl font-black text-white">Settings</h2>
             <div className="esports-card space-y-4 p-6">
-              <p className="font-semibold text-white">Firebase Status</p>
+              <p className="font-semibold text-white">Data Backend Status</p>
               <p className="text-sm text-slate-400">
-                {stats?.firebaseConnected ? "Connected - Firestore and Storage active" : "Not configured - add FIREBASE_* and NEXT_PUBLIC_FIREBASE_* env vars"}
+                {stats?.dataConnected
+                  ? `Connected - ${stats?.dataBackend ?? "configured"} data backend active`
+                  : "Not configured - add the Supabase environment variables and run the schema SQL first."}
               </p>
             </div>
             <div className="esports-card space-y-4 p-6">
@@ -1736,7 +1741,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={resetCompetitionData}
-                disabled={!stats?.firebaseConnected || resettingData}
+                disabled={!stats?.dataConnected || resettingData}
                 className={`${btnDanger} disabled:cursor-not-allowed disabled:opacity-60`}
               >
                 {resettingData ? "Resetting..." : "Reset Imported Data"}

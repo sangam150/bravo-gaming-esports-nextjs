@@ -144,7 +144,7 @@ async function deleteMissingDocuments<T extends { id: string }>(
 
 export async function importBravoGamingFeed(options?: { maxDay?: number }) {
   if (!isFirebaseConfigured()) {
-    throw new Error("Firebase is not configured. Add FIREBASE_* credentials before importing Bravo feed data.");
+    throw new Error("Supabase is not configured. Add the Supabase environment variables before importing Bravo feed data.");
   }
 
   const importedFeed = await fetchBravoFeedTournaments(options);

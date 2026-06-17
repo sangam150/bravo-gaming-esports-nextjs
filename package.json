@@ -6,14 +6,13 @@
     "dev": "next dev --webpack",
     "dev:turbopack": "next dev --turbo",
     "dev:webpack": "next dev --webpack",
+    "lint": "tsc --noEmit",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
-    "firebase": "^12.14.0",
-    "firebase-admin": "^13.10.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"

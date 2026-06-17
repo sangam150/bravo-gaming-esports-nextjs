@@ -1,16 +1,24 @@
 export const SUPABASE_TABLES = {
+  profiles: "profiles",
   users: "users",
   seasons: "seasons",
   days: "days",
   events: "events",
+  eventTeams: "event_teams",
   teams: "teams",
   players: "players",
+  teamRosterHistory: "team_roster_history",
   matches: "matches",
+  matchTeamResults: "match_team_results",
+  matchPlayerResults: "match_player_results",
   matchPlayers: "match_players",
   matchResults: "match_results",
   pendingImports: "pending_imports",
   importLogs: "import_logs",
   rosterRequests: "roster_requests",
+  mossSubmissions: "moss_submissions",
+  uploads: "uploads",
+  auditLogs: "audit_logs",
   announcements: "announcements",
   sponsors: "sponsors",
   videos: "videos",
@@ -19,10 +27,12 @@ export const SUPABASE_TABLES = {
 
 export const SUPABASE_BUCKETS = {
   teamLogos: "team-logos",
-  playerPhotos: "player-photos",
-  tournamentBanners: "tournament-banners",
+  playerAvatars: "player-avatars",
+  eventBanners: "event-banners",
   sponsorLogos: "sponsor-logos",
-  websiteAssets: "website-assets",
+  resultScreenshots: "result-screenshots",
+  mossFiles: "moss-files",
+  streamAssets: "stream-assets",
 } as const;
 
 export const SUPABASE_ROLES = [
@@ -30,6 +40,7 @@ export const SUPABASE_ROLES = [
   "admin",
   "moderator",
   "team_igl",
+  "caster",
   "viewer",
 ] as const;
 

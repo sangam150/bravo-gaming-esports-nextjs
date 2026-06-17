@@ -176,7 +176,7 @@ export default function BulkTeamLogoUpload({
       setActiveUploadCount(index + 1);
       updateResult(preparedUpload.resultId, {
         status: "uploading",
-        message: "Uploading to Firebase Storage",
+        message: "Uploading to Supabase Storage",
       });
 
       try {
@@ -307,7 +307,7 @@ export default function BulkTeamLogoUpload({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
             <p className="text-sm font-semibold text-white">
-              {uploading ? "Uploading directly to Firebase Storage" : "Drag and drop logo files here"}
+              {uploading ? "Uploading directly to Supabase Storage" : "Drag and drop logo files here"}
             </p>
             <p className="text-xs text-text-muted">
               {uploading

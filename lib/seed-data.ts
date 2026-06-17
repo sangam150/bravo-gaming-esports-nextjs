@@ -16,9 +16,9 @@ export const seedStats: SiteStats = {
   teamsRegistered: 0,
   matchesHosted: 0,
   tournamentsCompleted: 0,
-  prizePoolsAwarded: "Not imported yet",
+  prizePoolsAwarded: "Season updates soon",
   communityMembers: 0,
-  youtubeViews: "Not imported yet",
+  youtubeViews: "Channel updates soon",
 };
 
 export const seedTournaments: Tournament[] = [];

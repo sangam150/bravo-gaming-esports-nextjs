@@ -28,7 +28,7 @@ export default async function SponsorsPage() {
           <p className="section-title">Sponsors & Partners</p>
           <h1 className="hero-h1 mt-2 !text-4xl">Brand Allies</h1>
           <p className="mt-4 max-w-3xl text-sm text-text-muted sm:text-base">
-            Sponsor placements are published from Firestore so the page only shows approved, real partner content.
+            Sponsor placements are published from the Bravo sponsor directory so the page only shows approved, real partner content.
           </p>
         </section>
 

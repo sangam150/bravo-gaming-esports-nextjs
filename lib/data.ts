@@ -3,7 +3,9 @@ import {
   createFirestoreDocument,
   deleteFirestoreDocument,
   fetchFirestoreCollection,
+  getConfiguredDataBackend,
   getFirestoreDocument,
+  isFirebaseAdminConfigured,
   isFirebaseConfigured,
   queryFirestoreCollection,
   saveFirestoreDocument,
@@ -18,7 +20,14 @@ import {
   seedTournaments,
   seedVideos,
 } from "./seed-data";
-import { buildFallbackTeamNameFromSlot, canonicalizeBravoTeamName, compareBravoTeamSlotOrder, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
+import {
+  buildFallbackTeamNameFromSlot,
+  canonicalizeBravoTeamName,
+  compareBravoTeamSlotOrder,
+  getBravoCanonicalTeams,
+  parseBravoSlotNumber,
+  resolveBravoTeamIdentity,
+} from "./bravo-teams";
 import {
   compareMatchSequenceOrder,
   comparePlayerLeaderboardPerformance,
@@ -27,6 +36,7 @@ import {
   sortTournamentStandings,
 } from "./ranking-sort";
 import { buildSeasonLeaderboard, seasonLeaderboardToRows } from "./season-standings";
+import { getRecentUploadRecords } from "./upload-records";
 import type {
   Announcement,
   LeaderboardRow,
@@ -513,11 +523,61 @@ export async function getCurrentSeason(): Promise<Season | null> {
   );
 }
 
+async function ensureSeasonTeamSlots(seasonId: string, seasonTitle: string) {
+  if (!isFirebaseConfigured()) {
+    return;
+  }
+
+  const existingSeasonTeams = await queryFirestoreCollection<Team>(COLLECTIONS.teams, "seasonId", seasonId, 500).catch(
+    () => []
+  );
+  const hasScopedSeasonTeams = existingSeasonTeams.some((team) => team.scope === "season");
+
+  if (hasScopedSeasonTeams) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const operations = getBravoCanonicalTeams().map((team) => ({
+    type: "set" as const,
+    collectionName: COLLECTIONS.teams,
+    docId: `${seasonId}--${team.id}`,
+    data: {
+      name: team.name,
+      tag: team.tag,
+      slotNumber: team.slotNumber,
+      totalPoints: 0,
+      kills: 0,
+      matches: 0,
+      killPoints: 0,
+      placementPoints: 0,
+      averagePlacement: 0,
+      chickenDinners: 0,
+      status: "active",
+      registrationStatus: "approved",
+      scope: "season",
+      seasonId,
+      seasonTitle,
+      seasonDayNumbers: [],
+      sourceProvider: "season_bootstrap",
+      createdAt: now,
+    } satisfies Partial<Team> & { name: string },
+    merge: true,
+  }));
+
+  await Promise.all(
+    operations.map((operation) =>
+      saveFirestoreDocument(operation.collectionName, operation.docId, operation.data as Record<string, unknown>)
+    )
+  );
+}
+
 export async function saveSeason(data: Partial<Season> & { title: string }, id?: string) {
   const payload = normalizeSeasonPayload(data);
   const docId = id ?? payload.slug;
   if (isFirebaseConfigured()) {
     await saveFirestoreDocument(COLLECTIONS.seasons, docId, payload as Record<string, unknown>);
+    await ensureSeasonTeamSlots(docId, payload.seriesTitle ?? payload.title);
   }
   return { id: docId, ...payload };
 }
@@ -1083,11 +1143,12 @@ export async function getLiveStreamFeed(): Promise<StreamSchedule> {
 
   return {
     id: activeStream?.id ?? "stream-default",
-    time: activeStream?.time ?? "Data not imported yet",
-    title: activeStream?.title ?? "Data not imported yet",
+    time: activeStream?.time ?? "Schedule coming soon",
+    title: activeStream?.title ?? "Bravo Gaming Esports Live Feed",
     platform: activeStream?.platform ?? "YouTube",
     isLive: activeStream?.isLive ?? false,
-    description: activeStream?.description ?? "Create a live stream entry in Firestore to publish the broadcast feed here.",
+    description:
+      activeStream?.description ?? "Publish a stream entry from admin to feature the next broadcast here.",
     viewers: activeStream?.viewers,
     embedUrl: activeStream?.embedUrl ?? buildLiveEmbedUrl(),
     channelUrl: activeStream?.channelUrl ?? buildYouTubeChannelUrl(),
@@ -1180,13 +1241,14 @@ export async function seedFirestore() {
 }
 
 export async function getAdminDashboardStats() {
-  const [teams, players, tournaments, registrations, scrims, seasons] = await Promise.all([
+  const [teams, players, tournaments, registrations, scrims, seasons, dataBackend] = await Promise.all([
     getTeams(),
     getPlayers(),
     getTournaments(),
     getRegistrations(),
     getScrims(),
     getSeasons(),
+    getConfiguredDataBackend().catch(() => null),
   ]);
 
   const completedTournaments = tournaments.filter((t) => t.status === "COMPLETED").length;
@@ -1195,15 +1257,7 @@ export async function getAdminDashboardStats() {
   const pendingRegistrations = registrations.filter((r) => r.status === "pending").length;
   const activeSeason = seasons.find((season) => season.status === "active") ?? seasons[0];
 
-  let recentUploads: { id: string; type: string; uploadedAt: string }[] = [];
-  if (isFirebaseConfigured()) {
-    try {
-      const uploads = await fetchFirestoreCollection<{ id: string; type: string; uploadedAt: string }>(COLLECTIONS.uploads, 5);
-      recentUploads = uploads.sort((a, b) => (b.uploadedAt ?? "").localeCompare(a.uploadedAt ?? ""));
-    } catch {
-      recentUploads = [];
-    }
-  }
+  const recentUploads = await getRecentUploadRecords(5).catch(() => []);
 
   return {
     totalTeams: teams.length,
@@ -1216,7 +1270,9 @@ export async function getAdminDashboardStats() {
     pendingRegistrations,
     recentRegistrations: registrations.slice(0, 5),
     recentUploads,
-    firebaseConnected: isFirebaseConfigured(),
+    dataConnected: isFirebaseConfigured(),
+    dataAdminConnected: isFirebaseAdminConfigured(),
+    dataBackend: dataBackend ?? (isFirebaseConfigured() ? "supabase" : null),
     totalSeasons: seasons.length,
     activeSeasonTitle: activeSeason?.seriesTitle ?? activeSeason?.title,
     activeSeasonDay: activeSeason?.currentDay,

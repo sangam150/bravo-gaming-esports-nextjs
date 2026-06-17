@@ -42,7 +42,7 @@ export default function TournamentTabs({
       {activeTab === "Matches" && (
         <div className="mt-8 grid gap-6 lg:grid-cols-3">
           {matches.length === 0 ? (
-            <p className="text-slate-400 lg:col-span-3">Data not imported yet</p>
+            <p className="text-slate-400 lg:col-span-3">Event data will appear here after admin approval.</p>
           ) : (
             matches.map((match) => (
               <div key={match.id} className="esports-card p-6">

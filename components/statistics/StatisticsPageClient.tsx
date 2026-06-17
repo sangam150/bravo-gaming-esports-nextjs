@@ -108,7 +108,7 @@ export default function StatisticsPageClient({
 
         {activeLeaderboard.length === 0 && playerPool.length === 0 ? (
           <section className="esports-card p-10 text-center">
-            <p className="font-display text-lg font-bold uppercase text-white">Matches not imported yet</p>
+            <p className="font-display text-lg font-bold uppercase text-white">Statistics pending</p>
             <p className="mt-2 text-sm text-text-muted">
               Statistics will populate automatically after team and player data is imported.
             </p>
@@ -117,7 +117,7 @@ export default function StatisticsPageClient({
           <div className="grid gap-6">
             <SectionTable
               title="Team Standings"
-              description="Sorted by total points, kills, best placement, and most recent performance."
+              description="Sorted by total points, kill output, wins, best placement, and slot order for tied teams."
               columns={["#", "Team", "Matches", "Kills", "Place Pts", "Total Pts"]}
               rows={activeLeaderboard.slice(0, 10).map((row) => (
                 <tr key={row.teamId}>

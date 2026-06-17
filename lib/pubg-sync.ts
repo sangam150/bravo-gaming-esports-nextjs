@@ -1039,7 +1039,7 @@ export async function importPubgMatches(
   options?: ImportTargetOptions & { screenshotUrl?: string; duplicateMode?: PubgDuplicateMode }
 ): Promise<PubgBulkImportResult> {
   if (!isFirebaseConfigured()) {
-    throw new Error("Firebase is not configured. Add FIREBASE_* credentials before importing PUBG data.");
+    throw new Error("Supabase is not configured. Add the Supabase environment variables before importing PUBG data.");
   }
 
   const normalizedMatchIds = normalizeRequestedMatchIds(matchIds);

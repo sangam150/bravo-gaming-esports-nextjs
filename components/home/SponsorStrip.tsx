@@ -43,7 +43,7 @@ export default function SponsorStrip({ initialSponsors = [] }: { initialSponsors
           <p className="section-title">Sponsors & Partners</p>
           <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Homepage Sponsor Placements</h2>
           <p className="mt-2 max-w-2xl text-sm text-text-muted">
-            This section listens to Firestore in realtime and only shows published sponsor records.
+            This section updates in realtime and only shows published sponsor records.
           </p>
         </div>
         <Link href="/about/sponsor-us" className="btn-secondary shrink-0 !py-2 !text-[11px]">
@@ -55,7 +55,7 @@ export default function SponsorStrip({ initialSponsors = [] }: { initialSponsors
         <div className="mt-5 rounded-card border border-dashed border-white/10 bg-bg-primary px-5 py-8 text-center">
           <p className="font-display text-sm font-bold uppercase text-white">Sponsor content not published yet</p>
           <p className="mt-2 text-sm text-text-muted">
-            Publish sponsor entries in Firestore to show them on the homepage automatically.
+            Publish sponsor entries from admin to show them on the homepage automatically.
           </p>
         </div>
       ) : (

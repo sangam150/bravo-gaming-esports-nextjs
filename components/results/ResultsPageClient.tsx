@@ -46,7 +46,7 @@ export default function ResultsPageClient({
 
         {activeDayResults.length === 0 ? (
           <section className="esports-card p-10 text-center">
-            <p className="font-display text-lg font-bold uppercase text-white">Matches not imported yet</p>
+            <p className="font-display text-lg font-bold uppercase text-white">Results pending</p>
             <p className="mt-2 text-sm text-text-muted">
               Use the admin match importer to bring in Bravo PUBG PC match data and populate this page.
             </p>
@@ -94,7 +94,7 @@ export default function ResultsPageClient({
 
                   {topTeams.length === 0 ? (
                     <div className="mt-4 rounded-card border border-dashed border-white/10 p-4 text-sm text-text-muted">
-                      Matches not imported yet for this day.
+                      Results for this day will be published after admin approval.
                     </div>
                   ) : (
                     <div className="mt-4 space-y-3">

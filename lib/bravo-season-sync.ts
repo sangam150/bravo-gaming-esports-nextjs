@@ -144,7 +144,7 @@ export async function syncBravoDailyScrimSeason(options?: {
   importFeed?: boolean;
 }) {
   if (!isFirebaseConfigured()) {
-    throw new Error("Firebase is not configured. Add FIREBASE_* credentials before syncing Bravo season data.");
+    throw new Error("Supabase is not configured. Add the Supabase environment variables before syncing Bravo season data.");
   }
 
   const importedFeed =

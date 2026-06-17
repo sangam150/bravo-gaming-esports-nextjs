@@ -1,28 +1,43 @@
-import { cookies } from "next/headers";
-import { SESSION_COOKIE, verifyAdminSessionCookie, verifyAdminToken } from "./firebase-auth-server";
+import {
+  SESSION_COOKIE,
+  getServerAdminSession as getSupabaseAdminSession,
+  getServerSession,
+  verifyAccessToken,
+  verifySessionCookie,
+  verifyAdminToken,
+  type VerifiedSession,
+} from "./supabase-auth-server";
+
+function readSessionCookie(request: Request) {
+  return request.headers.get("cookie")?.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`))?.[1] ?? null;
+}
 
 export async function isAdminRequest(request: Request): Promise<boolean> {
+  const session = await getRequestSession(request);
+  return Boolean(session?.isAdmin);
+}
+
+export async function getRequestSession(request: Request): Promise<VerifiedSession | null> {
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
     try {
-      await verifyAdminToken(authHeader.slice(7));
-      return true;
+      return await verifyAccessToken(token);
     } catch {
-      return false;
+      return null;
     }
   }
 
-  const sessionCookie = request.headers.get("cookie")?.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`))?.[1];
-  if (sessionCookie) {
-    try {
-      await verifyAdminSessionCookie(sessionCookie);
-      return true;
-    } catch {
-      return false;
-    }
+  const sessionCookie = readSessionCookie(request);
+  if (!sessionCookie) {
+    return null;
   }
 
-  return false;
+  try {
+    return await verifySessionCookie(sessionCookie);
+  } catch {
+    return null;
+  }
 }
 
 export async function requireAdmin(request: Request) {
@@ -31,15 +46,35 @@ export async function requireAdmin(request: Request) {
   return null;
 }
 
-export async function getServerAdminSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  try {
-    return await verifyAdminSessionCookie(token);
-  } catch {
-    return null;
+export async function requireAuthenticatedUser(request: Request) {
+  const session = await getRequestSession(request);
+  if (!session) {
+    return {
+      response: new Response(JSON.stringify({ error: "Unauthorized. Login required." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+      session: null,
+    };
   }
+
+  return { response: null, session };
+}
+
+export async function getServerAdminSession() {
+  return getSupabaseAdminSession();
+}
+
+export async function getServerAuthenticatedSession() {
+  return getServerSession();
+}
+
+export async function verifyAdminBearerToken(accessToken: string) {
+  return verifyAdminToken(accessToken);
+}
+
+export async function verifyBearerToken(accessToken: string) {
+  return verifyAccessToken(accessToken);
 }
 
 export function adminUnauthorizedResponse() {

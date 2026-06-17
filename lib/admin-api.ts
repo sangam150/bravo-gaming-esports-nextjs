@@ -1,13 +1,15 @@
 "use client";
 
-import { getClientAuth } from "./firebase-client";
+import { getSupabaseBrowserClient } from "./supabase/browser-client";
 import type { UploadType } from "./upload-config";
 
 export async function getIdToken(): Promise<string | null> {
-  const auth = getClientAuth();
-  const user = auth.currentUser;
-  if (!user) return null;
-  return user.getIdToken();
+  const supabase = getSupabaseBrowserClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return session?.access_token ?? null;
 }
 
 export async function adminFetch(url: string, options: RequestInit = {}) {

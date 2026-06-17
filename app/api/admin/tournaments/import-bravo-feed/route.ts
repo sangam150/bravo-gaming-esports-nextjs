@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     return Response.json({
       success: true,
       data: result,
-      message: `Imported Bravo Day 1 to Day 3 reference results and synced ${result.totals.tournaments} Bravo daily scrim records into Firestore.`,
+      message: `Imported Bravo Day 1 to Day 3 reference results and synced ${result.totals.tournaments} Bravo daily scrim records into the Supabase data store.`,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

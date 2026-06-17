@@ -10,7 +10,7 @@ function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
   if (rows.length === 0) {
     return (
       <div className="esports-card p-8 text-center text-sm text-text-muted">
-        Matches not imported yet. The tournament record exists, but official standings have not been imported yet.
+        Standings will appear here after admins approve and publish the official results.
       </div>
     );
   }
@@ -101,7 +101,7 @@ export default function LeaderboardPageClient({
 
       {!hasLeaderboardData ? (
         <div className="esports-card p-10 text-center">
-          <p className="font-display text-lg font-bold uppercase text-white">Matches not imported yet</p>
+          <p className="font-display text-lg font-bold uppercase text-white">Standings pending</p>
           <p className="mt-2 text-sm text-text-muted">
             Standings appear here after real PUBG PC match results are imported.
           </p>

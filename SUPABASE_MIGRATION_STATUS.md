@@ -1,74 +1,26 @@
 # Supabase Migration Status
 
-This repository is still running on Firebase today.
+The active runtime backend is now Supabase.
 
-What is done in this migration slice:
+Completed in this cutover:
 
-- Added Supabase dependencies: `@supabase/supabase-js`, `@supabase/ssr`
-- Added Supabase client helpers in [lib/supabase](./lib/supabase)
-- Added initial relational schema and Bravo seed SQL in [supabase/schema.sql](./supabase/schema.sql)
-- Added Supabase environment variables to [.env.example](./.env.example)
+- Removed Firebase auth, storage, and realtime package usage from the running app
+- Switched admin login/session validation to Supabase-backed auth verification
+- Switched uploads to Supabase Storage buckets
+- Switched the shared document-store runtime to Supabase only
+- Removed Firebase rules files and legacy Firebase client/server helper modules
+- Added a dedicated `/pubg` dashboard plus `/pubg/*` section routes and compare pages
 
-What is not done yet:
+Current architecture:
 
-- Firebase is still the active runtime backend
-- Route handlers still read/write Firebase
-- Realtime hooks still use Firestore listeners
-- Storage uploads still use Firebase Storage
-- Auth still depends on Firebase auth/session logic
+- Auth: Supabase session + server-side admin verification
+- Document data: `public.app_documents`
+- Media uploads: Supabase Storage
+- Realtime subscriptions: Supabase Realtime on `public.app_documents`
 
-## Firebase Surface Area Still To Replace
+Still worth improving in future slices:
 
-Core backend files:
-
-- [lib/firebase.ts](./lib/firebase.ts)
-- [lib/firebase-client.ts](./lib/firebase-client.ts)
-- [lib/firebase-storage.ts](./lib/firebase-storage.ts)
-- [lib/firebase-auth-server.ts](./lib/firebase-auth-server.ts)
-- [lib/data.ts](./lib/data.ts)
-- [lib/pubg-sync.ts](./lib/pubg-sync.ts)
-- [lib/realtime-hooks.tsx](./lib/realtime-hooks.tsx)
-- [lib/server-monitoring.ts](./lib/server-monitoring.ts)
-
-High-impact API routes:
-
-- [app/api/admin/upload/route.ts](./app/api/admin/upload/route.ts)
-- [app/api/admin/scrims/route.ts](./app/api/admin/scrims/route.ts)
-- [app/api/admin/pending-imports/route.ts](./app/api/admin/pending-imports/route.ts)
-- [app/api/admin/pending-imports/[id]/route.ts](./app/api/admin/pending-imports/[id]/route.ts)
-- [app/api/admin/pubg/watchers/route.ts](./app/api/admin/pubg/watchers/route.ts)
-- [app/api/admin/pubg/player/route.ts](./app/api/admin/pubg/player/route.ts)
-- [app/api/cron/sync-matches/route.ts](./app/api/cron/sync-matches/route.ts)
-
-## Recommended Cutover Order
-
-1. Replace config/auth foundation
-   - Add Supabase session helpers
-   - Replace admin auth checks
-   - Add role lookups from `public.users`
-
-2. Replace uploads/storage
-   - Port `app/api/admin/upload/route.ts`
-   - Switch logo/banner/photo URLs to Supabase Storage
-
-3. Replace core database reads/writes
-   - Create `lib/supabase-data.ts`
-   - Port seasons, days, teams, players, matches, pending imports
-
-4. Replace PUBG import persistence
-   - Write pending imports into `pending_imports`
-   - Publish into `matches`, `match_results`, `match_players`
-   - Replace Firestore write batches with SQL transactions or RPC functions
-
-5. Replace realtime subscriptions
-   - Swap Firestore listeners in `lib/realtime-hooks.tsx`
-   - Subscribe only to live results, leaderboards, and pending import updates
-
-6. Remove Firebase
-   - Delete Firebase libs and env vars
-   - Remove Firebase rules files
-   - Remove `firebase` and `firebase-admin` from dependencies
-
-## Important Note
-
-The current repository is not yet "fully migrated to Supabase". This commit adds the real Supabase foundation, schema, and migration map so the next steps can be executed safely and incrementally without breaking the live tournament workflow.
+- Replace compatibility naming like `lib/firebase.ts` and `firestore-collections.ts` with Supabase-native names
+- Move high-volume tournament/match persistence from the document store into the relational tables/views already defined in `supabase/schema.sql`
+- Build the remaining team IGL workflow and richer admin CRUD around relational tables
+- Expand empty-state cleanup across every legacy page that still says "not imported yet"

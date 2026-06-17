@@ -36,7 +36,7 @@ export default function CurrentSeasonPageClient({ initialOverview }: { initialOv
         <div className="page-inner">
           <section className="page-hero p-8 text-center">
             <p className="section-title">Current Season</p>
-            <h1 className="hero-h1 mt-2 !text-4xl">Data not imported yet</h1>
+            <h1 className="hero-h1 mt-2 !text-4xl">Season data coming soon</h1>
             <p className="mt-4 text-text-muted">
               Import Bravo daily scrim data from admin to initialize the current season.
             </p>
@@ -59,15 +59,15 @@ export default function CurrentSeasonPageClient({ initialOverview }: { initialOv
               <p className="section-title">Current Season</p>
               <h1 className="hero-h1 mt-2 !text-4xl sm:!text-5xl">{season.seriesTitle}</h1>
               <p className="mt-4 max-w-3xl text-sm leading-relaxed text-text-muted sm:text-base">
-                Bravo Gaming Esports now stores the full daily PUBG PC scrim season inside Firestore so historical day
-                data, standings, teams, and leaderboards remain available without any manual spreadsheet work.
+                Bravo Gaming Esports now stores the full daily PUBG PC scrim season inside its own Supabase-powered data
+                hub so historical day data, standings, teams, and leaderboards remain available without any manual spreadsheet work.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 {currentTournament ? (
                   <StatusBadge status={currentTournament.status} />
                 ) : (
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">
-                    Matches not imported yet
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">
+                    Results pending
                   </span>
                 )}
                 <span className="rounded-full border border-accent-blue/20 bg-accent-blue/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-accent-blue">
@@ -126,7 +126,7 @@ export default function CurrentSeasonPageClient({ initialOverview }: { initialOv
               <p className="mt-4 text-sm text-text-muted">
                 {currentTournament?.matchCount
                   ? "Daily results are available in the database and feed into the season leaderboard automatically."
-                  : "This day record is stored in Firestore, but official results are still pending import."}
+                  : "This day record is ready, but official results are still pending import."}
               </p>
               {currentTournament && (
                 <Link href={`/tournaments/${currentTournament.id}`} className="btn-outline-blue mt-5 w-full justify-center">
@@ -139,7 +139,7 @@ export default function CurrentSeasonPageClient({ initialOverview }: { initialOv
               <p className="section-heading !text-sm">Recent Results</p>
               <div className="mt-4 space-y-3">
                 {recentResults.length === 0 ? (
-                  <p className="text-sm text-text-muted">Matches not imported yet for completed day results.</p>
+                  <p className="text-sm text-text-muted">Completed day results will appear here after admin approval.</p>
                 ) : (
                   recentResults.map((tournament) => (
                     <Link
@@ -172,7 +172,7 @@ export default function CurrentSeasonPageClient({ initialOverview }: { initialOv
               </p>
             </div>
             {leaderboard.length === 0 ? (
-              <div className="p-8 text-center text-sm text-text-muted">Matches not imported yet for season standings.</div>
+              <div className="p-8 text-center text-sm text-text-muted">Season standings will appear here after the first approved results are published.</div>
             ) : (
               <div className="table-scroll">
                 <table className="data-table min-w-full">

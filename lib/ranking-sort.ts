@@ -7,6 +7,7 @@ import type {
   TournamentMatch,
   TournamentStanding,
 } from "./types";
+import { compareBravoTeamSlotOrder } from "./bravo-teams";
 
 function compareOptionalNumberDesc(firstValue?: number | null, secondValue?: number | null) {
   const normalizedFirstValue = typeof firstValue === "number" && Number.isFinite(firstValue) ? firstValue : Number.NEGATIVE_INFINITY;
@@ -52,7 +53,9 @@ type TeamPerformanceLike = {
   id?: string;
   teamName?: string;
   name?: string;
+  slotNumber?: number;
   totalPoints?: number;
+  killPoints?: number;
   kills?: number;
   bestPlacement?: number;
   latestDayNumber?: number;
@@ -68,8 +71,12 @@ type TeamPerformanceLike = {
 export function compareTeamLeaderboardPerformance<T extends TeamPerformanceLike>(firstValue: T, secondValue: T) {
   return (
     compareOptionalNumberDesc(firstValue.totalPoints, secondValue.totalPoints) ||
+    compareOptionalNumberDesc(firstValue.killPoints ?? firstValue.kills, secondValue.killPoints ?? secondValue.kills) ||
     compareOptionalNumberDesc(firstValue.kills, secondValue.kills) ||
+    compareOptionalNumberDesc(firstValue.wins, secondValue.wins) ||
+    compareOptionalNumberDesc(firstValue.placementPoints, secondValue.placementPoints) ||
     compareOptionalNumberAsc(firstValue.bestPlacement, secondValue.bestPlacement) ||
+    compareBravoTeamSlotOrder(firstValue, secondValue) ||
     compareOptionalNumberDesc(
       firstValue.latestDayNumber ?? firstValue.seasonDayNumber,
       secondValue.latestDayNumber ?? secondValue.seasonDayNumber
@@ -79,8 +86,6 @@ export function compareTeamLeaderboardPerformance<T extends TeamPerformanceLike>
       secondValue.latestPlayedAt ?? secondValue.latestUpdatedAt ?? secondValue.updatedAt
     ) ||
     compareOptionalNumberDesc(firstValue.sequenceNumber, secondValue.sequenceNumber) ||
-    compareOptionalNumberDesc(firstValue.wins, secondValue.wins) ||
-    compareOptionalNumberDesc(firstValue.placementPoints, secondValue.placementPoints) ||
     getStableTeamKey(firstValue).localeCompare(getStableTeamKey(secondValue))
   );
 }

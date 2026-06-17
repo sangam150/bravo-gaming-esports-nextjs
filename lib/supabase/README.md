@@ -1,6 +1,6 @@
 # Supabase Layer
 
-This folder is the new backend foundation for the Bravo Gaming Esports migration away from Firebase.
+This folder contains the active Supabase backend foundation for Bravo Gaming Esports.
 
 Files:
 
@@ -13,5 +13,5 @@ Files:
 Current status:
 
 - Supabase clients and configuration helpers are in place.
-- Firebase is still the active runtime backend in the rest of the app.
-- The next migration step is replacing Firebase reads/writes route-by-route and feature-by-feature.
+- Admin auth, uploads, and the shared document-store runtime are now Supabase-backed.
+- The next migration step is moving more tournament/match workflows from document storage into the relational schema and RLS-protected tables.

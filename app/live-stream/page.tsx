@@ -36,7 +36,7 @@ export default async function LiveStreamPage() {
               />
             ) : (
               <div className="flex aspect-video items-center justify-center p-8 text-center text-sm text-text-muted">
-                Data not imported yet. Add a stream entry in Firestore to publish the live player here.
+                The broadcast player will appear here after the next stream entry is published from admin.
               </div>
             )}
           </div>
@@ -75,7 +75,7 @@ export default async function LiveStreamPage() {
               ))}
             </div>
           ) : (
-            <p className="mt-4 text-sm text-text-muted">Data not imported yet for upcoming streams.</p>
+            <p className="mt-4 text-sm text-text-muted">Upcoming streams will appear here once the next schedule is published.</p>
           )}
         </aside>
       </div>
@@ -100,7 +100,7 @@ export default async function LiveStreamPage() {
             ))}
           </div>
         ) : (
-          <div className="esports-card p-6 text-sm text-text-muted">Data not imported yet for published videos.</div>
+          <div className="esports-card p-6 text-sm text-text-muted">Published videos will appear here once the media team adds them.</div>
         )}
       </section>
     </main>

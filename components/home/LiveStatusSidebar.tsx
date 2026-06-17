@@ -84,7 +84,7 @@ export default function LiveStatusSidebar() {
         </div>
       ) : (
         <div className="mt-4 rounded-card border border-dashed border-white/10 px-4 py-8 text-center text-sm text-text-muted">
-          Matches not imported yet for the active scrim day.
+          Active scrim-day results will appear here after admin approval.
         </div>
       )}
 
