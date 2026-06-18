@@ -1,19 +1,16 @@
+import { readJsonObject } from "../json-utils";
+import type { Tables } from "@/types/database.types";
+
 export const SUPABASE_DOCUMENT_STORE_TABLE = "app_documents";
 
-export type SupabaseDocumentStoreRow = {
-  collection_name: string;
-  id: string;
-  data: Record<string, unknown> | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-};
+export type SupabaseDocumentStoreRow = Tables<"app_documents">;
 
 export function mapSupabaseDocumentStoreRow<T = Record<string, unknown>>(
   row: SupabaseDocumentStoreRow
 ) {
   return {
     id: row.id,
-    ...((row.data ?? {}) as Record<string, unknown>),
+    ...(readJsonObject(row.data) ?? {}),
   } as T & { id: string };
 }
 

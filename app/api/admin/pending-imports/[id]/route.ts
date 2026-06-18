@@ -1,7 +1,8 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import { COLLECTIONS, deleteFirestoreDocument, getFirestoreDocument, saveFirestoreDocument } from "@/lib/firebase";
+import { COLLECTIONS, deleteDocument, getDocument, saveDocument } from "@/lib/document-store";
 import { importPubgMatches } from "@/lib/pubg-sync";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
 import type { PubgImportBatch } from "@/lib/types";
 
@@ -19,7 +20,7 @@ export async function PATCH(
 
   try {
     const body = (await request.json().catch(() => ({}))) as { action?: string; reason?: string };
-    const pendingImport = await getFirestoreDocument<PubgImportBatch>(COLLECTIONS.pubgImportBatches, id);
+    const pendingImport = await getDocument<PubgImportBatch>(COLLECTIONS.pubgImportBatches, id);
     if (!pendingImport) {
       return Response.json({ error: "Pending import batch not found." }, { status: 404 });
     }
@@ -32,7 +33,7 @@ export async function PATCH(
     }
 
     if (body.action === "reject") {
-      await saveFirestoreDocument(COLLECTIONS.pubgImportBatches, id, {
+      await saveDocument(COLLECTIONS.pubgImportBatches, id, {
         status: "rejected",
         rejectedAt: new Date().toISOString(),
         rejectedReason: body.reason?.trim() || undefined,
@@ -60,11 +61,12 @@ export async function PATCH(
       dayMapRotation: pendingImport.dayMapRotation,
     });
 
-    await saveFirestoreDocument(COLLECTIONS.pubgImportBatches, id, {
+    await saveDocument(COLLECTIONS.pubgImportBatches, id, {
       status: "approved",
       approvedAt: new Date().toISOString(),
       importResult,
     });
+    revalidateCompetitionPaths();
 
     return Response.json({
       success: true,
@@ -91,12 +93,12 @@ export async function DELETE(
   const { id } = await context.params;
 
   try {
-    const pendingImport = await getFirestoreDocument<PubgImportBatch>(COLLECTIONS.pubgImportBatches, id);
+    const pendingImport = await getDocument<PubgImportBatch>(COLLECTIONS.pubgImportBatches, id);
     if (!pendingImport) {
       return Response.json({ error: "Pending import batch not found." }, { status: 404 });
     }
 
-    await deleteFirestoreDocument(COLLECTIONS.pubgImportBatches, id);
+    await deleteDocument(COLLECTIONS.pubgImportBatches, id);
     return Response.json({ success: true, message: "Pending import batch deleted." });
   } catch (error: unknown) {
     await logServerError("admin.pending-imports.delete", error, request);
@@ -104,3 +106,4 @@ export async function DELETE(
     return Response.json({ error: message }, { status: 500 });
   }
 }
+

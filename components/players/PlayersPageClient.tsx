@@ -99,7 +99,7 @@ export default function PlayersPageClient({ initialPlayers }: { initialPlayers: 
                         #{(page - 1) * perPage + index + 1}
                       </td>
                       <td>
-                        <Link href={`/players/${player.id}`} className="flex items-center gap-2 hover:text-accent-blue">
+                        <Link href={`/players/${player.slug ?? player.id}`} className="flex items-center gap-2 hover:text-accent-blue">
                           <TeamAvatar name={player.name} size="sm" />
                           <span className="font-semibold">{player.name}</span>
                         </Link>

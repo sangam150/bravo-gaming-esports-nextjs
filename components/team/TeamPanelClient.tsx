@@ -375,7 +375,7 @@ export default function TeamPanelClient() {
           </div>
           <h1 className="mt-5 font-display text-3xl font-black uppercase text-white">Team IGL Panel</h1>
           <p className="mt-3 text-sm text-text-muted">
-            Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`
+            Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`), and `SUPABASE_SERVICE_ROLE_KEY`
             to enable team logins and approvals.
           </p>
         </div>
@@ -400,14 +400,14 @@ export default function TeamPanelClient() {
             Team IGL Workspace
           </h1>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300">
-            Manage roster requests, upload approved team branding, review schedules, and submit required MOSS evidence
-            for PUBG PC scrims and tournaments.
+            Manage roster requests, update team branding, review schedules, and track published match results from one
+            team-first Bravo workspace. Tournament operations like MOSS stay available without dominating the panel.
           </p>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             {[
               ["Roster Requests", "Add, remove, and replace players without losing history."],
-              ["MOSS Workflow", "Submit files or links per event while admin review stays in the loop."],
-              ["Team Schedule", "See your next published events and recent match outcomes."],
+              ["Team Profile", "Upload logo updates and keep your public identity sharp."],
+              ["Schedule & Results", "See your next published events and recent match outcomes."],
             ].map(([title, description]) => (
               <div key={title} className="rounded-3xl border border-white/10 bg-black/20 p-4">
                 <p className="text-sm font-semibold text-white">{title}</p>
@@ -639,9 +639,94 @@ export default function TeamPanelClient() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="esports-card p-6">
-          <h2 className="font-display text-xl font-black uppercase text-white">Submit MOSS</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-xl font-black uppercase text-white">Upcoming Schedule</h2>
+            <span className="text-xs uppercase tracking-[0.14em] text-text-muted">
+              {(workspace?.upcomingEvents ?? []).length} event(s)
+            </span>
+          </div>
+          <div className="mt-5 space-y-3">
+            {(workspace?.upcomingEvents ?? []).length === 0 ? (
+              <p className="rounded-3xl border border-white/10 bg-bg-primary/60 px-4 py-4 text-sm text-text-muted">
+                Teams will appear after registration is approved.
+              </p>
+            ) : (
+              workspace?.upcomingEvents.map((event) => (
+                <div key={event.id} className="rounded-3xl border border-white/10 bg-bg-primary/70 p-4">
+                  <p className="font-semibold text-white">{event.name}</p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.14em] text-text-muted">
+                    {event.type ?? "event"} | {event.status}
+                  </p>
+                  {(event.startDate || event.endDate) && (
+                    <p className="mt-2 text-sm text-slate-300">
+                      {event.startDate ?? "TBD"} {event.endDate ? `to ${event.endDate}` : ""}
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="esports-card p-6">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-xl font-black uppercase text-white">Recent Match Results</h2>
+            <span className="text-xs uppercase tracking-[0.14em] text-text-muted">
+              {(workspace?.recentMatches ?? []).length} match(es)
+            </span>
+          </div>
+          <div className="mt-5 space-y-3">
+            {(workspace?.recentMatches ?? []).length === 0 ? (
+              <p className="rounded-3xl border border-white/10 bg-bg-primary/60 px-4 py-4 text-sm text-text-muted">
+                Match data will appear once results are published.
+              </p>
+            ) : (
+              workspace?.recentMatches.map((match) => (
+                <div key={`${match.matchId}-priority`} className="rounded-3xl border border-white/10 bg-bg-primary/70 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-white">
+                        {match.eventName ?? "Published Match"} {match.matchNumber ? `| Match ${match.matchNumber}` : ""}
+                      </p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.14em] text-text-muted">
+                        {match.mapName ?? "Map Pending"} {match.startTime ? `| ${new Date(match.startTime).toLocaleString()}` : ""}
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-text-muted">
+                      #{match.placement}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-text-muted">Kills</p>
+                      <p className="mt-1 font-semibold text-white">{match.kills}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-text-muted">Points</p>
+                      <p className="mt-1 font-semibold text-white">{match.totalPoints}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-text-muted">WWCD</p>
+                      <p className="mt-1 font-semibold text-white">{match.wwcd ? "Yes" : "No"}</p>
+                    </div>
+                  </div>
+                  {match.vodUrl ? (
+                    <a href={match.vodUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm text-accent-blue hover:underline">
+                      Open VOD
+                    </a>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="esports-card p-6">
+          <h2 className="font-display text-xl font-black uppercase text-white">Tournament Operations</h2>
           <p className="mt-2 text-sm text-text-muted">
-            Upload a MOSS archive or attach an external evidence link for the relevant event or player.
+            Optional MOSS workflow for archives or external evidence linked to a specific event, match, or player.
           </p>
 
           <form onSubmit={handleMossSubmit} className="mt-5 space-y-4">
@@ -766,85 +851,6 @@ export default function TeamPanelClient() {
         </section>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="esports-card p-6">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-xl font-black uppercase text-white">Upcoming Schedule</h2>
-            <span className="text-xs uppercase tracking-[0.14em] text-text-muted">
-              {(workspace?.upcomingEvents ?? []).length} event(s)
-            </span>
-          </div>
-          <div className="mt-5 space-y-3">
-            {(workspace?.upcomingEvents ?? []).length === 0 ? (
-              <p className="rounded-3xl border border-white/10 bg-bg-primary/60 px-4 py-4 text-sm text-text-muted">
-                Teams will appear after registration is approved.
-              </p>
-            ) : (
-              workspace?.upcomingEvents.map((event) => (
-                <div key={event.id} className="rounded-3xl border border-white/10 bg-bg-primary/70 p-4">
-                  <p className="font-semibold text-white">{event.name}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.14em] text-text-muted">
-                    {event.type ?? "event"} | {event.status}
-                  </p>
-                  {(event.startDate || event.endDate) && (
-                    <p className="mt-2 text-sm text-slate-300">
-                      {event.startDate ?? "TBD"} {event.endDate ? `to ${event.endDate}` : ""}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="esports-card p-6">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-xl font-black uppercase text-white">Recent Match Results</h2>
-            <span className="text-xs uppercase tracking-[0.14em] text-text-muted">
-              {(workspace?.recentMatches ?? []).length} match(es)
-            </span>
-          </div>
-          <div className="mt-5 space-y-3">
-            {(workspace?.recentMatches ?? []).length === 0 ? (
-              <p className="rounded-3xl border border-white/10 bg-bg-primary/60 px-4 py-4 text-sm text-text-muted">
-                Match data will appear once results are published.
-              </p>
-            ) : (
-              workspace?.recentMatches.map((match) => (
-                <div key={match.matchId} className="rounded-3xl border border-white/10 bg-bg-primary/70 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-white">
-                        {match.eventName ?? "Published Match"} {match.matchNumber ? `• Match ${match.matchNumber}` : ""}
-                      </p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.14em] text-text-muted">
-                        {match.mapName ?? "Map Pending"} {match.startTime ? `| ${new Date(match.startTime).toLocaleString()}` : ""}
-                      </p>
-                    </div>
-                    <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-text-muted">
-                      #{match.placement}
-                    </span>
-                  </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-text-muted">Kills</p>
-                      <p className="mt-1 font-semibold text-white">{match.kills}</p>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-text-muted">Points</p>
-                      <p className="mt-1 font-semibold text-white">{match.totalPoints}</p>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-text-muted">WWCD</p>
-                      <p className="mt-1 font-semibold text-white">{match.wwcd ? "Yes" : "No"}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-      </div>
     </div>
   );
 }

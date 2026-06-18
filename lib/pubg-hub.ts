@@ -1,8 +1,11 @@
 import { cache } from "react";
+import { COLLECTIONS, fetchDocumentCollection, isDocumentStoreConfigured } from "./document-store";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { isSupabaseServiceRoleConfigured } from "./supabase/env";
 import { placementPoints, totalPoints } from "./pubg";
 import { normalizeMapName } from "./tournament-standings";
+import type { Player, Scrim, Team, Tournament, TournamentMatch } from "./types";
+import type { Database } from "@/types/database.types";
 
 export type PubgHubSource = "supabase" | "launch_seed";
 export type PubgHubEventStatus = "upcoming" | "ongoing" | "finished";
@@ -171,6 +174,7 @@ export interface PubgHubMatch {
 
 export interface PubgHubTeam {
   id: string;
+  slug: string;
   name: string;
   tag?: string | null;
   logoUrl?: string | null;
@@ -199,6 +203,7 @@ export interface PubgHubTeam {
 
 export interface PubgHubPlayer {
   id: string;
+  slug: string;
   pubgName: string;
   avatarUrl?: string | null;
   currentTeamId?: string | null;
@@ -305,6 +310,7 @@ export interface PubgHubDataset {
 
 type BaseTeamRow = {
   id: string;
+  slug: string;
   name: string;
   tag?: string | null;
   logoUrl?: string | null;
@@ -315,6 +321,7 @@ type BaseTeamRow = {
 
 type BasePlayerRow = {
   id: string;
+  slug: string;
   pubgName: string;
   avatarUrl?: string | null;
   teamId?: string | null;
@@ -412,17 +419,23 @@ type TeamDefinition = {
   region: string;
 };
 
+type TeamPalette = {
+  primary: string;
+  secondary: string;
+  accent: string;
+};
+
 const BRAVO_TEAM_DEFINITIONS: TeamDefinition[] = [
   { id: "fyb-esports", name: "FYB Esports", tag: "FYB", slotNumber: 1, region: "Kathmandu" },
   { id: "mandem-boyz", name: "Mandem BoyZ", tag: "MBZ", slotNumber: 2, region: "Pokhara" },
   { id: "the-lost-mc-esports", name: "The Lost MC Esports", tag: "LMC", slotNumber: 3, region: "Lalitpur" },
   { id: "omega-tactix", name: "Omega Tactix", tag: "OTX", slotNumber: 4, region: "Kathmandu" },
   { id: "npl", name: "NPL", tag: "NPL", slotNumber: 5, region: "Biratnagar" },
-  { id: "near-edge-protocol", name: "Near Edge Protocol", tag: "N3P", slotNumber: 6, region: "Chitwan" },
+  { id: "near-edge-protocol", name: "N3P", tag: "N3P", slotNumber: 6, region: "Chitwan" },
   { id: "team-haku", name: "Team HAKU", tag: "HAKU", slotNumber: 7, region: "Kathmandu" },
   { id: "loot-addicts", name: "Loot Addicts", tag: "LA", slotNumber: 8, region: "Pokhara" },
   { id: "mujuverse", name: "Mujuverse", tag: "MV", slotNumber: 9, region: "Lalitpur" },
-  { id: "lang-tang-gang", name: "Lang Tang Gang", tag: "LTG", slotNumber: 10, region: "Chitwan" },
+  { id: "lang-tang-gang", name: "LTG", tag: "LTG", slotNumber: 10, region: "Chitwan" },
   { id: "kds", name: "KDS", tag: "KDS", slotNumber: 11, region: "Butwal" },
   { id: "bir-gorkhali", name: "Bir Gorkhali", tag: "BG", slotNumber: 12, region: "Kathmandu" },
   { id: "illumaniti-gamers", name: "Illumaniti Gamers", tag: "IG", slotNumber: 13, region: "Dharan" },
@@ -458,6 +471,29 @@ const PLAYER_NAMES_BY_TEAM: Record<string, string[]> = {
   families: ["FMLS_Glow", "FMLS_Motion", "FMLS_Leaf", "FMLS_Rally"],
 };
 
+const TEAM_PALETTES: Record<string, TeamPalette> = {
+  "fyb-esports": { primary: "#00c6ff", secondary: "#005bea", accent: "#9be7ff" },
+  "mandem-boyz": { primary: "#ff8a00", secondary: "#ff3d00", accent: "#ffd180" },
+  "the-lost-mc-esports": { primary: "#6d28d9", secondary: "#312e81", accent: "#c4b5fd" },
+  "omega-tactix": { primary: "#14b8a6", secondary: "#0f766e", accent: "#99f6e4" },
+  npl: { primary: "#ff512f", secondary: "#dd2476", accent: "#ffc8dd" },
+  "near-edge-protocol": { primary: "#00e676", secondary: "#00897b", accent: "#b9f6ca" },
+  "team-haku": { primary: "#3b82f6", secondary: "#1d4ed8", accent: "#bfdbfe" },
+  "loot-addicts": { primary: "#f97316", secondary: "#b91c1c", accent: "#fed7aa" },
+  mujuverse: { primary: "#8b5cf6", secondary: "#4c1d95", accent: "#ddd6fe" },
+  "lang-tang-gang": { primary: "#22c55e", secondary: "#166534", accent: "#bbf7d0" },
+  kds: { primary: "#facc15", secondary: "#ca8a04", accent: "#fef08a" },
+  "bir-gorkhali": { primary: "#ef4444", secondary: "#7f1d1d", accent: "#fecaca" },
+  "illumaniti-gamers": { primary: "#38bdf8", secondary: "#0f172a", accent: "#bae6fd" },
+  "sons-of-nepal": { primary: "#fb7185", secondary: "#9f1239", accent: "#fecdd3" },
+  ace: { primary: "#f59e0b", secondary: "#78350f", accent: "#fde68a" },
+  m8: { primary: "#10b981", secondary: "#0f766e", accent: "#a7f3d0" },
+  "69-esports": { primary: "#a855f7", secondary: "#581c87", accent: "#e9d5ff" },
+  "arabpati-esports": { primary: "#f43f5e", secondary: "#881337", accent: "#fecdd3" },
+  fam: { primary: "#f97316", secondary: "#7c2d12", accent: "#fdba74" },
+  families: { primary: "#06b6d4", secondary: "#164e63", accent: "#a5f3fc" },
+};
+
 const MAP_SEQUENCE = ["Rondo", "Erangel", "Miramar", "Taego", "Erangel", "Rondo"] as const;
 
 function slugify(value: string) {
@@ -465,6 +501,25 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+function encodeSvg(svg: string) {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function getTeamPalette(team: Pick<TeamDefinition, "id" | "tag">): TeamPalette {
+  const preset = TEAM_PALETTES[team.id];
+  if (preset) {
+    return preset;
+  }
+
+  const hash = Array.from(team.tag).reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  const hue = hash % 360;
+  return {
+    primary: `hsl(${hue} 85% 52%)`,
+    secondary: `hsl(${(hue + 28) % 360} 78% 24%)`,
+    accent: `hsl(${(hue + 12) % 360} 92% 84%)`,
+  };
 }
 
 function toNumber(value: unknown, fallback = 0) {
@@ -548,7 +603,72 @@ function buildKillValue(placement: number, boost = 0) {
 }
 
 function buildTeamLogo(team: TeamDefinition) {
-  return `https://placehold.co/160x160/0d1220/ffffff?text=${encodeURIComponent(team.tag)}`;
+  const palette = getTeamPalette(team);
+  return encodeSvg(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" fill="none">
+      <defs>
+        <linearGradient id="bg" x1="18" y1="18" x2="142" y2="142" gradientUnits="userSpaceOnUse">
+          <stop stop-color="${palette.primary}"/>
+          <stop offset="1" stop-color="${palette.secondary}"/>
+        </linearGradient>
+      </defs>
+      <rect width="160" height="160" rx="36" fill="#090d16"/>
+      <rect x="12" y="12" width="136" height="136" rx="30" fill="url(#bg)"/>
+      <rect x="20" y="20" width="120" height="120" rx="24" fill="rgba(7,12,22,0.56)" stroke="rgba(255,255,255,0.18)"/>
+      <path d="M80 30 116 48v30c0 26-15 44-36 54-21-10-36-28-36-54V48l36-18Z" fill="rgba(255,255,255,0.08)" stroke="${palette.accent}"/>
+      <text x="80" y="88" text-anchor="middle" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="800" letter-spacing="2">${team.tag}</text>
+      <text x="80" y="116" text-anchor="middle" fill="${palette.accent}" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="700" letter-spacing="4">BRAVO</text>
+    </svg>
+  `);
+}
+
+function buildPlayerAvatar(playerName: string, team: TeamDefinition) {
+  const palette = getTeamPalette(team);
+  const initials = playerName.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || team.tag.slice(0, 2);
+
+  return encodeSvg(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+      <defs>
+        <linearGradient id="playerBg" x1="12" y1="10" x2="84" y2="86" gradientUnits="userSpaceOnUse">
+          <stop stop-color="${palette.primary}"/>
+          <stop offset="1" stop-color="${palette.secondary}"/>
+        </linearGradient>
+      </defs>
+      <rect width="96" height="96" rx="28" fill="#0b1020"/>
+      <rect x="8" y="8" width="80" height="80" rx="24" fill="url(#playerBg)"/>
+      <rect x="14" y="14" width="68" height="68" rx="20" fill="rgba(5,10,18,0.45)" stroke="rgba(255,255,255,0.12)"/>
+      <text x="48" y="54" text-anchor="middle" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="800" letter-spacing="1.2">${initials}</text>
+      <text x="48" y="73" text-anchor="middle" fill="${palette.accent}" font-family="Arial, Helvetica, sans-serif" font-size="8" font-weight="700" letter-spacing="3">${team.tag}</text>
+    </svg>
+  `);
+}
+
+function buildEventBanner(title: string, subtitle: string, accentA: string, accentB: string) {
+  return encodeSvg(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 480" fill="none">
+      <defs>
+        <linearGradient id="bannerBg" x1="96" y1="72" x2="1184" y2="420" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#0a1220"/>
+          <stop offset="1" stop-color="#06090f"/>
+        </linearGradient>
+        <linearGradient id="bannerAccent" x1="188" y1="74" x2="1050" y2="436" gradientUnits="userSpaceOnUse">
+          <stop stop-color="${accentA}" stop-opacity="0.75"/>
+          <stop offset="1" stop-color="${accentB}" stop-opacity="0.34"/>
+        </linearGradient>
+      </defs>
+      <rect width="1280" height="480" rx="36" fill="url(#bannerBg)"/>
+      <circle cx="220" cy="98" r="190" fill="${accentA}" fill-opacity="0.16"/>
+      <circle cx="1060" cy="390" r="220" fill="${accentB}" fill-opacity="0.18"/>
+      <rect x="36" y="36" width="1208" height="408" rx="28" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.1)"/>
+      <path d="M840 72h264l-96 96H744l96-96Z" fill="url(#bannerAccent)" fill-opacity="0.7"/>
+      <path d="M898 220h240l-96 96H802l96-96Z" fill="${accentA}" fill-opacity="0.16"/>
+      <text x="92" y="118" fill="${accentA}" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="7">BRAVO GAMING ESPORTS</text>
+      <text x="92" y="222" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="900">${title}</text>
+      <text x="92" y="278" fill="#cbd5e1" font-family="Arial, Helvetica, sans-serif" font-size="24">${subtitle}</text>
+      <text x="92" y="360" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="5">NEPAL PREMIER ESPORTS STAGE</text>
+      <text x="92" y="400" fill="#7dd3fc" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" letter-spacing="4">TRACK RESULTS • WATCH LIVE • FOLLOW THE SCENE</text>
+    </svg>
+  `);
 }
 
 function distributeKills(teamId: string, matchIndex: number, totalKillsForTeam: number, players: BasePlayerRow[]) {
@@ -589,6 +709,7 @@ function distributeKills(teamId: string, matchIndex: number, totalKillsForTeam: 
 function buildFallbackSeedBaseDataset(): BaseDataset {
   const teams: BaseTeamRow[] = BRAVO_TEAM_DEFINITIONS.map((team) => ({
     id: team.id,
+    slug: team.id,
     name: team.name,
     tag: team.tag,
     logoUrl: buildTeamLogo(team),
@@ -612,8 +733,9 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       const playerId = slugify(`${team.id}-${playerName}`);
       players.push({
         id: playerId,
+        slug: playerId,
         pubgName: playerName,
-        avatarUrl: `https://placehold.co/96x96/111827/ffffff?text=${encodeURIComponent(playerName.slice(0, 2).toUpperCase())}`,
+        avatarUrl: buildPlayerAvatar(playerName, team),
         teamId: team.id,
         active: true,
       });
@@ -637,6 +759,7 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
     const playerId = slugify(`${entry.teamId}-${entry.pubgName}`);
     players.push({
       id: playerId,
+      slug: playerId,
       pubgName: entry.pubgName,
       teamId: null,
       active: false,
@@ -665,7 +788,7 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       prizePool: "NPR 100,000",
       startDate: "2026-06-01T20:00:00+05:45",
       endDate: "2026-06-03T23:15:00+05:45",
-      bannerUrl: "https://placehold.co/1280x480/101828/ffffff?text=PUBG+MAHASANGRAM",
+      bannerUrl: buildEventBanner("PUBG MAHASANGRAM", "Flagship Bravo tournament with Nepal's sharpest rosters", "#00c6ff", "#00e676"),
       description:
         "Bravo Gaming Esports Nepal flagship PUBG PC tournament with six custom matches, full telemetry review, and MOSS enforcement for every roster.",
       rules:
@@ -676,7 +799,7 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
     },
     {
       id: "daily-scrims-day-6",
-      name: "Daily Scrims Day 6",
+      name: "Bravo Gaming Daily PUBG PC Scrims - Day 6",
       slug: "daily-scrims-day-6",
       type: "scrim",
       status: "finished",
@@ -688,16 +811,16 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       prizePool: "Community Points",
       startDate: "2026-06-10T20:00:00+05:45",
       endDate: "2026-06-10T22:30:00+05:45",
-      bannerUrl: "https://placehold.co/1280x480/0d1220/ffffff?text=Daily+Scrims+Day+6",
-      description: "Fast nightly scrim set used to track team form, rotation control, and upcoming tournament pressure.",
-      rules: "Four-map nightly scrim format. Stream delay and MOSS remain mandatory.",
+      bannerUrl: buildEventBanner("BRAVO DAILY SCRIMS 6", "Nightly PUBG PC lobby with form tracking and published result flow", "#22c55e", "#3b82f6"),
+      description: "Bravo Gaming's nightly PUBG PC scrim block used to track team form, rotation control, and pressure heading into bigger event windows.",
+      rules: "Four-map Bravo daily scrim format. Stream delay remains required and results publish after admin approval.",
       streamUrl: "https://www.youtube.com/@bravogamingnepal7981",
       discordUrl: "https://kamaucha.me/bravo",
       published: true,
     },
     {
       id: "daily-scrims-day-7",
-      name: "Daily Scrims Day 7",
+      name: "Bravo Gaming Daily PUBG PC Scrims - Day 7",
       slug: "daily-scrims-day-7",
       type: "scrim",
       status: "ongoing",
@@ -709,16 +832,16 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       prizePool: "Community Points",
       startDate: "2026-06-17T20:00:00+05:45",
       endDate: "2026-06-17T22:15:00+05:45",
-      bannerUrl: "https://placehold.co/1280x480/111827/ffffff?text=Daily+Scrims+Day+7",
-      description: "Ongoing daily scrim block with live standings pressure and late-circle trade tracking.",
-      rules: "Standard Bravo daily scrim policy. Results publish after admin review.",
+      bannerUrl: buildEventBanner("BRAVO DAILY SCRIMS 7", "Nightly Bravo lobby with published standings, review gates, and live team form", "#ef4444", "#f59e0b"),
+      description: "An active Bravo Gaming nightly scrim window with live standings pressure, late-circle trade tracking, and leaderboard movement for M8, Team HAKU, N3P, FYB Esports, and NPL.",
+      rules: "Standard Bravo daily scrim policy. Results publish after admin review and approval.",
       streamUrl: "https://www.youtube.com/@bravogamingnepal7981",
       discordUrl: "https://kamaucha.me/bravo",
       published: true,
     },
     {
       id: "daily-scrims-day-8",
-      name: "Daily Scrims Day 8",
+      name: "Bravo Gaming Daily PUBG PC Scrims - Day 8",
       slug: "daily-scrims-day-8",
       type: "scrim",
       status: "upcoming",
@@ -730,8 +853,8 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       prizePool: "Community Points",
       startDate: "2026-06-18T20:00:00+05:45",
       endDate: "2026-06-18T22:15:00+05:45",
-      bannerUrl: "https://placehold.co/1280x480/0f172a/ffffff?text=Daily+Scrims+Day+8",
-      description: "Next nightly scrim session with full roster tracking, match imports, and ready-to-publish standings.",
+      bannerUrl: buildEventBanner("BRAVO DAILY SCRIMS 8", "Tonight's PUBG PC block for Nepal's active Bravo squads", "#06b6d4", "#8b5cf6"),
+      description: "The next Bravo nightly scrim session with full roster tracking, match imports, and ready-to-publish standings across Nepal's active PUBG lineups.",
       rules: "Lobby opens 7:45 PM NPT. Results publish after admin approval.",
       streamUrl: "https://www.youtube.com/@bravogamingnepal7981",
       discordUrl: "https://kamaucha.me/bravo",
@@ -751,8 +874,8 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       prizePool: "TBD",
       startDate: "2026-06-24T20:00:00+05:45",
       endDate: "2026-06-26T22:30:00+05:45",
-      bannerUrl: "https://placehold.co/1280x480/111827/ffffff?text=Monsoon+Circuit+Open",
-      description: "Draft event configuration waiting on final admin approval.",
+      bannerUrl: buildEventBanner("MONSOON CIRCUIT OPEN", "Multi-day Bravo competition lane with sponsor-ready presentation", "#f97316", "#3b82f6"),
+      description: "Bravo's next featured tournament lane is staged for approval with full branding, roster visibility, and analytics support.",
       rules: "Rules will publish with the final approved format.",
       streamUrl: null,
       discordUrl: "https://kamaucha.me/bravo",
@@ -912,13 +1035,13 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
   };
 }
 
-async function fetchSupabaseRows(tableName: string) {
+async function fetchSupabaseRows<TableName extends keyof Database["public"]["Tables"]>(tableName: TableName) {
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client.from(tableName).select("*");
   if (error) {
     throw error;
   }
-  return (data ?? []) as Array<Record<string, unknown>>;
+  return (data ?? []) as unknown as Array<Database["public"]["Tables"][TableName]["Row"]>;
 }
 
 async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
@@ -949,6 +1072,7 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
 
     const teams: BaseTeamRow[] = teamRows.map((row) => ({
       id: toText(row.id),
+      slug: toText(row.slug, slugify(toText(row.name))),
       name: toText(row.name),
       tag: toOptionalText(row.tag ?? row.short_name),
       logoUrl: toOptionalText(row.logo_url),
@@ -959,6 +1083,7 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
 
     const players: BasePlayerRow[] = playerRows.map((row) => ({
       id: toText(row.id),
+      slug: toText(row.slug, slugify(toText(row.pubg_name ?? row.display_name))),
       pubgName: toText(row.pubg_name ?? row.display_name),
       avatarUrl: toOptionalText(row.avatar_url ?? row.photo_url),
       teamId: toOptionalText(row.current_team_id),
@@ -1062,6 +1187,292 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
   } catch {
     return null;
   }
+}
+
+function mapTournamentStatusToHubStatus(status?: string): PubgHubEventStatus {
+  const normalizedStatus = status?.trim().toLowerCase() ?? "";
+  if (normalizedStatus === "live") return "ongoing";
+  if (normalizedStatus === "completed") return "finished";
+  return "upcoming";
+}
+
+function mapScrimStatusToHubStatus(status?: string): PubgHubEventStatus {
+  const normalizedStatus = status?.trim().toLowerCase() ?? "";
+  if (normalizedStatus === "live") return "ongoing";
+  if (normalizedStatus === "completed") return "finished";
+  return "upcoming";
+}
+
+async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
+  if (!isDocumentStoreConfigured()) {
+    return null;
+  }
+
+  try {
+    const [teamsDocs, playersDocs, tournamentDocs, scrimDocs, resultDocs, matchDocs, tournamentMatchDocs] = await Promise.all([
+      fetchDocumentCollection<Team>(COLLECTIONS.teams, 800).catch(() => []),
+      fetchDocumentCollection<Player>(COLLECTIONS.players, 2000).catch(() => []),
+      fetchDocumentCollection<Tournament>(COLLECTIONS.tournaments, 300).catch(() => []),
+      fetchDocumentCollection<Scrim>(COLLECTIONS.scrims, 400).catch(() => []),
+      fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matchResults, 500).catch(() => []),
+      fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matches, 500).catch(() => []),
+      fetchDocumentCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, 500).catch(() => []),
+    ]);
+
+    const teams: BaseTeamRow[] = teamsDocs
+      .filter((team) => team.id && team.name && team.scope !== "tournament")
+      .map((team) => ({
+        id: team.id,
+        slug: team.slug ?? slugify(team.name),
+        name: team.name,
+        tag: team.tag ?? null,
+        logoUrl: team.logoUrl ?? team.logo ?? null,
+        region: team.country ?? "Nepal",
+        slotNumber: team.slotNumber ?? null,
+        active: (team.status ?? "active") !== "inactive",
+      }));
+
+    const players: BasePlayerRow[] = playersDocs
+      .filter((player) => player.id && player.name && player.scope !== "tournament")
+      .map((player) => ({
+        id: player.id,
+        slug: player.slug ?? slugify(player.pubgName ?? player.inGameName ?? player.name),
+        pubgName: player.pubgName ?? player.inGameName ?? player.name,
+        avatarUrl: player.avatarUrl ?? player.avatar ?? null,
+        teamId: player.teamId ?? null,
+        active: (player.playerStatus ?? "active") !== "inactive",
+      }));
+
+    const tournaments = tournamentDocs.filter((tournament) => tournament.id && tournament.title);
+    const scrims = scrimDocs.filter((scrim) => scrim.id && scrim.title);
+    const eventsById = new Map<string, BaseEventRow>();
+
+    for (const tournament of tournaments) {
+      const status = mapTournamentStatusToHubStatus(tournament.status);
+      eventsById.set(tournament.id, {
+        id: tournament.id,
+        name: tournament.title,
+        slug: tournament.id,
+        type: "tournament",
+        status,
+        state: buildEventState(true, status),
+        region: tournament.server || "Nepal",
+        game: tournament.mode || "PUBG PC",
+        mode: tournament.format || "Squad",
+        perspective: tournament.perspective || "TPP",
+        prizePool: tournament.prizePool || "TBD",
+        startDate: tournament.startDate,
+        endDate: tournament.endDate ?? null,
+        bannerUrl: tournament.bannerUrl ?? null,
+        description: tournament.description ?? null,
+        rules: tournament.rules ?? null,
+        streamUrl: null,
+        discordUrl: null,
+        published: true,
+      });
+    }
+
+    for (const scrim of scrims) {
+      if (eventsById.has(scrim.id)) continue;
+      const status = mapScrimStatusToHubStatus(scrim.status);
+      eventsById.set(scrim.id, {
+        id: scrim.id,
+        name: scrim.title,
+        slug: scrim.id,
+        type: "scrim",
+        status,
+        state: buildEventState(true, status),
+        region: "Nepal",
+        game: "PUBG PC",
+        mode: "Squad",
+        perspective: "TPP",
+        prizePool: "TBD",
+        startDate: scrim.date,
+        endDate: null,
+        bannerUrl: null,
+        description: scrim.announcement ?? null,
+        rules: null,
+        streamUrl: null,
+        discordUrl: null,
+        published: true,
+      });
+    }
+
+    const uniqueMatches = new Map<string, TournamentMatch>();
+    for (const match of [...matchDocs, ...tournamentMatchDocs, ...resultDocs]) {
+      uniqueMatches.set(match.id, match);
+    }
+
+    for (const match of uniqueMatches.values()) {
+      const eventId = match.tournamentId ?? match.scrimId ?? match.eventSlug ?? match.id;
+      if (!eventsById.has(eventId)) {
+        const status = match.status === "draft" ? "upcoming" : "finished";
+        eventsById.set(eventId, {
+          id: eventId,
+          name: match.eventName ?? "Published Match Event",
+          slug: match.eventSlug ?? eventId,
+          type: "match-group",
+          status,
+          state: buildEventState(match.status !== "draft", status),
+          region: "Nepal",
+          game: "PUBG PC",
+          mode: "Squad",
+          perspective: "TPP",
+          prizePool: "TBD",
+          startDate: match.playedAt ?? match.syncedAt ?? new Date().toISOString(),
+          endDate: null,
+          bannerUrl: null,
+          description: null,
+          rules: null,
+          streamUrl: null,
+          discordUrl: null,
+          published: match.status !== "draft",
+        });
+      }
+    }
+
+    const eventTeams: BaseEventTeamRow[] = [
+      ...tournaments.flatMap((tournament) =>
+        (tournament.registeredTeamIds ?? []).map((teamId) => ({
+          eventId: tournament.id,
+          teamId,
+          slotNumber: teams.find((team) => team.id === teamId)?.slotNumber ?? null,
+          status: "approved",
+        }))
+      ),
+      ...scrims.flatMap((scrim) =>
+        (scrim.teamIds ?? []).map((teamId) => ({
+          eventId: scrim.id,
+          teamId,
+          slotNumber: teams.find((team) => team.id === teamId)?.slotNumber ?? null,
+          status: "approved",
+        }))
+      ),
+      ...Array.from(uniqueMatches.values()).flatMap((match) => {
+        const eventId = match.tournamentId ?? match.scrimId ?? match.eventSlug ?? match.id;
+        return (match.teamResults ?? []).map((teamResult) => ({
+          eventId,
+          teamId: teamResult.teamId ?? teamResult.teamName,
+          slotNumber: teamResult.slotNumber ?? null,
+          status: "approved",
+        }));
+      }),
+    ].filter((eventTeam) => eventTeam.eventId && eventTeam.teamId);
+
+    const matches: BaseMatchRow[] = Array.from(uniqueMatches.values())
+      .filter((match) => (match.status ?? "published") !== "draft")
+      .map((match) => ({
+        id: match.id,
+        eventId: match.tournamentId ?? match.scrimId ?? match.eventSlug ?? match.id,
+        matchNumber: match.matchNumber ?? match.sequenceNumber ?? 1,
+        mapName: normalizeMapName(match.map || "Unknown"),
+        startTime: match.playedAt ?? match.syncedAt ?? new Date().toISOString(),
+        status: match.status ?? "published",
+        vodUrl: match.vodUrl ?? null,
+      }));
+
+    const teamResults: BaseTeamResultRow[] = Array.from(uniqueMatches.values())
+      .filter((match) => (match.status ?? "published") !== "draft")
+      .flatMap((match) =>
+        (match.teamResults ?? []).map((teamResult, index) => ({
+          id: `${match.id}-${teamResult.teamId ?? teamResult.teamName}-${index}`,
+          matchId: match.id,
+          teamId: teamResult.teamId ?? teamResult.teamName,
+          placement: teamResult.placement,
+          kills: teamResult.kills,
+          placementPoints: teamResult.placementPoints,
+          killPoints: teamResult.killPoints,
+          totalPoints: teamResult.totalPoints,
+          wwcd: teamResult.placement === 1,
+        }))
+      );
+
+    const playerResults: BasePlayerResultRow[] = Array.from(uniqueMatches.values())
+      .filter((match) => (match.status ?? "published") !== "draft")
+      .flatMap((match) =>
+        (match.playerResults ?? []).map((playerResult, index) => ({
+          id: `${match.id}-${playerResult.playerId}-${index}`,
+          matchId: match.id,
+          playerId: playerResult.playerId,
+          teamId: playerResult.teamId ?? "",
+          kills: playerResult.kills,
+          assists: playerResult.assists,
+          knocks: playerResult.knocks,
+          damage: playerResult.damage,
+          survivalTime: playerResult.survivalTime,
+        }))
+      );
+
+    const rosterHistory: BaseRosterRow[] = players
+      .filter((player) => player.teamId)
+      .map((player) => ({
+        teamId: player.teamId ?? "",
+        playerId: player.id,
+        startDate: "2026-01-01",
+        endDate: null,
+        status: "active",
+      }));
+
+    const events = Array.from(eventsById.values()).filter((event) => event.published);
+
+    if (teams.length === 0 && events.length === 0 && matches.length === 0) {
+      return null;
+    }
+
+    return {
+      source: "supabase",
+      teams,
+      players,
+      rosterHistory,
+      events,
+      eventTeams,
+      matches,
+      teamResults,
+      playerResults,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function mergeRecords<T>(records: T[], getKey: (record: T) => string) {
+  const mergedRecords = new Map<string, T>();
+
+  for (const record of records) {
+    mergedRecords.set(getKey(record), record);
+  }
+
+  return Array.from(mergedRecords.values());
+}
+
+function mergeBaseDatasets(primary: BaseDataset | null, secondary: BaseDataset | null): BaseDataset | null {
+  if (!primary && !secondary) return null;
+  if (!primary) return secondary;
+  if (!secondary) return primary;
+
+  return {
+    source: primary.source,
+    teams: mergeRecords([...primary.teams, ...secondary.teams], (record) => record.id),
+    players: mergeRecords([...primary.players, ...secondary.players], (record) => record.id),
+    rosterHistory: mergeRecords(
+      [...primary.rosterHistory, ...secondary.rosterHistory],
+      (record) => `${record.teamId}-${record.playerId}-${record.startDate}-${record.status}`
+    ),
+    events: mergeRecords([...primary.events, ...secondary.events], (record) => record.id),
+    eventTeams: mergeRecords(
+      [...primary.eventTeams, ...secondary.eventTeams],
+      (record) => `${record.eventId}-${record.teamId}`
+    ),
+    matches: mergeRecords([...primary.matches, ...secondary.matches], (record) => record.id),
+    teamResults: mergeRecords(
+      [...primary.teamResults, ...secondary.teamResults],
+      (record) => `${record.matchId}-${record.teamId}`
+    ),
+    playerResults: mergeRecords(
+      [...primary.playerResults, ...secondary.playerResults],
+      (record) => `${record.matchId}-${record.playerId}`
+    ),
+  };
 }
 
 function aggregateMapStats(values: Array<{ mapName: string; placement: number; kills: number; totalPoints: number; damage: number; wwcd: boolean }>) {
@@ -1616,6 +2027,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
 
       return {
         id: value.id,
+        slug: teamsById.get(value.id)?.slug ?? slugify(value.name),
         name: value.name,
         tag: value.tag ?? null,
         logoUrl: value.logoUrl ?? null,
@@ -1820,6 +2232,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
 
       return {
         id: value.id,
+        slug: playersById.get(value.id)?.slug ?? slugify(value.pubgName),
         pubgName: value.pubgName,
         avatarUrl: value.avatarUrl ?? null,
         currentTeamId: value.teamId ?? null,
@@ -1925,9 +2338,11 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
 
 export const getPubgHubDataset = cache(async () => {
   const liveDataset = await buildSupabaseBaseDataset();
+  const documentStoreDataset = await buildDocumentStoreBaseDataset();
+  const mergedDataset = mergeBaseDatasets(liveDataset, documentStoreDataset);
 
-  if (liveDataset) {
-    const aggregatedLive = buildDataset(liveDataset);
+  if (mergedDataset) {
+    const aggregatedLive = buildDataset(mergedDataset);
     if (aggregatedLive.matches.length > 0 || aggregatedLive.events.length > 0) {
       return aggregatedLive;
     }
@@ -1974,12 +2389,14 @@ export async function getPubgEventBySlug(slug: string) {
   return dataset.events.find((event) => event.slug === slug) ?? null;
 }
 
-export async function getPubgTeamById(teamId: string) {
+export async function getPubgTeamById(teamIdOrSlug: string) {
   const dataset = await getPubgHubDataset();
-  return dataset.teams.find((team) => team.id === teamId) ?? null;
+  const normalizedValue = teamIdOrSlug.trim().toLowerCase();
+  return dataset.teams.find((team) => team.id === teamIdOrSlug || team.slug.toLowerCase() === normalizedValue) ?? null;
 }
 
-export async function getPubgPlayerById(playerId: string) {
+export async function getPubgPlayerById(playerIdOrSlug: string) {
   const dataset = await getPubgHubDataset();
-  return dataset.players.find((player) => player.id === playerId) ?? null;
+  const normalizedValue = playerIdOrSlug.trim().toLowerCase();
+  return dataset.players.find((player) => player.id === playerIdOrSlug || player.slug.toLowerCase() === normalizedValue) ?? null;
 }

@@ -19,12 +19,12 @@ import { compareMvpRankingPlayers, comparePlayerLeaderboardPerformance } from ".
 import { buildSeasonLeaderboard } from "./season-standings";
 import {
   COLLECTIONS,
-  deleteFirestoreDocument,
-  fetchFirestoreCollection,
-  isFirebaseConfigured,
-  queryFirestoreCollection,
-  saveFirestoreDocument,
-} from "./firebase";
+  deleteDocument,
+  fetchDocumentCollection,
+  isDocumentStoreConfigured,
+  queryDocumentCollection,
+  saveDocument,
+} from "./document-store";
 import type { Player, Scrim, Season, SiteStats, Team, Tournament, TournamentMatch, TournamentStanding } from "./types";
 
 const BRAVO_SEASON_SERIES_TITLE = "BRAVO GAMING ESPORTS DAILY PUBG PC SCRIMS";
@@ -91,7 +91,7 @@ async function deleteMissingSeasonDocuments<T extends { id: string }>(
   keepIds: Set<string>,
   scope?: "season" | "tournament"
 ) {
-  const existingDocuments = await queryFirestoreCollection<T>(collectionName, "seasonId", seasonId, 500);
+  const existingDocuments = await queryDocumentCollection<T>(collectionName, "seasonId", seasonId, 500);
   await Promise.all(
     existingDocuments
       .filter((document) => {
@@ -103,30 +103,30 @@ async function deleteMissingSeasonDocuments<T extends { id: string }>(
         if (scope && documentScope !== scope) return false;
         return !keepIds.has(document.id);
       })
-      .map((document) => deleteFirestoreDocument(collectionName, document.id))
+      .map((document) => deleteDocument(collectionName, document.id))
   );
 }
 
 async function purgeTournamentScope(tournamentId: string) {
   const [matches, tournamentMatches, matchResults, matchPlayers, standings, teams, players] = await Promise.all([
-    queryFirestoreCollection<TournamentMatch>(COLLECTIONS.matches, "tournamentId", tournamentId, 500),
-    queryFirestoreCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, "tournamentId", tournamentId, 500),
-    queryFirestoreCollection<TournamentMatch>(COLLECTIONS.matchResults, "tournamentId", tournamentId, 500),
-    queryFirestoreCollection(COLLECTIONS.matchPlayers, "tournamentId", tournamentId, 5000),
-    queryFirestoreCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 500),
-    queryFirestoreCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 500),
-    queryFirestoreCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 1000),
+    queryDocumentCollection<TournamentMatch>(COLLECTIONS.matches, "tournamentId", tournamentId, 500),
+    queryDocumentCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, "tournamentId", tournamentId, 500),
+    queryDocumentCollection<TournamentMatch>(COLLECTIONS.matchResults, "tournamentId", tournamentId, 500),
+    queryDocumentCollection(COLLECTIONS.matchPlayers, "tournamentId", tournamentId, 5000),
+    queryDocumentCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 500),
+    queryDocumentCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 500),
+    queryDocumentCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 1000),
   ]);
 
   await Promise.all([
-    ...matches.map((match) => deleteFirestoreDocument(COLLECTIONS.matches, match.id)),
-    ...tournamentMatches.map((match) => deleteFirestoreDocument(COLLECTIONS.tournamentMatches, match.id)),
-    ...matchResults.map((match) => deleteFirestoreDocument(COLLECTIONS.matchResults, match.id)),
-    ...matchPlayers.map((matchPlayer) => deleteFirestoreDocument(COLLECTIONS.matchPlayers, matchPlayer.id)),
-    ...standings.map((standing) => deleteFirestoreDocument(COLLECTIONS.standings, standing.id)),
-    ...teams.map((team) => deleteFirestoreDocument(COLLECTIONS.teams, team.id)),
-    ...players.map((player) => deleteFirestoreDocument(COLLECTIONS.players, player.id)),
-    deleteFirestoreDocument(COLLECTIONS.tournaments, tournamentId),
+    ...matches.map((match) => deleteDocument(COLLECTIONS.matches, match.id)),
+    ...tournamentMatches.map((match) => deleteDocument(COLLECTIONS.tournamentMatches, match.id)),
+    ...matchResults.map((match) => deleteDocument(COLLECTIONS.matchResults, match.id)),
+    ...matchPlayers.map((matchPlayer) => deleteDocument(COLLECTIONS.matchPlayers, matchPlayer.id)),
+    ...standings.map((standing) => deleteDocument(COLLECTIONS.standings, standing.id)),
+    ...teams.map((team) => deleteDocument(COLLECTIONS.teams, team.id)),
+    ...players.map((player) => deleteDocument(COLLECTIONS.players, player.id)),
+    deleteDocument(COLLECTIONS.tournaments, tournamentId),
   ]);
 }
 
@@ -143,7 +143,7 @@ export async function syncBravoDailyScrimSeason(options?: {
   currentDay?: number;
   importFeed?: boolean;
 }) {
-  if (!isFirebaseConfigured()) {
+  if (!isDocumentStoreConfigured()) {
     throw new Error("Supabase is not configured. Add the Supabase environment variables before syncing Bravo season data.");
   }
 
@@ -262,7 +262,7 @@ export async function syncBravoDailyScrimSeason(options?: {
       currentDay,
       currentTournamentId: currentSeasonTournament?.id,
       description:
-        "Daily PUBG PC scrims owned and persisted by Bravo Gaming Esports after importing verified historical day data into Firestore.",
+        "Daily PUBG PC scrims owned and persisted by Bravo Gaming Esports after importing verified historical day data into Supabase.",
       tournamentIds: seasonTournaments.map((tournament) => tournament.id),
       game: "PUBG PC",
       format: "Squad",
@@ -287,8 +287,8 @@ export async function syncBravoDailyScrimSeason(options?: {
     })
   );
 
-  const existingSeasonTeams = await queryFirestoreCollection<Team>(COLLECTIONS.teams, "seasonId", BRAVO_SEASON_SLUG, 500);
-  const existingSeasonPlayers = await queryFirestoreCollection<Player>(COLLECTIONS.players, "seasonId", BRAVO_SEASON_SLUG, 1000);
+  const existingSeasonTeams = await queryDocumentCollection<Team>(COLLECTIONS.teams, "seasonId", BRAVO_SEASON_SLUG, 500);
+  const existingSeasonPlayers = await queryDocumentCollection<Player>(COLLECTIONS.players, "seasonId", BRAVO_SEASON_SLUG, 1000);
   const existingSeasonTeamById = new Map(existingSeasonTeams.filter((team) => team.scope === "season").map((team) => [team.id, team]));
   const existingSeasonPlayerById = new Map(
     existingSeasonPlayers.filter((player) => player.scope === "season").map((player) => [player.id, player])
@@ -405,7 +405,7 @@ export async function syncBravoDailyScrimSeason(options?: {
         scope: "tournament",
       });
 
-      await saveFirestoreDocument(COLLECTIONS.standings, standing.id, {
+      await saveDocument(COLLECTIONS.standings, standing.id, {
         ...standing,
         teamId: seasonTeamId,
         slotNumber:
@@ -696,7 +696,7 @@ export async function syncBravoDailyScrimSeason(options?: {
 
   await Promise.all(
     seasonStandingDocs.map((standingDocument) =>
-      saveFirestoreDocument(COLLECTIONS.standings, standingDocument.id, standingDocument as unknown as Record<string, unknown>)
+      saveDocument(COLLECTIONS.standings, standingDocument.id, standingDocument as unknown as Record<string, unknown>)
     )
   );
 
@@ -735,7 +735,7 @@ export async function syncBravoDailyScrimSeason(options?: {
 
   await Promise.all(
     scrimDocs.map((scrimDocument) =>
-      saveFirestoreDocument(COLLECTIONS.scrims, scrimDocument.id, scrimDocument as unknown as Record<string, unknown>)
+      saveDocument(COLLECTIONS.scrims, scrimDocument.id, scrimDocument as unknown as Record<string, unknown>)
     )
   );
 
@@ -777,11 +777,11 @@ export async function syncBravoDailyScrimSeason(options?: {
   );
   await deleteMissingSeasonDocuments<Scrim>(COLLECTIONS.scrims, BRAVO_SEASON_SLUG, new Set(scrimDocs.map((scrim) => scrim.id)));
 
-  const existingSiteStats = (await fetchFirestoreCollection<SiteStats>(COLLECTIONS.siteStats, 5)).find(
+  const existingSiteStats = (await fetchDocumentCollection<SiteStats>(COLLECTIONS.siteStats, 5)).find(
     (siteStats) => siteStats.id === "main"
   );
 
-  await saveFirestoreDocument(COLLECTIONS.siteStats, "main", {
+  await saveDocument(COLLECTIONS.siteStats, "main", {
     ...(existingSiteStats ?? {}),
     currentSeasonId: savedSeason.id,
     currentSeasonTitle: BRAVO_SEASON_SERIES_TITLE,
@@ -819,3 +819,4 @@ export const BRAVO_DAILY_SCRIMS_SEASON = {
   seasonNumber: BRAVO_SEASON_NUMBER,
   startDate: BRAVO_SEASON_START_DATE,
 };
+

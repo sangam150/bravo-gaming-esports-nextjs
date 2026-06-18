@@ -1,5 +1,7 @@
 import { getPlayers, savePlayer } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
+import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { revalidatePlayerPaths } from "@/lib/revalidate-public";
 
 export async function GET() {
   const data = await getPlayers();
@@ -15,6 +17,13 @@ export async function POST(request: Request) {
       return Response.json({ error: "name is required" }, { status: 400 });
     }
     const result = await savePlayer(body, body.id);
+    await writeAuditLogFromRequest(request, {
+      action: "create",
+      entityType: "player",
+      entityId: result.id,
+      newValue: result,
+    });
+    revalidatePlayerPaths(result.slug ?? result.id);
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

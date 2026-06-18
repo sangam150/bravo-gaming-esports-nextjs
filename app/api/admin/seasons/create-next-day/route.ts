@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { createNextSeasonDay, ensureSeasonDay } from "@/lib/admin-season-days";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { revalidateTournamentPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
 
 function normalizeDaySetup(body: Record<string, unknown>) {
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
 
     if (targetDayNumber) {
       const result = await ensureSeasonDay(seasonId, targetDayNumber, { overrides: daySetup });
+      revalidateTournamentPaths(result.tournament?.id);
       return Response.json({
         success: true,
         data: result,
@@ -51,6 +53,7 @@ export async function POST(request: Request) {
     }
 
     const result = await createNextSeasonDay(seasonId, daySetup);
+    revalidateTournamentPaths(result.tournament.id);
 
     return Response.json({
       success: true,

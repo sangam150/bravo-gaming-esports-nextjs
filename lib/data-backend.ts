@@ -2,10 +2,6 @@ export type RequestedDataBackend = "auto" | "supabase";
 
 function normalizeRequestedDataBackend(value?: string | null): RequestedDataBackend {
   const normalizedValue = value?.trim().toLowerCase();
-  if (normalizedValue === "firebase") {
-    return "supabase";
-  }
-
   if (normalizedValue === "supabase") {
     return "supabase";
   }

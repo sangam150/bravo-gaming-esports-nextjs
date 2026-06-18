@@ -1,4 +1,5 @@
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
+import { sanitizeJsonObject } from "./json-utils";
 import type {
   AuthenticatedUserProfile,
   MossSubmission,
@@ -334,7 +335,7 @@ export async function createTeamRosterRequest(
       old_player_id: input.oldPlayerId ?? null,
       new_player_name: input.newPlayerName ?? null,
       new_player_pubg_name: input.newPlayerPubgName ?? null,
-      payload,
+      payload: sanitizeJsonObject(payload),
       status: "pending",
       created_at: now,
       updated_at: now,

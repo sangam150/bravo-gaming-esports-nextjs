@@ -4,13 +4,13 @@ import { BRAVO_DAILY_SCRIMS_SEASON, syncBravoDailyScrimSeason } from "./bravo-se
 import { buildFallbackTeamNameFromSlot, canonicalizeBravoTeamName, getBravoCanonicalTeams, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
 import {
   COLLECTIONS,
-  commitFirestoreWriteOperations,
-  fetchFirestoreCollection,
-  type FirestoreWriteOperation,
-  getFirestoreDocument,
-  isFirebaseConfigured,
-  queryFirestoreCollection,
-} from "./firebase";
+  commitDocumentWriteOperations,
+  fetchDocumentCollection,
+  type DocumentWriteOperation,
+  getDocument,
+  isDocumentStoreConfigured,
+  queryDocumentCollection,
+} from "./document-store";
 import { aggregateTeamResults, parseMatchParticipants, type ParsedPlayerStat } from "./pubg-match-parser";
 import { buildPlayerAppearanceMapFromMatches, choosePreferredPlayerTeam } from "./player-team-history";
 import { placementPoints, pubgFetch, PUBG_SHARD, summarizeMatch } from "./pubg";
@@ -197,7 +197,7 @@ function classifyImportIssue(
     code = "duplicate_match";
   } else if (normalizedMessage.includes("scrim day missing")) {
     code = "scrim_day_missing";
-  } else if (normalizedMessage.includes("database write failed") || normalizedMessage.includes("firestore")) {
+  } else if (normalizedMessage.includes("database write failed") || normalizedMessage.includes("document store")) {
     code = "database_write_failed";
   } else if (normalizedMessage.includes("pubg api error") || normalizedMessage.includes("pubg api failed")) {
     code = "pubg_api_failed";
@@ -392,18 +392,18 @@ function applyImportEdit(
 }
 
 async function loadSeasonPlayers() {
-  if (!isFirebaseConfigured()) {
+  if (!isDocumentStoreConfigured()) {
     return [];
   }
 
-  return fetchFirestoreCollection<Player>(COLLECTIONS.players, 2000).catch(() => []);
+  return fetchDocumentCollection<Player>(COLLECTIONS.players, 2000).catch(() => []);
 }
 
 async function resolveImportContext(
   options?: ImportTargetOptions & { requireDay?: boolean }
 ): Promise<ResolvedImportContext> {
   const initialScrim = options?.scrimId
-    ? await getFirestoreDocument<Scrim>(COLLECTIONS.scrims, options.scrimId)
+    ? await getDocument<Scrim>(COLLECTIONS.scrims, options.scrimId)
     : null;
   let scrim = initialScrim;
   let tournamentId = options?.tournamentId ?? initialScrim?.tournamentId;
@@ -465,11 +465,11 @@ async function detectImportConflicts(
   playerResults: MatchPlayerResult[],
   existingPlayers?: Player[]
 ): Promise<PubgImportConflict[]> {
-  if (!isFirebaseConfigured() || playerResults.length === 0) {
+  if (!isDocumentStoreConfigured() || playerResults.length === 0) {
     return [];
   }
 
-  const players = existingPlayers ?? (await fetchFirestoreCollection<Player>(COLLECTIONS.players, 2000).catch(() => []));
+  const players = existingPlayers ?? (await fetchDocumentCollection<Player>(COLLECTIONS.players, 2000).catch(() => []));
   const scopedPlayers = players
     .filter((player) => player.scope === "season" || !player.scope)
     .sort((firstPlayer, secondPlayer) => {
@@ -560,7 +560,7 @@ async function buildPubgMatchPreview(
   };
 
   const conflicts = await detectImportConflicts(playerResults, existingPlayers);
-  const alreadyImported = Boolean(await getFirestoreDocument(COLLECTIONS.matches, matchId));
+  const alreadyImported = Boolean(await getDocument(COLLECTIONS.matches, matchId));
 
   return {
     context,
@@ -629,10 +629,10 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
 
   const [matches, existingStandings, existingTeams, existingPlayers, existingMatchPlayers] = await Promise.all([
     getTournamentMatches(tournamentId),
-    queryFirestoreCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 200),
-    queryFirestoreCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 200),
-    queryFirestoreCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 1000),
-    queryFirestoreCollection<MatchPlayerRecord>(COLLECTIONS.matchPlayers, "tournamentId", tournamentId, 5000),
+    queryDocumentCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 200),
+    queryDocumentCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 200),
+    queryDocumentCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 1000),
+    queryDocumentCollection<MatchPlayerRecord>(COLLECTIONS.matchPlayers, "tournamentId", tournamentId, 5000),
   ]);
 
   const standings = buildTournamentStandings(tournamentId, currentTournament.title, matches).map((standing) => ({
@@ -768,21 +768,53 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
   }
 
   const standingsByTeamId = new Map(standings.map((standing) => [standing.teamId, standing]));
-  const canonicalTeams =
-    currentTournament.seasonId === BRAVO_DAILY_SCRIMS_SEASON.id
-      ? getBravoCanonicalTeams()
-      : standings.map((standing) => ({
-          id: standing.teamId,
-          name: standing.teamName,
-          slotNumber: standing.slotNumber,
-        }));
+  const teamSeedMap = new Map<string, { id: string; name: string; slotNumber?: number }>();
 
-  const teamDocuments = canonicalTeams.map((team) => {
+  if (currentTournament.seasonId === BRAVO_DAILY_SCRIMS_SEASON.id) {
+    for (const team of getBravoCanonicalTeams()) {
+      teamSeedMap.set(team.id, {
+        id: team.id,
+        name: team.name,
+        slotNumber: team.slotNumber,
+      });
+    }
+  }
+
+  for (const standing of standings) {
+    teamSeedMap.set(standing.teamId, {
+      id: standing.teamId,
+      name: standing.teamName,
+      slotNumber: standing.slotNumber,
+    });
+  }
+
+  for (const match of matches) {
+    for (const teamResult of match.teamResults ?? []) {
+      const teamId = teamResult.teamId ?? slugify(teamResult.teamName);
+      if (teamSeedMap.has(teamId)) {
+        continue;
+      }
+
+      teamSeedMap.set(teamId, {
+        id: teamId,
+        name: teamResult.teamName,
+        slotNumber: teamResult.slotNumber,
+      });
+    }
+  }
+
+  const teamDocuments = Array.from(teamSeedMap.values()).map((team) => {
+    const scopedTeamId = buildTournamentScopedTeamId(tournamentId, team.name);
     const standing = standingsByTeamId.get(team.id);
-    const existingTeam = existingTeams.find((currentTeam) => currentTeam.name === team.name || currentTeam.sourceTeamName === team.name);
+    const existingTeam = existingTeams.find(
+      (currentTeam) =>
+        currentTeam.id === scopedTeamId ||
+        currentTeam.name === team.name ||
+        currentTeam.sourceTeamName === team.name
+    );
 
     return {
-      id: buildTournamentScopedTeamId(tournamentId, team.name),
+      id: scopedTeamId,
       name: team.name,
       tag: resolveBravoTeamIdentity(team.name)?.tag ?? existingTeam?.tag ?? `Day ${currentTournament.seasonDayNumber ?? currentTournament.dayNumber ?? ""}`.trim(),
       slotNumber: team.slotNumber ?? existingTeam?.slotNumber,
@@ -796,7 +828,7 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
       chickenDinners: standing?.wins ?? 0,
       status: "active" as const,
       registrationStatus: "approved" as const,
-      playerIds: playerIdsByTeamId.get(team.id) ?? [],
+      playerIds: playerIdsByTeamId.get(scopedTeamId) ?? [],
       scope: "tournament" as const,
       seasonId: currentTournament.seasonId,
       seasonTitle: currentTournament.seasonTitle,
@@ -816,7 +848,7 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
   const playerIds = new Set(playerDocuments.map((player) => player.id));
   const matchPlayerIds = new Set(matchPlayerDocuments.map((matchPlayer) => matchPlayer.id));
 
-  const operations: FirestoreWriteOperation[] = [
+  const operations: DocumentWriteOperation[] = [
     ...existingStandings
       .filter((standing) => !standingIds.has(standing.id))
       .map((standing) => ({ type: "delete" as const, collectionName: COLLECTIONS.standings, docId: standing.id })),
@@ -884,7 +916,7 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
     },
   ];
 
-  await commitFirestoreWriteOperations(operations);
+  await commitDocumentWriteOperations(operations);
 }
 
 async function syncBravoSeasonIfNeeded(tournament?: Tournament | null) {
@@ -892,12 +924,30 @@ async function syncBravoSeasonIfNeeded(tournament?: Tournament | null) {
     return;
   }
 
-  const season = await getFirestoreDocument<Season>(COLLECTIONS.seasons, tournament.seasonId);
+  const season = await getDocument<Season>(COLLECTIONS.seasons, tournament.seasonId);
   await syncBravoDailyScrimSeason({
     configuredDays: season?.configuredDays,
     currentDay: season?.currentDay,
     importFeed: false,
   });
+}
+
+export async function syncTournamentAndSeasonDerivedData(
+  tournamentId?: string | null,
+  tournament?: Tournament | null
+) {
+  const resolvedTournamentId = tournamentId ?? tournament?.id;
+  if (!resolvedTournamentId) {
+    return;
+  }
+
+  const resolvedTournament = tournament ?? (await getTournament(resolvedTournamentId));
+  if (!resolvedTournament) {
+    return;
+  }
+
+  await syncTournamentDerivedData(resolvedTournamentId, resolvedTournament);
+  await syncBravoSeasonIfNeeded(resolvedTournament);
 }
 
 function normalizeRequestedMatchIds(matchIds: string[]) {
@@ -949,7 +999,7 @@ function normalizeStoredMatchForDisplay(match: TournamentMatch): TournamentMatch
 }
 
 async function getMatchSequenceNumbers(tournamentId: string, matchIds: string[]) {
-  const existingMatches = await getTournamentMatches(tournamentId);
+  const existingMatches = await getTournamentMatches(tournamentId, { includeDrafts: true });
   const sequenceNumberByMatchId = new Map<string, number>();
 
   for (const existingMatch of existingMatches) {
@@ -1038,7 +1088,7 @@ export async function importPubgMatches(
   matchIds: string[],
   options?: ImportTargetOptions & { screenshotUrl?: string; duplicateMode?: PubgDuplicateMode }
 ): Promise<PubgBulkImportResult> {
-  if (!isFirebaseConfigured()) {
+  if (!isDocumentStoreConfigured()) {
     throw new Error("Supabase is not configured. Add the Supabase environment variables before importing PUBG data.");
   }
 
@@ -1146,7 +1196,7 @@ export async function importPubgMatches(
       ].filter((matchId): matchId is string => Boolean(matchId)))
     );
 
-    const operations: FirestoreWriteOperation[] = [];
+    const operations: DocumentWriteOperation[] = [];
     for (const { preview, matchRecord } of importedMatchRecords) {
       const matchPlayerDocuments = buildMatchPlayerRecords(matchRecord, context.tournament);
       const importRecord: PubgMatchImport = {
@@ -1214,7 +1264,7 @@ export async function importPubgMatches(
         status: deriveScrimImportStatus(context.scrim, mergedPubgMatchIds),
         announcement:
           mergedPubgMatchIds.length > 0
-            ? context.scrim.announcement === "Matches not imported yet."
+            ? context.scrim.announcement === "Match data will appear once results are published."
               ? ""
               : context.scrim.announcement
             : context.scrim.announcement,
@@ -1223,15 +1273,14 @@ export async function importPubgMatches(
     });
 
     try {
-      await commitFirestoreWriteOperations(operations);
+      await commitDocumentWriteOperations(operations);
     } catch (error: unknown) {
       throw new Error(
         `Database write failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
 
-    await syncTournamentDerivedData(context.tournamentId, context.tournament);
-    await syncBravoSeasonIfNeeded(context.tournament);
+    await syncTournamentAndSeasonDerivedData(context.tournamentId, context.tournament);
 
     for (const { preview } of importedMatchRecords) {
       results.push({
@@ -1257,7 +1306,7 @@ export async function importPubgMatch(
 ) {
   const preview = await previewPubgMatch(matchId, options);
   const result = await importPubgMatches([matchId], options);
-  const importedMatch = await getFirestoreDocument<TournamentMatch>(COLLECTIONS.matches, matchId);
+  const importedMatch = await getDocument<TournamentMatch>(COLLECTIONS.matches, matchId);
 
   return {
     summary: preview.summary,
@@ -1272,9 +1321,10 @@ export async function importPubgMatch(
 
 export async function getLiveMatchResults(limit = 20) {
   try {
-    const docs = await fetchFirestoreCollection<TournamentMatch>(COLLECTIONS.matchResults, limit);
+    const docs = await fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matchResults, limit);
     return docs
       .map(normalizeStoredMatchForDisplay)
+      .filter((match) => match.status !== "draft")
       .sort((firstMatch, secondMatch) => (secondMatch.syncedAt ?? "").localeCompare(firstMatch.syncedAt ?? ""));
   } catch {
     return [];
@@ -1282,6 +1332,10 @@ export async function getLiveMatchResults(limit = 20) {
 }
 
 export async function getMatchResult(matchId: string) {
-  const match = await getFirestoreDocument<TournamentMatch>(COLLECTIONS.matchResults, matchId);
-  return match ? normalizeStoredMatchForDisplay(match) : null;
+  const match = await getDocument<TournamentMatch>(COLLECTIONS.matchResults, matchId);
+  if (!match) return null;
+
+  const normalizedMatch = normalizeStoredMatchForDisplay(match);
+  return normalizedMatch.status === "draft" ? null : normalizedMatch;
 }
+

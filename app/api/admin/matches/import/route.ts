@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { importPubgMatch, importPubgMatches } from "@/lib/pubg-sync";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
 import type { MatchPlayerResult, PubgDuplicateMode, PubgImportEdit, TeamMatchResult } from "@/lib/types";
 
@@ -169,10 +170,12 @@ export async function POST(request: Request) {
 
     if (matchIds.length === 1 && !Array.isArray(body.matchIds)) {
       const result = await importPubgMatch(matchIds[0], options);
+      revalidateCompetitionPaths(result.matchRecord?.id ?? matchIds[0]);
       return Response.json({ success: true, data: result });
     }
 
     const result = await importPubgMatches(matchIds, options);
+    revalidateCompetitionPaths();
     return Response.json({
       success: result.failedCount === 0,
       data: result,

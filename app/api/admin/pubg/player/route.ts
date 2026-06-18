@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import { COLLECTIONS, getFirestoreDocument, saveFirestoreDocument } from "@/lib/firebase";
+import { COLLECTIONS, getDocument, saveDocument } from "@/lib/document-store";
 import { fetchPubgPlayerRecentMatches } from "@/lib/pubg";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const playerName = body.playerName?.trim();
-    const shouldSaveLookup = Boolean(body.saveLookup ?? body.saveToFirebase);
+    const shouldSaveLookup = Boolean(body.saveLookup ?? body.saveToDocumentStore);
 
     if (!playerName) {
       return new Response(JSON.stringify({ error: "playerName is required" }), { status: 400 });
@@ -25,13 +25,13 @@ export async function POST(request: Request) {
     const recentMatches = await Promise.all(
       lookup.recentMatches.map(async (match) => ({
         ...match,
-        alreadyImported: Boolean(await getFirestoreDocument(COLLECTIONS.pubgMatches, match.matchId)),
+        alreadyImported: Boolean(await getDocument(COLLECTIONS.pubgMatches, match.matchId)),
       }))
     );
 
     let savedLookup = null;
     if (shouldSaveLookup) {
-      savedLookup = await saveFirestoreDocument("pubgPlayers", lookup.playerId, {
+      savedLookup = await saveDocument("pubgPlayers", lookup.playerId, {
         playerName: lookup.playerName,
         shardId: lookup.shardId,
         recentMatches,
@@ -57,3 +57,4 @@ export async function POST(request: Request) {
     });
   }
 }
+

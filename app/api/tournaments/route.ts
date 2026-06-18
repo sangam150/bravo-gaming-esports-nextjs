@@ -1,5 +1,6 @@
 import { getTournaments, saveTournament } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
+import { revalidateTournamentPaths } from "@/lib/revalidate-public";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "title is required" }, { status: 400 });
     }
     const result = await saveTournament(body, body.id);
+    revalidateTournamentPaths(result.id);
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

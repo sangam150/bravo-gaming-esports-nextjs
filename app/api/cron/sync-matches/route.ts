@@ -1,5 +1,5 @@
 import { fetchPubgPlayerRecentMatches } from "@/lib/pubg";
-import { COLLECTIONS, fetchFirestoreCollection, getFirestoreDocument, saveFirestoreDocument } from "@/lib/firebase";
+import { COLLECTIONS, fetchDocumentCollection, getDocument, saveDocument } from "@/lib/document-store";
 import { importPubgMatches } from "@/lib/pubg-sync";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
@@ -17,8 +17,8 @@ export async function GET(request: Request) {
 
   try {
     const [scrims, watchers] = await Promise.all([
-      fetchFirestoreCollection<Scrim>(COLLECTIONS.scrims, 50),
-      fetchFirestoreCollection<PubgImportWatcher>(COLLECTIONS.pubgImportWatchers, 50).catch(() => []),
+      fetchDocumentCollection<Scrim>(COLLECTIONS.scrims, 50),
+      fetchDocumentCollection<PubgImportWatcher>(COLLECTIONS.pubgImportWatchers, 50).catch(() => []),
     ]);
     const pending = scrims.filter(
       (s) => (s.pubgMatchId || (s.pubgMatchIds?.length ?? 0) > 0) && (s.status === "live" || s.status === "waiting_for_data")
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
             continue;
           }
 
-          const alreadyImported = await getFirestoreDocument(COLLECTIONS.pubgMatches, match.matchId);
+          const alreadyImported = await getDocument(COLLECTIONS.pubgMatches, match.matchId);
           if (alreadyImported) {
             knownMatchIds.add(match.matchId);
             continue;
@@ -117,7 +117,7 @@ export async function GET(request: Request) {
           }
         }
 
-        await saveFirestoreDocument(COLLECTIONS.pubgImportWatchers, watcher.id, {
+        await saveDocument(COLLECTIONS.pubgImportWatchers, watcher.id, {
           playerId: watcher.playerId ?? lookup.playerId,
           shardId: watcher.shardId ?? lookup.shardId,
           importedMatchIds: Array.from(knownMatchIds).slice(-50),
@@ -141,3 +141,4 @@ export async function GET(request: Request) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
+

@@ -9,7 +9,7 @@ import {
 
 function getStorageConfigurationError() {
   return new Error(
-    "Supabase Storage is required for uploads. Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY."
+    "Supabase Storage is required for uploads. Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY), and SUPABASE_SERVICE_ROLE_KEY."
   );
 }
 

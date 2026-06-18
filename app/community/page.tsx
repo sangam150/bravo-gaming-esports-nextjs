@@ -1,82 +1,123 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { getAnnouncements, getTeams } from "@/lib/data";
-import TeamAvatar from "@/components/ui/TeamAvatar";
+import { EmptyState, PageHero, SectionHeader } from "@/components/pubg/PubgHubUI";
+import { getPlatformHubData } from "@/lib/platform-hub";
+
+export const metadata: Metadata = {
+  title: "Community",
+  description: "Bravo Gaming Esports community hub for Discord, announcements, rules, support, FAQ, and ecosystem participation.",
+};
+
+export const revalidate = 300;
 
 export default async function CommunityPage() {
-  const [teams, announcements] = await Promise.all([getTeams(), getAnnouncements()]);
+  const hub = await getPlatformHubData();
+  const announcements = hub.news.slice(0, 4);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <section className="mb-10">
-        <p className="section-title">Teams</p>
-        <h2 className="section-heading mt-2">All Registered Teams</h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {teams.slice(0, 8).map((t) => (
-            <Link key={t.id} href={`/teams/${t.id}`} className="esports-card flex items-center gap-3 p-4">
-              <TeamAvatar name={t.name} />
+    <main className="page-shell pb-12 pt-6">
+      <div className="page-stack">
+        <PageHero
+          badge="Community"
+          title={
+            <>
+              The public home of
+              <br />
+              Nepal esports community
+            </>
+          }
+          description="Bravo's community route is designed for players, teams, organizers, sponsors, and fans who need announcements, support, rules, Discord access, and clear paths into the wider ecosystem."
+          actions={
+            <>
+              <a href="https://kamaucha.me/bravo" target="_blank" rel="noreferrer" className="btn-discord">
+                Join Discord
+              </a>
+              <Link href="/news" className="btn-primary">
+                Announcements
+              </Link>
+              <Link href="/contact" className="btn-secondary">
+                Support
+              </Link>
+            </>
+          }
+          stats={[
+            { label: "Games In Ecosystem", value: hub.games.length, tone: "blue" },
+            { label: "Organizations", value: hub.organizations.length, tone: "green" },
+            { label: "Announcements", value: hub.news.length, tone: "yellow" },
+            { label: "Events", value: hub.events.length, tone: "red" },
+          ]}
+          aside={
+            <div className="space-y-4">
               <div>
-                <p className="text-sm font-bold text-white">{t.name}</p>
-                <p className="text-label text-text-muted">#{t.rank} · {t.totalPoints} pts</p>
+                <p className="section-title">Community Channels</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Join, learn, compete, and stay informed</h2>
               </div>
-            </Link>
-          ))}
-        </div>
-        <Link href="/teams" className="btn-outline-blue mt-4 inline-flex">View All Teams</Link>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div>
-          <p className="section-title">Community</p>
-          <h2 className="section-heading mt-2">Join Our Community</h2>
-
-          <div className="mt-6 rounded-card border border-accent-discord/30 bg-accent-discord/10 p-6 text-center">
-            <p className="font-display text-2xl font-black text-white">JOIN 6,985+ MEMBERS</p>
-            <p className="mt-1 text-sm text-text-muted">on Discord</p>
-            <a href="https://kamaucha.me/bravo" target="_blank" rel="noreferrer" className="btn-discord mt-4 inline-flex">Join Discord</a>
-          </div>
-
-          <div className="mt-6 flex gap-3">
-            {["YouTube", "Discord", "Facebook", "Instagram"].map((s) => (
-              <span key={s} className="rounded-card border border-white/[0.08] bg-bg-card px-4 py-2 text-label font-bold uppercase text-text-muted">{s}</span>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-6 sm:grid-cols-2">
-          <div className="esports-card p-5">
-            <h3 className="section-heading !text-sm">Latest Announcements</h3>
-            {announcements.length === 0 ? (
-              <p className="mt-4 text-sm text-text-muted">Community announcements will appear here after publishing.</p>
-            ) : (
-              <ul className="mt-4 space-y-3">
-                {announcements.map((a) => (
-                  <li key={a.id} className="text-sm">
-                    <p className="font-semibold text-white">{a.title}</p>
-                    <p className="text-xs text-text-muted">{a.detail}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Link href="/news" className="btn-outline-blue mt-4 inline-flex !text-[11px]">View All</Link>
-          </div>
-          <div className="esports-card p-5">
-            <h3 className="section-heading !text-sm">Community Stats</h3>
-            <dl className="mt-4 space-y-3">
               {[
-                ["Registered Teams", teams.length > 0 ? `${teams.length}` : "Publishing soon"],
-                ["Announcements", announcements.length > 0 ? `${announcements.length}` : "Publishing soon"],
-                ["Match Data", "Import-driven only"],
-                ["Status", "Realtime after import"],
-              ].map(([k, v]) => (
-                <div key={k} className="flex justify-between text-sm">
-                  <dt className="text-text-muted">{k}</dt>
-                  <dd className="font-mono-stat font-bold text-accent-green">{v}</dd>
+                "Discord for live coordination and scene chatter",
+                "Announcements for platform and event updates",
+                "Support routes for teams, players, and partners",
+                "Rules and FAQ as the ecosystem expands",
+              ].map((item) => (
+                <div key={item} className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
+                  {item}
                 </div>
               ))}
-            </dl>
+            </div>
+          }
+        />
+
+        <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
+          <div className="esports-card p-6">
+            <SectionHeader eyebrow="Join In" title="Community action lanes" description="The platform treats community as a real product surface, not just a footer link." />
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {[
+                { title: "Discord", detail: "Live scrim coordination, announcements, and community conversation.", href: "https://kamaucha.me/bravo", external: true },
+                { title: "Rules", detail: "Unified event and community rules as the platform grows into multiple games.", href: "/events", external: false },
+                { title: "Support", detail: "Contact routes for players, teams, organizers, and sponsors.", href: "/contact", external: false },
+                { title: "FAQ", detail: "A future public FAQ lane for platform access, events, and rankings.", href: "/dashboard", external: false },
+              ].map((item) =>
+                item.external ? (
+                  <a
+                    key={item.title}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                  >
+                    <p className="font-display text-sm font-black uppercase text-white">{item.title}</p>
+                    <p className="mt-2 text-sm text-text-muted">{item.detail}</p>
+                  </a>
+                ) : (
+                  <Link
+                    key={item.title}
+                    href={item.href}
+                    className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                  >
+                    <p className="font-display text-sm font-black uppercase text-white">{item.title}</p>
+                    <p className="mt-2 text-sm text-text-muted">{item.detail}</p>
+                  </Link>
+                )
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+
+          <div className="esports-card p-6">
+            <SectionHeader eyebrow="Latest Announcements" title="What the ecosystem is hearing now" description="Editorial and operational updates stay visible from the community surface too." />
+            <div className="mt-6 grid gap-3">
+              {announcements.map((article) => (
+                <Link key={article.slug} href={`/news/${article.slug}`} className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{article.category}</p>
+                  <p className="mt-2 font-semibold text-white">{article.title}</p>
+                  <p className="mt-2 text-sm text-text-muted">{article.summary}</p>
+                </Link>
+              ))}
+              {announcements.length === 0 ? (
+                <EmptyState title="No announcements yet" description="Platform announcements will appear here once the editorial lane is publishing." />
+              ) : null}
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

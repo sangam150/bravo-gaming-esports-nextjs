@@ -5,6 +5,10 @@ import { getPubgHubDataset } from "@/lib/pubg-hub";
 export const metadata: Metadata = {
   title: "PUBG Fantasy",
   description: "Bravo PUBG fantasy preview with event pools, five-player squad builder planning, and leaderboard context.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export const revalidate = 300;

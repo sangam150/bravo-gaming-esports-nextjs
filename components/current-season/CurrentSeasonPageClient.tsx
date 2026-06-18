@@ -36,9 +36,9 @@ export default function CurrentSeasonPageClient({ initialOverview }: { initialOv
         <div className="page-inner">
           <section className="page-hero p-8 text-center">
             <p className="section-title">Current Season</p>
-            <h1 className="hero-h1 mt-2 !text-4xl">Season data coming soon</h1>
+            <h1 className="hero-h1 mt-2 !text-4xl">Current season will appear after admin approval</h1>
             <p className="mt-4 text-text-muted">
-              Import Bravo daily scrim data from admin to initialize the current season.
+              Results will be published after admin approval.
             </p>
           </section>
         </div>

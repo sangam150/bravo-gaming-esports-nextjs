@@ -29,6 +29,22 @@ create type public.import_status as enum ('pending', 'approved', 'published', 'r
 create type public.request_status as enum ('pending', 'approved', 'rejected', 'review_later');
 create type public.publish_status as enum ('draft', 'published', 'archived');
 
+create table if not exists public.point_systems (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  game text not null,
+  placement_points jsonb not null default '{}'::jsonb,
+  kill_points numeric(10,2) not null default 1,
+  rules_json jsonb not null default '{}'::jsonb,
+  active boolean not null default false,
+  deleted_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create unique index if not exists point_systems_name_lower_unique_idx on public.point_systems (lower(name));
+create index if not exists point_systems_game_active_idx on public.point_systems (game, active) where deleted_at is null;
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -109,7 +125,15 @@ alter table public.events add column if not exists rules text;
 alter table public.events add column if not exists stream_url text;
 alter table public.events add column if not exists discord_url text;
 alter table public.events add column if not exists published boolean not null default false;
+alter table public.events add column if not exists published_at timestamptz;
+alter table public.events add column if not exists deleted_at timestamptz;
+alter table public.events add column if not exists point_system_id uuid references public.point_systems(id) on delete set null;
 create unique index if not exists events_slug_unique_idx on public.events (slug);
+create index if not exists events_status_idx on public.events (status);
+create index if not exists events_published_idx on public.events (published);
+create index if not exists events_published_at_idx on public.events (published_at desc);
+create index if not exists events_deleted_at_idx on public.events (deleted_at);
+create index if not exists events_point_system_id_idx on public.events (point_system_id);
 
 create table if not exists public.teams (
   id uuid primary key default gen_random_uuid(),
@@ -126,8 +150,13 @@ create table if not exists public.teams (
 alter table public.teams add column if not exists tag text;
 alter table public.teams add column if not exists region text;
 alter table public.teams add column if not exists is_active boolean not null default true;
+alter table public.teams add column if not exists slug text;
+alter table public.teams add column if not exists deleted_at timestamptz;
 
 create unique index if not exists teams_name_lower_unique_idx on public.teams (lower(name));
+create unique index if not exists teams_slug_unique_idx on public.teams (slug) where deleted_at is null;
+create index if not exists teams_status_idx on public.teams (status);
+create index if not exists teams_deleted_at_idx on public.teams (deleted_at);
 
 create table if not exists public.players (
   id uuid primary key default gen_random_uuid(),
@@ -142,8 +171,13 @@ create table if not exists public.players (
 
 alter table public.players add column if not exists avatar_url text;
 alter table public.players add column if not exists is_active boolean not null default true;
+alter table public.players add column if not exists slug text;
+alter table public.players add column if not exists deleted_at timestamptz;
 
 create unique index if not exists players_pubg_name_lower_unique_idx on public.players (lower(pubg_name));
+create unique index if not exists players_slug_unique_idx on public.players (slug) where deleted_at is null;
+create index if not exists players_current_team_id_idx on public.players (current_team_id);
+create index if not exists players_deleted_at_idx on public.players (deleted_at);
 
 create table if not exists public.matches (
   id uuid primary key default gen_random_uuid(),
@@ -164,6 +198,18 @@ alter table public.matches add column if not exists event_id uuid references pub
 alter table public.matches add column if not exists map_name text;
 alter table public.matches add column if not exists start_time timestamptz;
 alter table public.matches add column if not exists vod_url text;
+alter table public.matches add column if not exists source_url text;
+alter table public.matches add column if not exists scoreboard_image_url text;
+alter table public.matches add column if not exists result_image_url text;
+alter table public.matches add column if not exists screenshot_urls jsonb;
+alter table public.matches add column if not exists published_at timestamptz;
+alter table public.matches add column if not exists deleted_at timestamptz;
+alter table public.matches add column if not exists point_system_id uuid references public.point_systems(id) on delete set null;
+create index if not exists matches_status_idx on public.matches (status);
+create index if not exists matches_event_id_idx on public.matches (event_id);
+create index if not exists matches_published_at_idx on public.matches (published_at desc);
+create index if not exists matches_deleted_at_idx on public.matches (deleted_at);
+create index if not exists matches_point_system_id_idx on public.matches (point_system_id);
 
 create table if not exists public.match_players (
   id uuid primary key default gen_random_uuid(),
@@ -340,6 +386,11 @@ create table if not exists public.audit_logs (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.audit_logs alter column entity_id type text using entity_id::text;
+create index if not exists audit_logs_actor_id_idx on public.audit_logs (actor_id);
+create index if not exists audit_logs_entity_type_idx on public.audit_logs (entity_type);
+create index if not exists audit_logs_created_at_idx on public.audit_logs (created_at desc);
+
 create table if not exists public.announcements (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -360,6 +411,18 @@ create table if not exists public.sponsors (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.sponsors add column if not exists slug text;
+alter table public.sponsors add column if not exists description text;
+alter table public.sponsors add column if not exists supported_events text[];
+alter table public.sponsors add column if not exists partnership_history text[];
+alter table public.sponsors add column if not exists featured boolean default false;
+alter table public.sponsors add column if not exists published boolean default false;
+alter table public.sponsors add column if not exists deleted_at timestamptz;
+create unique index if not exists sponsors_slug_unique_idx on public.sponsors (slug) where deleted_at is null;
+create index if not exists sponsors_status_idx on public.sponsors (status);
+create index if not exists sponsors_published_idx on public.sponsors (published);
+create index if not exists sponsors_deleted_at_idx on public.sponsors (deleted_at);
+
 create table if not exists public.videos (
   id uuid primary key default gen_random_uuid(),
   youtube_video_id text,
@@ -371,6 +434,23 @@ create table if not exists public.videos (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.videos add column if not exists slug text;
+alter table public.videos add column if not exists category text;
+alter table public.videos add column if not exists duration text;
+alter table public.videos add column if not exists kind text;
+alter table public.videos add column if not exists game_slug text;
+alter table public.videos add column if not exists summary text;
+alter table public.videos add column if not exists image_url text;
+alter table public.videos add column if not exists featured boolean default false;
+alter table public.videos add column if not exists published boolean default false;
+alter table public.videos add column if not exists deleted_at timestamptz;
+create unique index if not exists videos_slug_unique_idx on public.videos (slug) where deleted_at is null;
+create index if not exists videos_status_idx on public.videos (status);
+create index if not exists videos_published_idx on public.videos (published);
+create index if not exists videos_published_at_idx on public.videos (published_at desc);
+create index if not exists videos_game_slug_idx on public.videos (game_slug);
+create index if not exists videos_deleted_at_idx on public.videos (deleted_at);
 
 create table if not exists public.settings (
   id uuid primary key default gen_random_uuid(),
@@ -613,6 +693,7 @@ alter table public.match_players enable row level security;
 alter table public.match_results enable row level security;
 alter table public.pending_imports enable row level security;
 alter table public.import_logs enable row level security;
+alter table public.point_systems enable row level security;
 alter table public.roster_requests enable row level security;
 alter table public.moss_submissions enable row level security;
 alter table public.uploads enable row level security;
@@ -730,6 +811,13 @@ for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
 create policy "admin manage events" on public.events
+for all using (public.is_admin_role())
+with check (public.is_admin_role());
+
+create policy "public read point systems" on public.point_systems
+for select using (deleted_at is null and active = true);
+
+create policy "admin manage point systems" on public.point_systems
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
@@ -853,6 +941,54 @@ for insert with check (
 create policy "admin read audit logs" on public.audit_logs
 for select using (public.is_admin_role());
 
+insert into public.point_systems (
+  id,
+  name,
+  game,
+  placement_points,
+  kill_points,
+  rules_json,
+  active
+)
+values (
+  '00000000-0000-4000-8000-000000000001',
+  'Bravo PUBG',
+  'PUBG PC',
+  '{"1":10,"2":6,"3":5,"4":4,"5":3,"6":2,"7":1,"8":1,"9":0,"10":0,"11":0,"12":0,"13":0,"14":0,"15":0,"16":0}'::jsonb,
+  1,
+  '{"notes":["WWCD 10 points","Kill 1 point","9th to 16th earn 0 placement points"]}'::jsonb,
+  true
+)
+on conflict (name) do update
+set
+  game = excluded.game,
+  placement_points = excluded.placement_points,
+  kill_points = excluded.kill_points,
+  rules_json = excluded.rules_json,
+  active = excluded.active,
+  deleted_at = null,
+  updated_at = timezone('utc', now());
+
+update public.events
+set published_at = coalesce(published_at, updated_at)
+where published = true and published_at is null;
+
+update public.teams
+set slug = lower(trim(both '-' from regexp_replace(name, '[^a-z0-9]+', '-', 'gi')))
+where slug is null;
+
+update public.players
+set slug = lower(trim(both '-' from regexp_replace(coalesce(pubg_name, display_name, id::text), '[^a-z0-9]+', '-', 'gi')))
+where slug is null;
+
+update public.sponsors
+set slug = lower(trim(both '-' from regexp_replace(name, '[^a-z0-9]+', '-', 'gi')))
+where slug is null;
+
+update public.videos
+set slug = lower(trim(both '-' from regexp_replace(title, '[^a-z0-9]+', '-', 'gi')))
+where slug is null;
+
 insert into storage.buckets (id, name, public)
 values
   ('team-logos', 'team-logos', true),
@@ -888,11 +1024,11 @@ values
   (3, 'The Lost MC Esports', 'LMC', 'Default Bravo slot team', 'active'),
   (4, 'Omega Tactix', 'OTX', 'Default Bravo slot team', 'active'),
   (5, 'NPL', 'NPL', 'Default Bravo slot team', 'active'),
-  (6, 'Near Edge Protocol', 'N3P', 'Default Bravo slot team', 'active'),
+  (6, 'N3P', 'N3P', 'Default Bravo slot team', 'active'),
   (7, 'Team HAKU', 'HAKU', 'Default Bravo slot team', 'active'),
   (8, 'Loot Addicts', 'LA', 'Default Bravo slot team', 'active'),
   (9, 'Mujuverse', 'MV', 'Default Bravo slot team', 'active'),
-  (10, 'Lang Tang Gang', 'LTG', 'Default Bravo slot team', 'active'),
+  (10, 'LTG', 'LTG', 'Default Bravo slot team', 'active'),
   (11, 'KDS', 'KDS', 'Default Bravo slot team', 'active'),
   (12, 'Bir Gorkhali', 'BG', 'Default Bravo slot team', 'active'),
   (13, 'Illumaniti Gamers', 'IG', 'Default Bravo slot team', 'active'),
@@ -1095,7 +1231,7 @@ values
     'teams',
     'lang-tang-gang-ltg',
     jsonb_build_object(
-      'name', 'Lang Tang Gang (LTG)',
+      'name', 'LTG',
       'tag', 'LTG',
       'slotNumber', 11,
       'totalPoints', 0,
@@ -1324,6 +1460,10 @@ for each row execute function public.set_updated_at();
 
 create trigger profiles_set_updated_at
 before update on public.profiles
+for each row execute function public.set_updated_at();
+
+create trigger point_systems_set_updated_at
+before update on public.point_systems
 for each row execute function public.set_updated_at();
 
 create trigger events_set_updated_at

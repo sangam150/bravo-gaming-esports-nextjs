@@ -1,4 +1,4 @@
-import { COLLECTIONS, createFirestoreDocument, fetchFirestoreCollection, isFirebaseConfigured } from "./firebase";
+import { COLLECTIONS, createDocument, fetchDocumentCollection, isDocumentStoreConfigured } from "./document-store";
 import type { ErrorLogRecord } from "./types";
 
 function serializeError(error: unknown) {
@@ -37,20 +37,20 @@ export async function logServerError(
 
   console.error(`[${scope}]`, payload);
 
-  if (!isFirebaseConfigured()) return;
+  if (!isDocumentStoreConfigured()) return;
 
   try {
-    await createFirestoreDocument(COLLECTIONS.errorLogs, payload as unknown as Record<string, unknown>);
+    await createDocument(COLLECTIONS.errorLogs, payload as unknown as Record<string, unknown>);
   } catch (loggingError) {
     console.error("[server-monitoring] failed to persist error log", serializeError(loggingError));
   }
 }
 
 export async function getRecentErrorLogs(limit = 25): Promise<ErrorLogRecord[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
 
   try {
-    const records = await fetchFirestoreCollection<ErrorLogRecord>(COLLECTIONS.errorLogs, limit);
+    const records = await fetchDocumentCollection<ErrorLogRecord>(COLLECTIONS.errorLogs, limit);
     return records.sort((firstRecord, secondRecord) =>
       (secondRecord.createdAt ?? "").localeCompare(firstRecord.createdAt ?? "")
     );
@@ -58,3 +58,4 @@ export async function getRecentErrorLogs(limit = 25): Promise<ErrorLogRecord[]> 
     return [];
   }
 }
+

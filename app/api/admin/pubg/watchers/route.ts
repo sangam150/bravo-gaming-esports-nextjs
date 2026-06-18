@@ -1,10 +1,10 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import {
   COLLECTIONS,
-  deleteFirestoreDocument,
-  fetchFirestoreCollection,
-  saveFirestoreDocument,
-} from "@/lib/firebase";
+  deleteDocument,
+  fetchDocumentCollection,
+  saveDocument,
+} from "@/lib/document-store";
 import type { PubgImportWatcher } from "@/lib/types";
 
 function slugify(value: string) {
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const watchers = await fetchFirestoreCollection<PubgImportWatcher>(COLLECTIONS.pubgImportWatchers, 100).catch(() => []);
+  const watchers = await fetchDocumentCollection<PubgImportWatcher>(COLLECTIONS.pubgImportWatchers, 100).catch(() => []);
   watchers.sort((firstWatcher, secondWatcher) => (secondWatcher.updatedAt ?? "").localeCompare(firstWatcher.updatedAt ?? ""));
 
   return Response.json({ success: true, data: watchers });
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       lastImportedAt: body.lastImportedAt,
     };
 
-    await saveFirestoreDocument(COLLECTIONS.pubgImportWatchers, watcher.id, watcher as unknown as Record<string, unknown>);
+    await saveDocument(COLLECTIONS.pubgImportWatchers, watcher.id, watcher as unknown as Record<string, unknown>);
     return Response.json({ success: true, data: watcher });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -77,7 +77,7 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "id is required" }, { status: 400 });
     }
 
-    await saveFirestoreDocument(COLLECTIONS.pubgImportWatchers, watcherId, body as Record<string, unknown>);
+    await saveDocument(COLLECTIONS.pubgImportWatchers, watcherId, body as Record<string, unknown>);
     return Response.json({ success: true, data: { id: watcherId } });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -96,6 +96,7 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "id is required" }, { status: 400 });
   }
 
-  await deleteFirestoreDocument(COLLECTIONS.pubgImportWatchers, watcherId);
+  await deleteDocument(COLLECTIONS.pubgImportWatchers, watcherId);
   return Response.json({ success: true, data: { id: watcherId, deleted: true } });
 }
+

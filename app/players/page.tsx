@@ -1,15 +1,20 @@
 import type { Metadata } from "next";
-import PlayersPageClient from "@/components/players/PlayersPageClient";
-import { getPlayers } from "@/lib/data";
+import { PlatformPlayersPage } from "@/components/platform/PlatformPages";
+import { getPlatformHubData } from "@/lib/platform-hub";
+import { getPubgHubDataset } from "@/lib/pubg-hub";
 
 export const metadata: Metadata = {
   title: "Players",
-  description: "Explore Bravo Gaming Esports player profiles, form, kills, and season performance.",
+  description: "Explore Bravo Gaming Esports player profiles, flagship PUBG form, and platform-ready public player data.",
 };
 
 export const revalidate = 300;
 
-export default async function Page() {
-  const players = await getPlayers();
-  return <PlayersPageClient initialPlayers={players} />;
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function Page({ searchParams }: PageProps) {
+  const [hub, pubg, resolvedSearchParams] = await Promise.all([getPlatformHubData(), getPubgHubDataset(), searchParams]);
+  return <PlatformPlayersPage hub={hub} pubg={pubg} searchParams={resolvedSearchParams} />;
 }

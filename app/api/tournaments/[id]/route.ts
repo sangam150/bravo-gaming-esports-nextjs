@@ -1,5 +1,6 @@
 import { deleteTournament, getTournament, getTournamentMatches, saveTournament } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
+import { revalidateTournamentPaths } from "@/lib/revalidate-public";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -21,6 +22,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const existing = await getTournament(id);
     if (!existing) return Response.json({ error: "Tournament not found" }, { status: 404 });
     const result = await saveTournament({ ...existing, ...body }, id);
+    revalidateTournamentPaths(result.id);
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -33,5 +35,6 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   if (unauthorized) return unauthorized;
   const { id } = await params;
   await deleteTournament(id);
+  revalidateTournamentPaths(id);
   return Response.json({ success: true, data: { id, deleted: true } });
 }

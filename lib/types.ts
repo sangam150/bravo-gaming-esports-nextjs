@@ -80,17 +80,31 @@ export interface TournamentMatch {
   pubgMatchId: string;
   externalMatchId?: string;
   sequenceNumber?: number;
+  matchNumber?: number;
   map: string;
+  eventName?: string;
+  eventSlug?: string;
+  status?: "draft" | "published";
   winner: string;
   points: number;
   knockouts: number;
   placementPoints?: number;
   killPoints?: number;
   playedAt?: string;
+  vodUrl?: string;
   resultScreenshotUrl?: string;
+  scoreboardImageUrl?: string;
+  resultImageUrl?: string;
+  screenshotUrls?: string[];
   sourceUrl?: string;
   dataSource: MatchDataSource;
   syncedAt?: string;
+  publishedAt?: string;
+  deletedAt?: string;
+  pointSystemId?: string;
+  pointSystemName?: string;
+  createdAt?: string;
+  updatedAt?: string;
   teamResults?: TeamMatchResult[];
   playerResults?: MatchPlayerResult[];
 }
@@ -126,6 +140,7 @@ export interface MatchPlayerResult {
 
 export interface Team {
   id: string;
+  slug?: string;
   name: string;
   tag?: string;
   slotNumber?: number;
@@ -155,12 +170,14 @@ export interface Team {
   sourceTournamentTitle?: string;
   sourceTeamName?: string;
   sourceProvider?: string;
+  deletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface Player {
   id: string;
+  slug?: string;
   name: string;
   realName?: string;
   inGameName?: string;
@@ -198,6 +215,7 @@ export interface Player {
   sourceTournamentTitle?: string;
   sourcePlayerId?: string;
   sourceProvider?: string;
+  deletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -351,19 +369,63 @@ export interface StreamSchedule {
 
 export interface VideoItem {
   id: string;
+  slug?: string;
   title: string;
   category: string;
   duration: string;
   url?: string;
+  kind?: string;
+  gameSlug?: string;
+  summary?: string;
+  imageUrl?: string;
+  featured?: boolean;
+  published?: boolean;
+  publishedAt?: string;
+  deletedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+export type SponsorKind = "sponsor" | "partner" | "design";
 
 export interface SponsorItem {
   id: string;
   name: string;
+  kind?: SponsorKind;
   tier: string;
   url?: string;
+  websiteUrl?: string;
+  socialUrl?: string;
   logoUrl?: string;
+  bannerUrl?: string;
+  designAssetUrl?: string;
+  slug?: string;
+  description?: string;
+  supportedEvents?: string[];
+  eventSlugs?: string[];
+  partnershipHistory?: string[];
+  visible?: boolean;
+  featured?: boolean;
   published?: boolean;
+  showOnHomepage?: boolean;
+  showOnSponsorsPage?: boolean;
+  showOnEventPage?: boolean;
+  showOnPubgPage?: boolean;
+  deletedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ContactMessage {
+  id: string;
+  kind: "contact" | "feedback";
+  name: string;
+  email: string;
+  subject?: string;
+  message: string;
+  status: "new" | "reviewed";
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface UploadRecord {

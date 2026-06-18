@@ -1,41 +1,8 @@
-import HomePageClient from "./HomePageClient";
-import {
-  getAnnouncements,
-  getCurrentSeasonOverview,
-  getLeaderboard,
-  getMvpOfWeek,
-  getSiteStats,
-  getSponsors,
-  getStreams,
-  getTournaments,
-  getVideos,
-} from "@/lib/data";
+import { PlatformHomePage } from "@/components/platform/PlatformPages";
+import { getPlatformHubData } from "@/lib/platform-hub";
+import { getPubgHubDataset } from "@/lib/pubg-hub";
 
 export default async function HomePage() {
-  const [stats, tournaments, leaderboard, mvp, announcements, streams, videos, sponsors, currentSeasonOverview] =
-    await Promise.all([
-      getSiteStats(),
-      getTournaments(),
-      getLeaderboard(),
-      getMvpOfWeek(),
-      getAnnouncements(),
-      getStreams(),
-      getVideos(),
-      getSponsors(),
-      getCurrentSeasonOverview(),
-    ]);
-
-  return (
-    <HomePageClient
-      initialStats={stats}
-      initialTournaments={tournaments}
-      initialLeaderboard={leaderboard}
-      initialMvp={mvp}
-      initialAnnouncements={announcements}
-      initialStreams={streams}
-      initialVideos={videos}
-      initialSponsors={sponsors}
-      initialOverview={currentSeasonOverview}
-    />
-  );
+  const [hub, pubg] = await Promise.all([getPlatformHubData(), getPubgHubDataset()]);
+  return <PlatformHomePage hub={hub} pubg={pubg} />;
 }

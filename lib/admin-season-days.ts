@@ -1,6 +1,6 @@
 import { compareBravoTeamSlotOrder } from "./bravo-teams";
 import { getSeason, getSeasonTeams, getSeasonTournaments, getScrims, saveSeason, saveTournament } from "./data";
-import { COLLECTIONS, isFirebaseConfigured, saveFirestoreDocument } from "./firebase";
+import { COLLECTIONS, isDocumentStoreConfigured, saveDocument } from "./document-store";
 import type { Scrim, Season, Team, Tournament } from "./types";
 
 const DEFAULT_LOBBY_TIME = "8:00 PM NPT";
@@ -136,7 +136,7 @@ function buildScrimPayloadForDay(input: {
     pubgMatchId: undefined,
     pubgMatchIds: [],
     status: "waiting_for_data" as const,
-    announcement: "Matches not imported yet.",
+    announcement: "Match data will appear once results are published.",
     mapRotation,
     seasonId: season.id,
     seasonTitle: season.seriesTitle ?? season.title,
@@ -199,7 +199,7 @@ async function applySeasonDayOverrides(
 
   await Promise.all([
     saveTournament(updatedTournament, updatedTournament.id),
-    saveFirestoreDocument(COLLECTIONS.scrims, updatedScrim.id, updatedScrim as unknown as Record<string, unknown>),
+    saveDocument(COLLECTIONS.scrims, updatedScrim.id, updatedScrim as unknown as Record<string, unknown>),
   ]);
 
   return {
@@ -213,7 +213,7 @@ export async function ensureSeasonDay(
   seasonDayNumber: number,
   options?: { createIfMissing?: boolean; overrides?: SeasonDayOverrides }
 ) {
-  if (!isFirebaseConfigured()) {
+  if (!isDocumentStoreConfigured()) {
     throw new Error("Supabase is not configured. Connect the Supabase data store before creating a new scrim day.");
   }
 
@@ -249,7 +249,7 @@ export async function ensureSeasonDay(
       seasonDayNumber,
       overrides: options?.overrides,
     });
-    await saveFirestoreDocument(COLLECTIONS.scrims, scrimPayload.id, scrimPayload as unknown as Record<string, unknown>);
+    await saveDocument(COLLECTIONS.scrims, scrimPayload.id, scrimPayload as unknown as Record<string, unknown>);
     created = true;
     context = await getSeasonDayContext(seasonId, seasonDayNumber);
   }
@@ -278,7 +278,7 @@ export async function ensureSeasonDay(
 }
 
 export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDayOverrides) {
-  if (!isFirebaseConfigured()) {
+  if (!isDocumentStoreConfigured()) {
     throw new Error("Supabase is not configured. Connect the Supabase data store before creating a new scrim day.");
   }
 
@@ -342,7 +342,7 @@ export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDa
 
   await Promise.all(
     previousCurrentScrims.map((scrim) =>
-      saveFirestoreDocument(COLLECTIONS.scrims, scrim.id, {
+      saveDocument(COLLECTIONS.scrims, scrim.id, {
         ...scrim,
         status: "completed",
       } as Record<string, unknown>)
@@ -387,7 +387,7 @@ export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDa
     overrides: normalizedOverrides,
   });
 
-  await saveFirestoreDocument(COLLECTIONS.scrims, scrimId, scrimPayload as unknown as Record<string, unknown>);
+  await saveDocument(COLLECTIONS.scrims, scrimId, scrimPayload as unknown as Record<string, unknown>);
 
   const updatedSeason = await saveSeason(
     {
@@ -410,3 +410,4 @@ export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDa
     registeredTeams: sortedTeams.length,
   };
 }
+

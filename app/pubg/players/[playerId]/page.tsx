@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PubgPlayerDetailPage } from "@/components/pubg/PubgPublicPages";
 import { getPubgHubDataset, getPubgPlayerById } from "@/lib/pubg-hub";
 
@@ -26,10 +26,15 @@ export const revalidate = 300;
 
 export default async function PubgPlayerDetailRoute({ params, searchParams }: PageProps) {
   const [{ playerId }, resolvedSearchParams, dataset] = await Promise.all([params, searchParams, getPubgHubDataset()]);
-  const player = dataset.players.find((item) => item.id === playerId) ?? null;
+  const normalizedPlayerId = playerId.trim().toLowerCase();
+  const player = dataset.players.find((item) => item.id === playerId || item.slug.toLowerCase() === normalizedPlayerId) ?? null;
 
   if (!player) {
     notFound();
+  }
+
+  if (playerId !== player.slug) {
+    redirect(`/pubg/players/${player.slug}`);
   }
 
   return <PubgPlayerDetailPage player={player} dataset={dataset} searchParams={resolvedSearchParams} />;

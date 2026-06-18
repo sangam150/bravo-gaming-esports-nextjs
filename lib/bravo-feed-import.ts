@@ -11,11 +11,11 @@ import {
 import { getBravoCanonicalTeamIds, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
 import {
   COLLECTIONS,
-  deleteFirestoreDocument,
-  isFirebaseConfigured,
-  queryFirestoreCollection,
-  saveFirestoreDocument,
-} from "./firebase";
+  deleteDocument,
+  isDocumentStoreConfigured,
+  queryDocumentCollection,
+  saveDocument,
+} from "./document-store";
 import { buildTournamentStandings, normalizeMapName, toTeamMatchResults } from "./tournament-standings";
 import type { Player, Team, TournamentMatch, TournamentStanding } from "./types";
 
@@ -137,13 +137,13 @@ async function deleteMissingDocuments<T extends { id: string }>(
 ) {
   const deletions = existingDocuments
     .filter((document) => !keepIds.has(document.id))
-    .map((document) => deleteFirestoreDocument(collectionName, document.id));
+    .map((document) => deleteDocument(collectionName, document.id));
 
   await Promise.all(deletions);
 }
 
 export async function importBravoGamingFeed(options?: { maxDay?: number }) {
-  if (!isFirebaseConfigured()) {
+  if (!isDocumentStoreConfigured()) {
     throw new Error("Supabase is not configured. Add the Supabase environment variables before importing Bravo feed data.");
   }
 
@@ -318,7 +318,7 @@ export async function importBravoGamingFeed(options?: { maxDay?: number }) {
       prizePool:
         typeof tournamentData.prizePool === "number" && tournamentData.prizePool > 0
           ? `NPR ${tournamentData.prizePool.toLocaleString()}`
-          : "Not imported yet",
+          : "Awaiting result publication",
       teamCount: teamDocuments.length,
       maxTeams: Math.max(tournamentData.maxSlots ?? getBravoCanonicalTeamIds().length, teamDocuments.length || 1),
       startDate: tournamentData.startDate?.slice(0, 10) ?? tournamentData.createdAt.slice(0, 10),
@@ -343,10 +343,10 @@ export async function importBravoGamingFeed(options?: { maxDay?: number }) {
     };
 
     const [existingMatches, existingStandings, existingTeams, existingPlayers] = await Promise.all([
-      queryFirestoreCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, "tournamentId", tournamentId, 200),
-      queryFirestoreCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 200),
-      queryFirestoreCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 200),
-      queryFirestoreCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 500),
+      queryDocumentCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, "tournamentId", tournamentId, 200),
+      queryDocumentCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 200),
+      queryDocumentCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 200),
+      queryDocumentCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 500),
     ]);
 
     await Promise.all([
@@ -362,7 +362,7 @@ export async function importBravoGamingFeed(options?: { maxDay?: number }) {
     await Promise.all(matchDocuments.map((match) => saveTournamentMatch(match)));
     await Promise.all(
       standingDocuments.map((standing) =>
-        saveFirestoreDocument(COLLECTIONS.standings, standing.id, standing as unknown as Record<string, unknown>)
+        saveDocument(COLLECTIONS.standings, standing.id, standing as unknown as Record<string, unknown>)
       )
     );
 
@@ -385,3 +385,4 @@ export async function importBravoGamingFeed(options?: { maxDay?: number }) {
 }
 
 export { BRAVO_FEED_URL };
+

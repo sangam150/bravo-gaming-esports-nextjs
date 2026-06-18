@@ -1,16 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import AdminMatchManager from "./AdminMatchManager";
 import AdminSidebar, { type AdminSection } from "./AdminSidebar";
 import BulkTeamLogoUpload from "./BulkTeamLogoUpload";
 import FileUpload from "./FileUpload";
+import { AdminGamesManager, AdminMediaManager, AdminPlatformEventsManager, AdminSponsorsManager } from "./PlatformCatalogManagers";
 import PubgImportManager from "./PubgImportManager";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { useAdminAuth } from "./AuthProvider";
 import { adminFetch } from "@/lib/admin-api";
+import type { AuditLogRecord } from "@/lib/audit-logs";
+import type {
+  FooterLinkRecord,
+  HomepageContentRecord,
+  HomepageHeroSlideRecord,
+  ManagedNewsArticleRecord,
+} from "@/lib/platform-content";
 import { compareTeamLeaderboardPerformance } from "@/lib/ranking-sort";
 import type {
   Announcement,
+  ContactMessage,
   Player,
   PlayerRole,
   PlayerStatus,
@@ -47,6 +57,10 @@ type DashboardStats = {
   activeSeasonLength?: number;
 };
 
+type ManagedNewsFormState = Partial<ManagedNewsArticleRecord> & {
+  bodyText: string;
+};
+
 const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
 const btnDanger = "btn-watch-live !text-[11px] !py-1.5";
@@ -72,6 +86,216 @@ const defaultScrimForm: Partial<Scrim> = {
   lobbyTime: "8:00 PM NPT",
   pubgMatchIds: [],
 };
+const defaultHomepageForm: HomepageContentRecord = {
+  id: "main",
+  heroSlides: [
+    {
+      id: "hero-slide-1",
+      badge: "Nepal's Premier Esports Platform",
+      title: "Daily scrims, major events, news, and rankings in one home",
+      description:
+        "Follow Bravo Gaming Daily PUBG PC Scrims, PUBG Mahasangram, M8, Team HAKU, N3P, FYB Esports, LTG, and the wider Nepal scene from one premium Bravo platform.",
+      primaryLabel: "Watch Live",
+      primaryHref: "/live-stream",
+      secondaryLabel: "Explore Events",
+      secondaryHref: "/events",
+      tertiaryLabel: "Join Community",
+      tertiaryHref: "https://kamaucha.me/bravo",
+    },
+    {
+      id: "hero-slide-2",
+      badge: "Flagship PUBG Coverage",
+      title: "PUBG remains the flagship with real team and player coverage",
+      description:
+        "Bravo's strongest section already tracks events, teams, players, results, leaderboards, compare tools, map splits, and real public data flow.",
+      primaryLabel: "Open PUBG",
+      primaryHref: "/pubg",
+      secondaryLabel: "Leaderboards",
+      secondaryHref: "/pubg/leaderboards",
+      tertiaryLabel: "Compare",
+      tertiaryHref: "/compare",
+    },
+    {
+      id: "hero-slide-3",
+      badge: "Sponsors, Media, and Community",
+      title: "Hukut, Gorkhali Roleplay, highlights, and the Nepal community stay in view",
+      description:
+        "Sponsor campaigns, event posters, highlight drops, and community access live beside the competition data so the platform feels public-facing and broadcast-ready.",
+      primaryLabel: "Browse Games",
+      primaryHref: "/games",
+      secondaryLabel: "Read News",
+      secondaryHref: "/news",
+      tertiaryLabel: "Sponsor Hub",
+      tertiaryHref: "/sponsors",
+    },
+  ],
+  breakingNewsSlug: "",
+  featuredNewsSlugs: [],
+  featuredEventSlugs: ["daily-scrims-day-7", "pubg-mahasangram-2026", "daily-scrims-day-8", "monsoon-circuit-open"],
+  featuredSponsorSlugs: ["hukut", "gorkhali-roleplay"],
+  featuredMediaIds: ["media-poster-mahasangram", "media-clips-bravo-finish", "media-interview-expansion"],
+  featuredTeamIds: ["m8", "team-haku", "near-edge-protocol", "fyb-esports", "npl", "lang-tang-gang"],
+  featuredPlayerIds: ["m8-tommyvercettio-o", "team-haku-haku-yeti", "near-edge-protocol-n3p-vanta", "fyb-esports-fyb-slice", "npl-npl-saber"],
+  liveTitle: "Bravo Gaming Daily PUBG PC Scrims Live Feed",
+  liveSubtitle: "Watch published lobbies, featured events, and the current match-center pulse from Bravo Gaming Esports Nepal.",
+  liveViewers: "Broadcast scheduled",
+  liveHref: "/live-stream",
+  footerTitle: "Bravo Gaming Esports",
+  footerTagline: "Nepal's Premier Esports Platform",
+  footerDescription:
+    "Bravo Gaming Esports is building the public home of Nepal esports with flagship PUBG coverage, real match results, sponsor visibility, and community-first access.",
+  footerPrimaryLabel: "Watch Live",
+  footerPrimaryHref: "/live-stream",
+  footerSecondaryLabel: "Join Discord",
+  footerSecondaryHref: "https://kamaucha.me/bravo",
+  footerColumns: [
+    {
+      id: "footer-main",
+      title: "Main",
+      links: [
+        { label: "Home", href: "/" },
+        { label: "News", href: "/news" },
+        { label: "Events", href: "/events" },
+        { label: "PUBG", href: "/pubg" },
+        { label: "Rankings", href: "/rankings" },
+        { label: "Media", href: "/media" },
+      ],
+    },
+    {
+      id: "footer-competition",
+      title: "Competition",
+      links: [
+        { label: "Games", href: "/games" },
+        { label: "Teams", href: "/teams" },
+        { label: "Players", href: "/players" },
+        { label: "Matches", href: "/matches" },
+        { label: "Calendar", href: "/calendar" },
+      ],
+    },
+    {
+      id: "footer-community",
+      title: "Community",
+      links: [
+        { label: "Sponsors", href: "/sponsors" },
+        { label: "Community", href: "/community" },
+        { label: "About", href: "/about" },
+        { label: "Contact", href: "/contact" },
+        { label: "Discord", href: "https://kamaucha.me/bravo" },
+      ],
+    },
+    {
+      id: "footer-legal",
+      title: "Legal",
+      links: [
+        { label: "Privacy", href: "/privacy" },
+        { label: "Terms", href: "/terms" },
+        { label: "Admin", href: "/admin" },
+        { label: "Team Login", href: "/team" },
+      ],
+    },
+  ],
+  footerHighlights: [
+    { id: "footer-highlight-flagship", label: "Flagship", value: "PUBG" },
+    { id: "footer-highlight-coverage", label: "Coverage", value: "News + Results" },
+    { id: "footer-highlight-community", label: "Community", value: "Nepal First" },
+  ],
+  footerBottomPrimary: "Copyright 2026 Bravo Gaming Esports Nepal",
+  footerBottomSecondary: "Supabase-powered public hub for events, teams, players, rankings, media, sponsors, and community coverage.",
+  updatedAt: "",
+};
+const defaultNewsForm: ManagedNewsFormState = {
+  title: "",
+  slug: "",
+  summary: "",
+  bodyText: "",
+  date: new Date().toISOString().slice(0, 10),
+  category: "Bravo Gaming",
+  tags: [],
+  authorName: "Bravo Editorial Desk",
+  gameSlug: "",
+  featured: false,
+  breaking: false,
+  state: "draft",
+  imageUrl: "",
+  seoTitle: "",
+  seoDescription: "",
+};
+
+function splitDelimitedValues(value?: string | null) {
+  return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
+}
+
+function joinDelimitedValues(values?: string[] | null) {
+  return values?.join(", ") ?? "";
+}
+
+function serializeFooterLinks(links?: FooterLinkRecord[] | null) {
+  return (links ?? []).map((link) => `${link.label} | ${link.href}`).join("\n");
+}
+
+function parseFooterLinks(value: string) {
+  return value
+    .split(/\r?\n/g)
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row) => {
+      const [label = "", href = ""] = row.split("|").map((part) => part.trim());
+      return label && href ? ({ label, href } satisfies FooterLinkRecord) : null;
+    })
+    .filter((link): link is FooterLinkRecord => Boolean(link));
+}
+
+function normalizeHomepageFormInput(data?: HomepageContentRecord | null): HomepageContentRecord {
+  const heroSlides = Array.isArray(data?.heroSlides) && data.heroSlides.length > 0 ? data.heroSlides : defaultHomepageForm.heroSlides;
+  const footerColumns =
+    Array.isArray(data?.footerColumns) && data.footerColumns.length > 0 ? data.footerColumns : defaultHomepageForm.footerColumns;
+  const footerHighlights =
+    Array.isArray(data?.footerHighlights) && data.footerHighlights.length > 0
+      ? data.footerHighlights
+      : defaultHomepageForm.footerHighlights;
+
+  return {
+    ...defaultHomepageForm,
+    ...data,
+    heroSlides: heroSlides.slice(0, 3).map((slide, index) => ({
+      ...defaultHomepageForm.heroSlides[index],
+      ...slide,
+      id: slide.id ?? defaultHomepageForm.heroSlides[index]?.id ?? `hero-slide-${index + 1}`,
+    })),
+    featuredNewsSlugs: data?.featuredNewsSlugs ?? [],
+    featuredEventSlugs: data?.featuredEventSlugs ?? [],
+    featuredSponsorSlugs: data?.featuredSponsorSlugs ?? [],
+    featuredMediaIds: data?.featuredMediaIds ?? [],
+    featuredTeamIds: data?.featuredTeamIds ?? [],
+    featuredPlayerIds: data?.featuredPlayerIds ?? [],
+    footerColumns: footerColumns.slice(0, 4).map((column, index) => ({
+      ...defaultHomepageForm.footerColumns[index],
+      ...column,
+      id: column.id ?? defaultHomepageForm.footerColumns[index]?.id ?? `footer-column-${index + 1}`,
+      links: Array.isArray(column.links) && column.links.length > 0 ? column.links : defaultHomepageForm.footerColumns[index]?.links ?? [],
+    })),
+    footerHighlights: footerHighlights.slice(0, 3).map((highlight, index) => ({
+      ...defaultHomepageForm.footerHighlights[index],
+      ...highlight,
+      id: highlight.id ?? defaultHomepageForm.footerHighlights[index]?.id ?? `footer-highlight-${index + 1}`,
+    })),
+  };
+}
+
+function buildNewsFormState(article?: ManagedNewsArticleRecord | null): ManagedNewsFormState {
+  if (!article) {
+    return { ...defaultNewsForm };
+  }
+
+  return {
+    ...article,
+    bodyText: article.body.join("\n\n"),
+    gameSlug: article.gameSlug ?? "",
+    imageUrl: article.imageUrl ?? "",
+    seoTitle: article.seoTitle ?? "",
+    seoDescription: article.seoDescription ?? "",
+  };
+}
 
 function normalizeMatchIds(value?: string) {
   return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
@@ -119,9 +343,15 @@ export default function AdminDashboard() {
   const [importBatches, setImportBatches] = useState<PubgImportBatch[]>([]);
   const [recentUploads, setRecentUploads] = useState<UploadRecord[]>([]);
   const [errorLogs, setErrorLogs] = useState<ErrorLogRecord[]>([]);
+  const [homepageForm, setHomepageForm] = useState<HomepageContentRecord>(defaultHomepageForm);
+  const [newsArticles, setNewsArticles] = useState<ManagedNewsArticleRecord[]>([]);
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savingHomepage, setSavingHomepage] = useState(false);
+  const [savingNews, setSavingNews] = useState(false);
 
   const [tournamentForm, setTournamentForm] = useState<Partial<Tournament>>({
     status: "UPCOMING",
@@ -148,11 +378,13 @@ export default function AdminDashboard() {
   const [scrimForm, setScrimForm] = useState<Partial<Scrim>>(defaultScrimForm);
   const [seasonForm, setSeasonForm] = useState<Partial<Season>>(defaultSeasonForm);
   const [announcementForm, setAnnouncementForm] = useState<Partial<Announcement>>({ published: true });
+  const [newsForm, setNewsForm] = useState<ManagedNewsFormState>(defaultNewsForm);
   const [editingSeason, setEditingSeason] = useState<string | null>(null);
   const [editingTournament, setEditingTournament] = useState<string | null>(null);
   const [editingTeam, setEditingTeam] = useState<string | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<string | null>(null);
   const [editingScrim, setEditingScrim] = useState<string | null>(null);
+  const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
   const [matchId, setMatchId] = useState("");
@@ -203,6 +435,31 @@ export default function AdminDashboard() {
     () => importBatches.filter((batch) => batch.status !== "pending"),
     [importBatches]
   );
+  const dashboardOverview = useMemo(() => {
+    const publishedArticles = newsArticles.filter((article) => article.state === "published").length;
+    const draftArticles = newsArticles.filter((article) => article.state === "draft").length;
+    const newInboxItems = messages.filter((message) => message.status === "new").length;
+    const pendingRegistrations = registrations.filter((registration) => registration.status === "pending").length;
+    const totalPlatformEvents = tournaments.length + scrims.length;
+    const pendingApprovals = pendingRegistrations + pendingImportBatches.length + newInboxItems;
+
+    return {
+      cards: [
+        { label: "Total Events", value: totalPlatformEvents, tone: "text-accent-blue" },
+        { label: "Total Teams", value: stats?.totalTeams ?? teams.length, tone: "text-white" },
+        { label: "Total Players", value: stats?.totalPlayers ?? players.length, tone: "text-white" },
+        { label: "Published Articles", value: publishedArticles, tone: "text-accent-green" },
+        { label: "Pending Requests", value: pendingApprovals, tone: "text-accent-yellow" },
+        { label: "Published Matches", value: liveMatches.length, tone: "text-accent-blue" },
+        { label: "Inbox Messages", value: messages.length, tone: "text-white" },
+        { label: "Recent Uploads", value: recentUploads.length, tone: "text-accent-red" },
+      ],
+      publishedArticles,
+      draftArticles,
+      newInboxItems,
+      pendingRegistrations,
+    };
+  }, [liveMatches.length, messages, newsArticles, pendingImportBatches.length, players.length, recentUploads.length, registrations, scrims.length, stats?.totalPlayers, stats?.totalTeams, teams.length, tournaments.length]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -224,25 +481,37 @@ export default function AdminDashboard() {
       setAnnouncements(announcementsRes.data);
 
       try {
-        const [regRes, scrimRes, matchRes, errorRes, importBatchRes] = await Promise.all([
+        const [homepageRes, newsRes, messagesRes, regRes, scrimRes, matchRes, errorRes, importBatchRes, auditRes] = await Promise.all([
+          adminFetch("/api/admin/homepage"),
+          adminFetch("/api/admin/news"),
+          adminFetch("/api/admin/messages"),
           adminFetch("/api/registrations"),
           adminFetch("/api/admin/scrims"),
           adminFetch("/api/admin/matches"),
           adminFetch("/api/admin/errors?limit=10"),
           adminFetch("/api/admin/pending-imports"),
+          adminFetch("/api/admin/audit-logs?limit=12"),
         ]);
+        setHomepageForm(normalizeHomepageFormInput(homepageRes.data));
+        setNewsArticles(newsRes.data ?? []);
+        setMessages(messagesRes.data ?? []);
         setRegistrations(regRes.data);
         setScrims(scrimRes.data);
         setLiveMatches(matchRes.data?.matches ?? []);
         setRecentUploads(matchRes.data?.uploads ?? []);
         setErrorLogs(errorRes.data ?? []);
         setImportBatches(importBatchRes.data ?? []);
+        setAuditLogs(auditRes.data ?? []);
       } catch {
+        setHomepageForm(defaultHomepageForm);
+        setNewsArticles([]);
+        setMessages([]);
         setRegistrations([]);
         setScrims([]);
         setLiveMatches([]);
         setErrorLogs([]);
         setImportBatches([]);
+        setAuditLogs([]);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -279,6 +548,150 @@ export default function AdminDashboard() {
           }
     );
   }, [activeSeason]);
+
+  function updateHomepageSlide(index: number, patch: Partial<HomepageHeroSlideRecord>) {
+    setHomepageForm((currentForm) => ({
+      ...currentForm,
+      heroSlides: currentForm.heroSlides.map((slide, slideIndex) =>
+        slideIndex === index
+          ? {
+              ...slide,
+              ...patch,
+            }
+          : slide
+      ),
+    }));
+  }
+
+  function updateFooterColumn(index: number, patch: Partial<HomepageContentRecord["footerColumns"][number]>) {
+    setHomepageForm((currentForm) => ({
+      ...currentForm,
+      footerColumns: currentForm.footerColumns.map((column, columnIndex) =>
+        columnIndex === index
+          ? {
+              ...column,
+              ...patch,
+            }
+          : column
+      ),
+    }));
+  }
+
+  function updateFooterHighlight(index: number, patch: Partial<HomepageContentRecord["footerHighlights"][number]>) {
+    setHomepageForm((currentForm) => ({
+      ...currentForm,
+      footerHighlights: currentForm.footerHighlights.map((highlight, highlightIndex) =>
+        highlightIndex === index
+          ? {
+              ...highlight,
+              ...patch,
+            }
+          : highlight
+      ),
+    }));
+  }
+
+  function resetNewsEditor() {
+    setEditingNewsId(null);
+    setNewsForm({ ...defaultNewsForm, date: new Date().toISOString().slice(0, 10) });
+  }
+
+  function startNewsEdit(article: ManagedNewsArticleRecord) {
+    setEditingNewsId(article.id);
+    setNewsForm(buildNewsFormState(article));
+    setSection("news");
+  }
+
+  async function handleHomepageSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingHomepage(true);
+    setError(null);
+
+    try {
+      const response = await adminFetch("/api/admin/homepage", {
+        method: "PUT",
+        body: JSON.stringify(homepageForm),
+      });
+      setHomepageForm(normalizeHomepageFormInput(response.data));
+      setMessage("Homepage content saved");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingHomepage(false);
+    }
+  }
+
+  async function handleNewsSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newsForm.title || !newsForm.summary) return;
+
+    setSavingNews(true);
+    setError(null);
+
+    try {
+      const payload = {
+        ...newsForm,
+        body: newsForm.bodyText,
+        tags: newsForm.tags ?? [],
+        gameSlug: newsForm.gameSlug || undefined,
+        imageUrl: newsForm.imageUrl || undefined,
+        seoTitle: newsForm.seoTitle || undefined,
+        seoDescription: newsForm.seoDescription || undefined,
+      };
+      const response = await adminFetch(editingNewsId ? `/api/admin/news/${editingNewsId}` : "/api/admin/news", {
+        method: editingNewsId ? "PUT" : "POST",
+        body: JSON.stringify(payload),
+      });
+
+      const savedArticle = response.data as ManagedNewsArticleRecord;
+      setNewsArticles((currentArticles) => {
+        const remainingArticles = currentArticles.filter((article) => article.id !== savedArticle.id);
+        return [savedArticle, ...remainingArticles].sort(
+          (firstArticle, secondArticle) => (secondArticle.date ?? "").localeCompare(firstArticle.date ?? "")
+        );
+      });
+      setMessage(editingNewsId ? "News article updated" : "News article created");
+      resetNewsEditor();
+      await loadData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingNews(false);
+    }
+  }
+
+  async function handleDeleteNews(article: ManagedNewsArticleRecord) {
+    if (!window.confirm(`Delete "${article.title}"?`)) {
+      return;
+    }
+
+    try {
+      await adminFetch(`/api/admin/news/${article.id}`, { method: "DELETE" });
+      setNewsArticles((currentArticles) => currentArticles.filter((currentArticle) => currentArticle.id !== article.id));
+      if (editingNewsId === article.id) {
+        resetNewsEditor();
+      }
+      setMessage("News article deleted");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function handleMessageStatusChange(messageId: string, status: ContactMessage["status"]) {
+    try {
+      const response = await adminFetch("/api/admin/messages", {
+        method: "PATCH",
+        body: JSON.stringify({ id: messageId, status }),
+      });
+      const updatedMessage = response.data as ContactMessage;
+      setMessages((currentMessages) =>
+        currentMessages.map((message) => (message.id === updatedMessage.id ? updatedMessage : message))
+      );
+      setMessage(status === "reviewed" ? "Inbox item marked reviewed" : "Inbox item reopened");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
 
   async function handleSeasonSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -624,7 +1037,7 @@ export default function AdminDashboard() {
             <p className="section-title">Staff Control Center</p>
             <h1 className="font-display text-3xl font-black uppercase text-white">Admin Panel</h1>
           </div>
-          <p className="text-xs text-text-muted">Live stats import from PUBG PC API only - no demo results.</p>
+          <p className="text-xs text-text-muted">Live stats import from PUBG PC API only - no synthetic results.</p>
         </div>
 
         {(message || error) && (
@@ -639,15 +1052,10 @@ export default function AdminDashboard() {
         {section === "dashboard" && stats && (
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                { label: "Total Teams", value: stats.totalTeams },
-                { label: "Total Players", value: stats.totalPlayers },
-                { label: "Total Scrims", value: stats.totalScrims },
-                { label: "Tournaments", value: stats.totalTournaments },
-              ].map((s) => (
-                <div key={s.label} className="stat-pill p-5">
-                  <p className="text-label uppercase text-text-muted">{s.label}</p>
-                  <p className="font-mono-stat mt-1 text-3xl font-extrabold text-white">{s.value}</p>
+              {dashboardOverview.cards.map((card) => (
+                <div key={card.label} className="stat-pill p-5">
+                  <p className="text-label uppercase text-text-muted">{card.label}</p>
+                  <p className={`mt-1 font-mono-stat text-3xl font-extrabold ${card.tone}`}>{card.value}</p>
                 </div>
               ))}
             </div>
@@ -678,6 +1086,48 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
+              <div className="esports-card p-5">
+                <p className="section-heading !text-sm">Platform Snapshot</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-card border border-white/10 bg-bg-primary p-4">
+                    <p className="text-label uppercase text-text-muted">Scrims</p>
+                    <p className="mt-2 font-mono-stat text-white">{stats.totalScrims}</p>
+                  </div>
+                  <div className="rounded-card border border-white/10 bg-bg-primary p-4">
+                    <p className="text-label uppercase text-text-muted">Tournaments</p>
+                    <p className="mt-2 font-mono-stat text-white">{stats.totalTournaments}</p>
+                  </div>
+                  <div className="rounded-card border border-white/10 bg-bg-primary p-4">
+                    <p className="text-label uppercase text-text-muted">Matches Played</p>
+                    <p className="mt-2 font-mono-stat text-accent-blue">{stats.matchesPlayed}</p>
+                  </div>
+                  <div className="rounded-card border border-white/10 bg-bg-primary p-4">
+                    <p className="text-label uppercase text-text-muted">Data Backend</p>
+                    <p className="mt-2 font-mono-stat text-accent-green">{stats.dataBackend ?? "Supabase"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="esports-card p-5">
+                <p className="section-heading !text-sm">Approval Queue</p>
+                <div className="mt-4 space-y-3 text-sm">
+                  {[
+                    { label: "Pending registrations", value: dashboardOverview.pendingRegistrations },
+                    { label: "Pending PUBG imports", value: pendingImportBatches.length },
+                    { label: "New inbox messages", value: dashboardOverview.newInboxItems },
+                    { label: "Published news", value: dashboardOverview.publishedArticles },
+                    { label: "Draft articles", value: dashboardOverview.draftArticles },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between rounded-card border border-white/10 bg-bg-primary px-4 py-3">
+                      <span className="text-white">{item.label}</span>
+                      <span className="font-mono-stat text-accent-yellow">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div className="esports-card overflow-hidden !p-0">
               <div className="border-b border-white/[0.08] px-4 py-3">
                 <p className="section-heading !text-sm">Recent Live Matches</p>
@@ -704,7 +1154,7 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-3">
               <div className="esports-card p-5">
                 <p className="section-heading !text-sm">Recent Registrations</p>
                 {stats.recentRegistrations?.length ? (
@@ -735,7 +1185,485 @@ export default function AdminDashboard() {
                   <p className="mt-3 text-sm text-text-muted">No uploads yet</p>
                 )}
               </div>
+              <div className="esports-card p-5">
+                <p className="section-heading !text-sm">Recent Admin Activity</p>
+                {auditLogs.length > 0 ? (
+                  <ul className="mt-3 space-y-2 text-sm">
+                    {auditLogs.map((log) => (
+                      <li key={log.id} className="border-b border-white/5 py-2">
+                        <p className="text-white">
+                          {log.actorName ?? log.actorEmail ?? "Admin"} | {log.action.replace(/_/g, " ")} {log.entity_type}
+                        </p>
+                        <p className="text-xs text-text-muted">
+                          {new Date(log.created_at).toLocaleString()} {log.entity_id ? `| ${log.entity_id}` : ""}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-text-muted">Audit entries will appear here after admin actions are recorded.</p>
+                )}
+              </div>
             </div>
+          </div>
+        )}
+
+        {section === "homepage" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-black text-white">Homepage CMS</h2>
+              <p className="mt-1 text-sm text-text-muted">
+                Control the premium homepage hero, live module, featured content rows, and flagship spotlight ordering from Supabase-backed content.
+              </p>
+            </div>
+
+            <form onSubmit={handleHomepageSubmit} className="space-y-6">
+              <div className="grid gap-4 xl:grid-cols-3">
+                {homepageForm.heroSlides.map((slide, index) => (
+                  <div key={slide.id} className="esports-card space-y-4 p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-display text-sm font-black uppercase text-white">Hero Slide {index + 1}</p>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted">
+                        Editable
+                      </span>
+                    </div>
+                    <input
+                      className={inputClass}
+                      placeholder="Badge"
+                      value={slide.badge}
+                      onChange={(e) => updateHomepageSlide(index, { badge: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Title"
+                      value={slide.title}
+                      onChange={(e) => updateHomepageSlide(index, { title: e.target.value })}
+                    />
+                    <textarea
+                      className={inputClass}
+                      placeholder="Description"
+                      rows={4}
+                      value={slide.description}
+                      onChange={(e) => updateHomepageSlide(index, { description: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Primary button label"
+                      value={slide.primaryLabel}
+                      onChange={(e) => updateHomepageSlide(index, { primaryLabel: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Primary button href"
+                      value={slide.primaryHref}
+                      onChange={(e) => updateHomepageSlide(index, { primaryHref: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Secondary button label"
+                      value={slide.secondaryLabel ?? ""}
+                      onChange={(e) => updateHomepageSlide(index, { secondaryLabel: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Secondary button href"
+                      value={slide.secondaryHref ?? ""}
+                      onChange={(e) => updateHomepageSlide(index, { secondaryHref: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Tertiary button label"
+                      value={slide.tertiaryLabel ?? ""}
+                      onChange={(e) => updateHomepageSlide(index, { tertiaryLabel: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Tertiary button href"
+                      value={slide.tertiaryHref ?? ""}
+                      onChange={(e) => updateHomepageSlide(index, { tertiaryHref: e.target.value })}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-[1fr,1fr]">
+                <div className="esports-card grid gap-4 p-6">
+                  <div>
+                    <p className="font-display text-sm font-black uppercase text-white">Live Module</p>
+                    <p className="mt-1 text-sm text-text-muted">Override the live-now block without breaking the stream fallback.</p>
+                  </div>
+                  <input className={inputClass} placeholder="Live title" value={homepageForm.liveTitle ?? ""} onChange={(e) => setHomepageForm({ ...homepageForm, liveTitle: e.target.value })} />
+                  <textarea className={inputClass} placeholder="Live subtitle" rows={3} value={homepageForm.liveSubtitle ?? ""} onChange={(e) => setHomepageForm({ ...homepageForm, liveSubtitle: e.target.value })} />
+                  <input className={inputClass} placeholder="Viewer label" value={homepageForm.liveViewers ?? ""} onChange={(e) => setHomepageForm({ ...homepageForm, liveViewers: e.target.value })} />
+                  <input className={inputClass} placeholder="Live href" value={homepageForm.liveHref ?? ""} onChange={(e) => setHomepageForm({ ...homepageForm, liveHref: e.target.value })} />
+                  <input className={inputClass} placeholder="Breaking news slug" value={homepageForm.breakingNewsSlug ?? ""} onChange={(e) => setHomepageForm({ ...homepageForm, breakingNewsSlug: e.target.value })} />
+                </div>
+
+                <div className="esports-card grid gap-4 p-6">
+                  <div>
+                    <p className="font-display text-sm font-black uppercase text-white">Featured Ordering</p>
+                    <p className="mt-1 text-sm text-text-muted">Use comma-separated slugs or ids to control exactly what appears on the homepage.</p>
+                  </div>
+                  <textarea className={inputClass} placeholder="Featured event slugs" rows={2} value={joinDelimitedValues(homepageForm.featuredEventSlugs)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredEventSlugs: splitDelimitedValues(e.target.value) })} />
+                  <textarea className={inputClass} placeholder="Featured news slugs" rows={2} value={joinDelimitedValues(homepageForm.featuredNewsSlugs)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredNewsSlugs: splitDelimitedValues(e.target.value) })} />
+                  <textarea className={inputClass} placeholder="Featured sponsor slugs" rows={2} value={joinDelimitedValues(homepageForm.featuredSponsorSlugs)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredSponsorSlugs: splitDelimitedValues(e.target.value) })} />
+                  <textarea className={inputClass} placeholder="Featured media ids" rows={2} value={joinDelimitedValues(homepageForm.featuredMediaIds)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredMediaIds: splitDelimitedValues(e.target.value) })} />
+                  <textarea className={inputClass} placeholder="Featured team ids" rows={2} value={joinDelimitedValues(homepageForm.featuredTeamIds)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredTeamIds: splitDelimitedValues(e.target.value) })} />
+                  <textarea className={inputClass} placeholder="Featured player ids" rows={2} value={joinDelimitedValues(homepageForm.featuredPlayerIds)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredPlayerIds: splitDelimitedValues(e.target.value) })} />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button type="submit" disabled={savingHomepage} className={btnPrimary}>
+                  {savingHomepage ? "Saving..." : "Save Homepage"}
+                </button>
+                <button type="button" onClick={() => setHomepageForm(defaultHomepageForm)} className="btn-secondary">
+                  Reset Local Form
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {section === "footer" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-black text-white">Footer Settings</h2>
+              <p className="mt-1 text-sm text-text-muted">
+                Manage footer messaging, calls to action, link groups, and legal text from the same Supabase-backed content layer.
+              </p>
+            </div>
+
+            <form onSubmit={handleHomepageSubmit} className="space-y-6">
+              <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
+                <div className="esports-card grid gap-4 p-6">
+                  <div>
+                    <p className="font-display text-sm font-black uppercase text-white">Footer Intro</p>
+                    <p className="mt-1 text-sm text-text-muted">This content drives the left side of the public footer card.</p>
+                  </div>
+                  <input
+                    className={inputClass}
+                    placeholder="Footer title"
+                    value={homepageForm.footerTitle}
+                    onChange={(event) => setHomepageForm({ ...homepageForm, footerTitle: event.target.value })}
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Footer tagline"
+                    value={homepageForm.footerTagline}
+                    onChange={(event) => setHomepageForm({ ...homepageForm, footerTagline: event.target.value })}
+                  />
+                  <textarea
+                    className={inputClass}
+                    rows={4}
+                    placeholder="Footer description"
+                    value={homepageForm.footerDescription}
+                    onChange={(event) => setHomepageForm({ ...homepageForm, footerDescription: event.target.value })}
+                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      className={inputClass}
+                      placeholder="Primary button label"
+                      value={homepageForm.footerPrimaryLabel}
+                      onChange={(event) => setHomepageForm({ ...homepageForm, footerPrimaryLabel: event.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Primary button href"
+                      value={homepageForm.footerPrimaryHref}
+                      onChange={(event) => setHomepageForm({ ...homepageForm, footerPrimaryHref: event.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Secondary button label"
+                      value={homepageForm.footerSecondaryLabel}
+                      onChange={(event) => setHomepageForm({ ...homepageForm, footerSecondaryLabel: event.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Secondary button href"
+                      value={homepageForm.footerSecondaryHref}
+                      onChange={(event) => setHomepageForm({ ...homepageForm, footerSecondaryHref: event.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="esports-card grid gap-4 p-6">
+                  <div>
+                    <p className="font-display text-sm font-black uppercase text-white">Footer Bottom Bar</p>
+                    <p className="mt-1 text-sm text-text-muted">Short ownership and platform summary copy shown beneath the footer columns.</p>
+                  </div>
+                  <input
+                    className={inputClass}
+                    placeholder="Bottom primary text"
+                    value={homepageForm.footerBottomPrimary}
+                    onChange={(event) => setHomepageForm({ ...homepageForm, footerBottomPrimary: event.target.value })}
+                  />
+                  <textarea
+                    className={inputClass}
+                    rows={3}
+                    placeholder="Bottom secondary text"
+                    value={homepageForm.footerBottomSecondary}
+                    onChange={(event) => setHomepageForm({ ...homepageForm, footerBottomSecondary: event.target.value })}
+                  />
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {homepageForm.footerHighlights.map((highlight, index) => (
+                      <div key={highlight.id} className="rounded-card border border-white/10 bg-bg-primary p-4">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Highlight {index + 1}</p>
+                        <div className="space-y-3">
+                          <input
+                            className={inputClass}
+                            placeholder="Label"
+                            value={highlight.label}
+                            onChange={(event) => updateFooterHighlight(index, { label: event.target.value })}
+                          />
+                          <input
+                            className={inputClass}
+                            placeholder="Value"
+                            value={highlight.value}
+                            onChange={(event) => updateFooterHighlight(index, { value: event.target.value })}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                {homepageForm.footerColumns.map((column, index) => (
+                  <div key={column.id} className="esports-card grid gap-4 p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-display text-sm font-black uppercase text-white">Footer Column {index + 1}</p>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted">
+                        `Label | Href`
+                      </span>
+                    </div>
+                    <input
+                      className={inputClass}
+                      placeholder="Column title"
+                      value={column.title}
+                      onChange={(event) => updateFooterColumn(index, { title: event.target.value })}
+                    />
+                    <textarea
+                      className={inputClass}
+                      rows={6}
+                      placeholder="Home | /&#10;News | /news"
+                      value={serializeFooterLinks(column.links)}
+                      onChange={(event) => updateFooterColumn(index, { links: parseFooterLinks(event.target.value) })}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button type="submit" disabled={savingHomepage} className={btnPrimary}>
+                  {savingHomepage ? "Saving..." : "Save Footer"}
+                </button>
+                <button type="button" onClick={() => setHomepageForm(defaultHomepageForm)} className="btn-secondary">
+                  Reset Local Form
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {section === "games" && <AdminGamesManager />}
+
+        {section === "platformEvents" && <AdminPlatformEventsManager />}
+
+        {section === "news" && (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-black text-white">News CMS</h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  Publish full articles with categories, tags, featured and breaking state, SEO fields, and Supabase Storage images.
+                </p>
+              </div>
+              {editingNewsId ? (
+                <button type="button" onClick={resetNewsEditor} className="btn-secondary">
+                  New Article
+                </button>
+              ) : null}
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
+              <form onSubmit={handleNewsSubmit} className="esports-card grid gap-4 p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-display text-sm font-black uppercase text-white">
+                    {editingNewsId ? "Edit article" : "Create article"}
+                  </p>
+                  <span
+                    className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
+                      newsForm.state === "published"
+                        ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
+                        : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
+                    }`}
+                  >
+                    {newsForm.state ?? "draft"}
+                  </span>
+                </div>
+                <input className={inputClass} placeholder="Title" value={newsForm.title ?? ""} onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })} required />
+                <input className={inputClass} placeholder="Slug" value={newsForm.slug ?? ""} onChange={(e) => setNewsForm({ ...newsForm, slug: e.target.value })} />
+                <textarea className={inputClass} placeholder="Summary" rows={3} value={newsForm.summary ?? ""} onChange={(e) => setNewsForm({ ...newsForm, summary: e.target.value })} required />
+                <textarea className={inputClass} placeholder="Body paragraphs separated by blank lines" rows={10} value={newsForm.bodyText} onChange={(e) => setNewsForm({ ...newsForm, bodyText: e.target.value })} />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <input className={inputClass} placeholder="Category" value={newsForm.category ?? ""} onChange={(e) => setNewsForm({ ...newsForm, category: e.target.value })} />
+                  <input className={inputClass} placeholder="Tags (comma separated)" value={joinDelimitedValues(newsForm.tags)} onChange={(e) => setNewsForm({ ...newsForm, tags: splitDelimitedValues(e.target.value) })} />
+                  <input className={inputClass} placeholder="Author" value={newsForm.authorName ?? ""} onChange={(e) => setNewsForm({ ...newsForm, authorName: e.target.value })} />
+                  <input className={inputClass} placeholder="Game slug (optional)" value={newsForm.gameSlug ?? ""} onChange={(e) => setNewsForm({ ...newsForm, gameSlug: e.target.value })} />
+                  <input className={inputClass} type="date" value={newsForm.date ?? ""} onChange={(e) => setNewsForm({ ...newsForm, date: e.target.value })} />
+                  <select className={inputClass} value={newsForm.state ?? "draft"} onChange={(e) => setNewsForm({ ...newsForm, state: e.target.value as ManagedNewsArticleRecord["state"] })}>
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                  </select>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="flex items-center gap-3 rounded-card border border-white/10 bg-bg-primary px-4 py-3 text-sm text-white">
+                    <input type="checkbox" checked={Boolean(newsForm.featured)} onChange={(e) => setNewsForm({ ...newsForm, featured: e.target.checked })} />
+                    Featured article
+                  </label>
+                  <label className="flex items-center gap-3 rounded-card border border-white/10 bg-bg-primary px-4 py-3 text-sm text-white">
+                    <input type="checkbox" checked={Boolean(newsForm.breaking)} onChange={(e) => setNewsForm({ ...newsForm, breaking: e.target.checked })} />
+                    Breaking article
+                  </label>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <input className={inputClass} placeholder="SEO title" value={newsForm.seoTitle ?? ""} onChange={(e) => setNewsForm({ ...newsForm, seoTitle: e.target.value })} />
+                  <input className={inputClass} placeholder="SEO description" value={newsForm.seoDescription ?? ""} onChange={(e) => setNewsForm({ ...newsForm, seoDescription: e.target.value })} />
+                </div>
+                <FileUpload
+                  type="announcement_image"
+                  entityId={editingNewsId ?? newsForm.slug ?? newsForm.title ?? "news-draft"}
+                  label="Article Cover Image"
+                  currentUrl={newsForm.imageUrl ?? undefined}
+                  onUploaded={(url) => setNewsForm({ ...newsForm, imageUrl: url })}
+                />
+                <div className="flex flex-wrap gap-3">
+                  <button type="submit" disabled={savingNews} className={btnPrimary}>
+                    {savingNews ? "Saving..." : editingNewsId ? "Update Article" : "Create Article"}
+                  </button>
+                  <button type="button" onClick={resetNewsEditor} className="btn-secondary">
+                    Clear Form
+                  </button>
+                </div>
+              </form>
+
+              <div className="space-y-4">
+                {newsArticles.length === 0 ? (
+                  <div className="esports-card p-8 text-center text-text-muted">
+                    No CMS news articles yet. Published admin articles will flow into the public news platform.
+                  </div>
+                ) : (
+                  newsArticles.map((article) => (
+                    <div key={article.id} className="esports-card p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-white">{article.title}</p>
+                          <p className="mt-1 text-sm text-text-muted">
+                            {article.category} | {article.date} | {article.authorName}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span
+                            className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
+                              article.state === "published"
+                                ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
+                                : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
+                            }`}
+                          >
+                            {article.state}
+                          </span>
+                          {article.featured ? <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-accent-blue">Featured</span> : null}
+                          {article.breaking ? <span className="rounded-full border border-accent-red/30 bg-accent-red/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-accent-red">Breaking</span> : null}
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm text-text-muted">{article.summary}</p>
+                      {article.tags.length > 0 ? (
+                        <p className="mt-3 text-xs uppercase tracking-[0.16em] text-text-muted">{article.tags.join(" | ")}</p>
+                      ) : null}
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <button type="button" onClick={() => startNewsEdit(article)} className="btn-secondary !py-2 !text-[11px]">
+                          Edit
+                        </button>
+                        <button type="button" onClick={() => void handleDeleteNews(article)} className={btnDanger}>
+                          Delete
+                        </button>
+                        <a href={`/news/${article.slug}`} target="_blank" rel="noreferrer" className="text-sm text-accent-blue hover:underline">
+                          Open Public Story
+                        </a>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {section === "media" && <AdminMediaManager />}
+
+        {section === "sponsors" && <AdminSponsorsManager />}
+
+        {section === "inbox" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-black text-white">Inbox</h2>
+              <p className="mt-1 text-sm text-text-muted">
+                Contact and feedback submissions from public pages are stored in Supabase and reviewed here.
+              </p>
+            </div>
+
+            {messages.length === 0 ? (
+              <div className="esports-card p-8 text-center text-text-muted">
+                No inbox submissions yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((messageItem) => (
+                  <div key={messageItem.id} className="esports-card p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-white">
+                          {messageItem.subject || (messageItem.kind === "feedback" ? "Community feedback" : "Contact request")}
+                        </p>
+                        <p className="mt-1 text-sm text-text-muted">
+                          {messageItem.name} | {messageItem.email} | {new Date(messageItem.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-accent-blue">
+                          {messageItem.kind}
+                        </span>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
+                            messageItem.status === "reviewed"
+                              ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
+                              : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
+                          }`}
+                        >
+                          {messageItem.status}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-200">{messageItem.message}</p>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <a href={`mailto:${messageItem.email}?subject=${encodeURIComponent(messageItem.subject || "Bravo Gaming reply")}`} className="btn-secondary !py-2 !text-[11px]">
+                        Reply by Email
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => void handleMessageStatusChange(messageItem.id, messageItem.status === "reviewed" ? "new" : "reviewed")}
+                        className={btnPrimary}
+                      >
+                        {messageItem.status === "reviewed" ? "Mark New" : "Mark Reviewed"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1696,6 +2624,10 @@ export default function AdminDashboard() {
             initialScrimId={importScrimId}
             onImported={loadData}
           />
+        )}
+
+        {section === "matchManager" && (
+          <AdminMatchManager tournaments={tournaments} scrims={scrims} onChanged={loadData} />
         )}
 
         {section === "settings" && (

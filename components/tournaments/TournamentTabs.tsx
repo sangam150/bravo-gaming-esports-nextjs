@@ -67,7 +67,7 @@ export default function TournamentTabs({
       {activeTab === "Players" && (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {players.map((player) => (
-            <Link key={player.id} href={`/players/${player.id}`} className="esports-card block p-5 transition hover:border-bravoBlue/30">
+            <Link key={player.id} href={`/players/${player.slug ?? player.id}`} className="esports-card block p-5 transition hover:border-bravoBlue/30">
               <p className="text-lg font-semibold text-white">{player.name}</p>
               <p className="text-sm text-slate-400">{player.teamName}</p>
               <div className="mt-4 flex justify-between text-sm text-slate-300">
@@ -82,7 +82,7 @@ export default function TournamentTabs({
       {activeTab === "Teams" && (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {teams.map((team) => (
-            <Link key={team.id} href={`/teams/${team.id}`} className="esports-card block p-5 transition hover:border-bravoBlue/30">
+            <Link key={team.id} href={`/teams/${team.slug ?? team.id}`} className="esports-card block p-5 transition hover:border-bravoBlue/30">
               <div className="flex items-center gap-4">
                 <LogoBadge label={team.name} />
                 <div>

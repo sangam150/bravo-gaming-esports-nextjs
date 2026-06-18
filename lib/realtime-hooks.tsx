@@ -13,7 +13,7 @@ import {
   comparePlayerLeaderboardPerformance,
 } from "./ranking-sort";
 import { buildCurrentSeasonOverviewFromCollections, buildFallbackLeaderboardRows, buildScrimDayResultsFromCollections, buildTournamentLeaderboardGroups } from "./bravo-live-derivations";
-import { COLLECTIONS } from "./document-collections";
+import { COLLECTIONS } from "./document-store-collections";
 import { getSupabaseBrowserClient } from "./supabase/browser-client";
 import { isSupabaseConfigured } from "./supabase/env";
 import {

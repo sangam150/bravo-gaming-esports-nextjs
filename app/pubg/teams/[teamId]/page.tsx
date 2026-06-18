@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PubgTeamDetailPage } from "@/components/pubg/PubgPublicPages";
 import { getPubgHubDataset, getPubgTeamById } from "@/lib/pubg-hub";
 
@@ -26,10 +26,15 @@ export const revalidate = 300;
 
 export default async function PubgTeamDetailRoute({ params, searchParams }: PageProps) {
   const [{ teamId }, resolvedSearchParams, dataset] = await Promise.all([params, searchParams, getPubgHubDataset()]);
-  const team = dataset.teams.find((item) => item.id === teamId) ?? null;
+  const normalizedTeamId = teamId.trim().toLowerCase();
+  const team = dataset.teams.find((item) => item.id === teamId || item.slug.toLowerCase() === normalizedTeamId) ?? null;
 
   if (!team) {
     notFound();
+  }
+
+  if (teamId !== team.slug) {
+    redirect(`/pubg/teams/${team.slug}`);
   }
 
   return <PubgTeamDetailPage team={team} dataset={dataset} searchParams={resolvedSearchParams} />;

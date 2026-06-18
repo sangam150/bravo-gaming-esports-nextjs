@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { syncBravoDailyScrimSeason } from "@/lib/bravo-season-sync";
+import { revalidateTournamentPaths } from "@/lib/revalidate-public";
 
 export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
           ? body.currentDay
           : undefined,
     });
+    revalidateTournamentPaths();
     return Response.json({
       success: true,
       data: result,

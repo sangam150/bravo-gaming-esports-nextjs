@@ -55,6 +55,13 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
     compareMatchPlayerResults(firstPlayer, secondPlayer)
   );
   const mvp = getMvp(activeMatch);
+  const matchAssets = Array.from(
+    new Set(
+      [activeMatch.resultImageUrl, activeMatch.scoreboardImageUrl, activeMatch.resultScreenshotUrl, ...(activeMatch.screenshotUrls ?? [])].filter(
+        (value): value is string => Boolean(value)
+      )
+    )
+  );
 
   return (
     <main className="page-shell">
@@ -100,6 +107,43 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
             <p className="mt-3 text-3xl font-black text-white">{activeMatch.knockouts}</p>
           </div>
         </section>
+
+        {activeMatch.vodUrl || matchAssets.length > 0 ? (
+          <section className="grid gap-6 xl:grid-cols-[0.8fr,1.2fr]">
+            <div className="esports-card p-6">
+              <p className="section-heading !text-sm">Broadcast Assets</p>
+              <p className="mt-2 text-sm text-text-muted">
+                Uploaded result posters, scoreboard captures, screenshots, and VOD links stay attached to the public match page.
+              </p>
+              <div className="mt-5 space-y-3">
+                {activeMatch.vodUrl ? (
+                  <a href={activeMatch.vodUrl} target="_blank" rel="noreferrer" className="btn-primary inline-flex">
+                    Open VOD
+                  </a>
+                ) : null}
+                <div className="rounded-card border border-white/10 bg-bg-primary p-4">
+                  <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Stored assets</p>
+                  <p className="mt-2 font-mono-stat text-white">{matchAssets.length}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="esports-card p-6">
+              <p className="section-heading !text-sm">Result Gallery</p>
+              {matchAssets.length > 0 ? (
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {matchAssets.map((assetUrl) => (
+                    <a key={assetUrl} href={assetUrl} target="_blank" rel="noreferrer" className="overflow-hidden rounded-card border border-white/10 bg-bg-primary transition hover:border-accent-blue/30">
+                      <img src={assetUrl} alt="Match result asset" className="h-44 w-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-text-muted">No uploaded result assets yet.</p>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         <section className="grid gap-6 xl:grid-cols-[1.6fr,1fr]">
           <div className="esports-card overflow-hidden !p-0">

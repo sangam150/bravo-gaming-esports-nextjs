@@ -1,15 +1,21 @@
 import {
   COLLECTIONS,
-  createFirestoreDocument,
-  deleteFirestoreDocument,
-  fetchFirestoreCollection,
+  createDocument,
+  deleteDocument,
+  fetchDocumentCollection,
   getConfiguredDataBackend,
-  getFirestoreDocument,
-  isFirebaseAdminConfigured,
-  isFirebaseConfigured,
-  queryFirestoreCollection,
-  saveFirestoreDocument,
-} from "./firebase";
+  getDocument,
+  isDocumentStoreAdminConfigured,
+  isDocumentStoreConfigured,
+  queryDocumentCollection,
+  saveDocument,
+} from "./document-store";
+import {
+  ensureUniqueDocumentSlug,
+  filterSoftDeleted,
+  getDocumentByIdOrSlug,
+  softDeleteDocumentEntity,
+} from "./document-entities";
 import {
   seedAnnouncements,
   seedPlayers,
@@ -86,6 +92,21 @@ function slugify(value: string) {
 function cleanString(value?: string | null) {
   const normalizedValue = value?.trim();
   return normalizedValue ? normalizedValue : undefined;
+}
+
+function cleanLinkUrl(value?: string | null) {
+  const normalizedValue = cleanString(value);
+  if (!normalizedValue) return undefined;
+
+  if (normalizedValue.startsWith("/")) {
+    return normalizedValue;
+  }
+
+  if (/^https?:\/\//i.test(normalizedValue)) {
+    return normalizedValue;
+  }
+
+  return undefined;
 }
 
 function cleanStringArray(values?: string[] | null) {
@@ -181,6 +202,7 @@ function normalizeTeamPayload(data: Partial<Team> & { name: string }) {
     data.name.trim();
 
   return {
+    slug: cleanString(data.slug) ?? slugify(normalizedName),
     name: normalizedName,
     tag: resolvedTeam?.tag ?? cleanString(data.tag),
     slotNumber: inferredSlotNumber,
@@ -212,6 +234,7 @@ function normalizeTeamPayload(data: Partial<Team> & { name: string }) {
     sourceTournamentTitle: cleanString(data.sourceTournamentTitle),
     sourceTeamName: cleanString(data.sourceTeamName),
     sourceProvider: cleanString(data.sourceProvider),
+    deletedAt: cleanString(data.deletedAt),
     createdAt: cleanString(data.createdAt),
   } satisfies Partial<Team> & { name: string };
 }
@@ -223,6 +246,7 @@ function normalizeStoredTeam(team: Team): Team {
 
   return {
     ...team,
+    slug: cleanString(team.slug) ?? slugify(resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? team.name),
     name: resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? team.name,
     tag: resolvedTeam?.tag ?? team.tag,
     slotNumber: inferredSlotNumber,
@@ -276,11 +300,16 @@ function normalizeStoredTournamentMatch(match: TournamentMatch): TournamentMatch
   };
 }
 
+function isPublishedTournamentMatch(match: Pick<TournamentMatch, "status">) {
+  return (match.status ?? "published") !== "draft";
+}
+
 function normalizePlayerPayload(data: Partial<Player> & { name: string }) {
   const canonicalName = (cleanString(data.name) ?? cleanString(data.inGameName) ?? "Unknown").trim();
   const canonicalAvatar = cleanString(data.avatarUrl ?? data.avatar);
 
   return {
+    slug: cleanString(data.slug) ?? slugify(cleanString(data.inGameName) ?? cleanString(data.pubgName) ?? canonicalName),
     name: canonicalName,
     realName: cleanString(data.realName),
     inGameName: cleanString(data.inGameName) ?? canonicalName,
@@ -320,6 +349,7 @@ function normalizePlayerPayload(data: Partial<Player> & { name: string }) {
     sourceTournamentTitle: cleanString(data.sourceTournamentTitle),
     sourcePlayerId: cleanString(data.sourcePlayerId),
     sourceProvider: cleanString(data.sourceProvider),
+    deletedAt: cleanString(data.deletedAt),
     createdAt: cleanString(data.createdAt),
   } satisfies Partial<Player> & { name: string };
 }
@@ -338,6 +368,55 @@ function normalizeAnnouncementPayload(data: Partial<Announcement> & { title: str
     category: cleanString(data.category),
     published: data.published !== false,
   } satisfies Partial<Announcement> & { title: string; detail: string };
+}
+
+function normalizeVideoPayload(data: Partial<VideoItem> & { title: string }) {
+  return {
+    slug: cleanString(data.slug) ?? slugify(data.title),
+    title: data.title.trim(),
+    category: cleanString(data.category) ?? "Highlights",
+    duration: cleanString(data.duration) ?? "00:00",
+    url: cleanString(data.url),
+    kind: cleanString(data.kind) ?? "Video",
+    gameSlug: cleanString(data.gameSlug) ?? "pubg-pc",
+    summary: cleanString(data.summary),
+    imageUrl: cleanString(data.imageUrl),
+    featured: Boolean(data.featured),
+    published: data.published !== false,
+    publishedAt: cleanString(data.publishedAt) ?? (data.published !== false ? new Date().toISOString() : undefined),
+    deletedAt: cleanString(data.deletedAt),
+    createdAt: cleanString(data.createdAt),
+  } satisfies Partial<VideoItem> & { title: string };
+}
+
+function normalizeSponsorPayload(data: Partial<SponsorItem> & { name: string }) {
+  const websiteUrl = cleanLinkUrl(data.websiteUrl ?? data.url);
+
+  return {
+    name: data.name.trim(),
+    kind: data.kind ?? "partner",
+    tier: cleanString(data.tier) ?? "Partner",
+    url: websiteUrl,
+    websiteUrl,
+    socialUrl: cleanLinkUrl(data.socialUrl),
+    logoUrl: cleanString(data.logoUrl),
+    bannerUrl: cleanString(data.bannerUrl),
+    designAssetUrl: cleanString(data.designAssetUrl),
+    slug: cleanString(data.slug) ?? slugify(data.name),
+    description: cleanString(data.description),
+    supportedEvents: cleanStringArray(data.supportedEvents),
+    eventSlugs: cleanStringArray(data.eventSlugs),
+    partnershipHistory: cleanStringArray(data.partnershipHistory),
+    visible: data.visible !== false,
+    featured: Boolean(data.featured),
+    published: data.published !== false,
+    showOnHomepage: Boolean(data.showOnHomepage),
+    showOnSponsorsPage: data.showOnSponsorsPage !== false,
+    showOnEventPage: Boolean(data.showOnEventPage),
+    showOnPubgPage: Boolean(data.showOnPubgPage),
+    deletedAt: cleanString(data.deletedAt),
+    createdAt: cleanString(data.createdAt),
+  } satisfies Partial<SponsorItem> & { name: string };
 }
 
 function toKathmanduDateKey(value?: string) {
@@ -449,15 +528,15 @@ function aggregateScrimDayLeaderboard(matches: TournamentMatch[]): ScrimDayStand
     .sort((firstStanding, secondStanding) => compareTeamLeaderboardPerformance(firstStanding, secondStanding));
 }
 
-async function fromFirestoreOrSeed<T>(
+async function fromDocumentStoreOrSeed<T>(
   collection: string,
   seed: T[],
   sortFn?: (a: T & { id: string }, b: T & { id: string }) => number,
   limit = 100
 ): Promise<(T & { id: string })[]> {
-  if (!isFirebaseConfigured()) return seed as (T & { id: string })[];
+  if (!isDocumentStoreConfigured()) return seed as (T & { id: string })[];
   try {
-    const docs = await fetchFirestoreCollection<T>(collection, limit);
+    const docs = await fetchDocumentCollection<T>(collection, limit);
     if (docs.length === 0) return seed as (T & { id: string })[];
     return sortFn ? [...docs].sort(sortFn) : docs;
   } catch {
@@ -465,10 +544,10 @@ async function fromFirestoreOrSeed<T>(
   }
 }
 
-async function oneFromFirestoreOrSeed<T extends { id: string }>(collection: string, id: string, seed: T[]): Promise<T | null> {
-  if (!isFirebaseConfigured()) return seed.find((item) => item.id === id) ?? null;
+async function oneFromDocumentStoreOrSeed<T extends { id: string }>(collection: string, id: string, seed: T[]): Promise<T | null> {
+  if (!isDocumentStoreConfigured()) return seed.find((item) => item.id === id) ?? null;
   try {
-    const doc = await getFirestoreDocument<T>(collection, id);
+    const doc = await getDocument<T>(collection, id);
     if (doc) return doc;
     return seed.find((item) => item.id === id) ?? null;
   } catch {
@@ -477,9 +556,9 @@ async function oneFromFirestoreOrSeed<T extends { id: string }>(collection: stri
 }
 
 export async function getSiteStats(): Promise<SiteStats> {
-  if (!isFirebaseConfigured()) return seedStats;
+  if (!isDocumentStoreConfigured()) return seedStats;
   try {
-    const doc = await getFirestoreDocument<SiteStats>(COLLECTIONS.siteStats, "main");
+    const doc = await getDocument<SiteStats>(COLLECTIONS.siteStats, "main");
     const mergedStats = { ...seedStats, ...(doc ?? {}) };
     const currentSeason = await getCurrentSeason();
 
@@ -502,7 +581,7 @@ export async function getSiteStats(): Promise<SiteStats> {
 }
 
 export async function getSeasons(): Promise<Season[]> {
-  return fromFirestoreOrSeed<Season>(COLLECTIONS.seasons, [], (a, b) => {
+  return fromDocumentStoreOrSeed<Season>(COLLECTIONS.seasons, [], (a, b) => {
     const dateComparison = compareIsoDateDesc(a.startDate, b.startDate);
     if (dateComparison !== 0) return dateComparison;
     return (b.seasonNumber ?? 0) - (a.seasonNumber ?? 0);
@@ -510,7 +589,7 @@ export async function getSeasons(): Promise<Season[]> {
 }
 
 export async function getSeason(id: string): Promise<Season | null> {
-  return oneFromFirestoreOrSeed(COLLECTIONS.seasons, id, []);
+  return oneFromDocumentStoreOrSeed(COLLECTIONS.seasons, id, []);
 }
 
 export async function getCurrentSeason(): Promise<Season | null> {
@@ -524,11 +603,11 @@ export async function getCurrentSeason(): Promise<Season | null> {
 }
 
 async function ensureSeasonTeamSlots(seasonId: string, seasonTitle: string) {
-  if (!isFirebaseConfigured()) {
+  if (!isDocumentStoreConfigured()) {
     return;
   }
 
-  const existingSeasonTeams = await queryFirestoreCollection<Team>(COLLECTIONS.teams, "seasonId", seasonId, 500).catch(
+  const existingSeasonTeams = await queryDocumentCollection<Team>(COLLECTIONS.teams, "seasonId", seasonId, 500).catch(
     () => []
   );
   const hasScopedSeasonTeams = existingSeasonTeams.some((team) => team.scope === "season");
@@ -567,7 +646,7 @@ async function ensureSeasonTeamSlots(seasonId: string, seasonTitle: string) {
 
   await Promise.all(
     operations.map((operation) =>
-      saveFirestoreDocument(operation.collectionName, operation.docId, operation.data as Record<string, unknown>)
+      saveDocument(operation.collectionName, operation.docId, operation.data as Record<string, unknown>)
     )
   );
 }
@@ -575,24 +654,24 @@ async function ensureSeasonTeamSlots(seasonId: string, seasonTitle: string) {
 export async function saveSeason(data: Partial<Season> & { title: string }, id?: string) {
   const payload = normalizeSeasonPayload(data);
   const docId = id ?? payload.slug;
-  if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.seasons, docId, payload as Record<string, unknown>);
+  if (isDocumentStoreConfigured()) {
+    await saveDocument(COLLECTIONS.seasons, docId, payload as Record<string, unknown>);
     await ensureSeasonTeamSlots(docId, payload.seriesTitle ?? payload.title);
   }
   return { id: docId, ...payload };
 }
 
 export async function deleteSeason(id: string) {
-  if (isFirebaseConfigured()) {
-    await deleteFirestoreDocument(COLLECTIONS.seasons, id);
+  if (isDocumentStoreConfigured()) {
+    await deleteDocument(COLLECTIONS.seasons, id);
   }
   return { id, deleted: true };
 }
 
 export async function getSeasonTournaments(seasonId: string): Promise<Tournament[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const tournaments = await queryFirestoreCollection<Tournament>(COLLECTIONS.tournaments, "seasonId", seasonId, 200);
+    const tournaments = await queryDocumentCollection<Tournament>(COLLECTIONS.tournaments, "seasonId", seasonId, 200);
     return tournaments.sort(
       (firstTournament, secondTournament) =>
         (firstTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) -
@@ -605,9 +684,9 @@ export async function getSeasonTournaments(seasonId: string): Promise<Tournament
 }
 
 export async function getSeasonStandings(seasonId: string): Promise<TournamentStanding[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const standings = await queryFirestoreCollection<TournamentStanding>(COLLECTIONS.standings, "seasonId", seasonId, 500);
+    const standings = await queryDocumentCollection<TournamentStanding>(COLLECTIONS.standings, "seasonId", seasonId, 500);
     return standings
       .filter((standing) => standing.scope !== "season")
       .map((standing) => ({
@@ -658,9 +737,9 @@ export async function getSeasonLeaderboard(seasonId: string): Promise<Leaderboar
 }
 
 export async function getSeasonTeams(seasonId: string): Promise<Team[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const teams = await queryFirestoreCollection<Team>(COLLECTIONS.teams, "seasonId", seasonId, 500);
+    const teams = await queryDocumentCollection<Team>(COLLECTIONS.teams, "seasonId", seasonId, 500);
     return teams
       .filter((team) => team.scope === "season")
       .map(normalizeStoredTeam)
@@ -671,9 +750,9 @@ export async function getSeasonTeams(seasonId: string): Promise<Team[]> {
 }
 
 export async function getSeasonPlayers(seasonId: string): Promise<Player[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const players = await queryFirestoreCollection<Player>(COLLECTIONS.players, "seasonId", seasonId, 1500);
+    const players = await queryDocumentCollection<Player>(COLLECTIONS.players, "seasonId", seasonId, 1500);
     return players
       .filter((player) => player.scope === "season")
       .sort((firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer));
@@ -724,7 +803,7 @@ export async function getCurrentSeasonOverview() {
 }
 
 export async function getTournaments(status?: string): Promise<Tournament[]> {
-  const all = await fromFirestoreOrSeed<Tournament>(COLLECTIONS.tournaments, seedTournaments, (a, b) => {
+  const all = await fromDocumentStoreOrSeed<Tournament>(COLLECTIONS.tournaments, seedTournaments, (a, b) => {
     const dateComparison = compareIsoDateDesc(a.startDate, b.startDate);
     if (dateComparison !== 0) return dateComparison;
     return a.title.localeCompare(b.title);
@@ -734,35 +813,40 @@ export async function getTournaments(status?: string): Promise<Tournament[]> {
 }
 
 export async function getTournament(id: string): Promise<Tournament | null> {
-  return oneFromFirestoreOrSeed(COLLECTIONS.tournaments, id, seedTournaments);
+  return oneFromDocumentStoreOrSeed(COLLECTIONS.tournaments, id, seedTournaments);
 }
 
 export async function saveTournament(data: Partial<Tournament> & { title: string }, id?: string) {
   const payload = normalizeTournamentPayload(data);
   const docId = id ?? slugify(payload.title);
-  if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.tournaments, docId, payload as Record<string, unknown>);
+  if (isDocumentStoreConfigured()) {
+    await saveDocument(COLLECTIONS.tournaments, docId, payload as Record<string, unknown>);
   }
   return { id: docId, ...payload };
 }
 
 export async function deleteTournament(id: string) {
-  if (isFirebaseConfigured()) {
-    await deleteFirestoreDocument(COLLECTIONS.tournaments, id);
+  if (isDocumentStoreConfigured()) {
+    await deleteDocument(COLLECTIONS.tournaments, id);
   }
   return { id, deleted: true };
 }
 
-export async function getTournamentMatches(tournamentId: string): Promise<TournamentMatch[]> {
-  if (!isFirebaseConfigured()) return [];
+export async function getTournamentMatches(
+  tournamentId: string,
+  options: { includeDrafts?: boolean } = {}
+): Promise<TournamentMatch[]> {
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    let matches = await queryFirestoreCollection<TournamentMatch>(COLLECTIONS.matches, "tournamentId", tournamentId, 200);
+    let matches = await queryDocumentCollection<TournamentMatch>(COLLECTIONS.matches, "tournamentId", tournamentId, 200);
     if (matches.length === 0) {
-      matches = await queryFirestoreCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, "tournamentId", tournamentId, 200);
+      matches = await queryDocumentCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, "tournamentId", tournamentId, 200);
     }
-    return matches
+    const visibleMatches = filterSoftDeleted(matches)
       .map(normalizeStoredTournamentMatch)
-      .filter((m) => m.dataSource === "pubg_api" || m.syncedAt)
+      .filter((m) => m.dataSource === "pubg_api" || m.syncedAt);
+
+    return (options.includeDrafts ? visibleMatches : visibleMatches.filter(isPublishedTournamentMatch))
       .sort((firstMatch, secondMatch) => compareMatchSequenceOrder(firstMatch, secondMatch));
   } catch {
     return [];
@@ -770,9 +854,9 @@ export async function getTournamentMatches(tournamentId: string): Promise<Tourna
 }
 
 export async function getTournamentStandings(tournamentId: string): Promise<TournamentStanding[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const standings = await queryFirestoreCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 100);
+    const standings = await queryDocumentCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 100);
     return sortTournamentStandings(standings).map((standing) => ({
       ...standing,
       teamName: canonicalizeBravoTeamName(standing.teamName),
@@ -784,9 +868,9 @@ export async function getTournamentStandings(tournamentId: string): Promise<Tour
 }
 
 export async function getTournamentTeams(tournamentId: string): Promise<Team[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const teams = await queryFirestoreCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 100);
+    const teams = await queryDocumentCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 100);
     return teams.map(normalizeStoredTeam).sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam));
   } catch {
     return [];
@@ -794,9 +878,9 @@ export async function getTournamentTeams(tournamentId: string): Promise<Team[]> 
 }
 
 export async function getTournamentPlayers(tournamentId: string): Promise<Player[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const players = await queryFirestoreCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 500);
+    const players = await queryDocumentCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 500);
     return players.sort((firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer));
   } catch {
     return [];
@@ -804,9 +888,9 @@ export async function getTournamentPlayers(tournamentId: string): Promise<Player
 }
 
 export async function getScrims(): Promise<Scrim[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const scrims = await fetchFirestoreCollection<Scrim>(COLLECTIONS.scrims, 100);
+    const scrims = await fetchDocumentCollection<Scrim>(COLLECTIONS.scrims, 100);
     return scrims.sort(
       (firstScrim, secondScrim) =>
         secondScrim.date.localeCompare(firstScrim.date) ||
@@ -818,17 +902,17 @@ export async function getScrims(): Promise<Scrim[]> {
   }
 }
 
-export async function getScrimDayResults(): Promise<ScrimDayResult[]> {
+export async function getScrimDayResults(options: { includeDrafts?: boolean } = {}): Promise<ScrimDayResult[]> {
   const scrims = await getScrims();
   if (scrims.length === 0) return [];
 
   let matchResults: TournamentMatch[] = [];
-  if (isFirebaseConfigured()) {
+  if (isDocumentStoreConfigured()) {
     try {
       const [liveResults, storedMatches, legacyTournamentMatches] = await Promise.all([
-        fetchFirestoreCollection<TournamentMatch>(COLLECTIONS.matchResults, 500),
-        fetchFirestoreCollection<TournamentMatch>(COLLECTIONS.matches, 500),
-        fetchFirestoreCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, 500),
+        fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matchResults, 500),
+        fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matches, 500),
+        fetchDocumentCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, 500),
       ]);
 
       const uniqueMatches = new Map<string, TournamentMatch>();
@@ -836,7 +920,8 @@ export async function getScrimDayResults(): Promise<ScrimDayResult[]> {
         uniqueMatches.set(match.id, match);
       }
 
-      matchResults = Array.from(uniqueMatches.values()).map(normalizeStoredTournamentMatch);
+      const normalizedMatches = filterSoftDeleted(Array.from(uniqueMatches.values()).map(normalizeStoredTournamentMatch));
+      matchResults = options.includeDrafts ? normalizedMatches : normalizedMatches.filter(isPublishedTournamentMatch);
     } catch {
       matchResults = [];
     }
@@ -933,17 +1018,19 @@ export async function getScrimDayResults(): Promise<ScrimDayResult[]> {
 }
 
 export async function saveTournamentMatch(data: TournamentMatch) {
-  if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.matches, data.id, data as unknown as Record<string, unknown>);
-    await saveFirestoreDocument(COLLECTIONS.tournamentMatches, data.id, data as unknown as Record<string, unknown>);
+  if (isDocumentStoreConfigured()) {
+    await saveDocument(COLLECTIONS.matches, data.id, data as unknown as Record<string, unknown>);
+    await saveDocument(COLLECTIONS.tournamentMatches, data.id, data as unknown as Record<string, unknown>);
   }
   return data;
 }
 
 export async function getTeams(): Promise<Team[]> {
-  const teams = (
-    await fromFirestoreOrSeed<Team>(COLLECTIONS.teams, [], (a, b) => compareBravoTeamSlotOrder(a, b), 500)
-  ).map(normalizeStoredTeam);
+  const teams = filterSoftDeleted(
+    (
+    await fromDocumentStoreOrSeed<Team>(COLLECTIONS.teams, [], (a, b) => compareBravoTeamSlotOrder(a, b), 500)
+    ).map(normalizeStoredTeam)
+  );
 
   const visibleTeams = teams.filter((team) => team.scope !== "tournament");
   const currentSeason = await getCurrentSeason();
@@ -958,14 +1045,16 @@ export async function getTeams(): Promise<Team[]> {
 }
 
 export async function getTeam(id: string): Promise<Team | null> {
-  const team = await oneFromFirestoreOrSeed(COLLECTIONS.teams, id, []);
+  const team =
+    (await getDocumentByIdOrSlug<Team & { id: string }>(COLLECTIONS.teams, id)) ??
+    (await oneFromDocumentStoreOrSeed(COLLECTIONS.teams, id, []));
   return team ? normalizeStoredTeam(team) : null;
 }
 
 export async function getTeamMatchPlayers(teamName: string): Promise<MatchPlayerRecord[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const matchPlayers = await queryFirestoreCollection<MatchPlayerRecord>(COLLECTIONS.matchPlayers, "teamName", teamName, 2000);
+    const matchPlayers = await queryDocumentCollection<MatchPlayerRecord>(COLLECTIONS.matchPlayers, "teamName", teamName, 2000);
     return normalizeStoredMatchPlayers(matchPlayers);
   } catch {
     return [];
@@ -974,27 +1063,36 @@ export async function getTeamMatchPlayers(teamName: string): Promise<MatchPlayer
 
 export async function saveTeam(data: Partial<Team> & { name: string }, id?: string) {
   const payload = normalizeTeamPayload(data);
-  const docId = id ?? resolveBravoTeamIdentity(payload.name)?.id ?? slugify(payload.name);
-  if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.teams, docId, payload as Record<string, unknown>);
+  const docId = id ?? resolveBravoTeamIdentity(payload.name)?.id ?? payload.slug ?? slugify(payload.name);
+  const now = new Date().toISOString();
+  const slug = await ensureUniqueDocumentSlug(COLLECTIONS.teams, payload.slug ?? payload.name, docId, payload.name);
+  const nextPayload = {
+    ...payload,
+    slug,
+    deletedAt: undefined,
+    createdAt: payload.createdAt ?? now,
+    updatedAt: now,
+  };
+  if (isDocumentStoreConfigured()) {
+    await saveDocument(COLLECTIONS.teams, docId, nextPayload as Record<string, unknown>);
   }
-  return { id: docId, ...payload };
+  return { id: docId, ...nextPayload };
 }
 
 export async function deleteTeam(id: string) {
-  if (isFirebaseConfigured()) {
-    await deleteFirestoreDocument(COLLECTIONS.teams, id);
+  if (isDocumentStoreConfigured()) {
+    await softDeleteDocumentEntity(COLLECTIONS.teams, id);
   }
   return { id, deleted: true };
 }
 
 export async function getPlayers(): Promise<Player[]> {
-  const players = await fromFirestoreOrSeed<Player>(
+  const players = filterSoftDeleted(await fromDocumentStoreOrSeed<Player>(
     COLLECTIONS.players,
     [],
     (firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer),
     1500
-  );
+  ));
   const visiblePlayers = players.filter((player) => player.scope !== "tournament");
   const currentSeason = await getCurrentSeason();
   if (currentSeason) {
@@ -1012,13 +1110,16 @@ export async function getPlayers(): Promise<Player[]> {
 }
 
 export async function getPlayer(id: string): Promise<Player | null> {
-  return oneFromFirestoreOrSeed(COLLECTIONS.players, id, []);
+  return (
+    (await getDocumentByIdOrSlug<Player & { id: string }>(COLLECTIONS.players, id)) ??
+    (await oneFromDocumentStoreOrSeed(COLLECTIONS.players, id, []))
+  );
 }
 
 export async function getPlayerMatchPlayers(sourcePlayerId: string): Promise<MatchPlayerRecord[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const matchPlayers = await queryFirestoreCollection<MatchPlayerRecord>(
+    const matchPlayers = await queryDocumentCollection<MatchPlayerRecord>(
       COLLECTIONS.matchPlayers,
       "sourcePlayerId",
       sourcePlayerId,
@@ -1037,16 +1138,30 @@ export async function getMvpOfWeek(): Promise<Player | null> {
 
 export async function savePlayer(data: Partial<Player> & { name: string }, id?: string) {
   const payload = normalizePlayerPayload(data);
-  const docId = id ?? slugify(payload.name);
-  if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.players, docId, payload as Record<string, unknown>);
+  const docId = id ?? payload.slug ?? slugify(payload.name);
+  const now = new Date().toISOString();
+  const slug = await ensureUniqueDocumentSlug(
+    COLLECTIONS.players,
+    payload.slug ?? payload.inGameName ?? payload.pubgName ?? payload.name,
+    docId,
+    payload.name
+  );
+  const nextPayload = {
+    ...payload,
+    slug,
+    deletedAt: undefined,
+    createdAt: payload.createdAt ?? now,
+    updatedAt: now,
+  };
+  if (isDocumentStoreConfigured()) {
+    await saveDocument(COLLECTIONS.players, docId, nextPayload as Record<string, unknown>);
   }
-  return { id: docId, ...payload };
+  return { id: docId, ...nextPayload };
 }
 
 export async function deletePlayer(id: string) {
-  if (isFirebaseConfigured()) {
-    await deleteFirestoreDocument(COLLECTIONS.players, id);
+  if (isDocumentStoreConfigured()) {
+    await softDeleteDocumentEntity(COLLECTIONS.players, id);
   }
   return { id, deleted: true };
 }
@@ -1058,9 +1173,9 @@ export async function getLeaderboard(): Promise<LeaderboardRow[]> {
     if (seasonLeaderboard.length > 0) return seasonLeaderboard;
   }
 
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    const teams = await fetchFirestoreCollection<Team>(COLLECTIONS.teams, 400);
+    const teams = await fetchDocumentCollection<Team>(COLLECTIONS.teams, 400);
     const visibleTeams = teams.filter((team) => team.scope !== "tournament" && (team.matches ?? 0) > 0);
     if (visibleTeams.length === 0) return [];
     return [...visibleTeams]
@@ -1086,28 +1201,28 @@ export async function getLeaderboard(): Promise<LeaderboardRow[]> {
 }
 
 export async function getAnnouncements(): Promise<Announcement[]> {
-  const all = await fromFirestoreOrSeed<Announcement>(COLLECTIONS.announcements, seedAnnouncements);
+  const all = await fromDocumentStoreOrSeed<Announcement>(COLLECTIONS.announcements, seedAnnouncements);
   return all.filter((a) => a.published !== false);
 }
 
 export async function saveAnnouncement(data: Partial<Announcement> & { title: string; detail: string }, id?: string) {
   const payload = normalizeAnnouncementPayload(data);
   const docId = id ?? `ann-${Date.now()}`;
-  if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.announcements, docId, payload as Record<string, unknown>);
+  if (isDocumentStoreConfigured()) {
+    await saveDocument(COLLECTIONS.announcements, docId, payload as Record<string, unknown>);
   }
   return { id: docId, ...payload };
 }
 
 export async function deleteAnnouncement(id: string) {
-  if (isFirebaseConfigured()) {
-    await deleteFirestoreDocument(COLLECTIONS.announcements, id);
+  if (isDocumentStoreConfigured()) {
+    await deleteDocument(COLLECTIONS.announcements, id);
   }
   return { id, deleted: true };
 }
 
 export async function getStreams(): Promise<StreamSchedule[]> {
-  return fromFirestoreOrSeed(COLLECTIONS.streams, seedStreams);
+  return fromDocumentStoreOrSeed(COLLECTIONS.streams, seedStreams);
 }
 
 function normalizeYouTubeHandle(value?: string) {
@@ -1156,19 +1271,73 @@ export async function getLiveStreamFeed(): Promise<StreamSchedule> {
   };
 }
 
-export async function getVideos(): Promise<VideoItem[]> {
-  return fromFirestoreOrSeed(COLLECTIONS.videos, seedVideos);
+export async function getVideos(options: { includeUnpublished?: boolean } = {}): Promise<VideoItem[]> {
+  const videos = await fromDocumentStoreOrSeed(COLLECTIONS.videos, seedVideos);
+  const visibleVideos = filterSoftDeleted(videos);
+  return options.includeUnpublished ? visibleVideos : visibleVideos.filter((video) => video.published !== false);
 }
 
-export async function getSponsors(): Promise<SponsorItem[]> {
-  const sponsors = await fromFirestoreOrSeed<SponsorItem>(COLLECTIONS.sponsors, seedSponsors);
-  return sponsors.filter((sponsor) => sponsor.published !== false);
+export async function saveVideo(data: Partial<VideoItem> & { title: string }, id?: string) {
+  const payload = normalizeVideoPayload(data);
+  const docId = id ?? payload.slug ?? slugify(payload.title);
+  const now = new Date().toISOString();
+  const slug = await ensureUniqueDocumentSlug(COLLECTIONS.videos, payload.slug ?? payload.title, docId, payload.title);
+  const nextPayload = {
+    ...payload,
+    slug,
+    deletedAt: undefined,
+    createdAt: payload.createdAt ?? now,
+    updatedAt: now,
+    publishedAt: payload.published !== false ? payload.publishedAt ?? now : payload.publishedAt,
+  };
+  if (isDocumentStoreConfigured()) {
+    await saveDocument(COLLECTIONS.videos, docId, nextPayload as Record<string, unknown>);
+  }
+  return { id: docId, ...nextPayload };
+}
+
+export async function deleteVideo(id: string) {
+  if (isDocumentStoreConfigured()) {
+    await softDeleteDocumentEntity(COLLECTIONS.videos, id);
+  }
+  return { id, deleted: true };
+}
+
+export async function getSponsors(options: { includeUnpublished?: boolean } = {}): Promise<SponsorItem[]> {
+  const sponsors = await fromDocumentStoreOrSeed<SponsorItem>(COLLECTIONS.sponsors, seedSponsors);
+  const visibleSponsors = filterSoftDeleted(sponsors);
+  return options.includeUnpublished ? visibleSponsors : visibleSponsors.filter((sponsor) => sponsor.published !== false);
+}
+
+export async function saveSponsor(data: Partial<SponsorItem> & { name: string }, id?: string) {
+  const payload = normalizeSponsorPayload(data);
+  const docId = id ?? payload.slug ?? slugify(payload.name);
+  const now = new Date().toISOString();
+  const slug = await ensureUniqueDocumentSlug(COLLECTIONS.sponsors, payload.slug ?? payload.name, docId, payload.name);
+  const nextPayload = {
+    ...payload,
+    slug,
+    deletedAt: undefined,
+    createdAt: payload.createdAt ?? now,
+    updatedAt: now,
+  };
+  if (isDocumentStoreConfigured()) {
+    await saveDocument(COLLECTIONS.sponsors, docId, nextPayload as Record<string, unknown>);
+  }
+  return { id: docId, ...nextPayload };
+}
+
+export async function deleteSponsor(id: string) {
+  if (isDocumentStoreConfigured()) {
+    await softDeleteDocumentEntity(COLLECTIONS.sponsors, id);
+  }
+  return { id, deleted: true };
 }
 
 export async function getRegistrations(): Promise<TeamRegistration[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isDocumentStoreConfigured()) return [];
   try {
-    return await fetchFirestoreCollection<TeamRegistration>(COLLECTIONS.registrations);
+    return await fetchDocumentCollection<TeamRegistration>(COLLECTIONS.registrations);
   } catch {
     return [];
   }
@@ -1186,16 +1355,16 @@ export async function createRegistration(data: Omit<TeamRegistration, "id" | "cr
     status: "pending" as const,
     createdAt: new Date().toISOString(),
   };
-  if (isFirebaseConfigured()) {
-    const result = await createFirestoreDocument(COLLECTIONS.registrations, payload);
+  if (isDocumentStoreConfigured()) {
+    const result = await createDocument(COLLECTIONS.registrations, payload);
     return { id: result.id, ...payload };
   }
   return { id: `reg-${Date.now()}`, ...payload };
 }
 
 export async function updateRegistrationStatus(id: string, status: TeamRegistration["status"]) {
-  if (isFirebaseConfigured()) {
-    await saveFirestoreDocument(COLLECTIONS.registrations, id, { status });
+  if (isDocumentStoreConfigured()) {
+    await saveDocument(COLLECTIONS.registrations, id, { status });
   }
   return { id, status };
 }
@@ -1214,30 +1383,30 @@ export async function registerTeamForTournament(tournamentId: string, teamId: st
   return updated;
 }
 
-export async function seedFirestore() {
-  if (!isFirebaseConfigured()) {
-    return { seeded: false, message: "Firebase not configured — using local seed data" };
+export async function seedDocumentStore() {
+  if (!isDocumentStoreConfigured()) {
+    return { seeded: false, message: "Supabase document store not configured — using local seed data" };
   }
 
-  await saveFirestoreDocument(COLLECTIONS.siteStats, "main", seedStats as unknown as Record<string, unknown>);
+  await saveDocument(COLLECTIONS.siteStats, "main", seedStats as unknown as Record<string, unknown>);
 
   for (const t of seedTournaments) {
     const { id, ...rest } = t;
-    await saveFirestoreDocument(COLLECTIONS.tournaments, id, rest as unknown as Record<string, unknown>);
+    await saveDocument(COLLECTIONS.tournaments, id, rest as unknown as Record<string, unknown>);
   }
   for (const t of seedTeams) {
     const { id, ...rest } = t;
-    await saveFirestoreDocument(COLLECTIONS.teams, id, rest as unknown as Record<string, unknown>);
+    await saveDocument(COLLECTIONS.teams, id, rest as unknown as Record<string, unknown>);
   }
   for (const p of seedPlayers) {
     const { id, ...rest } = p;
-    await saveFirestoreDocument(COLLECTIONS.players, id, rest as unknown as Record<string, unknown>);
+    await saveDocument(COLLECTIONS.players, id, rest as unknown as Record<string, unknown>);
   }
   for (const a of seedAnnouncements) {
     const { id, ...rest } = a;
-    await saveFirestoreDocument(COLLECTIONS.announcements, id, rest as unknown as Record<string, unknown>);
+    await saveDocument(COLLECTIONS.announcements, id, rest as unknown as Record<string, unknown>);
   }
-  return { seeded: true, message: "Firestore seeded with teams, players, and tournaments. Match results import from live PUBG API only." };
+  return { seeded: true, message: "Supabase document store seeded with teams, players, and tournaments. Match results import from live PUBG API only." };
 }
 
 export async function getAdminDashboardStats() {
@@ -1270,12 +1439,13 @@ export async function getAdminDashboardStats() {
     pendingRegistrations,
     recentRegistrations: registrations.slice(0, 5),
     recentUploads,
-    dataConnected: isFirebaseConfigured(),
-    dataAdminConnected: isFirebaseAdminConfigured(),
-    dataBackend: dataBackend ?? (isFirebaseConfigured() ? "supabase" : null),
+    dataConnected: isDocumentStoreConfigured(),
+    dataAdminConnected: isDocumentStoreAdminConfigured(),
+    dataBackend: dataBackend ?? (isDocumentStoreConfigured() ? "supabase" : null),
     totalSeasons: seasons.length,
     activeSeasonTitle: activeSeason?.seriesTitle ?? activeSeason?.title,
     activeSeasonDay: activeSeason?.currentDay,
     activeSeasonLength: activeSeason?.configuredDays,
   };
 }
+

@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import { COLLECTIONS, createFirestoreDocument, fetchFirestoreCollection } from "@/lib/firebase";
+import { COLLECTIONS, createDocument, fetchDocumentCollection } from "@/lib/document-store";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import type {
@@ -203,7 +203,7 @@ export async function GET(request: Request) {
   if (unauthorized) return unauthorized;
 
   try {
-    const importBatches = await fetchFirestoreCollection<PubgImportBatch>(COLLECTIONS.pubgImportBatches, 100).catch(
+    const importBatches = await fetchDocumentCollection<PubgImportBatch>(COLLECTIONS.pubgImportBatches, 100).catch(
       () => []
     );
     return Response.json({ success: true, data: sortImportBatches(importBatches) });
@@ -257,7 +257,7 @@ export async function POST(request: Request) {
       matchEdits,
     } satisfies Omit<PubgImportBatch, "id" | "createdAt" | "updatedAt" | "approvedAt" | "rejectedAt" | "importResult" | "rejectedReason">;
 
-    const result = await createFirestoreDocument(COLLECTIONS.pubgImportBatches, payload as Record<string, unknown>);
+    const result = await createDocument(COLLECTIONS.pubgImportBatches, payload as Record<string, unknown>);
     return Response.json({
       success: true,
       data: { id: result.id, ...payload },
@@ -268,3 +268,4 @@ export async function POST(request: Request) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
+

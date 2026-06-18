@@ -98,7 +98,7 @@ export default function TeamProfileClient({
                   {currentRoster.map((player) => (
                     <Link
                       key={player.id}
-                      href={`/players/${player.id}`}
+                      href={`/players/${player.slug ?? player.id}`}
                       className="rounded-card border border-white/10 bg-bg-primary p-4 transition hover:border-accent-blue/30"
                     >
                       <div className="flex items-center justify-between gap-3">

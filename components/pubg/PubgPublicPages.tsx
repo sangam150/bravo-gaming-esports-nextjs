@@ -1,5 +1,6 @@
 import Link from "next/link";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import type { PlatformSponsorProfile } from "@/lib/platform-hub";
 import type {
   PubgHubDataset,
   PubgHubEvent,
@@ -74,12 +75,13 @@ type PlayerBoardRow = {
   trend: number[];
 };
 
-const quickLinks = [
+const coreQuickLinks = [
   { title: "Events", href: "/pubg/events", description: "Published, locked, and draft event boards" },
   { title: "Teams", href: "/pubg/teams", description: "Roster, form, placement trend, and map splits" },
   { title: "Players", href: "/pubg/players", description: "Fraggers, support, damage, and event history" },
+  { title: "Results", href: "/pubg/results", description: "Published match history, scoreboards, and verified outcome views" },
+  { title: "Leaderboards", href: "/pubg/leaderboards", description: "Team and player boards with live point pressure" },
   { title: "Compare", href: "/pubg/compare", description: "Head-to-head studio with radar and trend layers" },
-  { title: "Fantasy", href: "/pubg/fantasy", description: "Five-player squad builder, locks, and leaderboards" },
   { title: "Access", href: "/pubg/access", description: "Admin and Team IGL portal access" },
 ];
 
@@ -336,6 +338,45 @@ function OverviewInfoPanel({
   );
 }
 
+function PubgPartnerCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
+  const primaryAsset = sponsor.bannerUrl ?? sponsor.designAssetUrl ?? sponsor.logoUrl ?? null;
+
+  return (
+    <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
+      {primaryAsset ? (
+        <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08]">
+          <img src={primaryAsset} alt={sponsor.name} className="h-36 w-full object-cover" />
+        </div>
+      ) : null}
+      <div className="flex items-center gap-3">
+        {sponsor.logoUrl ? (
+          <img src={sponsor.logoUrl} alt={sponsor.name} className="h-12 w-12 rounded-card border border-white/10 bg-black/20 object-contain p-2" />
+        ) : null}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{sponsor.tier}</p>
+          <p className="mt-1 font-display text-lg font-black uppercase text-white">{sponsor.name}</p>
+        </div>
+      </div>
+      <p className="mt-4 text-sm text-text-muted">{sponsor.description}</p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Link href={`/sponsors/${sponsor.slug}`} className="btn-secondary">
+          Open Profile
+        </Link>
+        {sponsor.websiteUrl ? (
+          <a href={sponsor.websiteUrl} target="_blank" rel="noreferrer" className="btn-primary">
+            Visit Website
+          </a>
+        ) : null}
+        {sponsor.socialUrl ? (
+          <a href={sponsor.socialUrl} target="_blank" rel="noreferrer" className="btn-secondary">
+            Open Social
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function PubgDashboardPage({
   dataset,
   recentMatches,
@@ -344,6 +385,7 @@ export function PubgDashboardPage({
   topTeams,
   activeEvents,
   mapPulse,
+  partners,
 }: {
   dataset: Awaited<ReturnType<typeof import("@/lib/pubg-hub").getPubgDashboardData>>;
   recentMatches: PubgHubMatch[];
@@ -352,8 +394,16 @@ export function PubgDashboardPage({
   topTeams: PubgHubTeam[];
   activeEvents: PubgHubEvent[];
   mapPulse: PubgHubTeam["mapStats"];
+  partners: PlatformSponsorProfile[];
 }) {
   const teamLookup = buildTeamLookup(dataset);
+  const quickLinks = dataset.fantasy.enabled
+    ? [
+        ...coreQuickLinks.slice(0, 6),
+        { title: "Fantasy", href: "/pubg/fantasy", description: "Live five-player fantasy builder and scoring view" },
+        ...coreQuickLinks.slice(6),
+      ]
+    : coreQuickLinks;
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -367,7 +417,7 @@ export function PubgDashboardPage({
               and every match layer
             </>
           }
-          description="A TrackD-style public platform for Bravo Gaming Esports: standings, sync state, recent match activity, event context, team form, player output, compare tools, fantasy previews, and access routes for admins and IGLs."
+          description="A public Bravo Gaming Esports platform for standings, sync state, recent match activity, event context, team form, player output, compare tools, and access routes for admins and IGLs."
           actions={
             <>
               <Link href="/pubg/events" className="btn-primary">
@@ -376,8 +426,8 @@ export function PubgDashboardPage({
               <Link href="/pubg/compare" className="btn-secondary">
                 Compare studio
               </Link>
-              <Link href="/pubg/fantasy" className="btn-discord">
-                Fantasy preview
+              <Link href="/pubg/leaderboards" className="btn-discord">
+                Leaderboards
               </Link>
             </>
           }
@@ -394,7 +444,7 @@ export function PubgDashboardPage({
           <SectionHeader
             eyebrow="Quick Routes"
             title="Every core PUBG surface in one jump"
-            description="TrackD keeps people moving between events, teams, players, compare, and fantasy quickly. The Bravo hub follows the same stats-first flow with its own branding and access routes."
+            description="Move quickly between events, teams, players, results, leaderboards, compare tools, and operational access without losing the Bravo context."
           />
           <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {quickLinks.map((link) => (
@@ -405,6 +455,21 @@ export function PubgDashboardPage({
             ))}
           </div>
         </section>
+
+        {partners.length > 0 ? (
+          <section className="esports-card p-6">
+            <SectionHeader
+              eyebrow="PUBG Partners"
+              title="Assigned partner and sponsor support"
+              description="These entries are now managed from admin and can be featured on the PUBG page without hardcoded partner blocks."
+            />
+            <div className="mt-6 grid gap-4 xl:grid-cols-2">
+              {partners.map((partner) => (
+                <PubgPartnerCard key={partner.id} sponsor={partner} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="grid gap-6 xl:grid-cols-[1.12fr,0.88fr]">
           <div className="esports-card overflow-hidden !p-0">
@@ -420,20 +485,16 @@ export function PubgDashboardPage({
 
           <div className="grid gap-6">
             <div className="esports-card p-6">
-              <SectionHeader eyebrow="Portal Access" title="Admin and Team IGL routes" description="Bravo replaces separate player and coach logins with clear Supabase-backed admin and IGL access, while keeping future roles visible." />
+              <SectionHeader eyebrow="Portal Access" title="Admin and Team IGL routes" description="Bravo keeps operational access focused: admins handle publishing and approvals, while teams use the IGL workspace." />
               <div className="mt-5 grid gap-3">
                 <Link href="/admin" className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
                   <p className="font-display text-sm font-black uppercase text-white">Admin Login</p>
-                  <p className="mt-2 text-sm text-text-muted">Event publish, result approval, fantasy controls, and platform operations.</p>
+                  <p className="mt-2 text-sm text-text-muted">Event publish, result approval, uploads, and platform operations.</p>
                 </Link>
                 <Link href="/team" className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-green/30 hover:bg-bg-hover">
                   <p className="font-display text-sm font-black uppercase text-white">Team IGL Login</p>
-                  <p className="mt-2 text-sm text-text-muted">Roster management, MOSS uploads, team assets, and request tracking.</p>
+                  <p className="mt-2 text-sm text-text-muted">Roster management, optional MOSS submission, team assets, and request tracking.</p>
                 </Link>
-                <div className="rounded-card border border-dashed border-white/10 bg-bg-primary p-4">
-                  <p className="font-display text-sm font-black uppercase text-white">Player / Coach / Caster Roles</p>
-                  <p className="mt-2 text-sm text-text-muted">Future-ready role cards are mapped in the Bravo access surface and can be added cleanly on top of Supabase roles later.</p>
-                </div>
               </div>
             </div>
 
@@ -468,7 +529,7 @@ export function PubgDashboardPage({
                   <div key={team.id} className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
                     <div className="flex items-center gap-3">
                       <RankBadge rank={index + 1} />
-                      <TeamIdentity team={team} href={`/pubg/teams/${team.id}`} />
+                      <TeamIdentity team={team} href={`/pubg/teams/${team.slug ?? team.id}`} />
                     </div>
                     <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
                       <div>
@@ -501,7 +562,7 @@ export function PubgDashboardPage({
                   <div key={player.id} className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
                     <div className="flex items-center gap-3">
                       <RankBadge rank={index + 1} />
-                      <PlayerIdentity player={player} href={`/pubg/players/${player.id}`} />
+                      <PlayerIdentity player={player} href={`/pubg/players/${player.slug ?? player.id}`} />
                     </div>
                     <div className="mt-4 grid grid-cols-4 gap-3 text-sm">
                       <div>
@@ -533,36 +594,46 @@ export function PubgDashboardPage({
           </div>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
-          <MapStatsTable stats={mapPulse} title="Map pulse across tracked matches" description="Where teams are finding their edge right now: wins, average placement, damage, and total points per map." />
-          <div className="esports-card p-6">
-            <SectionHeader eyebrow="Fantasy Preview" title="Future-ready squad building surface" description="Bravo has the event and player scoring layer ready to grow into a full fantasy product while showing a polished coming-soon surface today." />
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {dataset.fantasy.events.map((event) => (
-                <div key={event.eventId} className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">{event.region}</p>
-                      <h3 className="mt-2 font-display text-base font-black uppercase text-white">{event.eventName}</h3>
+        {dataset.fantasy.enabled ? (
+          <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
+            <MapStatsTable stats={mapPulse} title="Map pulse across tracked matches" description="Where teams are finding their edge right now: wins, average placement, damage, and total points per map." />
+            <div className="esports-card p-6">
+              <SectionHeader eyebrow="Fantasy Preview" title="Future-ready squad building surface" description="Bravo has the event and player scoring layer ready to grow into a full fantasy product while showing a polished public surface." />
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                {dataset.fantasy.events.map((event) => (
+                  <div key={event.eventId} className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">{event.region}</p>
+                        <h3 className="mt-2 font-display text-base font-black uppercase text-white">{event.eventName}</h3>
+                      </div>
+                      <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${event.locked ? "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow" : "border-accent-green/30 bg-accent-green/10 text-accent-green"}`}>
+                        {event.statusLabel}
+                      </span>
                     </div>
-                    <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${event.locked ? "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow" : "border-accent-green/30 bg-accent-green/10 text-accent-green"}`}>
-                      {event.statusLabel}
-                    </span>
+                    <p className="mt-4 text-sm text-text-muted">{formatDate(event.startDate)}</p>
                   </div>
-                  <p className="mt-4 text-sm text-text-muted">{formatDate(event.startDate)}</p>
-                </div>
-              ))}
-              {dataset.fantasy.events.length === 0 ? (
-                <EmptyState title="Fantasy events pending" description="Published fantasy pools will appear here once the next enabled event is ready." />
-              ) : null}
+                ))}
+                {dataset.fantasy.events.length === 0 ? (
+                  <EmptyState title="Fantasy events pending" description="Published fantasy pools will appear here once the next enabled event is ready." />
+                ) : null}
+              </div>
+              <div className="mt-5">
+                <Link href="/pubg/fantasy" className="btn-secondary">
+                  Open fantasy
+                </Link>
+              </div>
             </div>
-            <div className="mt-5">
-              <Link href="/pubg/fantasy" className="btn-secondary">
-                Open fantasy page
-              </Link>
-            </div>
-          </div>
-        </section>
+          </section>
+        ) : (
+          <section className="grid gap-6">
+            <MapStatsTable
+              stats={mapPulse}
+              title="Map pulse across tracked matches"
+              description="Where teams are finding their edge right now: wins, average placement, damage, and total points per map."
+            />
+          </section>
+        )}
       </div>
     </main>
   );
@@ -680,7 +751,7 @@ export function PubgEventsPage({
           <SectionHeader
             eyebrow="Event List"
             title={filteredEvents.length ? `${filteredEvents.length} event boards found` : "No events match the current filter"}
-            description="TrackD-style event browsing works best when status, state, and sync are visible before the click. Bravo mirrors that here with clearer public operating context."
+            description="Bravo event browsing works best when status, state, and sync are visible before the click, so every card exposes its operating context up front."
           />
           <div className="mt-6 grid gap-4 xl:grid-cols-2">
             {filteredEvents.map((event) => (
@@ -783,7 +854,7 @@ function EventSpotlight({
                 <TrendBars values={team.recentPoints} tone="green" />
               </div>
             </div>
-            <Link href={`/pubg/teams/${team.id}`} className="btn-secondary">
+            <Link href={`/pubg/teams/${team.slug ?? team.id}`} className="btn-secondary">
               Open team profile
             </Link>
           </div>
@@ -831,7 +902,7 @@ function EventSpotlight({
                 </p>
               </div>
             ) : null}
-            <Link href={`/pubg/players/${player.id}`} className="btn-secondary">
+            <Link href={`/pubg/players/${player.slug ?? player.id}`} className="btn-secondary">
               Open player profile
             </Link>
           </div>
@@ -1164,7 +1235,7 @@ export function PubgEventDetailPage({
         {tab === "stats" ? (
           <>
             <section className="esports-card p-6">
-              <SectionHeader eyebrow="Stat Filters" title="Map-based event read" description="TrackD leans hard into narrow analysis windows. This event stats tab supports the same pattern with map filtering and focused team/player snapshots." />
+              <SectionHeader eyebrow="Stat Filters" title="Map-based event read" description="Use map filters to tighten the read on team and player output without losing the wider event context." />
               <div className="mt-5 flex flex-wrap gap-2">
                 {mapOptions.map((item) => (
                   <Link
@@ -1362,7 +1433,7 @@ export function PubgTeamsPage({
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Link href={`/pubg/teams/${team.id}`} className="btn-primary">
+                <Link href={`/pubg/teams/${team.slug ?? team.id}`} className="btn-primary">
                   Open team profile
                 </Link>
                 <Link href={buildHref("/pubg/compare", { mode: "teams", sideA: team.id })} className="btn-secondary">
@@ -1395,6 +1466,13 @@ export function PubgTeamDetailPage({
   const selectedEventStat = eventId === "all" ? null : team.eventStats.find((eventStat) => eventStat.eventId === eventId) ?? null;
   const filteredMatches = eventId === "all" ? team.recentMatches : team.recentMatches.filter((match) => match.eventId === eventId);
   const teamLookup = buildTeamLookup(dataset);
+  const playerLookup = buildPlayerLookup(dataset);
+  const bestMap = [...team.mapStats].sort((firstValue, secondValue) => secondValue.points - firstValue.points || secondValue.kills - firstValue.kills)[0] ?? null;
+  const podiumFinishes = team.eventStats.filter((eventStat) => (eventStat.rank ?? Number.POSITIVE_INFINITY) <= 3).length;
+  const averageRecentPoints =
+    team.recentPoints.length > 0
+      ? team.recentPoints.reduce((sum, value) => sum + value, 0) / team.recentPoints.length
+      : 0;
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -1427,18 +1505,45 @@ export function PubgTeamDetailPage({
           ]}
           aside={
             <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
-                <div>
-                  <h2 className="font-display text-2xl font-black uppercase text-white">{team.name}</h2>
-                  <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{team.region ?? "Region pending"}</p>
+              <div className="rounded-[26px] border border-white/[0.08] bg-black/20 p-4">
+                <div className="flex items-center gap-4">
+                  <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
+                  <div>
+                    <h2 className="font-display text-2xl font-black uppercase text-white">{team.name}</h2>
+                    <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{team.region ?? "Region pending"}</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <FormPill label={team.formLabel} />
+                  {team.slotNumber ? (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Slot {team.slotNumber}</span>
+                  ) : null}
+                  {bestMap ? (
+                    <span className="rounded-full border border-accent-green/20 bg-accent-green/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-accent-green">
+                      Best map {bestMap.map}
+                    </span>
+                  ) : null}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <FormPill label={team.formLabel} />
-                {team.slotNumber ? (
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Slot {team.slotNumber}</span>
-                ) : null}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MetricCard label="Active Roster" value={team.currentRoster.length} compact tone="blue" />
+                <MetricCard label="Podium Events" value={podiumFinishes} compact tone="green" />
+                <MetricCard label="Recent Avg Pts" value={formatDecimal(averageRecentPoints, 1)} compact tone="yellow" />
+                <MetricCard label="Map Edge" value={bestMap?.map ?? "Pending"} compact tone="red" />
+              </div>
+              <div className="rounded-card border border-white/[0.08] bg-black/20 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Current roster</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {team.currentRoster.map((member) => (
+                    <Link
+                      key={member.playerId}
+                      href={`/pubg/players/${member.playerId}`}
+                      className="rounded-full border border-white/10 bg-bg-primary px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-white transition hover:border-accent-blue/30 hover:text-accent-blue"
+                    >
+                      {member.pubgName}
+                    </Link>
+                  ))}
+                </div>
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Placement trend</p>
@@ -1458,7 +1563,7 @@ export function PubgTeamDetailPage({
 
         <FilterBar
           action={
-            <Link href={`/pubg/teams/${team.id}`} className="btn-secondary h-11">
+            <Link href={`/pubg/teams/${team.slug ?? team.id}`} className="btn-secondary h-11">
               All events
             </Link>
           }
@@ -1484,17 +1589,36 @@ export function PubgTeamDetailPage({
           <div className="esports-card p-6">
             <SectionHeader eyebrow="Current Roster" title="Starting four and role split" description="The current Bravo team card always shows the active roster, even if the selected event is older." />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {team.currentRoster.map((member) => (
-                <div key={member.playerId} className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
-                  <p className="font-semibold text-white">{member.pubgName}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-text-muted">{member.role}</p>
-                  <div className="mt-3">
-                    <Link href={`/pubg/players/${member.playerId}`} className="text-sm text-accent-blue hover:underline">
-                      Open player profile
-                    </Link>
+              {team.currentRoster.map((member) => {
+                const player = playerLookup.get(member.playerId);
+
+                return (
+                  <div key={member.playerId} className="rounded-[24px] border border-white/[0.08] bg-bg-primary p-4">
+                    <div className="flex items-center gap-3">
+                      <TeamAvatar name={member.pubgName} imageUrl={player?.avatarUrl ?? undefined} size="md" />
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-white">{member.pubgName}</p>
+                        <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{member.role}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+                        <p className="uppercase tracking-[0.14em] text-text-muted">Kills</p>
+                        <p className="mt-1 font-mono-stat text-white">{formatNumber(player?.kills ?? 0)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+                        <p className="uppercase tracking-[0.14em] text-text-muted">Damage</p>
+                        <p className="mt-1 font-mono-stat text-white">{formatNumber(player?.damage ?? 0)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <Link href={`/pubg/players/${member.playerId}`} className="text-sm text-accent-blue hover:underline">
+                        Open player profile
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -1752,7 +1876,7 @@ export function PubgPlayersPage({
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Link href={`/pubg/players/${player.id}`} className="btn-primary">
+                <Link href={`/pubg/players/${player.slug ?? player.id}`} className="btn-primary">
                   Open player profile
                 </Link>
                 <Link href={buildHref("/pubg/compare", { mode: "players", sideA: player.id })} className="btn-secondary">
@@ -1851,7 +1975,7 @@ export function PubgPlayerDetailPage({
 
         <FilterBar
           action={
-            <Link href={`/pubg/players/${player.id}`} className="btn-secondary h-11">
+            <Link href={`/pubg/players/${player.slug ?? player.id}`} className="btn-secondary h-11">
               All events
             </Link>
           }
@@ -2264,6 +2388,11 @@ export function PubgLeaderboardsPage({
         </FilterBar>
 
         {view === "teams" ? (
+          filteredMatches.length === 0 ? (
+            <section className="esports-card p-6">
+              <EmptyState title="No team board in this filter" description="Match data will appear once results are published for the selected event and map lens." />
+            </section>
+          ) : (
           <section className="esports-card overflow-hidden !p-0">
             <div className="border-b border-white/[0.08] px-5 py-4">
               <SectionHeader eyebrow="Team Boards" title="Team leaderboard and form table" description="Placement points, kill points, total points, average placement, damage, and recent trend in one compact board." />
@@ -2292,8 +2421,12 @@ export function PubgLeaderboardsPage({
                         <RankBadge rank={row.rank} />
                       </td>
                       <td>
-                        <Link href={`/pubg/teams/${row.teamId}`} className="font-semibold text-white hover:text-accent-blue">
-                          {row.name}
+                        <Link href={`/pubg/teams/${row.teamId}`} className="flex items-center gap-3 rounded-card transition hover:text-accent-blue">
+                          <TeamAvatar name={row.name} imageUrl={row.logoUrl ?? undefined} size="sm" />
+                          <div className="min-w-0">
+                            <p className="font-semibold text-white">{row.name}</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{row.tag ? row.tag : "PUBG Team"}</p>
+                          </div>
                         </Link>
                       </td>
                       <td>{formatNumber(row.matches)}</td>
@@ -2312,6 +2445,11 @@ export function PubgLeaderboardsPage({
                 </tbody>
               </table>
             </div>
+          </section>
+          )
+        ) : filteredMatches.length === 0 ? (
+          <section className="esports-card p-6">
+            <EmptyState title="No player board in this filter" description="Player rows will appear once published player results exist for the selected event and map lens." />
           </section>
         ) : (
           <section className="esports-card overflow-hidden !p-0">
@@ -2342,11 +2480,27 @@ export function PubgLeaderboardsPage({
                         <RankBadge rank={row.rank} />
                       </td>
                       <td>
-                        <Link href={`/pubg/players/${row.playerId}`} className="font-semibold text-white hover:text-accent-blue">
-                          {row.pubgName}
+                        <Link href={`/pubg/players/${row.playerId}`} className="flex items-center gap-3 rounded-card transition hover:text-accent-blue">
+                          <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="sm" />
+                          <div className="min-w-0">
+                            <p className="font-semibold text-white">{row.pubgName}</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team pending"}</p>
+                          </div>
                         </Link>
                       </td>
-                      <td>{row.teamName ?? "Team pending"}</td>
+                      <td>
+                        {row.teamName ? (
+                          row.teamId ? (
+                            <Link href={`/pubg/teams/${row.teamId}`} className="text-white hover:text-accent-blue">
+                              {row.teamName}
+                            </Link>
+                          ) : (
+                            row.teamName
+                          )
+                        ) : (
+                          "Team pending"
+                        )}
+                      </td>
                       <td>{formatNumber(row.matches)}</td>
                       <td>{formatNumber(row.wins)}</td>
                       <td>{formatNumber(row.kills)}</td>
@@ -2376,22 +2530,22 @@ export function PubgFantasyPage({ dataset }: { dataset: PubgHubDataset }) {
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="PUBG Fantasy"
+          badge="PUBG Fantasy Coming Soon"
           title={
             <>
-              Five-player squad builder,
+              Five-player fantasy,
               <br />
-              coming in a polished state
+              coming soon
             </>
           }
-          description="Bravo mirrors the fantasy direction from TrackD with a future-ready public surface: event-based squad building, five-player picks, start-time locks, scoring from real match stats, event enable controls, and a public leaderboard. The production builder is intentionally not enabled yet, so the page stays useful instead of broken."
+          description="PUBG fantasy stays intentionally low-pressure for now. This page previews the scoring model, likely event pools, and player board while the full Bravo builder remains disabled until launch."
           actions={
             <>
               <Link href="/pubg" className="btn-secondary">
                 Dashboard
               </Link>
-              <Link href="/admin" className="btn-primary">
-                Admin controls
+              <Link href="/pubg/players" className="btn-primary">
+                Browse players
               </Link>
             </>
           }
@@ -2404,15 +2558,15 @@ export function PubgFantasyPage({ dataset }: { dataset: PubgHubDataset }) {
           aside={
             <div className="space-y-4">
               <div>
-                <p className="section-title">Release Shape</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">What the full feature will do</h2>
+                <p className="section-title">Launch Preview</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">What launches first</h2>
               </div>
               <div className="grid gap-3">
                 {[
                   "Pick five players from enabled event pools",
                   "Lock squads automatically once the event starts",
                   "Score from actual match stats and synced telemetry",
-                  "Expose a leaderboard and event-level admin controls",
+                  "Expose a public leaderboard once the builder goes live",
                 ].map((item) => (
                   <div key={item} className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
                     {item}
@@ -2425,7 +2579,7 @@ export function PubgFantasyPage({ dataset }: { dataset: PubgHubDataset }) {
 
         <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Fantasy Events" title="Preview event cards" description="Even before the live builder is enabled, public users can see which events are most likely to become fantasy pools next." />
+            <SectionHeader eyebrow="Fantasy Events" title="Preview event cards" description="See which Bravo PUBG events are the most likely candidates for the first public fantasy pools." />
             <div className="mt-5 grid gap-3">
               {dataset.fantasy.events.map((event) => (
                 <div key={event.eventId} className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
@@ -2445,14 +2599,14 @@ export function PubgFantasyPage({ dataset }: { dataset: PubgHubDataset }) {
           </div>
 
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Squad Builder Preview" title="A polished five-slot future state" description="The surface is intentionally complete enough to explain the feature now while staying honest that picks are not live yet." />
+            <SectionHeader eyebrow="Squad Builder Preview" title="Five slots, not live yet" description="This is a clean preview of the builder layout. Picks stay disabled until Bravo turns the first fantasy event live." />
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
               {["Captain Slot", "Flex Slot 2", "Flex Slot 3", "Flex Slot 4", "Flex Slot 5"].map((slot, index) => (
                 <div key={slot} className="rounded-card border border-dashed border-white/10 bg-bg-primary p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="font-display text-sm font-black uppercase text-white">{slot}</p>
-                      <p className="mt-1 text-sm text-text-muted">Player selection unlocks when the live fantasy builder is enabled for an event.</p>
+                      <p className="mt-1 text-sm text-text-muted">Player selection unlocks only after the first official Bravo fantasy event is published.</p>
                     </div>
                     <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${index === 0 ? "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow" : "border-white/10 bg-white/5 text-text-muted"}`}>
                       {index === 0 ? "2x Score" : "Open"}
@@ -2466,7 +2620,7 @@ export function PubgFantasyPage({ dataset }: { dataset: PubgHubDataset }) {
 
         <section className="esports-card overflow-hidden !p-0">
           <div className="border-b border-white/[0.08] px-5 py-4">
-            <SectionHeader eyebrow="Top 10 Fantasy Players" title="Leaderboard preview" description="The public leaderboard preview already reads from the same player stats used elsewhere in the PUBG hub." />
+            <SectionHeader eyebrow="Top 10 Fantasy Players" title="Leaderboard preview" description="The preview board already reads from the same player stats used elsewhere in the Bravo PUBG hub." />
           </div>
           <div className="table-scroll">
             <table className="data-table min-w-full">
@@ -2521,7 +2675,7 @@ export function PubgAccessPage() {
               for Bravo operators
             </>
           }
-          description="TrackD exposes separate player and coach logins. Bravo's current access model is clearer for the platform we have today: Admin Login and Team IGL Login now, with player, coach, and caster roles planned cleanly on top of Supabase roles later."
+          description="Bravo keeps operational access simple and real: admin accounts handle publishing and approval work, while team IGL accounts manage rosters, uploads, and match-day requests."
           actions={
             <>
               <Link href="/admin" className="btn-primary">
@@ -2534,7 +2688,7 @@ export function PubgAccessPage() {
           }
           stats={[
             { label: "Live Roles", value: 2, tone: "green" },
-            { label: "Future Roles", value: 3, tone: "yellow" },
+            { label: "Team Access", value: "IGL", tone: "yellow" },
             { label: "Auth Layer", value: "Supabase", tone: "blue" },
             { label: "Scope", value: "PUBG Ops", tone: "red" },
           ]}
@@ -2542,16 +2696,16 @@ export function PubgAccessPage() {
             <div className="space-y-4">
               <div>
                 <p className="section-title">Current Policy</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Role clarity beats placeholder logins</h2>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Role clarity keeps operations clean</h2>
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-white">
                 Admin handles publish and approval operations.
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-white">
-                Team IGL handles roster, MOSS, and team asset operations.
+                Team IGL handles roster, optional MOSS, and team asset operations.
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-white">
-                Player, coach, and caster roles are intentionally shown as future-ready instead of fake entry points.
+                No fake public login buttons are exposed beyond the roles Bravo is actively supporting today.
               </div>
             </div>
           }
@@ -2559,7 +2713,7 @@ export function PubgAccessPage() {
 
         <section className="grid gap-6 xl:grid-cols-2">
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Live Access" title="Current Bravo roles" description="These routes already exist and are meant to be used, not treated as placeholders." />
+            <SectionHeader eyebrow="Live Access" title="Current Bravo roles" description="These routes already exist and are meant to be used, not treated as dead-end panels." />
             <div className="mt-5 grid gap-3">
               <Link href="/admin" className="rounded-card border border-white/[0.08] bg-bg-primary p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
                 <p className="font-display text-lg font-black uppercase text-white">Admin Login</p>
@@ -2573,16 +2727,15 @@ export function PubgAccessPage() {
           </div>
 
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Future Roles" title="Planned role expansion" description="Publicly visible so the access model feels intentional, while still avoiding dead routes." />
+            <SectionHeader eyebrow="Access Policy" title="Operational access only" description="Bravo keeps this surface focused on the two roles that already matter for day-to-day tournament operations." />
             <div className="mt-5 grid gap-3">
               {[
-                { title: "Player Login", note: "Optional later for personal stat cards, badges, and profile claims." },
-                { title: "Coach Login", note: "Optional later for roster overlays, event prep notes, and compare presets." },
-                { title: "Caster Login", note: "Optional later for broadcast cards, storylines, and stat callout packs." },
+                "Admins publish homepage sections, news, events, matches, rankings, sponsors, media, and approvals.",
+                "Team IGLs manage roster requests, logo updates, optional MOSS submissions, and team-side match evidence.",
+                "Additional roles stay private until the product behind them is actually ready to launch.",
               ].map((item) => (
-                <div key={item.title} className="rounded-card border border-dashed border-white/10 bg-bg-primary p-5">
-                  <p className="font-display text-lg font-black uppercase text-white">{item.title}</p>
-                  <p className="mt-2 text-sm text-text-muted">{item.note}</p>
+                <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary p-5 text-sm text-white">
+                  {item}
                 </div>
               ))}
             </div>

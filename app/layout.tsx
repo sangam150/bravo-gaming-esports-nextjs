@@ -30,20 +30,22 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: "Bravo Gaming Esports",
   title: {
-    default: "Bravo Gaming Esports | PUBG PC Scrims, Tournaments, and Live Streams",
+    default: "Bravo Gaming Esports | Nepal's Premier Esports Platform",
     template: "%s | Bravo Gaming Esports",
   },
   description:
-    "Bravo Gaming Esports Nepal official portal for PUBG PC scrims, tournaments, broadcasts, leaderboard rankings, and community updates.",
+    "Bravo Gaming Esports is Nepal's premier esports platform for games, events, matches, teams, players, rankings, media, sponsors, and community coverage.",
   alternates: {
     canonical: "/",
   },
   keywords: [
     "Bravo Gaming Esports",
+    "Nepal esports",
     "PUBG PC Nepal",
-    "PUBG scrims",
+    "Valorant Nepal",
+    "CS2 Nepal",
     "esports tournaments Nepal",
-    "PUBG leaderboard",
+    "Nepal esports rankings",
     "Bravo Gaming live stream",
   ],
   icons: {
@@ -54,9 +56,9 @@ export const metadata: Metadata = {
     type: "website",
     url: siteUrl,
     siteName: "Bravo Gaming Esports",
-    title: "Bravo Gaming Esports | PUBG PC Scrims, Tournaments, and Live Streams",
+    title: "Bravo Gaming Esports | Nepal's Premier Esports Platform",
     description:
-      "Compete in PUBG PC scrims, follow live standings, and track Bravo Gaming tournaments from Nepal's premier esports platform.",
+      "Follow games, events, matches, teams, players, rankings, media, sponsors, and community coverage from Nepal's premier esports platform.",
     images: [
       {
         url: "/images/bravo-logo.png",
@@ -68,9 +70,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bravo Gaming Esports | PUBG PC Scrims, Tournaments, and Live Streams",
+    title: "Bravo Gaming Esports | Nepal's Premier Esports Platform",
     description:
-      "Compete in PUBG PC scrims, follow live standings, and track Bravo Gaming tournaments from Nepal's premier esports platform.",
+      "Follow games, events, matches, teams, players, rankings, media, sponsors, and community coverage from Nepal's premier esports platform.",
     images: ["/images/bravo-logo.png"],
   },
   robots: {

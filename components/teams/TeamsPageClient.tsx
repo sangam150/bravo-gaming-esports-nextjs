@@ -70,7 +70,7 @@ export default function TeamsPageClient({ initialTeams }: { initialTeams: Team[]
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleTeams.map((team) => (
-            <Link key={team.id} href={`/teams/${team.id}`} className="esports-card group min-w-0 p-5 text-center">
+            <Link key={team.id} href={`/teams/${team.slug ?? team.id}`} className="esports-card group min-w-0 p-5 text-center">
               <div className="mx-auto">
                 <TeamAvatar name={team.name} size="lg" imageUrl={team.logoUrl ?? team.logo} />
               </div>

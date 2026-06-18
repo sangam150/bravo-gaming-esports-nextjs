@@ -6,8 +6,12 @@ export function getSupabaseUrl() {
   return normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
 }
 
-export function getSupabaseAnonKey() {
-  return normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+export function getSupabasePublishableKey() {
+  return normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+}
+
+export function getSupabasePublicKey() {
+  return getSupabasePublishableKey() || normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
 export function getSupabaseServiceRoleKey() {
@@ -15,7 +19,7 @@ export function getSupabaseServiceRoleKey() {
 }
 
 export function isSupabaseConfigured() {
-  return Boolean(getSupabaseUrl() && getSupabaseAnonKey());
+  return Boolean(getSupabaseUrl() && getSupabasePublicKey());
 }
 
 export function isSupabaseServiceRoleConfigured() {
@@ -24,19 +28,19 @@ export function isSupabaseServiceRoleConfigured() {
 
 export function requireSupabaseEnv() {
   const url = getSupabaseUrl();
-  const anonKey = getSupabaseAnonKey();
+  const publicKey = getSupabasePublicKey();
 
-  if (!url || !anonKey) {
+  if (!url || !publicKey) {
     throw new Error(
-      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)."
     );
   }
 
-  return { url, anonKey };
+  return { url, publicKey };
 }
 
 export function requireSupabaseServiceRoleEnv() {
-  const { url, anonKey } = requireSupabaseEnv();
+  const { url, publicKey } = requireSupabaseEnv();
   const serviceRoleKey = getSupabaseServiceRoleKey();
 
   if (!serviceRoleKey) {
@@ -47,7 +51,7 @@ export function requireSupabaseServiceRoleEnv() {
 
   return {
     url,
-    anonKey,
+    publicKey,
     serviceRoleKey,
   };
 }

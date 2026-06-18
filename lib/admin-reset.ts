@@ -1,4 +1,4 @@
-import { COLLECTIONS, deleteFirestoreDocument, fetchFirestoreCollection, isFirebaseConfigured } from "./firebase";
+import { COLLECTIONS, deleteDocument, fetchDocumentCollection, isDocumentStoreConfigured } from "./document-store";
 
 type ResettableCollectionName =
   | keyof typeof COLLECTIONS
@@ -32,18 +32,18 @@ async function deleteEntireCollection(collectionName: string) {
   let deletedCount = 0;
 
   while (true) {
-    const documents = await fetchFirestoreCollection<Record<string, unknown>>(collectionName, 500);
+    const documents = await fetchDocumentCollection<Record<string, unknown>>(collectionName, 500);
     if (documents.length === 0) {
       return deletedCount;
     }
 
-    await Promise.all(documents.map((document) => deleteFirestoreDocument(collectionName, document.id)));
+    await Promise.all(documents.map((document) => deleteDocument(collectionName, document.id)));
     deletedCount += documents.length;
   }
 }
 
 export async function resetCompetitionData(): Promise<AdminResetSummary> {
-  if (!isFirebaseConfigured()) {
+  if (!isDocumentStoreConfigured()) {
     throw new Error("Supabase is not configured. Connect the Supabase data store before running a data reset.");
   }
 
@@ -66,3 +66,4 @@ export async function resetCompetitionData(): Promise<AdminResetSummary> {
         : "No competitive records were stored, so nothing needed to be reset.",
   };
 }
+

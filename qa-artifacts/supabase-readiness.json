@@ -1,0 +1,242 @@
+{
+  "generatedAt": "2026-06-18T20:20:30.852Z",
+  "env": {
+    "hasSupabaseUrl": true,
+    "hasPublishableKey": true,
+    "hasAnonKey": true,
+    "hasServiceRoleKey": true,
+    "publicKeySource": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "publishableKeyPreview": "sb_p...0R5q",
+    "anonKeyPreview": "eyJh...lHHo",
+    "serviceRoleKeyPreview": "eyJh...-PQ-",
+    "firebaseEnvKeysPresent": [
+      "NEXT_PUBLIC_FIREBASE_API_KEY",
+      "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+      "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+      "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+      "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+      "NEXT_PUBLIC_FIREBASE_APP_ID",
+      "FIREBASE_PROJECT_ID",
+      "FIREBASE_CLIENT_EMAIL",
+      "FIREBASE_PRIVATE_KEY"
+    ]
+  },
+  "auth": {
+    "publishableStatus": 200,
+    "anonStatus": 200,
+    "serviceRoleStatus": 401,
+    "disableSignup": false,
+    "mailerAutoconfirm": false,
+    "phoneAutoconfirm": false,
+    "emailProviderEnabled": true,
+    "siteUrl": null
+  },
+  "storage": {
+    "bucketListStatus": 200,
+    "existingBuckets": [],
+    "missingBuckets": [
+      "team-logos",
+      "player-avatars",
+      "event-banners",
+      "sponsor-logos",
+      "news-images",
+      "media-assets",
+      "result-screenshots",
+      "scoreboard-images",
+      "posters",
+      "stream-assets"
+    ]
+  },
+  "schema": {
+    "criticalTables": [
+      {
+        "table": "profiles",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "teams",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "players",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "events",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "matches",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "match_team_results",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "match_player_results",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "uploads",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "videos",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "audit_logs",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "app_documents",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      }
+    ],
+    "missingCriticalTables": [
+      "profiles",
+      "teams",
+      "players",
+      "events",
+      "matches",
+      "match_team_results",
+      "match_player_results",
+      "uploads",
+      "videos",
+      "audit_logs",
+      "app_documents"
+    ],
+    "launchTables": [
+      {
+        "table": "games",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "organizations",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "seasons",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "season_days",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "event_teams",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "player_team_history",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "rankings",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "point_systems",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "news_articles",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "media",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "homepage_content",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "contact_messages",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "approvals",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "social_posts",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      },
+      {
+        "table": "video_sync_items",
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
+      }
+    ],
+    "missingLaunchTables": [
+      "games",
+      "organizations",
+      "seasons",
+      "season_days",
+      "event_teams",
+      "player_team_history",
+      "rankings",
+      "point_systems",
+      "news_articles",
+      "media",
+      "homepage_content",
+      "contact_messages",
+      "approvals",
+      "social_posts",
+      "video_sync_items"
+    ]
+  }
+}
