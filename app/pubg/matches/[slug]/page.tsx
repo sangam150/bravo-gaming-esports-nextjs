@@ -1,0 +1,37 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import MatchResultDetailClient from "@/components/results/MatchResultDetailClient";
+import { getMatchResult } from "@/lib/pubg-sync";
+
+type PageProps = {
+  params: Promise<{ slug: string }>;
+};
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const matchResult = await getMatchResult(slug);
+
+  if (!matchResult) {
+    return {
+      title: "PUBG Match Not Found",
+    };
+  }
+
+  return {
+    title: `PUBG Match ${matchResult.sequenceNumber ?? "-"}`,
+    description: `View the full Bravo Gaming Esports PUBG match page for ${matchResult.pubgMatchId}, including standings, MVP, media, and screenshots.`,
+  };
+}
+
+export const revalidate = 300;
+
+export default async function PubgMatchDetailPage({ params }: PageProps) {
+  const { slug } = await params;
+  const matchResult = await getMatchResult(slug);
+
+  if (!matchResult) {
+    notFound();
+  }
+
+  return <MatchResultDetailClient initialMatch={matchResult} />;
+}

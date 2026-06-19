@@ -11,44 +11,77 @@ const REQUIRED_BUCKETS = [
   "player-avatars",
   "event-banners",
   "sponsor-logos",
-  "news-images",
-  "media-assets",
   "result-screenshots",
-  "scoreboard-images",
-  "posters",
+  "moss-files",
   "stream-assets",
 ];
 
+const RECOMMENDED_LAUNCH_BUCKETS = [
+  "news-images",
+  "media-assets",
+  "scoreboard-images",
+  "match-media",
+  "posters",
+  "hero-slides",
+];
+
 const APP_CRITICAL_TABLES = [
+  "users",
   "profiles",
+  "seasons",
+  "days",
   "teams",
   "players",
   "events",
   "matches",
+  "match_players",
+  "match_results",
+  "event_teams",
+  "pending_imports",
+  "import_logs",
+  "team_roster_history",
+  "roster_requests",
   "match_team_results",
   "match_player_results",
+  "moss_submissions",
   "uploads",
-  "videos",
   "audit_logs",
+  "announcements",
+  "sponsors",
+  "videos",
+  "settings",
+  "point_systems",
   "app_documents",
 ];
 
-const LAUNCH_BRIEF_TABLES = [
-  "games",
-  "organizations",
+const DOCUMENT_STORE_COLLECTIONS = [
   "seasons",
-  "season_days",
-  "event_teams",
-  "player_team_history",
-  "rankings",
-  "point_systems",
-  "news_articles",
-  "media",
-  "homepage_content",
-  "contact_messages",
-  "approvals",
-  "social_posts",
-  "video_sync_items",
+  "tournaments",
+  "standings",
+  "matches",
+  "teams",
+  "players",
+  "announcements",
+  "registrations",
+  "tournamentMatches",
+  "scrims",
+  "matchResults",
+  "matchPlayers",
+  "uploads",
+  "siteStats",
+  "streams",
+  "videos",
+  "sponsors",
+  "pubgMatches",
+  "pubgPlayers",
+  "pubgImportBatches",
+  "pubgImportWatchers",
+  "errorLogs",
+  "homepageContent",
+  "newsArticles",
+  "contactMessages",
+  "platformGames",
+  "platformEvents",
 ];
 
 function loadEnvFile(filePath) {
@@ -83,6 +116,17 @@ function maskPreview(value) {
   if (!value) return null;
   if (value.length <= 8) return "*".repeat(value.length);
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
+function getJwtShape(value) {
+  const segments = value ? value.split(".") : [];
+  const signature = segments.length === 3 ? segments[2] : "";
+
+  return {
+    segmentCount: segments.length,
+    signatureLength: signature.length,
+    looksMalformedJwt: Boolean(value) && segments.length === 3 && signature.length < 32,
+  };
 }
 
 async function safeJsonRequest(url, apiKey, label) {
@@ -146,13 +190,14 @@ async function main() {
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL || "";
   const publishableKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
   const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-  const publicKey = publishableKey || anonKey;
+  const authPublicKey = publishableKey || anonKey;
+  const restPublicKey = anonKey || publishableKey;
   const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 
   const firebaseKeys = Object.keys(env).filter((key) => key.startsWith("NEXT_PUBLIC_FIREBASE_") || key.startsWith("FIREBASE_"));
 
-  const authSettings = supabaseUrl && publicKey
-    ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, publicKey, "auth-settings")
+  const authSettings = supabaseUrl && authPublicKey
+    ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, authPublicKey, "auth-settings")
     : null;
   const publishableAuth = supabaseUrl && publishableKey
     ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, publishableKey, "publishable-auth")
@@ -163,26 +208,20 @@ async function main() {
   const serviceAuth = supabaseUrl && serviceRoleKey
     ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, serviceRoleKey, "service-auth")
     : null;
-  const bucketsResponse = supabaseUrl && publicKey
-    ? await safeJsonRequest(`${supabaseUrl}/storage/v1/bucket`, publicKey, "storage-buckets")
+  const bucketsResponse = supabaseUrl && restPublicKey
+    ? await safeJsonRequest(`${supabaseUrl}/storage/v1/bucket`, restPublicKey, "storage-buckets")
     : null;
+  const authSettingsJson = authSettings?.json ?? anonAuth?.json ?? publishableAuth?.json;
 
   const existingBuckets = Array.isArray(bucketsResponse?.json)
     ? bucketsResponse.json.map((bucket) => bucket.name).filter((name) => typeof name === "string")
     : [];
 
-  const [criticalTables, launchTables] = await Promise.all([
+  const [criticalTables] = await Promise.all([
     Promise.all(
       APP_CRITICAL_TABLES.map((tableName) =>
-        supabaseUrl && publicKey
-          ? checkTable(supabaseUrl, publicKey, tableName)
-          : Promise.resolve({ table: tableName, status: "SKIPPED", ok: false, missingFromSchemaCache: false })
-      )
-    ),
-    Promise.all(
-      LAUNCH_BRIEF_TABLES.map((tableName) =>
-        supabaseUrl && publicKey
-          ? checkTable(supabaseUrl, publicKey, tableName)
+        supabaseUrl && restPublicKey
+          ? checkTable(supabaseUrl, restPublicKey, tableName)
           : Promise.resolve({ table: tableName, status: "SKIPPED", ok: false, missingFromSchemaCache: false })
       )
     ),
@@ -196,31 +235,37 @@ async function main() {
       hasAnonKey: Boolean(anonKey),
       hasServiceRoleKey: Boolean(serviceRoleKey),
       publicKeySource: publishableKey ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" : anonKey ? "NEXT_PUBLIC_SUPABASE_ANON_KEY" : null,
+      restKeySource: anonKey ? "NEXT_PUBLIC_SUPABASE_ANON_KEY" : publishableKey ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" : null,
       publishableKeyPreview: maskPreview(publishableKey),
       anonKeyPreview: maskPreview(anonKey),
       serviceRoleKeyPreview: maskPreview(serviceRoleKey),
+      serviceRoleKeyShape: getJwtShape(serviceRoleKey),
       firebaseEnvKeysPresent: firebaseKeys,
     },
     auth: {
       publishableStatus: publishableAuth?.status ?? null,
       anonStatus: anonAuth?.status ?? null,
       serviceRoleStatus: serviceAuth?.status ?? null,
-      disableSignup: authSettings?.json?.disable_signup ?? null,
-      mailerAutoconfirm: authSettings?.json?.mailer_autoconfirm ?? null,
-      phoneAutoconfirm: authSettings?.json?.phone_autoconfirm ?? null,
-      emailProviderEnabled: authSettings?.json?.external?.email ?? null,
-      siteUrl: authSettings?.json?.site_url ?? null,
+      disableSignup: authSettingsJson?.disable_signup ?? null,
+      mailerAutoconfirm: authSettingsJson?.mailer_autoconfirm ?? null,
+      phoneAutoconfirm: authSettingsJson?.phone_autoconfirm ?? null,
+      emailProviderEnabled: authSettingsJson?.external?.email ?? null,
+      siteUrl: authSettingsJson?.site_url ?? null,
     },
     storage: {
       bucketListStatus: bucketsResponse?.status ?? null,
       existingBuckets,
       missingBuckets: REQUIRED_BUCKETS.filter((bucket) => !existingBuckets.includes(bucket)),
+      recommendedLaunchBuckets: RECOMMENDED_LAUNCH_BUCKETS,
+      missingRecommendedBuckets: RECOMMENDED_LAUNCH_BUCKETS.filter((bucket) => !existingBuckets.includes(bucket)),
     },
     schema: {
       criticalTables,
       missingCriticalTables: criticalTables.filter((table) => !table.ok).map((table) => table.table),
-      launchTables,
-      missingLaunchTables: launchTables.filter((table) => !table.ok).map((table) => table.table),
+      documentStoreCollections: DOCUMENT_STORE_COLLECTIONS,
+      documentStoreTableReady: criticalTables.some((table) => table.table === "app_documents" && table.ok),
+      documentStoreNote:
+        "Homepage content, news articles, contact messages, media records, platform pages, and several admin-managed entities live inside app_documents collections rather than dedicated SQL tables.",
     },
   };
 

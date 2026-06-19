@@ -761,15 +761,14 @@ export async function getSeasonPlayers(seasonId: string): Promise<Player[]> {
   }
 }
 
-export async function getCurrentSeasonOverview() {
-  const currentSeason = await getCurrentSeason();
-  if (!currentSeason) return null;
+async function buildSeasonOverview(season: Season | null) {
+  if (!season) return null;
 
   const [seasonTournaments, seasonLeaderboard, seasonTeams, seasonPlayers] = await Promise.all([
-    getSeasonTournaments(currentSeason.id),
-    getSeasonLeaderboard(currentSeason.id),
-    getSeasonTeams(currentSeason.id),
-    getSeasonPlayers(currentSeason.id),
+    getSeasonTournaments(season.id),
+    getSeasonLeaderboard(season.id),
+    getSeasonTeams(season.id),
+    getSeasonPlayers(season.id),
   ]);
 
   const orderedTournaments = [...seasonTournaments].sort(
@@ -779,8 +778,8 @@ export async function getCurrentSeasonOverview() {
       firstTournament.startDate.localeCompare(secondTournament.startDate)
   );
   const currentTournament =
-    orderedTournaments.find((tournament) => tournament.id === currentSeason.currentTournamentId) ??
-    orderedTournaments.find((tournament) => tournament.seasonDayNumber === currentSeason.currentDay) ??
+    orderedTournaments.find((tournament) => tournament.id === season.currentTournamentId) ??
+    orderedTournaments.find((tournament) => tournament.seasonDayNumber === season.currentDay) ??
     null;
   const matchesPlayed = orderedTournaments.reduce(
     (totalMatches, tournament) => totalMatches + (tournament.matchCount ?? 0),
@@ -789,7 +788,7 @@ export async function getCurrentSeasonOverview() {
   const completedDays = orderedTournaments.filter((tournament) => (tournament.matchCount ?? 0) > 0).length;
 
   return {
-    season: currentSeason,
+    season,
     tournaments: orderedTournaments,
     leaderboard: seasonLeaderboard,
     teams: seasonTeams,
@@ -800,6 +799,20 @@ export async function getCurrentSeasonOverview() {
     completedDays,
     recentResults: orderedTournaments.filter((tournament) => (tournament.matchCount ?? 0) > 0).slice(-3).reverse(),
   };
+}
+
+export async function getSeasonBySlug(seasonIdOrSlug: string) {
+  const seasons = await getSeasons();
+  const normalizedSeasonIdOrSlug = seasonIdOrSlug.trim().toLowerCase();
+  return seasons.find((season) => season.id === seasonIdOrSlug || season.slug.toLowerCase() === normalizedSeasonIdOrSlug) ?? null;
+}
+
+export async function getSeasonOverviewBySlug(seasonIdOrSlug: string) {
+  return buildSeasonOverview(await getSeasonBySlug(seasonIdOrSlug));
+}
+
+export async function getCurrentSeasonOverview() {
+  return buildSeasonOverview(await getCurrentSeason());
 }
 
 export async function getTournaments(status?: string): Promise<Tournament[]> {

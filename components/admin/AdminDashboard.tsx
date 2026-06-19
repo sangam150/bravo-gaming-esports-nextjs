@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminMatchManager from "./AdminMatchManager";
 import AdminSidebar, { type AdminSection } from "./AdminSidebar";
@@ -328,9 +329,15 @@ function sortSeasonScrimsByDay(firstScrim: Scrim, secondScrim: Scrim) {
   );
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboard({
+  initialSection = "dashboard",
+  focusImportBatchId = null,
+}: {
+  initialSection?: AdminSection;
+  focusImportBatchId?: string | null;
+}) {
   const { user, logout } = useAdminAuth();
-  const [section, setSection] = useState<AdminSection>("dashboard");
+  const [section, setSection] = useState<AdminSection>(initialSection);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -435,6 +442,19 @@ export default function AdminDashboard() {
     () => importBatches.filter((batch) => batch.status !== "pending"),
     [importBatches]
   );
+  const focusedImportBatch = useMemo(
+    () => (focusImportBatchId ? importBatches.find((batch) => batch.id === focusImportBatchId) ?? null : null),
+    [focusImportBatchId, importBatches]
+  );
+  const visiblePendingImportBatches = useMemo(
+    () =>
+      focusImportBatchId
+        ? focusedImportBatch?.status === "pending"
+          ? [focusedImportBatch]
+          : []
+        : pendingImportBatches,
+    [focusImportBatchId, focusedImportBatch, pendingImportBatches]
+  );
   const dashboardOverview = useMemo(() => {
     const publishedArticles = newsArticles.filter((article) => article.state === "published").length;
     const draftArticles = newsArticles.filter((article) => article.state === "draft").length;
@@ -460,6 +480,10 @@ export default function AdminDashboard() {
       pendingRegistrations,
     };
   }, [liveMatches.length, messages, newsArticles, pendingImportBatches.length, players.length, recentUploads.length, registrations, scrims.length, stats?.totalPlayers, stats?.totalTeams, teams.length, tournaments.length]);
+
+  useEffect(() => {
+    setSection(initialSection);
+  }, [initialSection]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -2248,18 +2272,34 @@ export default function AdminDashboard() {
         {section === "pendingImports" && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-black text-white">Pending Imports</h2>
+              <h2 className="text-2xl font-black text-white">
+                {focusImportBatchId ? "Import Review" : "Pending Imports"}
+              </h2>
               <p className="mt-1 text-sm text-text-muted">
-                Reviewed PUBG match batches stay here until you approve and publish them.
+                {focusImportBatchId
+                  ? "Review this saved PUBG batch, approve it when ready, and publish standings from the same screen."
+                  : "Reviewed PUBG match batches stay here until you approve and publish them."}
               </p>
             </div>
-            {pendingImportBatches.length === 0 ? (
+            {focusImportBatchId && focusedImportBatch && focusedImportBatch.status !== "pending" ? (
+              <div className="esports-card space-y-4 p-6">
+                <p className="text-sm text-text-muted">
+                  This batch is already <span className="font-semibold text-white">{focusedImportBatch.status}</span>.
+                  Open the audit history below to inspect the final result.
+                </p>
+                <button type="button" onClick={() => setSection("approvedImports")} className="btn-secondary w-fit">
+                  Open Approved Imports
+                </button>
+              </div>
+            ) : visiblePendingImportBatches.length === 0 ? (
               <div className="esports-card p-8 text-center text-text-muted">
-                No pending imports right now. Save a reviewed preview from the PUBG import workflow to see it here.
+                {focusImportBatchId
+                  ? "This pending import review link no longer points to an active pending batch."
+                  : "No pending imports right now. Save a reviewed preview from the PUBG import workflow to see it here."}
               </div>
             ) : (
               <div className="space-y-4">
-                {pendingImportBatches.map((batch) => (
+                {visiblePendingImportBatches.map((batch) => (
                   <div key={batch.id} className="esports-card p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -2366,6 +2406,11 @@ export default function AdminDashboard() {
                       ))}
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
+                      {!focusImportBatchId && (
+                        <Link href={`/admin/matches/${batch.id}/review`} className="btn-secondary !text-[11px]">
+                          Open Review Route
+                        </Link>
+                      )}
                       <button
                         type="button"
                         onClick={() => void handleImportBatchAction(batch.id, "approve")}

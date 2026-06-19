@@ -2,6 +2,7 @@ import { ensureSeasonDay, getSeasonDayContext } from "./admin-season-days";
 import { getCurrentSeason, getTournament, getTournamentMatches } from "./data";
 import { BRAVO_DAILY_SCRIMS_SEASON, syncBravoDailyScrimSeason } from "./bravo-season-sync";
 import { buildFallbackTeamNameFromSlot, canonicalizeBravoTeamName, getBravoCanonicalTeams, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
+import { syncSeasonDerivedData } from "./season-derived-sync";
 import {
   COLLECTIONS,
   commitDocumentWriteOperations,
@@ -919,17 +920,22 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
   await commitDocumentWriteOperations(operations);
 }
 
-async function syncBravoSeasonIfNeeded(tournament?: Tournament | null) {
-  if (!tournament?.seasonId || tournament.seasonId !== BRAVO_DAILY_SCRIMS_SEASON.id) {
+async function syncSeasonDerivedDataIfNeeded(tournament?: Tournament | null) {
+  if (!tournament?.seasonId) {
     return;
   }
 
-  const season = await getDocument<Season>(COLLECTIONS.seasons, tournament.seasonId);
-  await syncBravoDailyScrimSeason({
-    configuredDays: season?.configuredDays,
-    currentDay: season?.currentDay,
-    importFeed: false,
-  });
+  if (tournament.seasonId === BRAVO_DAILY_SCRIMS_SEASON.id) {
+    const season = await getDocument<Season>(COLLECTIONS.seasons, tournament.seasonId);
+    await syncBravoDailyScrimSeason({
+      configuredDays: season?.configuredDays,
+      currentDay: season?.currentDay,
+      importFeed: false,
+    });
+    return;
+  }
+
+  await syncSeasonDerivedData(tournament.seasonId);
 }
 
 export async function syncTournamentAndSeasonDerivedData(
@@ -947,7 +953,7 @@ export async function syncTournamentAndSeasonDerivedData(
   }
 
   await syncTournamentDerivedData(resolvedTournamentId, resolvedTournament);
-  await syncBravoSeasonIfNeeded(resolvedTournament);
+  await syncSeasonDerivedDataIfNeeded(resolvedTournament);
 }
 
 function normalizeRequestedMatchIds(matchIds: string[]) {

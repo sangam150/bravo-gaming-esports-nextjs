@@ -83,7 +83,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                 </Link>
               )}
             </div>
-            <Link href="/results" className="btn-secondary">
+            <Link href="/pubg/results" className="btn-secondary">
               Back to Results
             </Link>
           </div>

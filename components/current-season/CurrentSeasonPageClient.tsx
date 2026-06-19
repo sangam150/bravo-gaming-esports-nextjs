@@ -22,21 +22,27 @@ function formatSeasonStatus(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-export default function CurrentSeasonPageClient({ initialOverview }: { initialOverview: CurrentSeasonOverview | null }) {
+export default function CurrentSeasonPageClient({
+  initialOverview,
+  enableRealtime = true,
+}: {
+  initialOverview: CurrentSeasonOverview | null;
+  enableRealtime?: boolean;
+}) {
   const { overview } = useBravoRealtimeData(undefined, {
     scrims: false,
     matches: false,
     matchResults: false,
   });
-  const activeOverview = overview ?? initialOverview;
+  const activeOverview = enableRealtime ? overview ?? initialOverview : initialOverview;
 
   if (!activeOverview) {
     return (
       <main className="page-shell">
         <div className="page-inner">
           <section className="page-hero p-8 text-center">
-            <p className="section-title">Current Season</p>
-            <h1 className="hero-h1 mt-2 !text-4xl">Current season will appear after admin approval</h1>
+            <p className="section-title">Season Overview</p>
+            <h1 className="hero-h1 mt-2 !text-4xl">Season details will appear after admin approval</h1>
             <p className="mt-4 text-text-muted">
               Results will be published after admin approval.
             </p>
@@ -48,6 +54,7 @@ export default function CurrentSeasonPageClient({ initialOverview }: { initialOv
 
   const { season, tournaments, leaderboard, currentTournament, registeredTeams, matchesPlayed, recentResults } =
     activeOverview;
+  const seasonEyebrow = season.status === "active" ? "Current Season" : "Season Archive";
 
   return (
     <main className="page-shell">
@@ -56,7 +63,7 @@ export default function CurrentSeasonPageClient({ initialOverview }: { initialOv
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_10%,rgba(0,217,126,0.12),transparent_35%),radial-gradient(circle_at_10%_25%,rgba(29,155,240,0.16),transparent_30%)]" />
           <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
-              <p className="section-title">Current Season</p>
+              <p className="section-title">{seasonEyebrow}</p>
               <h1 className="hero-h1 mt-2 !text-4xl sm:!text-5xl">{season.seriesTitle}</h1>
               <p className="mt-4 max-w-3xl text-sm leading-relaxed text-text-muted sm:text-base">
                 Bravo Gaming Esports now stores the full daily PUBG PC scrim season inside its own Supabase-powered data
@@ -75,7 +82,7 @@ export default function CurrentSeasonPageClient({ initialOverview }: { initialOv
                 </span>
               </div>
             </div>
-            <Link href="/leaderboard" className="btn-primary shrink-0">
+            <Link href="/pubg/leaderboards" className="btn-primary shrink-0">
               View Season Leaderboard
             </Link>
           </div>
@@ -197,7 +204,7 @@ export default function CurrentSeasonPageClient({ initialOverview }: { initialOv
                         </td>
                         <td>{row.slotNumber ? `#${row.slotNumber}` : "-"}</td>
                         <td>
-                          <Link href={`/teams/${row.teamId}`} className="flex items-center gap-3 hover:text-accent-blue">
+                          <Link href={`/pubg/teams/${row.teamId}`} className="flex items-center gap-3 hover:text-accent-blue">
                             <TeamAvatar name={row.team} imageUrl={row.logoUrl} size="sm" />
                             <span className="font-semibold uppercase">{row.team}</span>
                           </Link>

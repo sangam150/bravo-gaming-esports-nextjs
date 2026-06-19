@@ -1,7 +1,7 @@
-import CurrentSeasonPageClient from "@/components/current-season/CurrentSeasonPageClient";
-import { getCurrentSeasonOverview } from "@/lib/data";
+import { redirect } from "next/navigation";
+import { getCurrentSeason } from "@/lib/data";
 
 export default async function CurrentSeasonPage() {
-  const overview = await getCurrentSeasonOverview();
-  return <CurrentSeasonPageClient initialOverview={overview} />;
+  const season = await getCurrentSeason();
+  redirect(season ? `/pubg/seasons/${season.slug}` : "/pubg");
 }

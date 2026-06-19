@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Barlow_Condensed, DM_Sans, JetBrains_Mono } from "next/font/google";
 import Footer from "@/components/Footer";
-import Header from "@/components/Header";
+import SiteHeader from "@/components/SiteHeader";
 import { getSiteUrl } from "@/lib/site";
 
 const barlow = Barlow_Condensed({
@@ -92,7 +92,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${barlow.variable} ${dmSans.variable} ${jetbrains.variable}`}>
       <body className="flex min-h-screen flex-col overflow-x-hidden bg-bg-primary font-body text-white antialiased">
-        <Header />
+        <SiteHeader />
         <div className="flex-1">{children}</div>
         <Footer />
       </body>
