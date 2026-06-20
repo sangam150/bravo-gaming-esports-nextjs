@@ -1,20 +1,9 @@
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import type { UploadRecord } from "./types";
 import type { UploadType } from "./upload-config";
+import type { Tables } from "@/types/database.types";
 
-type UploadRow = {
-  id: string;
-  file_url: string;
-  file_path?: string | null;
-  file_type: string;
-  related_type?: string | null;
-  related_id?: string | null;
-  uploaded_by?: string | null;
-  file_name?: string | null;
-  content_type?: string | null;
-  size_bytes?: number | null;
-  created_at: string;
-};
+type UploadRow = Tables<"uploads">;
 
 function toUploadRecord(row: UploadRow): UploadRecord {
   return {

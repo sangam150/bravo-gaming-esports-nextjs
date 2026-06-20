@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminMatchManager from "./AdminMatchManager";
+import AdminTeamRequestsManager from "./AdminTeamRequestsManager";
 import AdminSidebar, { type AdminSection } from "./AdminSidebar";
 import BulkTeamLogoUpload from "./BulkTeamLogoUpload";
 import FileUpload from "./FileUpload";
@@ -201,7 +202,7 @@ const defaultHomepageForm: HomepageContentRecord = {
     { id: "footer-highlight-community", label: "Community", value: "Nepal First" },
   ],
   footerBottomPrimary: "Copyright 2026 Bravo Gaming Esports Nepal",
-  footerBottomSecondary: "Supabase-powered public hub for events, teams, players, rankings, media, sponsors, and community coverage.",
+  footerBottomSecondary: "Daily scrims, major events, rankings, media, sponsors, and community coverage for Nepal esports.",
   updatedAt: "",
 };
 const defaultNewsForm: ManagedNewsFormState = {
@@ -1629,6 +1630,8 @@ export default function AdminDashboard({
         {section === "media" && <AdminMediaManager />}
 
         {section === "sponsors" && <AdminSponsorsManager />}
+
+        {section === "teamRequests" && <AdminTeamRequestsManager />}
 
         {section === "inbox" && (
           <div className="space-y-6">

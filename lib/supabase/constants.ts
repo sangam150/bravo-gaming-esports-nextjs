@@ -28,9 +28,18 @@ export const SUPABASE_TABLES = {
 export const SUPABASE_BUCKETS = {
   teamLogos: "team-logos",
   playerAvatars: "player-avatars",
+  playerPhotos: "player-photos",
   eventBanners: "event-banners",
+  sponsorAssets: "sponsor-assets",
   sponsorLogos: "sponsor-logos",
   resultScreenshots: "result-screenshots",
+  scoreboardImages: "scoreboard-images",
+  matchMedia: "match-media",
+  mediaAssets: "media-assets",
+  mediaUploads: "media-uploads",
+  heroSlides: "hero-slides",
+  newsImages: "news-images",
+  posters: "posters",
   mossFiles: "moss-files",
   streamAssets: "stream-assets",
 } as const;

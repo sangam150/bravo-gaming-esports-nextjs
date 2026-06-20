@@ -635,7 +635,7 @@ export function RecentMatchCards({
           : match.winnerTeamId
             ? teamLookup?.get(match.winnerTeamId)?.logoUrl ?? null
             : null;
-        const href = `/results/matches/${isRecentMatch ? match.matchId : match.id}`;
+        const href = `/pubg/matches/${isRecentMatch ? match.matchId : match.id}`;
 
         return (
           <Link key={isRecentMatch ? match.matchId : match.id} href={href} className="block rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">

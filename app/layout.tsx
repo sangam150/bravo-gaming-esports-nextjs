@@ -1,30 +1,32 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Barlow_Condensed, DM_Sans, JetBrains_Mono } from "next/font/google";
 import Footer from "@/components/Footer";
 import SiteHeader from "@/components/SiteHeader";
 import { getSiteUrl } from "@/lib/site";
 
-const barlow = Barlow_Condensed({
-  subsets: ["latin"],
-  weight: ["400", "600", "700", "800", "900"],
-  style: ["normal", "italic"],
-  variable: "--font-barlow",
-});
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-dm-sans",
-});
-
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "700", "800"],
-  variable: "--font-jetbrains",
-});
-
 const siteUrl = getSiteUrl();
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "Bravo Gaming Esports",
+      url: siteUrl,
+      logo: `${siteUrl}/images/bravo-logo.png`,
+      sameAs: ["https://www.youtube.com/@bravogamingnepal7981"],
+    },
+    {
+      "@type": "WebSite",
+      name: "Bravo Gaming Esports",
+      url: siteUrl,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${siteUrl}/search?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -90,8 +92,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${barlow.variable} ${dmSans.variable} ${jetbrains.variable}`}>
+    <html lang="en">
       <body className="flex min-h-screen flex-col overflow-x-hidden bg-bg-primary font-body text-white antialiased">
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
         <SiteHeader />
         <div className="flex-1">{children}</div>
         <Footer />

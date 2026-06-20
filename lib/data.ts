@@ -383,6 +383,8 @@ function normalizeVideoPayload(data: Partial<VideoItem> & { title: string }) {
     imageUrl: cleanString(data.imageUrl),
     featured: Boolean(data.featured),
     published: data.published !== false,
+    source: cleanString(data.source),
+    youtubeVideoId: cleanString(data.youtubeVideoId),
     publishedAt: cleanString(data.publishedAt) ?? (data.published !== false ? new Date().toISOString() : undefined),
     deletedAt: cleanString(data.deletedAt),
     createdAt: cleanString(data.createdAt),

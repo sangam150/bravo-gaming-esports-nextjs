@@ -23,6 +23,7 @@ import {
   LogIn,
   Menu,
   MonitorPlay,
+  Search,
   ScrollText,
   Shield,
   Trophy,
@@ -751,6 +752,7 @@ export default function SiteHeaderClient({
   ]);
   const aboutActive = isAnyPrefixActive(pathname, ["/about", "/sponsors", "/contact", "/privacy", "/terms", "/feedback"]);
   const loginActive = isAnyPrefixActive(pathname, ["/admin", "/team", "/login"]);
+  const searchActive = isAnyPrefixActive(pathname, ["/search"]);
 
   useEffect(() => {
     setDesktopMenu(null);
@@ -986,6 +988,18 @@ export default function SiteHeaderClient({
                 <DesktopDropdownPanel id="login-menu" title="Platform Access" items={LOGIN_ITEMS} layoutClassName="right-0 w-[360px]" />
               ) : null}
             </div>
+
+            <ActionLink
+              href="/search"
+              className={`inline-flex items-center gap-2 rounded-[16px] border px-4 py-2.5 font-display text-[11px] font-black uppercase tracking-[0.14em] transition ${
+                searchActive
+                  ? "border-accent-blue/30 bg-accent-blue/10 text-white"
+                  : "border-white/10 bg-white/[0.04] text-text-muted hover:border-white/15 hover:bg-white/[0.08] hover:text-white"
+              }`}
+            >
+              <Search className={`h-4 w-4 ${searchActive ? "text-accent-blue" : "text-text-muted"}`} strokeWidth={2} />
+              Search
+            </ActionLink>
           </div>
         </nav>
       </div>
@@ -1070,7 +1084,7 @@ export default function SiteHeaderClient({
                 </button>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-3 gap-2">
                 <ActionLink
                   href={watchLiveHref}
                   className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-accent-red/30 bg-accent-red/12 px-4 py-3 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-accent-red/55"
@@ -1091,6 +1105,16 @@ export default function SiteHeaderClient({
                   }}
                 >
                   Join Discord
+                </ActionLink>
+                <ActionLink
+                  href="/search"
+                  className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-white/15 hover:bg-white/[0.08]"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    setMobilePanel("main");
+                  }}
+                >
+                  Search
                 </ActionLink>
               </div>
             </div>

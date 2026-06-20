@@ -790,7 +790,7 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       endDate: "2026-06-03T23:15:00+05:45",
       bannerUrl: buildEventBanner("PUBG MAHASANGRAM", "Flagship Bravo tournament with Nepal's sharpest rosters", "#00c6ff", "#00e676"),
       description:
-        "Bravo Gaming Esports Nepal flagship PUBG PC tournament with six custom matches, full telemetry review, and MOSS enforcement for every roster.",
+        "Bravo Gaming Esports Nepal flagship PUBG PC tournament with six custom matches, full competitive review, and MOSS enforcement for every roster.",
       rules:
         "Squad TPP. Lobby opens at 7:45 PM NPT. Stream delay required. MOSS mandatory. Admin decision final.",
       streamUrl: "https://www.youtube.com/@bravogamingnepal7981",

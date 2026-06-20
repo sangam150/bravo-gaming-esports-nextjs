@@ -380,6 +380,8 @@ export interface VideoItem {
   imageUrl?: string;
   featured?: boolean;
   published?: boolean;
+  source?: string;
+  youtubeVideoId?: string;
   publishedAt?: string;
   deletedAt?: string;
   createdAt?: string;

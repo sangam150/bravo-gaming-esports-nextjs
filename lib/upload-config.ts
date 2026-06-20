@@ -1,11 +1,18 @@
 export const STORAGE_TARGET_BY_TYPE = {
   team_logo: { bucket: "team-logos", directory: "logos" },
   player_avatar: { bucket: "player-avatars", directory: "avatars" },
+  player_photo: { bucket: "player-photos", directory: "photos" },
   tournament_banner: { bucket: "event-banners", directory: "banners" },
-  match_screenshot: { bucket: "result-screenshots", directory: "results" },
+  scoreboard_image: { bucket: "scoreboard-images", directory: "scoreboards" },
+  result_screenshot: { bucket: "result-screenshots", directory: "results" },
+  match_screenshot: { bucket: "match-media", directory: "screenshots" },
+  match_media: { bucket: "match-media", directory: "assets" },
   stream_thumbnail: { bucket: "stream-assets", directory: "thumbnails" },
-  sponsor_asset: { bucket: "sponsor-logos", directory: "sponsors" },
-  announcement_image: { bucket: "stream-assets", directory: "announcements" },
+  sponsor_asset: { bucket: "sponsor-assets", directory: "assets" },
+  sponsor_logo: { bucket: "sponsor-logos", directory: "logos" },
+  announcement_image: { bucket: "news-images", directory: "articles" },
+  media_asset: { bucket: "media-assets", directory: "library" },
+  hero_slide_asset: { bucket: "hero-slides", directory: "slides" },
   moss_file: { bucket: "moss-files", directory: "submissions" },
 } as const;
 

@@ -209,7 +209,7 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
     { id: "footer-highlight-community", label: "Community", value: "Nepal First" },
   ],
   footerBottomPrimary: "Copyright 2026 Bravo Gaming Esports Nepal",
-  footerBottomSecondary: "Supabase-powered public hub for events, teams, players, rankings, media, sponsors, and community coverage.",
+  footerBottomSecondary: "Daily scrims, major events, rankings, media, sponsors, and community coverage for Nepal esports.",
 };
 
 function cleanString(value?: string | null) {

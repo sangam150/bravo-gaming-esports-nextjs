@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
+import type { Tables } from "@/types/database.types";
 
 const ADMIN_ROLES = new Set(["super_admin", "admin", "moderator"]);
 const PLATFORM_ROLES = new Set(["super_admin", "admin", "moderator", "team_igl", "caster", "viewer"]);
@@ -7,13 +8,9 @@ const PLATFORM_ROLES = new Set(["super_admin", "admin", "moderator", "team_igl",
 export const SESSION_COOKIE = "bravo_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 5; // 5 days
 
-type ProfileRecord = {
-  id: string;
-  role: string | null;
-  team_id?: string | null;
-  display_name?: string | null;
-  name?: string | null;
-};
+type ProfileRecord = Pick<Tables<"profiles">, "id" | "role" | "team_id" | "display_name">;
+type LegacyUserRecord = Pick<Tables<"users">, "id" | "role" | "team_id" | "name">;
+type KnownProfileRecord = ProfileRecord | LegacyUserRecord;
 
 export type VerifiedSession = {
   profileId: string | null;
@@ -45,25 +42,47 @@ function isConfiguredAdminEmail(email: string) {
   return getAdminEmails().includes(normalizedEmail);
 }
 
-async function getProfileFromTable(tableName: "profiles" | "users", authUserId: string) {
+function isProfileRecord(record: KnownProfileRecord | null): record is ProfileRecord {
+  return Boolean(record && "display_name" in record);
+}
+
+function isLegacyUserRecord(record: KnownProfileRecord | null): record is LegacyUserRecord {
+  return Boolean(record && "name" in record);
+}
+
+async function getProfileFromProfiles(authUserId: string): Promise<ProfileRecord | null> {
   const client = getSupabaseServiceRoleClient();
-  const profileNameField = tableName === "profiles" ? "display_name" : "name";
   const { data, error } = await client
-    .from(tableName)
-    .select(`id,role,team_id,${profileNameField}`)
+    .from("profiles")
+    .select("id,role,team_id,display_name")
     .eq("auth_user_id", authUserId)
-    .maybeSingle<ProfileRecord>();
+    .maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  return data ?? null;
+  return (data ?? null) as ProfileRecord | null;
+}
+
+async function getProfileFromUsers(authUserId: string): Promise<LegacyUserRecord | null> {
+  const client = getSupabaseServiceRoleClient();
+  const { data, error } = await client
+    .from("users")
+    .select("id,role,team_id,name")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as LegacyUserRecord | null;
 }
 
 async function getUserProfileRecord(authUserId: string) {
   try {
-    return await getProfileFromTable("profiles", authUserId);
+    return await getProfileFromProfiles(authUserId);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     if (!/profiles/i.test(message)) {
@@ -71,7 +90,7 @@ async function getUserProfileRecord(authUserId: string) {
     }
   }
 
-  return getProfileFromTable("users", authUserId).catch(() => null);
+  return getProfileFromUsers(authUserId).catch(() => null);
 }
 
 function normalizeRole(role: string | null | undefined, email: string) {
@@ -85,7 +104,7 @@ function normalizeRole(role: string | null | undefined, email: string) {
 function resolveVerifiedSession(input: {
   uid: string;
   email: string;
-  profileRecord: ProfileRecord | null;
+  profileRecord: KnownProfileRecord | null;
 }) {
   const role = normalizeRole(input.profileRecord?.role, input.email);
 
@@ -95,7 +114,11 @@ function resolveVerifiedSession(input: {
     email: input.email,
     role,
     teamId: input.profileRecord?.team_id ?? null,
-    displayName: input.profileRecord?.display_name ?? input.profileRecord?.name ?? null,
+    displayName: isProfileRecord(input.profileRecord)
+      ? input.profileRecord.display_name ?? null
+      : isLegacyUserRecord(input.profileRecord)
+      ? input.profileRecord.name ?? null
+      : null,
     isAdmin: isAdminRole(role),
   } satisfies VerifiedSession;
 }

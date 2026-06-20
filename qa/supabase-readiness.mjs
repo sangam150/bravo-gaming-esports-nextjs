@@ -6,23 +6,23 @@ const envPath = path.join(projectRoot, ".env.local");
 const artifactsDir = path.join(projectRoot, "qa-artifacts");
 const outputPath = path.join(artifactsDir, "supabase-readiness.json");
 
-const REQUIRED_BUCKETS = [
-  "team-logos",
-  "player-avatars",
-  "event-banners",
-  "sponsor-logos",
-  "result-screenshots",
-  "moss-files",
-  "stream-assets",
+const REQUIRED_BUCKET_GROUPS = [
+  { label: "team-logos", bucketNames: ["team-logos"] },
+  { label: "player-assets", bucketNames: ["player-avatars", "player-photos"] },
+  { label: "event-banners", bucketNames: ["event-banners"] },
+  { label: "sponsor-assets", bucketNames: ["sponsor-logos", "sponsor-assets"] },
+  { label: "result-screenshots", bucketNames: ["result-screenshots"] },
+  { label: "scoreboard-images", bucketNames: ["scoreboard-images"] },
+  { label: "match-media", bucketNames: ["match-media"] },
+  { label: "media-assets", bucketNames: ["media-assets", "media-uploads"] },
+  { label: "hero-slides", bucketNames: ["hero-slides"] },
 ];
 
-const RECOMMENDED_LAUNCH_BUCKETS = [
-  "news-images",
-  "media-assets",
-  "scoreboard-images",
-  "match-media",
-  "posters",
-  "hero-slides",
+const RECOMMENDED_LAUNCH_BUCKET_GROUPS = [
+  { label: "news-images", bucketNames: ["news-images"] },
+  { label: "posters", bucketNames: ["posters"] },
+  { label: "stream-assets", bucketNames: ["stream-assets"] },
+  { label: "moss-files", bucketNames: ["moss-files"] },
 ];
 
 const APP_CRITICAL_TABLES = [
@@ -52,6 +52,19 @@ const APP_CRITICAL_TABLES = [
   "settings",
   "point_systems",
   "app_documents",
+];
+
+const LAUNCH_COMPATIBILITY_TABLES = [
+  "user_profiles",
+  "season_days",
+  "season_standings",
+  "standings",
+  "player_season_stats",
+  "alltime_standings",
+  "media",
+  "homepage_content",
+  "contact_messages",
+  "site_settings",
 ];
 
 const DOCUMENT_STORE_COLLECTIONS = [
@@ -125,8 +138,24 @@ function getJwtShape(value) {
   return {
     segmentCount: segments.length,
     signatureLength: signature.length,
+    looksSupabaseSecret: value.startsWith("sb_secret_"),
+    looksSupabasePublishable: value.startsWith("sb_publishable_"),
+    looksLikeJwt: Boolean(value) && segments.length === 3,
     looksMalformedJwt: Boolean(value) && segments.length === 3 && signature.length < 32,
   };
+}
+
+function evaluateBucketGroups(existingBuckets, bucketGroups) {
+  return bucketGroups.map((group) => {
+    const matchedBuckets = group.bucketNames.filter((bucket) => existingBuckets.includes(bucket));
+
+    return {
+      label: group.label,
+      bucketNames: group.bucketNames,
+      matchedBuckets,
+      ok: matchedBuckets.length > 0,
+    };
+  });
 }
 
 async function safeJsonRequest(url, apiKey, label) {
@@ -217,7 +246,7 @@ async function main() {
     ? bucketsResponse.json.map((bucket) => bucket.name).filter((name) => typeof name === "string")
     : [];
 
-  const [criticalTables] = await Promise.all([
+  const [criticalTables, launchCompatibilityTables] = await Promise.all([
     Promise.all(
       APP_CRITICAL_TABLES.map((tableName) =>
         supabaseUrl && restPublicKey
@@ -225,7 +254,18 @@ async function main() {
           : Promise.resolve({ table: tableName, status: "SKIPPED", ok: false, missingFromSchemaCache: false })
       )
     ),
+    Promise.all(
+      LAUNCH_COMPATIBILITY_TABLES.map((tableName) =>
+        supabaseUrl && restPublicKey
+          ? checkTable(supabaseUrl, restPublicKey, tableName)
+          : Promise.resolve({ table: tableName, status: "SKIPPED", ok: false, missingFromSchemaCache: false })
+      )
+    ),
   ]);
+
+  const requiredBucketGroups = evaluateBucketGroups(existingBuckets, REQUIRED_BUCKET_GROUPS);
+  const recommendedBucketGroups = evaluateBucketGroups(existingBuckets, RECOMMENDED_LAUNCH_BUCKET_GROUPS);
+  const serviceRoleKeyShape = getJwtShape(serviceRoleKey);
 
   const summary = {
     generatedAt: new Date().toISOString(),
@@ -239,7 +279,12 @@ async function main() {
       publishableKeyPreview: maskPreview(publishableKey),
       anonKeyPreview: maskPreview(anonKey),
       serviceRoleKeyPreview: maskPreview(serviceRoleKey),
-      serviceRoleKeyShape: getJwtShape(serviceRoleKey),
+      serviceRoleKeyShape,
+      serviceRoleKeyWarning:
+        serviceRoleKeyShape.looksMalformedJwt
+          ? "Service role key looks truncated or copied incorrectly."
+          : null,
+      hasLegacyFirebaseEnv: firebaseKeys.length > 0,
       firebaseEnvKeysPresent: firebaseKeys,
     },
     auth: {
@@ -255,13 +300,16 @@ async function main() {
     storage: {
       bucketListStatus: bucketsResponse?.status ?? null,
       existingBuckets,
-      missingBuckets: REQUIRED_BUCKETS.filter((bucket) => !existingBuckets.includes(bucket)),
-      recommendedLaunchBuckets: RECOMMENDED_LAUNCH_BUCKETS,
-      missingRecommendedBuckets: RECOMMENDED_LAUNCH_BUCKETS.filter((bucket) => !existingBuckets.includes(bucket)),
+      requiredBucketGroups,
+      missingBuckets: requiredBucketGroups.filter((group) => !group.ok).map((group) => group.label),
+      recommendedLaunchBucketGroups: recommendedBucketGroups,
+      missingRecommendedBuckets: recommendedBucketGroups.filter((group) => !group.ok).map((group) => group.label),
     },
     schema: {
       criticalTables,
       missingCriticalTables: criticalTables.filter((table) => !table.ok).map((table) => table.table),
+      launchCompatibilityTables,
+      missingLaunchCompatibilityTables: launchCompatibilityTables.filter((table) => !table.ok).map((table) => table.table),
       documentStoreCollections: DOCUMENT_STORE_COLLECTIONS,
       documentStoreTableReady: criticalTables.some((table) => table.table === "app_documents" && table.ok),
       documentStoreNote:

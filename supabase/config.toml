@@ -1,0 +1,27 @@
+project_id = "bravo-gaming-esports-nextjs"
+
+[db]
+major_version = 17
+
+[db.migrations]
+enabled = true
+schema_paths = [
+  "./migrations/001_initial_schema.sql",
+  "./migrations/002_readiness_recovery.sql",
+  "./migrations/003_storage_buckets_and_policies.sql",
+  "./migrations/004_seed_defaults.sql",
+]
+
+[db.seed]
+enabled = false
+
+[auth]
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = [
+  "http://127.0.0.1:3000",
+  "http://localhost:3000",
+]
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"

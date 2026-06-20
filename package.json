@@ -7,8 +7,10 @@
     "dev:turbopack": "next dev --turbo",
     "dev:webpack": "next dev --webpack",
     "lint": "tsc --noEmit",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
+    "supabase:db:push": "npx supabase db push",
+    "supabase:readiness": "node qa/supabase-readiness.mjs",
     "supabase:types": "node scripts/generate-supabase-types.mjs"
   },
   "dependencies": {

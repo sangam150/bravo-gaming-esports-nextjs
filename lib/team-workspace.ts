@@ -9,58 +9,23 @@ import type {
   TeamWorkspaceData,
 } from "./types";
 import type { VerifiedSession } from "./supabase-auth-server";
+import type { Tables } from "@/types/database.types";
 
-type TeamRecord = {
-  id: string;
-  name: string;
-  tag?: string | null;
-  logo_url?: string | null;
-  region?: string | null;
-  slot_number?: number | null;
-  is_active?: boolean | null;
-  status?: string | null;
-};
+type TeamRecord = Pick<Tables<"teams">, "id" | "name" | "tag" | "logo_url" | "region" | "slot_number" | "is_active" | "status">;
 
-type PlayerRecord = {
-  id: string;
-  pubg_name?: string | null;
-  avatar_url?: string | null;
-  photo_url?: string | null;
-  is_active?: boolean | null;
-};
+type PlayerRecord = Pick<Tables<"players">, "id" | "pubg_name" | "avatar_url" | "photo_url" | "is_active">;
 
-type EventRecord = {
-  id: string;
-  name?: string | null;
-  title?: string | null;
-  slug?: string | null;
-  status?: string | null;
-  type?: string | null;
-  event_type?: string | null;
-  start_date?: string | null;
-  end_date?: string | null;
-  rules?: string | null;
-  published?: boolean | null;
-};
+type EventRecord = Pick<
+  Tables<"events">,
+  "id" | "name" | "title" | "slug" | "status" | "type" | "event_type" | "start_date" | "end_date" | "rules" | "published"
+>;
 
-type MatchRecord = {
-  id: string;
-  event_id?: string | null;
-  match_number?: number | null;
-  map_name?: string | null;
-  map?: string | null;
-  start_time?: string | null;
-  match_date?: string | null;
-  vod_url?: string | null;
-};
+type MatchRecord = Pick<
+  Tables<"matches">,
+  "id" | "event_id" | "match_number" | "map_name" | "map" | "start_time" | "match_date" | "vod_url"
+>;
 
-type MatchTeamResultRecord = {
-  match_id: string;
-  placement: number;
-  kills: number;
-  total_points: number;
-  wwcd?: boolean | null;
-};
+type MatchTeamResultRecord = Pick<Tables<"match_team_results">, "match_id" | "placement" | "kills" | "total_points" | "wwcd">;
 
 function buildProfile(session: VerifiedSession): AuthenticatedUserProfile {
   return {

@@ -4,6 +4,9 @@
 
 :root {
   color-scheme: dark;
+  --font-barlow: "Arial Narrow", "Aptos Narrow", "Segoe UI Semibold", "Franklin Gothic Medium", sans-serif;
+  --font-dm-sans: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-jetbrains: "Consolas", "Aptos Mono", "SFMono-Regular", "Roboto Mono", Menlo, monospace;
   --bg-primary: #0a0e1a;
   --bg-card: #0d1220;
   --bg-card-hover: #111827;

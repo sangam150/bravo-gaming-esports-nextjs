@@ -66,8 +66,7 @@ export default function CurrentSeasonPageClient({
               <p className="section-title">{seasonEyebrow}</p>
               <h1 className="hero-h1 mt-2 !text-4xl sm:!text-5xl">{season.seriesTitle}</h1>
               <p className="mt-4 max-w-3xl text-sm leading-relaxed text-text-muted sm:text-base">
-                Bravo Gaming Esports now stores the full daily PUBG PC scrim season inside its own Supabase-powered data
-                hub so historical day data, standings, teams, and leaderboards remain available without any manual spreadsheet work.
+                Follow the full Bravo daily PUBG PC season with published day records, standings, teams, and leaderboards in one place.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 {currentTournament ? (
@@ -103,8 +102,7 @@ export default function CurrentSeasonPageClient({
             ))}
           </div>
           <p className="relative z-10 mt-4 text-sm text-text-muted">
-            The season remains fully import-driven, and every new match immediately rolls up into team and player
-            standings.
+            Every approved match flows straight into the season table, team form, and player standings.
           </p>
         </section>
 
@@ -132,7 +130,7 @@ export default function CurrentSeasonPageClient({
               </div>
               <p className="mt-4 text-sm text-text-muted">
                 {currentTournament?.matchCount
-                  ? "Daily results are available in the database and feed into the season leaderboard automatically."
+                  ? "Published results are live and already reflected in the season leaderboard."
                   : "This day record is ready, but official results are still pending import."}
               </p>
               {currentTournament && (

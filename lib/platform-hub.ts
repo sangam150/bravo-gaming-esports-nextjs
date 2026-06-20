@@ -505,7 +505,7 @@ const ORGANIZATION_SEEDS = [
     type: "Platform Operator",
     summary: "Nepal's premier esports platform with flagship PUBG operations and expanding multi-game coverage.",
     description:
-      "Bravo Gaming Esports is designed to be the central operating system for Nepal esports: events, rankings, game hubs, media, sponsors, community, and role-aware dashboards all under one identity.",
+      "Bravo Gaming Esports is building a unified public home for Nepal esports, with events, rankings, game hubs, media, sponsors, and community coverage under one identity.",
     headquarters: "Kathmandu, Nepal",
     games: ["PUBG PC", "Valorant", "CS2", "Dota 2", "Mobile Legends", "Free Fire"],
     teams: ["M8", "Team HAKU", "N3P", "FYB Esports", "NPL", "LTG"],
@@ -1138,7 +1138,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       type: "Match",
       status: match.status,
       gameSlug: match.gameSlug,
-      href: `/matches/${match.id}`,
+      href: match.gameSlug === "pubg-pc" ? `/pubg/matches/${match.id}` : `/matches/${match.id}`,
     })),
   ].sort(compareByDateDesc);
 

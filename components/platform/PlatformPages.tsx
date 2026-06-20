@@ -545,7 +545,7 @@ export function PlatformHomePage({
                 </h1>
                 <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300">
                   {primaryHeroSlide?.description ??
-                    "Bravo Gaming Esports brings tournaments, news, rankings, teams, players, sponsors, media, and community coverage together so the site feels like the public home of esports in Nepal, not just an ops dashboard."}
+                    "Bravo Gaming Esports brings tournaments, news, rankings, teams, players, sponsors, media, and community coverage together in one public home for Nepal esports."}
                 </p>
               </div>
 
@@ -2562,7 +2562,7 @@ export function PlatformMediaPage({
               posters, and VODs
             </>
           }
-          description="The media center gives the Bravo ecosystem one public place for long-form videos, short clips, interviews, posters, and future content partnerships."
+          description="The media center gives the Bravo ecosystem one public place for long-form videos, short clips, interviews, posters, and featured broadcasts."
           actions={
             <>
               <Link href="/videos" className="btn-secondary">
@@ -2700,12 +2700,12 @@ export function PlatformMediaDetailPage({
                 <img src={item.imageUrl} alt={item.title} className="h-72 w-full object-cover" />
               </div>
             ) : null}
-            <SectionHeader eyebrow="Summary" title="Published media context" description="Media detail pages add public trust and make clips, posters, highlights, and VODs feel like first-class content." />
+            <SectionHeader eyebrow="Summary" title="Published media context" description="Media detail pages keep clips, posters, highlights, and VODs easy to follow." />
             <p className="mt-5 text-sm leading-relaxed text-text-muted">{item.summary}</p>
           </div>
 
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Details" title="Distribution metadata" description="Useful context for sponsors, teams, organizers, and the community." />
+            <SectionHeader eyebrow="Details" title="Media details" description="Useful context for sponsors, teams, organizers, and the community." />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <MetricCard label="Kind" value={item.kind} compact tone="blue" />
               <MetricCard label="Category" value={item.category} compact tone="green" />

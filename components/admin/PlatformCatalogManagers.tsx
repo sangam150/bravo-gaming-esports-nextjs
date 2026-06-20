@@ -926,6 +926,7 @@ export function AdminMediaManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [syncingYouTube, setSyncingYouTube] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -993,6 +994,32 @@ export function AdminMediaManager() {
     }
   }
 
+  async function handleYouTubeSync() {
+    setSyncingYouTube(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const response = await adminFetch("/api/admin/media/youtube-sync", {
+        method: "POST",
+        body: JSON.stringify({ limit: 24, defaultGameSlug: "pubg-pc" }),
+      });
+      const result = response.data as {
+        importedCount: number;
+        updatedCount: number;
+        skippedCount: number;
+      };
+      setMessage(
+        `YouTube sync imported ${result.importedCount} draft video${result.importedCount === 1 ? "" : "s"}, refreshed ${result.updatedCount}, and skipped ${result.skippedCount}.`
+      );
+      await loadMedia();
+    } catch (syncError: unknown) {
+      setError(syncError instanceof Error ? syncError.message : "Unable to sync YouTube videos");
+    } finally {
+      setSyncingYouTube(false);
+    }
+  }
+
   const uploadEntityId = editingId ?? form.title?.toLowerCase().replace(/[^a-z0-9]+/g, "-") ?? "media-draft";
 
   return (
@@ -1003,12 +1030,25 @@ export function AdminMediaManager() {
         <form onSubmit={handleSubmit} className="esports-card space-y-4 p-6">
           <div className="flex items-center justify-between gap-3">
             <p className="font-semibold text-white">{editingId ? "Edit media" : "Create media"}</p>
-            {editingId ? (
-              <button type="button" onClick={resetForm} className="btn-secondary !text-[11px]">
-                New media
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void handleYouTubeSync()}
+                disabled={syncingYouTube}
+                className="btn-secondary !text-[11px] disabled:opacity-60"
+              >
+                {syncingYouTube ? "Syncing YouTube..." : "Sync YouTube Drafts"}
               </button>
-            ) : null}
+              {editingId ? (
+                <button type="button" onClick={resetForm} className="btn-secondary !text-[11px]">
+                  New media
+                </button>
+              ) : null}
+            </div>
           </div>
+          <p className="text-xs text-text-muted">
+            Import channel videos as draft media first, then publish only the approved records.
+          </p>
           <MessageLine message={message} error={error} />
           <div className="grid gap-4 sm:grid-cols-2">
             <input className={inputClass} placeholder="Title" value={form.title ?? ""} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
@@ -1020,7 +1060,7 @@ export function AdminMediaManager() {
             <textarea className={`${inputClass} sm:col-span-2`} rows={4} placeholder="Summary" value={form.summary ?? ""} onChange={(event) => setForm({ ...form, summary: event.target.value })} />
           </div>
           <FileUpload
-            type="announcement_image"
+            type="media_asset"
             entityId={uploadEntityId}
             label="Media image"
             currentUrl={form.imageUrl ?? undefined}

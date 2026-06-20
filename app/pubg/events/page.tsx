@@ -8,7 +8,7 @@ type PageProps = {
 
 export const metadata: Metadata = {
   title: "PUBG Events",
-  description: "Browse Bravo PUBG events with sync status, publish state, team counts, match counts, and full context routes.",
+  description: "Browse Bravo PUBG events with schedules, standings, teams, matches, and full event context.",
 };
 
 export const revalidate = 300;

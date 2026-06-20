@@ -12,6 +12,7 @@ const sections = [
   { id: "media", label: "Media" },
   { id: "sponsors", label: "Sponsors" },
   { id: "inbox", label: "Inbox" },
+  { id: "teamRequests", label: "Team Requests" },
   { id: "seasons", label: "Seasons" },
   { id: "scrims", label: "Days" },
   { id: "pendingImports", label: "Pending Imports" },

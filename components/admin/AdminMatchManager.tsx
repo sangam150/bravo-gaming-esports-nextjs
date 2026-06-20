@@ -574,14 +574,14 @@ export default function AdminMatchManager({
 
           <div className="grid gap-4 lg:grid-cols-2">
             <FileUpload
-              type="match_screenshot"
+              type="scoreboard_image"
               entityId={uploadEntityId}
               label="Scoreboard image"
               currentUrl={form.scoreboardImageUrl || undefined}
               onUploaded={(url) => setForm((currentForm) => ({ ...currentForm, scoreboardImageUrl: url }))}
             />
             <FileUpload
-              type="match_screenshot"
+              type="result_screenshot"
               entityId={uploadEntityId}
               label="Result poster"
               currentUrl={form.resultImageUrl || undefined}
@@ -833,7 +833,7 @@ export default function AdminMatchManager({
                       {match.status === "draft" ? "Publish" : "Unpublish"}
                     </button>
                     {match.status !== "draft" ? (
-                      <Link href={`/results/matches/${match.id}`} target="_blank" className="text-text-muted hover:underline">
+                      <Link href={`/pubg/matches/${match.id}`} target="_blank" className="text-text-muted hover:underline">
                         Open Public
                       </Link>
                     ) : null}
