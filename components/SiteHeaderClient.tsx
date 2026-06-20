@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowRight,
   BarChart3,
@@ -317,7 +318,7 @@ const LOGIN_ITEMS: NavEntry[] = [
 
 const MOBILE_MAIN_SECTIONS: MobileSection[] = [
   {
-    title: "Community",
+    title: "About Us",
     items: [
       {
         label: "About",
@@ -754,38 +755,49 @@ export default function SiteHeaderClient({
   const loginActive = isAnyPrefixActive(pathname, ["/admin", "/team", "/login"]);
   const searchActive = isAnyPrefixActive(pathname, ["/search"]);
 
-  useEffect(() => {
-    setDesktopMenu(null);
+  function closeMobileNavigation() {
     setMobileOpen(false);
     setMobilePanel("main");
+  }
+
+  useEffect(() => {
+    setDesktopMenu(null);
+    closeMobileNavigation();
   }, [pathname]);
 
   useEffect(() => {
-    if (!mobileOpen && !desktopMenu) {
+    if (!desktopMenu) {
       return;
     }
 
     function handlePointerDown(event: MouseEvent) {
       if (!headerRef.current?.contains(event.target as Node)) {
         setDesktopMenu(null);
-        setMobileOpen(false);
-        setMobilePanel("main");
       }
+    }
+
+    window.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [desktopMenu]);
+
+  useEffect(() => {
+    if (!mobileOpen && !desktopMenu) {
+      return;
     }
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setDesktopMenu(null);
-        setMobileOpen(false);
-        setMobilePanel("main");
+        closeMobileNavigation();
       }
     }
 
-    window.addEventListener("mousedown", handlePointerDown);
     window.addEventListener("keydown", handleEscape);
 
     return () => {
-      window.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("keydown", handleEscape);
     };
   }, [desktopMenu, mobileOpen]);
@@ -795,29 +807,215 @@ export default function SiteHeaderClient({
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
+    const scrollY = window.scrollY;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyPosition = document.body.style.position;
+    const previousBodyTop = document.body.style.top;
+    const previousBodyLeft = document.body.style.left;
+    const previousBodyRight = document.body.style.right;
+    const previousBodyWidth = document.body.style.width;
+
+    document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.position = previousBodyPosition;
+      document.body.style.top = previousBodyTop;
+      document.body.style.left = previousBodyLeft;
+      document.body.style.right = previousBodyRight;
+      document.body.style.width = previousBodyWidth;
+      window.scrollTo(0, scrollY);
     };
   }, [mobileOpen]);
 
-  return (
-    <header
-      ref={headerRef}
-      onMouseLeave={() => setDesktopMenu(null)}
-      onBlurCapture={(event) => {
-        const nextTarget = event.relatedTarget;
-        if (nextTarget instanceof Node && headerRef.current?.contains(nextTarget)) {
-          return;
-        }
+  const mobileDrawer =
+    mobileOpen && typeof document !== "undefined"
+      ? createPortal(
+          <div className="xl:hidden">
+            <button
+              type="button"
+              aria-label="Close navigation overlay"
+              className="fixed inset-0 z-[9999] bg-slate-950/78 backdrop-blur-[3px]"
+              onClick={closeMobileNavigation}
+            />
 
-        setDesktopMenu(null);
-      }}
-      className="sticky top-0 z-50 border-b border-white/[0.08] bg-[linear-gradient(180deg,rgba(7,11,20,0.96),rgba(7,11,20,0.9))] shadow-[0_18px_42px_rgba(0,0,0,0.22)] backdrop-blur-xl"
-    >
-      <div className="page-inner relative flex items-center justify-between gap-4 px-4 py-3.5 sm:px-6 xl:px-8">
+            <aside
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mobile navigation"
+              className="fixed inset-y-0 right-0 z-[10000] flex w-full max-w-[28rem] min-w-0 flex-col overflow-hidden border-l border-white/10 bg-[linear-gradient(180deg,rgba(8,12,23,0.98),rgba(5,8,16,0.99))] shadow-[-22px_0_80px_rgba(0,0,0,0.45)]"
+            >
+              <div className="border-b border-white/[0.08] px-4 py-4 sm:px-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <div className="rounded-[16px] border border-white/10 bg-white/[0.03] p-2">
+                      <BravoLogo size={38} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-display text-[14px] font-black uppercase tracking-[0.16em] text-white">
+                        Bravo Gaming
+                      </p>
+                      <p className="font-display text-[10px] uppercase tracking-[0.22em] text-text-muted">
+                        Navigation SAP
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Close navigation"
+                    onClick={closeMobileNavigation}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white transition hover:border-white/15 hover:bg-white/[0.08]"
+                  >
+                    <X className="h-4 w-4" strokeWidth={2} />
+                  </button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-2 min-[390px]:grid-cols-2 min-[430px]:grid-cols-3">
+                  <ActionLink
+                    href={watchLiveHref}
+                    className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[18px] border border-accent-red/30 bg-accent-red/12 px-4 py-3.5 text-center font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-accent-red/55"
+                    onClick={closeMobileNavigation}
+                  >
+                    <span className="live-dot h-1.5 w-1.5" />
+                    Watch Live
+                  </ActionLink>
+                  <ActionLink
+                    href={DISCORD_HREF}
+                    className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[18px] border border-[#5865F2]/25 bg-[#5865F2]/10 px-4 py-3.5 text-center font-display text-[11px] font-black uppercase tracking-[0.14em] text-[#d9deff] transition hover:border-[#5865F2]/40 hover:text-white"
+                    onClick={closeMobileNavigation}
+                  >
+                    Join Discord
+                  </ActionLink>
+                  <ActionLink
+                    href="/search"
+                    className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3.5 text-center font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-white/15 hover:bg-white/[0.08]"
+                    onClick={closeMobileNavigation}
+                  >
+                    Search
+                  </ActionLink>
+                </div>
+              </div>
+
+              <div className="relative min-h-0 flex-1 overflow-hidden">
+                <div
+                  className={`flex h-full w-[200%] max-w-none transition-transform duration-300 ease-out ${
+                    mobilePanel === "pubg" ? "-translate-x-1/2" : "translate-x-0"
+                  }`}
+                >
+                  <div className="w-1/2 shrink-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4 sm:px-5">
+                    <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4 shadow-[0_20px_48px_rgba(0,0,0,0.22)]">
+                      <div className="mb-3 flex items-center gap-3">
+                        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent-blue">
+                          Explore
+                        </p>
+                        <div className="h-px flex-1 bg-white/10" />
+                      </div>
+                      <div className="grid gap-2">
+                        <MobileNavLink
+                          item={{ label: "Home", href: "/", description: "Return to the platform front page.", icon: House }}
+                          pathname={pathname}
+                          onNavigate={closeMobileNavigation}
+                        />
+                        <MobilePubgButton onOpen={() => setMobilePanel("pubg")} active={pubgActive} />
+                        <MobileNavLink
+                          item={{ label: "Events", href: "/events", description: "Open the platform event lane.", icon: Trophy }}
+                          pathname={pathname}
+                          onNavigate={closeMobileNavigation}
+                        />
+                        <MobileNavLink
+                          item={{ label: "Media", href: "/media", description: "Videos, highlights, posters, and VODs.", icon: Clapperboard }}
+                          pathname={pathname}
+                          onNavigate={closeMobileNavigation}
+                        />
+                      </div>
+                    </section>
+
+                    <div className="mt-4 grid gap-4">
+                      {MOBILE_MAIN_SECTIONS.map((section) => (
+                        <MobileSectionBlock
+                          key={section.title}
+                          section={section}
+                          pathname={pathname}
+                          onNavigate={closeMobileNavigation}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="w-1/2 shrink-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4 sm:px-5">
+                    <div className="rounded-[24px] border border-white/[0.08] bg-[linear-gradient(135deg,rgba(255,215,0,0.12),transparent_24%),rgba(255,255,255,0.03)] p-4 shadow-[0_20px_48px_rgba(0,0,0,0.22)]">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setMobilePanel("main")}
+                          className="inline-flex min-h-[44px] items-center gap-2 rounded-[16px] border border-white/10 bg-black/20 px-3 py-2.5 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-white/15 hover:bg-white/[0.08]"
+                        >
+                          <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+                          Back
+                        </button>
+                        <Link
+                          href="/pubg"
+                          onClick={closeMobileNavigation}
+                          className="inline-flex min-h-[44px] items-center gap-2 rounded-[16px] border border-accent-yellow/25 bg-accent-yellow/12 px-3 py-2.5 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-accent-yellow/40"
+                        >
+                          Open Hub
+                          <ArrowRight className="h-4 w-4" strokeWidth={2} />
+                        </Link>
+                      </div>
+                      <p className="mt-4 font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent-yellow">
+                        PUBG Flagship
+                      </p>
+                      <h2 className="mt-2 font-display text-xl font-black uppercase text-white min-[390px]:text-2xl">
+                        Competitive, schedule, and records in one panel
+                      </h2>
+                      <p className="mt-3 text-sm leading-6 text-text-muted">
+                        The mobile PUBG panel keeps the flagship lane dense but readable, without turning the drawer into a giant accordion stack.
+                      </p>
+                    </div>
+
+                    <div className="mt-4 grid gap-4">
+                      {MOBILE_PUBG_SECTIONS.map((section) => (
+                        <MobileSectionBlock
+                          key={section.title}
+                          section={section}
+                          pathname={pathname}
+                          onNavigate={closeMobileNavigation}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>,
+          document.body
+        )
+      : null;
+
+  return (
+    <>
+      <header
+        ref={headerRef}
+        onMouseLeave={() => setDesktopMenu(null)}
+        onBlurCapture={(event) => {
+          const nextTarget = event.relatedTarget;
+          if (nextTarget instanceof Node && headerRef.current?.contains(nextTarget)) {
+            return;
+          }
+
+          setDesktopMenu(null);
+        }}
+        className="sticky top-0 z-[80] border-b border-white/[0.08] bg-[linear-gradient(180deg,rgba(7,11,20,0.96),rgba(7,11,20,0.9))] shadow-[0_18px_42px_rgba(0,0,0,0.22)] backdrop-blur-xl"
+      >
+        <div className="page-inner relative flex items-center justify-between gap-4 px-4 py-3.5 sm:px-6 xl:px-8">
         <Link href="/" className="flex items-center gap-3">
           <div className="rounded-[18px] border border-white/10 bg-white/[0.03] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <BravoLogo size={46} />
@@ -837,7 +1035,12 @@ export default function SiteHeaderClient({
           aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
           aria-expanded={mobileOpen}
           onClick={() => {
-            setMobileOpen((current) => !current);
+            if (mobileOpen) {
+              closeMobileNavigation();
+              return;
+            }
+
+            setMobileOpen(true);
             setMobilePanel("main");
           }}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] border border-white/10 bg-white/[0.04] px-4 font-display text-[11px] font-bold uppercase tracking-[0.14em] text-white transition hover:border-white/15 hover:bg-white/[0.08] xl:hidden"
@@ -1043,193 +1246,8 @@ export default function SiteHeaderClient({
         </div>
       ) : null}
 
-      {mobileOpen ? (
-        <div className="fixed inset-0 z-[60] xl:hidden">
-          <button
-            type="button"
-            aria-label="Close navigation overlay"
-            className="absolute inset-0 bg-slate-950/72 backdrop-blur-[2px]"
-            onClick={() => {
-              setMobileOpen(false);
-              setMobilePanel("main");
-            }}
-          />
-
-          <div className="absolute inset-y-0 right-0 flex w-full max-w-[430px] flex-col overflow-hidden border-l border-white/10 bg-[linear-gradient(180deg,rgba(8,12,23,0.98),rgba(5,8,16,0.99))] shadow-[-22px_0_80px_rgba(0,0,0,0.45)]">
-            <div className="border-b border-white/[0.08] px-4 py-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-[16px] border border-white/10 bg-white/[0.03] p-2">
-                    <BravoLogo size={38} />
-                  </div>
-                  <div>
-                    <p className="font-display text-[14px] font-black uppercase tracking-[0.16em] text-white">
-                      Bravo Gaming
-                    </p>
-                    <p className="font-display text-[10px] uppercase tracking-[0.22em] text-text-muted">
-                      Navigation SAP
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Close navigation"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    setMobilePanel("main");
-                  }}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white transition hover:border-white/15 hover:bg-white/[0.08]"
-                >
-                  <X className="h-4 w-4" strokeWidth={2} />
-                </button>
-              </div>
-
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <ActionLink
-                  href={watchLiveHref}
-                  className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-accent-red/30 bg-accent-red/12 px-4 py-3 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-accent-red/55"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    setMobilePanel("main");
-                  }}
-                >
-                  <span className="live-dot h-1.5 w-1.5" />
-                  Watch Live
-                </ActionLink>
-                <ActionLink
-                  href={DISCORD_HREF}
-                  className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-[#5865F2]/25 bg-[#5865F2]/10 px-4 py-3 font-display text-[11px] font-black uppercase tracking-[0.14em] text-[#d9deff] transition hover:border-[#5865F2]/40 hover:text-white"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    setMobilePanel("main");
-                  }}
-                >
-                  Join Discord
-                </ActionLink>
-                <ActionLink
-                  href="/search"
-                  className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-white/15 hover:bg-white/[0.08]"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    setMobilePanel("main");
-                  }}
-                >
-                  Search
-                </ActionLink>
-              </div>
-            </div>
-
-            <div className="relative flex-1 overflow-hidden">
-              <div
-                className={`flex h-full w-[200%] transition-transform duration-300 ease-out ${
-                  mobilePanel === "pubg" ? "-translate-x-1/2" : "translate-x-0"
-                }`}
-              >
-                <div className="w-1/2 shrink-0 overflow-y-auto px-4 py-4">
-                  <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4 shadow-[0_20px_48px_rgba(0,0,0,0.22)]">
-                    <div className="mb-3 flex items-center gap-3">
-                      <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent-blue">
-                        Main
-                      </p>
-                      <div className="h-px flex-1 bg-white/10" />
-                    </div>
-                    <div className="grid gap-2">
-                      <MobileNavLink
-                        item={{ label: "Home", href: "/", description: "Return to the platform front page.", icon: House }}
-                        pathname={pathname}
-                        onNavigate={() => {
-                          setMobileOpen(false);
-                          setMobilePanel("main");
-                        }}
-                      />
-                      <MobilePubgButton onOpen={() => setMobilePanel("pubg")} active={pubgActive} />
-                      <MobileNavLink
-                        item={{ label: "Events", href: "/events", description: "Open the platform event lane.", icon: Trophy }}
-                        pathname={pathname}
-                        onNavigate={() => {
-                          setMobileOpen(false);
-                          setMobilePanel("main");
-                        }}
-                      />
-                      <MobileNavLink
-                        item={{ label: "Media", href: "/media", description: "Videos, highlights, posters, and VODs.", icon: Clapperboard }}
-                        pathname={pathname}
-                        onNavigate={() => {
-                          setMobileOpen(false);
-                          setMobilePanel("main");
-                        }}
-                      />
-                    </div>
-                  </section>
-
-                  <div className="mt-4 grid gap-4">
-                    {MOBILE_MAIN_SECTIONS.map((section) => (
-                      <MobileSectionBlock
-                        key={section.title}
-                        section={section}
-                        pathname={pathname}
-                        onNavigate={() => {
-                          setMobileOpen(false);
-                          setMobilePanel("main");
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="w-1/2 shrink-0 overflow-y-auto px-4 py-4">
-                  <div className="rounded-[24px] border border-white/[0.08] bg-[linear-gradient(135deg,rgba(255,215,0,0.12),transparent_24%),rgba(255,255,255,0.03)] p-4 shadow-[0_20px_48px_rgba(0,0,0,0.22)]">
-                    <div className="flex items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setMobilePanel("main")}
-                        className="inline-flex items-center gap-2 rounded-[16px] border border-white/10 bg-black/20 px-3 py-2.5 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-white/15 hover:bg-white/[0.08]"
-                      >
-                        <ChevronLeft className="h-4 w-4" strokeWidth={2} />
-                        Back
-                      </button>
-                      <Link
-                        href="/pubg"
-                        onClick={() => {
-                          setMobileOpen(false);
-                          setMobilePanel("main");
-                        }}
-                        className="inline-flex items-center gap-2 rounded-[16px] border border-accent-yellow/25 bg-accent-yellow/12 px-3 py-2.5 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:border-accent-yellow/40"
-                      >
-                        Open Hub
-                        <ArrowRight className="h-4 w-4" strokeWidth={2} />
-                      </Link>
-                    </div>
-                    <p className="mt-4 font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent-yellow">
-                      PUBG Flagship
-                    </p>
-                    <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">
-                      Competitive, schedule, and records in one panel
-                    </h2>
-                    <p className="mt-3 text-sm leading-6 text-text-muted">
-                      The mobile PUBG panel keeps the flagship lane dense but readable, without turning the drawer into a giant accordion stack.
-                    </p>
-                  </div>
-
-                  <div className="mt-4 grid gap-4">
-                    {MOBILE_PUBG_SECTIONS.map((section) => (
-                      <MobileSectionBlock
-                        key={section.title}
-                        section={section}
-                        pathname={pathname}
-                        onNavigate={() => {
-                          setMobileOpen(false);
-                          setMobilePanel("main");
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </header>
+      </header>
+      {mobileDrawer}
+    </>
   );
 }

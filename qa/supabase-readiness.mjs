@@ -237,8 +237,9 @@ async function main() {
   const serviceAuth = supabaseUrl && serviceRoleKey
     ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, serviceRoleKey, "service-auth")
     : null;
-  const bucketsResponse = supabaseUrl && restPublicKey
-    ? await safeJsonRequest(`${supabaseUrl}/storage/v1/bucket`, restPublicKey, "storage-buckets")
+  const storageAdminKey = serviceRoleKey || restPublicKey;
+  const bucketsResponse = supabaseUrl && storageAdminKey
+    ? await safeJsonRequest(`${supabaseUrl}/storage/v1/bucket`, storageAdminKey, "storage-buckets")
     : null;
   const authSettingsJson = authSettings?.json ?? anonAuth?.json ?? publishableAuth?.json;
 

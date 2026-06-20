@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T03:44:51.898Z",
+  "generatedAt": "2026-06-20T03:53:07.580Z",
   "env": {
     "hasSupabaseUrl": true,
     "hasPublishableKey": true,
@@ -34,15 +34,34 @@
   },
   "storage": {
     "bucketListStatus": 200,
-    "existingBuckets": [],
+    "existingBuckets": [
+      "team-logos",
+      "player-avatars",
+      "player-photos",
+      "event-banners",
+      "sponsor-logos",
+      "sponsor-assets",
+      "result-screenshots",
+      "scoreboard-images",
+      "match-media",
+      "media-assets",
+      "media-uploads",
+      "hero-slides",
+      "news-images",
+      "posters",
+      "moss-files",
+      "stream-assets"
+    ],
     "requiredBucketGroups": [
       {
         "label": "team-logos",
         "bucketNames": [
           "team-logos"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "team-logos"
+        ],
+        "ok": true
       },
       {
         "label": "player-assets",
@@ -50,16 +69,21 @@
           "player-avatars",
           "player-photos"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "player-avatars",
+          "player-photos"
+        ],
+        "ok": true
       },
       {
         "label": "event-banners",
         "bucketNames": [
           "event-banners"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "event-banners"
+        ],
+        "ok": true
       },
       {
         "label": "sponsor-assets",
@@ -67,32 +91,41 @@
           "sponsor-logos",
           "sponsor-assets"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "sponsor-logos",
+          "sponsor-assets"
+        ],
+        "ok": true
       },
       {
         "label": "result-screenshots",
         "bucketNames": [
           "result-screenshots"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "result-screenshots"
+        ],
+        "ok": true
       },
       {
         "label": "scoreboard-images",
         "bucketNames": [
           "scoreboard-images"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "scoreboard-images"
+        ],
+        "ok": true
       },
       {
         "label": "match-media",
         "bucketNames": [
           "match-media"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "match-media"
+        ],
+        "ok": true
       },
       {
         "label": "media-assets",
@@ -100,69 +133,67 @@
           "media-assets",
           "media-uploads"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "media-assets",
+          "media-uploads"
+        ],
+        "ok": true
       },
       {
         "label": "hero-slides",
         "bucketNames": [
           "hero-slides"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "hero-slides"
+        ],
+        "ok": true
       }
     ],
-    "missingBuckets": [
-      "team-logos",
-      "player-assets",
-      "event-banners",
-      "sponsor-assets",
-      "result-screenshots",
-      "scoreboard-images",
-      "match-media",
-      "media-assets",
-      "hero-slides"
-    ],
+    "missingBuckets": [],
     "recommendedLaunchBucketGroups": [
       {
         "label": "news-images",
         "bucketNames": [
           "news-images"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "news-images"
+        ],
+        "ok": true
       },
       {
         "label": "posters",
         "bucketNames": [
           "posters"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "posters"
+        ],
+        "ok": true
       },
       {
         "label": "stream-assets",
         "bucketNames": [
           "stream-assets"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "stream-assets"
+        ],
+        "ok": true
       },
       {
         "label": "moss-files",
         "bucketNames": [
           "moss-files"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "moss-files"
+        ],
+        "ok": true
       }
     ],
-    "missingRecommendedBuckets": [
-      "news-images",
-      "posters",
-      "stream-assets",
-      "moss-files"
-    ]
+    "missingRecommendedBuckets": []
   },
   "schema": {
     "criticalTables": [
