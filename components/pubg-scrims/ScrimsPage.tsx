@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Tabs from "@/components/ui/Tabs";
 import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
+import { formatDisplayNumber } from "@/lib/display-format";
 import { compareMatchTeamResults } from "@/lib/ranking-sort";
 import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { MatchPlayerResult, ScrimDayResult, ScrimDayStatus, TournamentMatch } from "@/lib/types";
@@ -214,7 +215,7 @@ function MatchBreakdownPanel({ matches }: { matches: ScrimDayResult["matches"] }
                       </div>
                       <div className="rounded-card border border-white/10 bg-bg-primary px-3 py-2">
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Damage</p>
-                        <p className="mt-1 font-mono-stat text-white">{mvp.damage.toLocaleString()}</p>
+                        <p className="mt-1 font-mono-stat text-white">{formatDisplayNumber(mvp.damage)}</p>
                       </div>
                       <div className="rounded-card border border-white/10 bg-bg-primary px-3 py-2">
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Survival</p>

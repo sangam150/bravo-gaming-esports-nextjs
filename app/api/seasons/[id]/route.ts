@@ -2,10 +2,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import {
   deleteSeason,
   getSeason,
-  getSeasonLeaderboard,
-  getSeasonPlayers,
-  getSeasonTeams,
-  getSeasonTournaments,
+  getSeasonOverviewBySlug,
   saveSeason,
 } from "@/lib/data";
 
@@ -13,27 +10,21 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: RouteContext) {
   const { id } = await params;
-  const season = await getSeason(id);
+  const overview = await getSeasonOverviewBySlug(id);
+  const season = overview?.season ?? await getSeason(id);
 
   if (!season) {
     return Response.json({ error: "Season not found" }, { status: 404 });
   }
 
-  const [tournaments, leaderboard, teams, players] = await Promise.all([
-    getSeasonTournaments(id),
-    getSeasonLeaderboard(id),
-    getSeasonTeams(id),
-    getSeasonPlayers(id),
-  ]);
-
   return Response.json({
     success: true,
     data: {
       season,
-      tournaments,
-      leaderboard,
-      teams,
-      players,
+      tournaments: overview?.tournaments ?? [],
+      leaderboard: overview?.leaderboard ?? [],
+      teams: overview?.teams ?? [],
+      players: overview?.players ?? [],
     },
   });
 }

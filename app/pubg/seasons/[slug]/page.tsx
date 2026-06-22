@@ -8,7 +8,11 @@ type PageProps = {
 };
 
 async function resolveSeasonOverview(slug: string) {
-  return slug.trim().toLowerCase() === "current" ? getCurrentSeasonOverview() : getSeasonOverviewBySlug(slug);
+  try {
+    return slug.trim().toLowerCase() === "current" ? await getCurrentSeasonOverview() : await getSeasonOverviewBySlug(slug);
+  } catch {
+    return null;
+  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

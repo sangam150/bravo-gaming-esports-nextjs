@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import LogoBadge from "@/components/ui/LogoBadge";
+import { formatDisplayNumber } from "@/lib/display-format";
 import { buildTeamRosterHistory, buildUniqueMatchCount, sortMatchPlayersByPlayedAtDesc } from "@/lib/profile-derivations";
 import { useBravoRealtimeData, useRealtimeMatchPlayersByTeamName, useRealtimeTeam } from "@/lib/realtime-hooks";
 import type { MatchPlayerRecord, Player, Team } from "@/lib/types";
@@ -178,7 +179,7 @@ export default function TeamProfileClient({
                         <td>{matchPlayer.map ?? "-"}</td>
                         <td>#{matchPlayer.placement}</td>
                         <td>{matchPlayer.kills}</td>
-                        <td>{matchPlayer.damage.toLocaleString()}</td>
+                        <td>{formatDisplayNumber(matchPlayer.damage)}</td>
                         <td className="points-cell">{matchPlayer.totalPoints}</td>
                         <td className="text-text-muted">{formatPlayedAt(matchPlayer.playedAt)}</td>
                       </tr>

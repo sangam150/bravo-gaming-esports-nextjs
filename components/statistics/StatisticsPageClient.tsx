@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { formatDisplayNumber } from "@/lib/display-format";
 import {
   compareMvpRankingPlayers,
   comparePlayerLeaderboardPerformance,
@@ -156,7 +157,7 @@ export default function StatisticsPageClient({
                     </td>
                     <td className="text-text-muted">{player.teamName ?? "-"}</td>
                     <td>{player.kills}</td>
-                    <td>{player.damage.toLocaleString()}</td>
+                    <td>{formatDisplayNumber(player.damage)}</td>
                     <td>{player.assists ?? 0}</td>
                     <td>{player.matches}</td>
                   </tr>
@@ -180,7 +181,7 @@ export default function StatisticsPageClient({
                     </td>
                     <td className="text-text-muted">{player.teamName ?? "-"}</td>
                     <td>{player.kills}</td>
-                    <td>{player.damage.toLocaleString()}</td>
+                    <td>{formatDisplayNumber(player.damage)}</td>
                     <td>{player.assists ?? 0}</td>
                   </tr>
                 ))}
@@ -205,7 +206,7 @@ export default function StatisticsPageClient({
                   <td className="text-text-muted">{player.teamName ?? "-"}</td>
                   <td>{player.mvpCount}</td>
                   <td>{player.kills}</td>
-                  <td>{player.damage.toLocaleString()}</td>
+                  <td>{formatDisplayNumber(player.damage)}</td>
                   <td>{player.assists ?? 0}</td>
                   <td>{player.matches}</td>
                 </tr>

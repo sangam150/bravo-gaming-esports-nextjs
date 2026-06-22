@@ -1,6 +1,14 @@
 import type { UploadType } from "./upload-config";
 
-export type PlatformRole = "super_admin" | "admin" | "moderator" | "team_igl" | "caster" | "viewer";
+export type PlatformRole =
+  | "super_admin"
+  | "admin"
+  | "moderator"
+  | "team_manager"
+  | "team_igl"
+  | "player"
+  | "caster"
+  | "viewer";
 export type TournamentStatus = "LIVE" | "OPEN" | "REGISTERING" | "UPCOMING" | "COMPLETED";
 export type RegistrationStatus = "pending" | "approved" | "rejected";
 export type PlayerRole = "IGL" | "Assaulter" | "Support" | "Sniper" | "Substitute";

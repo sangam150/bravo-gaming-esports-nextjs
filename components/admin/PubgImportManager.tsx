@@ -8,7 +8,14 @@ import {
   parseBravoSlotNumber,
   resolveBravoTeamIdentity,
 } from "@/lib/bravo-teams";
+import { formatDisplayDateTime } from "@/lib/display-format";
 import { compareMatchPlayerResults, compareMatchTeamResults } from "@/lib/ranking-sort";
+import {
+  getUserFacingTeamLabel,
+  toUserFacingErrorMessage,
+  USER_FACING_ERROR_MESSAGES,
+  USER_FACING_LABELS,
+} from "@/lib/user-facing-errors";
 import type {
   MatchPlayerResult,
   PubgBulkImportResult,
@@ -90,7 +97,10 @@ function resolvePreviewTeamAssignment(
 
   return {
     teamId: resolvedTeam?.id,
-    teamName: resolvedTeam?.name ?? trimmedTeamName ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? "Unknown Team",
+    teamName: getUserFacingTeamLabel(
+      resolvedTeam?.name ?? trimmedTeamName ?? buildFallbackTeamNameFromSlot(inferredSlotNumber),
+      USER_FACING_LABELS.teamPendingMapping
+    ),
     slotNumber: inferredSlotNumber,
   };
 }
@@ -554,7 +564,7 @@ export default function PubgImportManager({
       const response = await adminFetch("/api/admin/pubg/watchers");
       setWatchers(response.data ?? []);
     } catch (lookupError: unknown) {
-      setError(lookupError instanceof Error ? lookupError.message : String(lookupError));
+      setError(toUserFacingErrorMessage(lookupError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setLoadingWatchers(false);
     }
@@ -823,7 +833,7 @@ export default function PubgImportManager({
       setMessage(response.message ?? `${getDayLabel(Number(selectedDayNumber))} is ready for imports.`);
       onImported?.();
     } catch (prepareError: unknown) {
-      setError(prepareError instanceof Error ? prepareError.message : String(prepareError));
+      setError(toUserFacingErrorMessage(prepareError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setPreparingDay(false);
     }
@@ -901,7 +911,7 @@ export default function PubgImportManager({
       resetSeasonDraft(Math.max(normalizedSeasonNumber + 1, nextSeasonNumber + 1));
       onImported?.();
     } catch (seasonError: unknown) {
-      setError(seasonError instanceof Error ? seasonError.message : String(seasonError));
+      setError(toUserFacingErrorMessage(seasonError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setCreatingSeason(false);
     }
@@ -937,7 +947,7 @@ export default function PubgImportManager({
     } catch (lookupError: unknown) {
       setLookup(null);
       setSelectedMatchIds([]);
-      setError(lookupError instanceof Error ? lookupError.message : String(lookupError));
+      setError(toUserFacingErrorMessage(lookupError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setLoadingLookup(false);
     }
@@ -986,7 +996,7 @@ export default function PubgImportManager({
     } catch (previewError: unknown) {
       setPreviewDrafts([]);
       setPreviewErrors([]);
-      setError(previewError instanceof Error ? previewError.message : String(previewError));
+      setError(toUserFacingErrorMessage(previewError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setPreviewing(false);
     }
@@ -1072,7 +1082,7 @@ export default function PubgImportManager({
       setPreviewErrors([]);
       onImported?.();
     } catch (importError: unknown) {
-      setError(importError instanceof Error ? importError.message : String(importError));
+      setError(toUserFacingErrorMessage(importError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setImporting(false);
     }
@@ -1123,7 +1133,7 @@ export default function PubgImportManager({
       setPreviewErrors([]);
       onImported?.();
     } catch (queueError: unknown) {
-      setError(queueError instanceof Error ? queueError.message : String(queueError));
+      setError(toUserFacingErrorMessage(queueError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setQueueingPending(false);
     }
@@ -1157,7 +1167,7 @@ export default function PubgImportManager({
       setMessage(`Auto-import is enabled for ${lookup.playerName}.`);
       await loadWatchers();
     } catch (watcherError: unknown) {
-      setError(watcherError instanceof Error ? watcherError.message : String(watcherError));
+      setError(toUserFacingErrorMessage(watcherError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setSavingWatcher(false);
     }
@@ -1171,7 +1181,7 @@ export default function PubgImportManager({
       });
       await loadWatchers();
     } catch (watcherError: unknown) {
-      setError(watcherError instanceof Error ? watcherError.message : String(watcherError));
+      setError(toUserFacingErrorMessage(watcherError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     }
   }
 
@@ -1182,7 +1192,7 @@ export default function PubgImportManager({
       });
       await loadWatchers();
     } catch (watcherError: unknown) {
-      setError(watcherError instanceof Error ? watcherError.message : String(watcherError));
+      setError(toUserFacingErrorMessage(watcherError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     }
   }
 
@@ -1553,7 +1563,7 @@ export default function PubgImportManager({
                         <p className="mt-1 text-xs uppercase text-text-muted">
                           {match.mapName} | {match.gameMode}
                         </p>
-                        <p className="mt-1 text-xs text-text-muted">{new Date(match.createdAt).toLocaleString()}</p>
+                        <p className="mt-1 text-xs text-text-muted">{formatDisplayDateTime(match.createdAt)}</p>
                       </div>
                     </div>
                     <span
@@ -1664,8 +1674,8 @@ export default function PubgImportManager({
 
                     <div className="mt-3 space-y-1 text-xs text-text-muted">
                       <p>Imported IDs tracked: {watcher.importedMatchIds?.length ?? 0}</p>
-                      <p>Last checked: {watcher.lastCheckedAt ? new Date(watcher.lastCheckedAt).toLocaleString() : "Never"}</p>
-                      <p>Last imported: {watcher.lastImportedAt ? new Date(watcher.lastImportedAt).toLocaleString() : "Not yet"}</p>
+                      <p>Last checked: {watcher.lastCheckedAt ? formatDisplayDateTime(watcher.lastCheckedAt) : "Never"}</p>
+                      <p>Last imported: {watcher.lastImportedAt ? formatDisplayDateTime(watcher.lastImportedAt) : "Not yet"}</p>
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -1801,7 +1811,7 @@ export default function PubgImportManager({
                           {preview.summary.gameMode ?? "Unknown mode"}
                         </p>
                         <p className="mt-1 text-xs text-text-muted">
-                          {preview.summary.createdAt ? new Date(preview.summary.createdAt).toLocaleString() : "Time unavailable"}
+                          {preview.summary.createdAt ? formatDisplayDateTime(preview.summary.createdAt) : "Time unavailable"}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">

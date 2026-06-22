@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { formatDisplayNumber } from "@/lib/display-format";
 import { getCurrentSeasonOverview } from "@/lib/data";
 import { getPubgDashboardData } from "@/lib/pubg-hub";
 
@@ -27,7 +28,7 @@ export default async function PubgHallOfFamePage() {
               <p className="section-title">PUBG Hall of Fame</p>
               <h1 className="hero-h1 mt-2 !text-4xl sm:!text-5xl">Bravo&apos;s data-backed legacy board</h1>
               <p className="mt-4 max-w-3xl text-sm leading-relaxed text-text-muted sm:text-base">
-                This route now reads from the live PUBG dataset instead of static placeholder champions, so the public legacy surface stays aligned with published results.
+                Hall of Fame standings are generated only from published Bravo PUBG results, so every team and player shown here is traceable to real competitive data.
               </p>
             </div>
             <Link href="/pubg/leaderboards" className="btn-primary shrink-0">
@@ -146,7 +147,7 @@ export default async function PubgHallOfFamePage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono-stat text-lg font-black text-white">{player.damage.toLocaleString()}</p>
+                    <p className="font-mono-stat text-lg font-black text-white">{formatDisplayNumber(player.damage)}</p>
                     <p className="text-label uppercase text-text-muted">Damage</p>
                   </div>
                 </Link>

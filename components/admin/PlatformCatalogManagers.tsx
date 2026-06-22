@@ -4,6 +4,7 @@ import { useCallback, useDeferredValue, useEffect, useState } from "react";
 import FileUpload from "./FileUpload";
 import { adminFetch } from "@/lib/admin-api";
 import type { ManagedPlatformEventRecord, ManagedPlatformGameRecord } from "@/lib/platform-cms";
+import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import type { SponsorItem, VideoItem } from "@/lib/types";
 
 const inputClass = "input-esports";
@@ -103,7 +104,7 @@ export function AdminGamesManager() {
       const response = await adminFetch("/api/admin/games");
       setGames(response.data ?? []);
     } catch (loadError: unknown) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load games");
+      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setLoading(false);
     }
@@ -140,7 +141,7 @@ export function AdminGamesManager() {
       setGames((response.data ? [response.data, ...games.filter((game) => game.id !== response.data.id)] : games) as ManagedPlatformGameRecord[]);
       await loadGames();
     } catch (submissionError: unknown) {
-      setError(submissionError instanceof Error ? submissionError.message : "Unable to save game");
+      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setSaving(false);
     }
@@ -157,7 +158,7 @@ export function AdminGamesManager() {
       }
       setMessage("Game removed");
     } catch (deleteError: unknown) {
-      setError(deleteError instanceof Error ? deleteError.message : "Unable to delete game");
+      setError(toUserFacingErrorMessage(deleteError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     }
   }
 
@@ -297,7 +298,7 @@ export function AdminPlatformEventsManager() {
       const response = await adminFetch("/api/admin/platform-events");
       setEvents(response.data ?? []);
     } catch (loadError: unknown) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load events");
+      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setLoading(false);
     }
@@ -336,7 +337,7 @@ export function AdminPlatformEventsManager() {
       resetForm();
       await loadEvents();
     } catch (submissionError: unknown) {
-      setError(submissionError instanceof Error ? submissionError.message : "Unable to save event");
+      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setSaving(false);
     }
@@ -353,7 +354,7 @@ export function AdminPlatformEventsManager() {
       }
       setMessage("Event removed");
     } catch (deleteError: unknown) {
-      setError(deleteError instanceof Error ? deleteError.message : "Unable to delete event");
+      setError(toUserFacingErrorMessage(deleteError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     }
   }
 
@@ -535,7 +536,7 @@ export function AdminSponsorsManager() {
       const response = await adminFetch("/api/admin/sponsors");
       setSponsors(response.data ?? []);
     } catch (loadError: unknown) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load sponsors");
+      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setLoading(false);
     }
@@ -547,7 +548,7 @@ export function AdminSponsorsManager() {
       const response = await adminFetch("/api/admin/platform-event-options");
       setEventOptions(response.data ?? []);
     } catch (loadError: unknown) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load event options");
+      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setLoadingEvents(false);
     }
@@ -632,7 +633,7 @@ export function AdminSponsorsManager() {
       resetForm();
       await loadSponsors();
     } catch (submissionError: unknown) {
-      setError(submissionError instanceof Error ? submissionError.message : "Unable to save sponsor");
+      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setSaving(false);
     }
@@ -649,7 +650,7 @@ export function AdminSponsorsManager() {
       }
       setMessage("Sponsor removed");
     } catch (deleteError: unknown) {
-      setError(deleteError instanceof Error ? deleteError.message : "Unable to delete sponsor");
+      setError(toUserFacingErrorMessage(deleteError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     }
   }
 
@@ -937,7 +938,7 @@ export function AdminMediaManager() {
       const response = await adminFetch("/api/admin/media");
       setMediaItems(response.data ?? []);
     } catch (loadError: unknown) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load media");
+      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setLoading(false);
     }
@@ -973,7 +974,7 @@ export function AdminMediaManager() {
       resetForm();
       await loadMedia();
     } catch (submissionError: unknown) {
-      setError(submissionError instanceof Error ? submissionError.message : "Unable to save media item");
+      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setSaving(false);
     }
@@ -990,7 +991,7 @@ export function AdminMediaManager() {
       }
       setMessage("Media item removed");
     } catch (deleteError: unknown) {
-      setError(deleteError instanceof Error ? deleteError.message : "Unable to delete media item");
+      setError(toUserFacingErrorMessage(deleteError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     }
   }
 
@@ -1014,7 +1015,7 @@ export function AdminMediaManager() {
       );
       await loadMedia();
     } catch (syncError: unknown) {
-      setError(syncError instanceof Error ? syncError.message : "Unable to sync YouTube videos");
+      setError(toUserFacingErrorMessage(syncError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setSyncingYouTube(false);
     }

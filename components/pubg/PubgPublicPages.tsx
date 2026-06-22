@@ -420,12 +420,12 @@ function HubMatchCard({
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-[20px] border border-white/[0.08] bg-black/20 p-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Winner / WWCD</p>
-          <p className="mt-2 font-semibold text-white">{match.winnerTeamName ?? "Winner pending"}</p>
+          <p className="mt-2 font-semibold text-white">{match.winnerTeamName ?? "Winner TBD"}</p>
         </div>
         <div className="rounded-[20px] border border-white/[0.08] bg-black/20 p-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Top Fragger</p>
           <p className="mt-2 font-semibold text-white">{topFragger?.pubgName ?? "Pending player stats"}</p>
-          <p className="mt-1 text-xs text-text-muted">{topFragger?.currentTeamName ?? "Team pending"}</p>
+          <p className="mt-1 text-xs text-text-muted">{topFragger?.currentTeamName ?? "Team TBD"}</p>
         </div>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -470,7 +470,7 @@ function HubEventCard({
       <div className="mt-4 rounded-[20px] border border-white/[0.08] bg-black/20 p-3">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Winner</p>
         <p className="mt-2 font-semibold text-white">
-          {event.status === "finished" ? winnerName ?? "Winner pending" : "Winner will lock after completion"}
+          {event.status === "finished" ? winnerName ?? "Winner TBD" : "Winner will lock after completion"}
         </p>
       </div>
       <div className="mt-4 flex justify-end">
@@ -499,7 +499,7 @@ function HubTeamCard({
             <p className="truncate font-display text-lg font-black uppercase text-white">{team.name}</p>
           </div>
           <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">
-            {team.tag ? `[${team.tag}]` : "PUBG Team"} | {team.region ?? "Region pending"}
+            {team.tag ? `[${team.tag}]` : "PUBG Team"} | {team.region ?? "Region TBA"}
           </p>
         </div>
       </div>
@@ -540,7 +540,7 @@ function HubPlayerCard({
             <RankBadge rank={rank} />
             <p className="truncate font-display text-base font-black uppercase text-white">{player.pubgName}</p>
           </div>
-          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team pending"}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
         </div>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3">
@@ -674,8 +674,8 @@ export function PubgDashboardPage({
     leaderboardTeams.length > 0
       ? [...leaderboardTeams].filter((team) => team.matches > 2).sort((a, b) => b.formScore - a.formScore || a.avgPlacement - b.avgPlacement)[0] ?? null
       : null;
-  const spotlightSeasonLabel = activeSeason?.title ?? "Season pending";
-  const latestMatchLabel = publishedMatches[0] ? `Match ${publishedMatches[0].matchNumber}` : "Pending";
+  const spotlightSeasonLabel = activeSeason?.title ?? "Current season";
+  const latestMatchLabel = publishedMatches[0] ? `Match ${publishedMatches[0].matchNumber}` : "Awaiting result";
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -746,7 +746,7 @@ export function PubgDashboardPage({
                       ) : null}
                     </div>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                      <HeaderStatCell label="Current Day" value={activeSeason?.currentDay ?? "Pending"} />
+                      <HeaderStatCell label="Current Day" value={activeSeason?.currentDay ?? "TBA"} />
                       <HeaderStatCell label="Matches Played" value={activeSeason?.matchesPlayed ?? 0} />
                       <HeaderStatCell label="Teams Tracked" value={activeSeason?.teamsTracked ?? 0} />
                       <HeaderStatCell label="Players Tracked" value={activeSeason?.playersTracked ?? 0} />
@@ -754,7 +754,7 @@ export function PubgDashboardPage({
                     <div className="mt-5 rounded-[20px] border border-white/[0.08] bg-black/20 p-4">
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Current Focus</p>
                       <p className="mt-2 text-sm text-white">
-                        {activeSeason?.currentTournamentTitle ?? spotlightEvent?.name ?? "Season schedule will appear here after the first event is published."}
+                        {activeSeason?.currentTournamentTitle ?? spotlightEvent?.name ?? "The next published event will appear here automatically."}
                       </p>
                     </div>
                   </div>
@@ -763,7 +763,7 @@ export function PubgDashboardPage({
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">Featured Event</p>
-                        <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">{spotlightEvent?.name ?? "Event pending"}</h2>
+                        <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">{spotlightEvent?.name ?? "Featured event"}</h2>
                       </div>
                       {spotlightEvent ? (
                         <div className="flex flex-wrap gap-2">
@@ -791,13 +791,13 @@ export function PubgDashboardPage({
                       </>
                     ) : (
                       <div className="mt-5">
-                        <EmptyState title="Event board pending" description="Match data will appear once results are published." />
+                        <EmptyState title="No upcoming tournaments" description="There are currently no upcoming tournaments. New events will be announced soon." />
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                <EmptyState title="Season board pending" description="Match data will appear once results are published." />
+                <EmptyState title="No active season has been published yet" description="Leaderboard data will be available once matches have been completed and officially published." />
               )}
             </DashboardSection>
 
@@ -814,7 +814,7 @@ export function PubgDashboardPage({
                   ))}
                 </div>
               ) : (
-                <EmptyState title="Results pending" description="Results will be published after admin approval." />
+                <EmptyState title="No match results have been published yet" description="Results will appear once they are officially verified." />
               )}
             </DashboardSection>
 
@@ -868,7 +868,7 @@ export function PubgDashboardPage({
                   </table>
                 </div>
               ) : (
-                <EmptyState title="Leaderboard pending" description="Teams will appear after registration is approved." />
+                <EmptyState title="Leaderboard data is not available yet" description="Leaderboard data will be available once matches have been completed and officially published." />
               )}
             </DashboardSection>
 
@@ -906,10 +906,10 @@ export function PubgDashboardPage({
                           <td>
                             {player.currentTeamId ? (
                               <Link href={`/pubg/teams/${player.currentTeamId}`} className="text-white hover:text-accent-blue">
-                                {player.currentTeamName ?? "Team pending"}
+                                {player.currentTeamName ?? "Team TBD"}
                               </Link>
                             ) : (
-                              player.currentTeamName ?? "Team pending"
+                              player.currentTeamName ?? "Team TBD"
                             )}
                           </td>
                           <td>{formatNumber(player.kills)}</td>
@@ -923,7 +923,7 @@ export function PubgDashboardPage({
                   </table>
                 </div>
               ) : (
-                <EmptyState title="Player board pending" description="Match data will appear once results are published." />
+                <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
               )}
             </DashboardSection>
 
@@ -940,7 +940,7 @@ export function PubgDashboardPage({
                   ))}
                 </div>
               ) : (
-                <EmptyState title="Event board pending" description="Results will be published after admin approval." />
+                <EmptyState title="No upcoming tournaments" description="There are currently no upcoming tournaments. New events will be announced soon." />
               )}
             </DashboardSection>
 
@@ -956,7 +956,7 @@ export function PubgDashboardPage({
                   ))}
                 </div>
               ) : (
-                <EmptyState title="Team cards pending" description="Teams will appear after registration is approved." />
+                <EmptyState title="Team statistics are not available yet" description="Statistics will appear after official match data is published." />
               )}
             </DashboardSection>
 
@@ -968,15 +968,15 @@ export function PubgDashboardPage({
             >
               {hasVerifiedCompetitionData ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  <MetricCard label="Most WWCD" value={mostWinsTeam?.name ?? "Pending"} detail={mostWinsTeam ? `${formatNumber(mostWinsTeam.wins)} WWCD` : undefined} tone="green" />
-                  <MetricCard label="Most Kills" value={mostKillsPlayer?.pubgName ?? "Pending"} detail={mostKillsPlayer ? `${formatNumber(mostKillsPlayer.kills)} kills` : undefined} tone="blue" />
-                  <MetricCard label="Highest Damage" value={highestDamagePlayer?.pubgName ?? "Pending"} detail={highestDamagePlayer ? `${formatNumber(highestDamagePlayer.damage)} damage` : undefined} tone="red" />
-                  <MetricCard label="Best Avg Placement" value={bestAveragePlacementTeam?.name ?? "Pending"} detail={bestAveragePlacementTeam ? `${formatDecimal(bestAveragePlacementTeam.avgPlacement, 2)} avg place` : undefined} tone="yellow" />
-                  <MetricCard label="Latest Winner" value={latestWinner ?? "Pending"} detail={publishedMatches[0] ? `${publishedMatches[0].mapName} | ${formatDate(publishedMatches[0].startTime)}` : undefined} tone="green" />
-                  <MetricCard label="Most Consistent Team" value={mostConsistentTeam?.name ?? "Pending"} detail={mostConsistentTeam ? `${mostConsistentTeam.formLabel} form` : undefined} tone="blue" />
+                  <MetricCard label="Most WWCD" value={mostWinsTeam?.name ?? "TBA"} detail={mostWinsTeam ? `${formatNumber(mostWinsTeam.wins)} WWCD` : undefined} tone="green" />
+                  <MetricCard label="Most Kills" value={mostKillsPlayer?.pubgName ?? "TBA"} detail={mostKillsPlayer ? `${formatNumber(mostKillsPlayer.kills)} kills` : undefined} tone="blue" />
+                  <MetricCard label="Highest Damage" value={highestDamagePlayer?.pubgName ?? "TBA"} detail={highestDamagePlayer ? `${formatNumber(highestDamagePlayer.damage)} damage` : undefined} tone="red" />
+                  <MetricCard label="Best Avg Placement" value={bestAveragePlacementTeam?.name ?? "TBA"} detail={bestAveragePlacementTeam ? `${formatDecimal(bestAveragePlacementTeam.avgPlacement, 2)} avg place` : undefined} tone="yellow" />
+                  <MetricCard label="Latest Winner" value={latestWinner ?? "TBA"} detail={publishedMatches[0] ? `${publishedMatches[0].mapName} | ${formatDate(publishedMatches[0].startTime)}` : undefined} tone="green" />
+                  <MetricCard label="Most Consistent Team" value={mostConsistentTeam?.name ?? "TBA"} detail={mostConsistentTeam ? `${mostConsistentTeam.formLabel} form` : undefined} tone="blue" />
                 </div>
               ) : (
-                <EmptyState title="Stats pending" description="Match data will appear once results are published." />
+                <EmptyState title="MVP rankings are not available yet" description="MVP rankings will be generated after sufficient match data becomes available." />
               )}
             </DashboardSection>
 
@@ -1019,7 +1019,7 @@ export function PubgDashboardPage({
                   ))}
                 </div>
               ) : (
-                <EmptyState title="Upcoming scrims pending" description="Match data will appear once results are published." />
+                <EmptyState title="No scrims scheduled" description="No scrim sessions are scheduled at the moment. Please check back later for the next session." />
               )}
             </DashboardSection>
 
@@ -1031,7 +1031,7 @@ export function PubgDashboardPage({
                   ))}
                 </div>
               ) : (
-                <EmptyState title="Top teams pending" description="Teams will appear after registration is approved." />
+                <EmptyState title="Team statistics are not available yet" description="Statistics will appear after official match data is published." />
               )}
             </DashboardSection>
 
@@ -1043,11 +1043,11 @@ export function PubgDashboardPage({
                   ))}
                 </div>
               ) : (
-                <EmptyState title="Player cards pending" description="Match data will appear once results are published." />
+                <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
               )}
             </DashboardSection>
 
-            <DashboardSection eyebrow="Partners" title="PUBG partner support" description="SAP, Kento, Hukut, and Gorkhali Roleplay can be surfaced here from admin-managed sponsor data.">
+            <DashboardSection eyebrow="Partners" title="PUBG partner support" description="Official sponsor and partner profiles are featured here once they are announced.">
               {partners.length > 0 ? (
                 <div className="space-y-3">
                   {partners.slice(0, 4).map((partner) => (
@@ -1055,7 +1055,7 @@ export function PubgDashboardPage({
                   ))}
                 </div>
               ) : (
-                <EmptyState title="Partners pending" description="Partner details will be updated soon." />
+                <EmptyState title="No sponsors or partners announced yet" description="Our sponsors and partners will be featured here once officially announced." />
               )}
             </DashboardSection>
 
@@ -1067,7 +1067,7 @@ export function PubgDashboardPage({
                   ))}
                 </div>
               ) : (
-                <EmptyState title="Media pending" description="Results will be published after admin approval." />
+                <EmptyState title="No videos are currently available" description="Check back later for new content and broadcasts." />
               )}
             </DashboardSection>
           </aside>
@@ -1197,7 +1197,7 @@ export function PubgEventsPage({
             ))}
             {filteredEvents.length === 0 ? (
               <div className="xl:col-span-2">
-                <EmptyState title="No event cards found" description="Try widening the status or state filters. Draft and scheduled events can be hidden easily when the current lens is too narrow." />
+                <EmptyState title="No events match the current filters" description="Try adjusting the filters to browse more published events." />
               </div>
             ) : null}
           </div>
@@ -1257,14 +1257,14 @@ function EventSpotlight({
   return (
     <div className="grid gap-6 xl:grid-cols-2">
       <div className="esports-card p-6">
-        <SectionHeader eyebrow="Team Spotlight" title={team?.name ?? "Team pending"} description="Selected from the event board so users can move from standings into roster, recent trend, and event-specific output without losing context." />
+        <SectionHeader eyebrow="Team Spotlight" title={team?.name ?? "Team spotlight"} description="Selected from the event board so users can move from standings into roster, recent trend, and event-specific output without losing context." />
         {team ? (
           <div className="mt-5 space-y-5">
             <div className="flex flex-wrap items-center gap-3">
               <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
               <div>
                 <h3 className="font-display text-2xl font-black uppercase text-white">{team.name}</h3>
-                <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{team.region ?? "Region pending"}</p>
+                <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{team.region ?? "Region TBA"}</p>
               </div>
               <div className="ml-auto">
                 <FormPill label={team.formLabel} />
@@ -1298,20 +1298,20 @@ function EventSpotlight({
           </div>
         ) : (
           <div className="mt-5">
-            <EmptyState title="Team spotlight pending" description="Pick a team from the event standings to load roster, form, and event splits here." />
+            <EmptyState title="No team spotlight selected" description="Choose a team from the event standings to view roster, form, and event splits here." />
           </div>
         )}
       </div>
 
       <div className="esports-card p-6">
-        <SectionHeader eyebrow="Player Spotlight" title={player?.pubgName ?? "Player pending"} description="The event player view keeps high-output players close to the board so users can jump from rankings into match history and team context quickly." />
+        <SectionHeader eyebrow="Player Spotlight" title={player?.pubgName ?? "Player spotlight"} description="The event player view keeps high-output players close to the board so users can jump from rankings into match history and team context quickly." />
         {player ? (
           <div className="mt-5 space-y-5">
             <div className="flex flex-wrap items-center gap-3">
               <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="lg" />
               <div>
                 <h3 className="font-display text-2xl font-black uppercase text-white">{player.pubgName}</h3>
-                <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team pending"}</p>
+                <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
               </div>
               <div className="ml-auto">
                 <FormPill label={player.formLabel} />
@@ -1346,7 +1346,7 @@ function EventSpotlight({
           </div>
         ) : (
           <div className="mt-5">
-            <EmptyState title="Player spotlight pending" description="Pick a player from the event stats table to load their event performance and recent form here." />
+            <EmptyState title="No player spotlight selected" description="Choose a player from the event stats table to view their event performance and recent form here." />
           </div>
         )}
       </div>
@@ -1368,7 +1368,7 @@ function EventStandingsTable({
       </div>
       {event.standings.length === 0 ? (
         <div className="p-6">
-          <EmptyState title="No standings published yet" description="Standings will appear here once the event has tracked match results to aggregate." />
+          <EmptyState title="Leaderboard data is not available yet" description="Leaderboard data will be available once matches have been completed and officially published." />
         </div>
       ) : (
         <div className="table-scroll">
@@ -1428,7 +1428,7 @@ function EventPlayersTable({
       </div>
       {event.playerTable.length === 0 ? (
         <div className="p-6">
-          <EmptyState title="No player stats published yet" description="Player stat rows will show up automatically once match-level player data lands for this event." />
+          <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
         </div>
       ) : (
         <div className="table-scroll">
@@ -1457,7 +1457,7 @@ function EventPlayersTable({
                       {row.pubgName}
                     </Link>
                   </td>
-                  <td>{row.teamName ?? "Team pending"}</td>
+                  <td>{row.teamName ?? "Team TBD"}</td>
                   <td>{formatNumber(row.kills)}</td>
                   <td>{formatNumber(row.assists)}</td>
                   <td>{formatNumber(row.knocks)}</td>
@@ -1486,7 +1486,7 @@ function EventMatchesBoard({
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       {event.matches.map((match) => {
-        const winnerTeam = match.winnerTeamName ?? "Winner pending";
+        const winnerTeam = match.winnerTeamName ?? "Winner TBD";
         const topFragger = buildTopFragger(match, playerLookup);
 
         return (
@@ -1510,7 +1510,7 @@ function EventMatchesBoard({
             <div className="mt-4 rounded-card border border-white/[0.08] bg-bg-primary p-4">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Top fragger</p>
               <p className="mt-2 font-semibold text-white">{topFragger?.pubgName ?? "Pending player stats"}</p>
-              <p className="mt-1 text-sm text-text-muted">{topFragger?.currentTeamName ?? "Team pending"}</p>
+              <p className="mt-1 text-sm text-text-muted">{topFragger?.currentTeamName ?? "Team TBD"}</p>
             </div>
             <div className="mt-4 table-scroll">
               <table className="data-table min-w-full">
@@ -1539,7 +1539,7 @@ function EventMatchesBoard({
       })}
       {event.matches.length === 0 ? (
         <div className="xl:col-span-2">
-          <EmptyState title="No match list yet" description="This event is either upcoming or still waiting on its first synced result batch." />
+          <EmptyState title="No match results have been published for this event yet" description="Results will appear once they are officially verified." />
         </div>
       ) : null}
     </div>
@@ -1695,7 +1695,7 @@ export function PubgEventDetailPage({
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
-              <MapStatsTable stats={filteredMapStats} title={map === "all" ? "All map splits" : `${map} split`} description="Kills, wins, damage, and average placement on the selected map lens." />
+              <MapStatsTable stats={filteredMapStats} title={map === "all" ? "All map splits" : `${map} split`} description="Kills, wins, damage, and average placement for the selected map view." />
               <div className="esports-card p-6">
                 <SectionHeader eyebrow="Trend Layer" title="Match-by-match signals" description="Recent event trends for the selected team and player inside this event board." />
                 <div className="mt-5 grid gap-5">
@@ -1829,7 +1829,7 @@ export function PubgTeamsPage({
                 <div>
                   <h2 className="font-display text-2xl font-black uppercase text-white">{team.name}</h2>
                   <p className="text-sm uppercase tracking-[0.16em] text-text-muted">
-                    {team.tag ? `[${team.tag}]` : "PUBG Team"} | {team.region ?? "Region pending"}
+                    {team.tag ? `[${team.tag}]` : "PUBG Team"} | {team.region ?? "Region TBA"}
                   </p>
                 </div>
                 <div className="ml-auto">
@@ -1882,7 +1882,7 @@ export function PubgTeamsPage({
           ))}
           {filteredTeams.length === 0 ? (
             <div className="xl:col-span-2">
-              <EmptyState title="No teams match this lens" description="Try broadening the region filter or clearing the search term to bring more tracked teams back into the board." />
+              <EmptyState title="No teams match the current filters" description="Try adjusting your search or browse available categories." />
             </div>
           ) : null}
         </section>
@@ -1948,7 +1948,7 @@ export function PubgTeamDetailPage({
                   <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
                   <div>
                     <h2 className="font-display text-2xl font-black uppercase text-white">{team.name}</h2>
-                    <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{team.region ?? "Region pending"}</p>
+                    <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{team.region ?? "Region TBA"}</p>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -2016,10 +2016,10 @@ export function PubgTeamDetailPage({
             ))}
           </select>
           <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
-            Event-specific stats and recent matches tighten to the selected event when you want a cleaner team lens.
+            Event-specific stats and recent matches tighten to the selected event when you want a clearer team view.
           </div>
           <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
-            Current data source: {sourceLabel(dataset.source)}
+            Data source: {sourceLabel(dataset.source)}
           </div>
         </FilterBar>
 
@@ -2120,7 +2120,7 @@ export function PubgTeamDetailPage({
           </div>
 
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Selected Lens" title={selectedEventStat?.eventName ?? "All events"} description="The selected event filter tightens context for recent matches and quick team reads below." />
+            <SectionHeader eyebrow="Selected Event" title={selectedEventStat?.eventName ?? "All events"} description="The selected event filter keeps recent matches and quick team reads focused below." />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <MetricCard label="Kills" value={selectedEventStat?.kills ?? team.kills} compact tone="blue" />
               <MetricCard label="Points" value={selectedEventStat?.totalPoints ?? team.totalPoints} compact tone="green" />
@@ -2144,7 +2144,7 @@ export function PubgTeamDetailPage({
           </div>
           {filteredMatches.length === 0 ? (
             <div className="p-6">
-              <EmptyState title="No matches in this lens" description="The selected event filter does not have recent team match history yet." />
+              <EmptyState title="No match results are available for the selected filters" description="Try adjusting the filters or check back after official results are published." />
             </div>
           ) : (
             <div className="p-5">
@@ -2223,7 +2223,7 @@ export function PubgPlayersPage({
                     <p className="font-semibold text-white">{player.pubgName}</p>
                     <FormPill label={player.formLabel} />
                   </div>
-                  <p className="mt-2 text-sm text-text-muted">{player.currentTeamName ?? "Team pending"}</p>
+                  <p className="mt-2 text-sm text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
                   <div className="mt-3">
                     <TrendBars values={player.recentTrend} tone="blue" />
                   </div>
@@ -2330,7 +2330,7 @@ export function PubgPlayersPage({
           ))}
           {filteredPlayers.length === 0 ? (
             <div className="xl:col-span-2">
-              <EmptyState title="No players match this lens" description="Widen the team filter or clear the search term to bring the full tracked player market back." />
+              <EmptyState title="No players match the current filters" description="Try adjusting your search or browse available categories." />
             </div>
           ) : null}
         </section>
@@ -2388,7 +2388,7 @@ export function PubgPlayerDetailPage({
                 <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="lg" />
                 <div>
                   <h2 className="font-display text-2xl font-black uppercase text-white">{player.pubgName}</h2>
-                  <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team pending"}</p>
+                  <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -2453,7 +2453,7 @@ export function PubgPlayerDetailPage({
               </div>
             ) : (
               <div className="mt-5">
-                <EmptyState title="Best match pending" description="Peak-match context will appear once the player has enough tracked match history." />
+                <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
               </div>
             )}
           </div>
@@ -2523,7 +2523,7 @@ export function PubgPlayerDetailPage({
           </div>
           {filteredMatches.length === 0 ? (
             <div className="p-6">
-              <EmptyState title="No recent matches in this lens" description="The selected event filter does not currently return player match history." />
+              <EmptyState title="No match results are available for the selected filters" description="Try adjusting the filters or check back after official results are published." />
             </div>
           ) : (
             <div className="p-5">
@@ -2700,7 +2700,7 @@ export function PubgResultsPage({
                         <PlayerIdentity player={topFragger} href={`/pubg/players/${topFragger.id}`} />
                       </div>
                     ) : (
-                      <p className="mt-3 text-sm text-text-muted">Top-fragger data is still pending for this lobby.</p>
+                      <p className="mt-3 text-sm text-text-muted">Top-fragger data will appear here after results are published.</p>
                     )}
                     <div className="mt-4">
                       <Link href={`/pubg/events/${match.eventSlug}?tab=matches`} className="btn-secondary">
@@ -2714,7 +2714,7 @@ export function PubgResultsPage({
           })}
           {filteredMatches.length === 0 ? (
             <div className="xl:col-span-2">
-              <EmptyState title="No matches in this filter" description="Try widening the event, map, or approval-state lens. Upcoming events will not show match cards until results exist." />
+              <EmptyState title="No match results are available for the selected filters" description="Try adjusting the filters or check back after official results are published." />
             </div>
           ) : null}
         </section>
@@ -2752,10 +2752,10 @@ export function PubgLeaderboardsPage({
             <>
               Team and player boards
               <br />
-              built from relational results
+              built from published results
             </>
           }
-          description="Leaderboards calculate from matches, match_team_results, match_player_results, event_teams, teams, and players, with event and map filters for a narrower stats-first lens."
+          description="Leaderboards update from published match results, with event and map filters that make it easy to narrow the board to the exact competitive view you want."
           actions={
             <>
               <Link href="/pubg/results" className="btn-secondary">
@@ -2787,7 +2787,7 @@ export function PubgLeaderboardsPage({
                 </Link>
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-text-muted">
-                Current source: {sourceLabel(dataset.source)}
+                Coverage mode: {sourceLabel(dataset.source)}
               </div>
             </div>
           }
@@ -2828,7 +2828,7 @@ export function PubgLeaderboardsPage({
         {view === "teams" ? (
           filteredMatches.length === 0 ? (
             <section className="esports-card p-6">
-              <EmptyState title="No team board in this filter" description="Match data will appear once results are published for the selected event and map lens." />
+              <EmptyState title="Leaderboard data is not available yet" description="Leaderboard data will be available once matches have been completed and officially published." />
             </section>
           ) : (
           <section className="esports-card overflow-hidden !p-0">
@@ -2887,7 +2887,7 @@ export function PubgLeaderboardsPage({
           )
         ) : filteredMatches.length === 0 ? (
           <section className="esports-card p-6">
-            <EmptyState title="No player board in this filter" description="Player rows will appear once published player results exist for the selected event and map lens." />
+            <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
           </section>
         ) : (
           <section className="esports-card overflow-hidden !p-0">
@@ -2922,7 +2922,7 @@ export function PubgLeaderboardsPage({
                           <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="sm" />
                           <div className="min-w-0">
                             <p className="font-semibold text-white">{row.pubgName}</p>
-                            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team pending"}</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team TBD"}</p>
                           </div>
                         </Link>
                       </td>
@@ -2936,7 +2936,7 @@ export function PubgLeaderboardsPage({
                             row.teamName
                           )
                         ) : (
-                          "Team pending"
+                          "Team TBD"
                         )}
                       </td>
                       <td>{formatNumber(row.matches)}</td>
@@ -3113,20 +3113,23 @@ export function PubgAccessPage() {
               for Bravo operators
             </>
           }
-          description="Bravo keeps operational access simple and real: admin accounts handle publishing and approval work, while team IGL accounts manage rosters, uploads, and match-day requests."
+          description="Bravo keeps operational access simple and real: admin accounts handle publishing and approval work, team managers handle rosters and uploads, and player accounts stay scoped to their own dashboard."
           actions={
             <>
-              <Link href="/admin" className="btn-primary">
+              <Link href="/admin/login" className="btn-primary">
                 Admin login
               </Link>
-              <Link href="/team" className="btn-secondary">
-                Team IGL login
+              <Link href="/team/login" className="btn-secondary">
+                Team login
+              </Link>
+              <Link href="/player/login" className="btn-secondary">
+                Player login
               </Link>
             </>
           }
           stats={[
-            { label: "Live Roles", value: 2, tone: "green" },
-            { label: "Team Access", value: "IGL", tone: "yellow" },
+            { label: "Live Roles", value: 3, tone: "green" },
+            { label: "Team Access", value: "Manager / IGL", tone: "yellow" },
             { label: "Auth Layer", value: "Supabase", tone: "blue" },
             { label: "Scope", value: "PUBG Ops", tone: "red" },
           ]}
@@ -3140,10 +3143,10 @@ export function PubgAccessPage() {
                 Admin handles publish and approval operations.
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-white">
-                Team IGL handles roster, optional MOSS, and team asset operations.
+                Team managers and team IGLs handle roster, optional MOSS, and team asset operations.
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-white">
-                No fake public login buttons are exposed beyond the roles Bravo is actively supporting today.
+                Player accounts use a separate Supabase login route when profile access is enabled.
               </div>
             </div>
           }
@@ -3153,24 +3156,28 @@ export function PubgAccessPage() {
           <div className="esports-card p-6">
             <SectionHeader eyebrow="Live Access" title="Current Bravo roles" description="Choose the right access point for publishing, team operations, and competition support." />
             <div className="mt-5 grid gap-3">
-              <Link href="/admin" className="rounded-card border border-white/[0.08] bg-bg-primary p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+              <Link href="/admin/login" className="rounded-card border border-white/[0.08] bg-bg-primary p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
                 <p className="font-display text-lg font-black uppercase text-white">Admin Login</p>
                 <p className="mt-2 text-sm text-text-muted">Match approval, event publishing, uploads, and platform moderation.</p>
               </Link>
-              <Link href="/team" className="rounded-card border border-white/[0.08] bg-bg-primary p-5 transition hover:border-accent-green/30 hover:bg-bg-hover">
-                <p className="font-display text-lg font-black uppercase text-white">Team IGL Login</p>
+              <Link href="/team/login" className="rounded-card border border-white/[0.08] bg-bg-primary p-5 transition hover:border-accent-green/30 hover:bg-bg-hover">
+                <p className="font-display text-lg font-black uppercase text-white">Team Login</p>
                 <p className="mt-2 text-sm text-text-muted">Roster management, MOSS workflow, result evidence, and operational requests for a team.</p>
+              </Link>
+              <Link href="/player/login" className="rounded-card border border-white/[0.08] bg-bg-primary p-5 transition hover:border-accent-yellow/30 hover:bg-bg-hover">
+                <p className="font-display text-lg font-black uppercase text-white">Player Login</p>
+                <p className="mt-2 text-sm text-text-muted">Profile access, personal stats, and player dashboard entry for approved accounts.</p>
               </Link>
             </div>
           </div>
 
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Access Policy" title="Operational access only" description="Bravo keeps this surface focused on the two roles that already matter for day-to-day tournament operations." />
+            <SectionHeader eyebrow="Access Policy" title="Role-scoped Supabase access" description="Bravo keeps each route aligned to the role that owns the work behind it." />
             <div className="mt-5 grid gap-3">
               {[
                 "Admins publish homepage sections, news, events, matches, rankings, sponsors, media, and approvals.",
-                "Team IGLs manage roster requests, logo updates, optional MOSS submissions, and team-side match evidence.",
-                "Additional roles stay private until the product behind them is actually ready to launch.",
+                "Team managers and team IGLs manage roster requests, logo updates, optional MOSS submissions, and team-side match evidence.",
+                "Players access their own profile and dashboard lanes without gaining team or admin permissions.",
               ].map((item) => (
                 <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary p-5 text-sm text-white">
                   {item}

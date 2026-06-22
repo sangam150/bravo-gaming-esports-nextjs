@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { adminUpload } from "@/lib/admin-api";
+import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import {
   formatUploadSize,
   IMAGE_FILE_INPUT_ACCEPT,
@@ -79,7 +80,7 @@ export default function FileUpload({
       setPreview(res.url);
       onUploaded(res.url);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(toUserFacingErrorMessage(err, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
       resetPreviewObjectUrl();
       setPreview(currentUrl ?? null);
     } finally {

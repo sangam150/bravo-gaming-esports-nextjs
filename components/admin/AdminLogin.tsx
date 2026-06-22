@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { useAdminAuth } from "./AuthProvider";
 import BravoLogo from "@/components/ui/BravoLogo";
+import {
+  toUserFacingErrorMessage,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 
 export default function AdminLogin() {
   const { login, configured } = useAdminAuth();
@@ -18,7 +22,11 @@ export default function AdminLogin() {
     try {
       await login(email, password);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(
+        toUserFacingErrorMessage(err, {
+          fallback: USER_FACING_ERROR_MESSAGES.login,
+        })
+      );
     } finally {
       setLoading(false);
     }
@@ -31,7 +39,7 @@ export default function AdminLogin() {
           <div className="mx-auto w-fit"><BravoLogo size={56} /></div>
           <h1 className="mt-4 font-display text-2xl font-black uppercase text-white">Admin Login</h1>
           <p className="mt-3 text-sm text-text-muted">
-            Supabase auth is not configured. Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`), and your admin user records.
+            Admin sign-in is temporarily unavailable until Supabase authentication is fully connected.
           </p>
         </div>
       </div>
@@ -73,7 +81,7 @@ export default function AdminLogin() {
           autoComplete="current-password"
         />
         <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
-          {loading ? "Signing in..." : "Sign In"}
+          {loading ? "Checking admin access..." : "Sign In"}
         </button>
       </form>
     </div>

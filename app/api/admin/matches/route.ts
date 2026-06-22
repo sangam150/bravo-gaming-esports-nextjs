@@ -4,6 +4,11 @@ import { deleteAdminMatch, getAdminMatch, listAdminMatches, saveAdminMatch, save
 import { syncTournamentAndSeasonDerivedData } from "@/lib/pubg-sync";
 import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import { getRecentUploadRecords } from "@/lib/upload-records";
+import {
+  getUserFacingPlayerLabel,
+  getUserFacingTeamLabel,
+  USER_FACING_LABELS,
+} from "@/lib/user-facing-errors";
 import type { MatchPlayerResult, TeamMatchResult, TournamentMatch } from "@/lib/types";
 
 function normalizeTeamResults(value: unknown) {
@@ -15,7 +20,10 @@ function normalizeTeamResults(value: unknown) {
       (item) =>
         ({
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
-          teamName: typeof item.teamName === "string" ? item.teamName : "Unknown Team",
+          teamName: getUserFacingTeamLabel(
+            typeof item.teamName === "string" ? item.teamName : undefined,
+            USER_FACING_LABELS.teamPendingMapping
+          ),
           slotNumber:
             typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
           placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,
@@ -42,10 +50,16 @@ function normalizePlayerResults(value: unknown) {
       (item) =>
         ({
           playerId: typeof item.playerId === "string" ? item.playerId : "",
-          playerName: typeof item.playerName === "string" ? item.playerName : "Unknown Player",
+          playerName: getUserFacingPlayerLabel(
+            typeof item.playerName === "string" ? item.playerName : undefined,
+            USER_FACING_LABELS.playerPendingMapping
+          ),
           pubgPlayerId: typeof item.pubgPlayerId === "string" ? item.pubgPlayerId : undefined,
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
-          teamName: typeof item.teamName === "string" ? item.teamName : "Unknown Team",
+          teamName: getUserFacingTeamLabel(
+            typeof item.teamName === "string" ? item.teamName : undefined,
+            USER_FACING_LABELS.teamPendingMapping
+          ),
           slotNumber:
             typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
           placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,

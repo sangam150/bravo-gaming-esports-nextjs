@@ -7,9 +7,17 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
+async function resolveMatchResult(slug: string) {
+  try {
+    return await getMatchResult(slug);
+  } catch {
+    return null;
+  }
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const matchResult = await getMatchResult(slug);
+  const matchResult = await resolveMatchResult(slug);
 
   if (!matchResult) {
     return {
@@ -27,7 +35,7 @@ export const revalidate = 300;
 
 export default async function PubgMatchDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const matchResult = await getMatchResult(slug);
+  const matchResult = await resolveMatchResult(slug);
 
   if (!matchResult) {
     notFound();

@@ -6,14 +6,14 @@ export default function NotFound() {
       <p className="section-title">404</p>
       <h1 className="hero-h1 mt-2 !text-4xl">Page Not Found</h1>
       <p className="mt-4 max-w-xl text-text-muted">
-        The requested page is missing, moved, or no longer available. Head back to the live platform and keep the tournament run going.
+        The page you are looking for does not exist or may have been moved.
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <Link href="/" className="btn-primary">
           Go Home
         </Link>
-        <Link href="/tournaments" className="btn-secondary">
-          View Tournaments
+        <Link href="/pubg" className="btn-secondary">
+          Open PUBG Hub
         </Link>
       </div>
     </main>

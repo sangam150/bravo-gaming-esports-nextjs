@@ -2,6 +2,11 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { COLLECTIONS, createDocument, fetchDocumentCollection } from "@/lib/document-store";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
+import {
+  getUserFacingPlayerLabel,
+  getUserFacingTeamLabel,
+  USER_FACING_LABELS,
+} from "@/lib/user-facing-errors";
 import type {
   MatchPlayerResult,
   PubgDuplicateMode,
@@ -48,7 +53,10 @@ function normalizeTeamResults(value: unknown) {
       (item) =>
         ({
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
-          teamName: typeof item.teamName === "string" ? item.teamName : "Unknown Team",
+          teamName: getUserFacingTeamLabel(
+            typeof item.teamName === "string" ? item.teamName : undefined,
+            USER_FACING_LABELS.teamPendingMapping
+          ),
           slotNumber:
             typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
           placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,
@@ -75,10 +83,16 @@ function normalizePlayerResults(value: unknown) {
       (item) =>
         ({
           playerId: typeof item.playerId === "string" ? item.playerId : "",
-          playerName: typeof item.playerName === "string" ? item.playerName : "Unknown Player",
+          playerName: getUserFacingPlayerLabel(
+            typeof item.playerName === "string" ? item.playerName : undefined,
+            USER_FACING_LABELS.playerPendingMapping
+          ),
           pubgPlayerId: typeof item.pubgPlayerId === "string" ? item.pubgPlayerId : undefined,
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
-          teamName: typeof item.teamName === "string" ? item.teamName : "Unknown Team",
+          teamName: getUserFacingTeamLabel(
+            typeof item.teamName === "string" ? item.teamName : undefined,
+            USER_FACING_LABELS.teamPendingMapping
+          ),
           slotNumber:
             typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
           placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,
@@ -107,13 +121,18 @@ function normalizeConflicts(value: unknown) {
       (item) =>
         ({
           type: "player_team_mismatch",
-          playerName: typeof item.playerName === "string" ? item.playerName : "Unknown Player",
+          playerName: getUserFacingPlayerLabel(
+            typeof item.playerName === "string" ? item.playerName : undefined,
+            USER_FACING_LABELS.playerPendingMapping
+          ),
           pubgPlayerId: typeof item.pubgPlayerId === "string" ? item.pubgPlayerId : undefined,
           currentTeamId: typeof item.currentTeamId === "string" ? item.currentTeamId : undefined,
           currentTeamName: typeof item.currentTeamName === "string" ? item.currentTeamName : undefined,
           importedTeamId: typeof item.importedTeamId === "string" ? item.importedTeamId : undefined,
-          importedTeamName:
-            typeof item.importedTeamName === "string" ? item.importedTeamName : "Unknown Team",
+          importedTeamName: getUserFacingTeamLabel(
+            typeof item.importedTeamName === "string" ? item.importedTeamName : undefined,
+            USER_FACING_LABELS.teamPendingMapping
+          ),
         }) satisfies PubgImportConflict
     );
 }

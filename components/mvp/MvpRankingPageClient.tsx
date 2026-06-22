@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { formatDisplayNumber } from "@/lib/display-format";
 import { compareMvpRankingPlayers } from "@/lib/ranking-sort";
 import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { CurrentSeasonOverview, Player } from "@/lib/types";
@@ -89,7 +90,7 @@ export default function MvpRankingPageClient({
                       <td className="text-text-muted">{player.teamName ?? "-"}</td>
                       <td className="font-mono-stat">{player.mvpCount}</td>
                       <td className="font-mono-stat">{player.kills}</td>
-                      <td className="font-mono-stat text-text-muted">{player.damage.toLocaleString()}</td>
+                      <td className="font-mono-stat text-text-muted">{formatDisplayNumber(player.damage)}</td>
                       <td className="font-mono-stat text-text-muted">{player.assists ?? 0}</td>
                       <td className="font-mono-stat text-text-muted">{player.matches}</td>
                     </tr>

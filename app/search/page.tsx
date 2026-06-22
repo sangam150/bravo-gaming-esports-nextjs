@@ -77,7 +77,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
           <section className="mt-8 esports-card p-8 text-center">
             <h2 className="text-2xl font-black text-white">No results found</h2>
             <p className="mt-3 text-sm text-text-muted">
-              Try a team name, player tag, event title, sponsor name, or a shorter search phrase.
+              No results found. Try adjusting your search or browse available categories.
             </p>
           </section>
         ) : (

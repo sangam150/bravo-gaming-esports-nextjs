@@ -36,7 +36,7 @@ export default async function LiveStreamPage() {
               />
             ) : (
               <div className="flex aspect-video items-center justify-center p-8 text-center text-sm text-text-muted">
-                The broadcast player will appear here after the next stream entry is published from admin.
+                No featured broadcast is currently scheduled. Please check back later for upcoming live streams and featured broadcasts.
               </div>
             )}
           </div>
@@ -75,7 +75,7 @@ export default async function LiveStreamPage() {
               ))}
             </div>
           ) : (
-            <p className="mt-4 text-sm text-text-muted">Upcoming streams will appear here once the next schedule is published.</p>
+            <p className="mt-4 text-sm text-text-muted">No featured broadcast is currently scheduled. Please check back later for upcoming live streams and featured broadcasts.</p>
           )}
         </aside>
       </div>
@@ -100,7 +100,7 @@ export default async function LiveStreamPage() {
             ))}
           </div>
         ) : (
-          <div className="esports-card p-6 text-sm text-text-muted">Published videos will appear here once the media team adds them.</div>
+          <div className="esports-card p-6 text-sm text-text-muted">No videos are currently available. Check back later for new content and broadcasts.</div>
         )}
       </section>
     </main>

@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
+import { getUserFacingTeamLabel } from "@/lib/user-facing-errors";
 import type { Tables } from "@/types/database.types";
 
 type RosterRequestRow = Pick<
@@ -100,7 +101,7 @@ export async function GET(request: Request) {
     rosterRequests: ((rosterRequestsResponse.data ?? []) as RosterRequestRow[]).map((requestRow) => ({
       id: requestRow.id,
       teamId: requestRow.team_id,
-      teamName: teamNameById.get(requestRow.team_id) ?? "Unknown Team",
+      teamName: getUserFacingTeamLabel(teamNameById.get(requestRow.team_id)),
       requestedByName: requestRow.requested_by ? profileById.get(requestRow.requested_by)?.name ?? null : null,
       requestedByEmail: requestRow.requested_by ? profileById.get(requestRow.requested_by)?.email ?? null : null,
       requestType: requestRow.request_type,
@@ -118,7 +119,7 @@ export async function GET(request: Request) {
       eventName: submissionRow.event_id ? eventNameById.get(submissionRow.event_id) ?? null : null,
       matchId: submissionRow.match_id,
       teamId: submissionRow.team_id,
-      teamName: teamNameById.get(submissionRow.team_id) ?? "Unknown Team",
+      teamName: getUserFacingTeamLabel(teamNameById.get(submissionRow.team_id)),
       playerId: submissionRow.player_id,
       playerName: submissionRow.player_id ? playerNameById.get(submissionRow.player_id) ?? null : null,
       fileUrl: submissionRow.file_url,

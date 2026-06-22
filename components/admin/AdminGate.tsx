@@ -1,17 +1,24 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useAdminAuth } from "./AuthProvider";
 import AdminLogin from "./AdminLogin";
 
 export default function AdminGate({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { user, isAdmin, loading } = useAdminAuth();
+  const isLoginRoute = pathname === "/admin/login";
 
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-sm text-text-muted">
-        Verifying admin session...
+        Preparing admin dashboard...
       </div>
     );
+  }
+
+  if (isLoginRoute) {
+    return <>{children}</>;
   }
 
   if (!user) {
@@ -24,7 +31,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
         <div className="esports-card max-w-md p-8 text-center">
           <h1 className="font-display text-2xl font-black uppercase text-white">Admin Access Required</h1>
           <p className="mt-3 text-sm text-text-muted">
-            This account is signed in, but it does not have an admin role in Supabase.
+            You do not have permission to access this page.
           </p>
         </div>
       </div>

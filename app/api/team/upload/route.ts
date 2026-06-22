@@ -4,6 +4,10 @@ import { logServerError } from "@/lib/server-monitoring";
 import { buildStoragePath, deleteFromStorageByUrl, uploadToStorage } from "@/lib/supabase-storage";
 import { createUploadRecord } from "@/lib/upload-records";
 import { normalizeUploadType, resolveUploadContentType, validateUpload } from "@/lib/upload-config";
+import {
+  jsonErrorResponse,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 
 export const runtime = "nodejs";
 
@@ -15,11 +19,12 @@ export async function POST(request: Request) {
 
   const auth = await requireAuthenticatedUser(request);
   if (auth.response || !auth.session) {
-    return auth.response ?? Response.json({ error: "Unauthorized. Login required." }, { status: 401 });
+    return auth.response ??
+      Response.json({ error: USER_FACING_ERROR_MESSAGES.session }, { status: 401 });
   }
 
-  if (!(auth.session.isAdmin || auth.session.role === "team_igl")) {
-    return Response.json({ error: "Only admins and team IGL users can upload team assets." }, { status: 403 });
+  if (!(auth.session.isAdmin || auth.session.role === "team_igl" || auth.session.role === "team_manager")) {
+    return Response.json({ error: USER_FACING_ERROR_MESSAGES.permission }, { status: 403 });
   }
 
   if (!auth.session.teamId) {
@@ -33,7 +38,7 @@ export async function POST(request: Request) {
     const previousUrl = (formData.get("previousUrl") as string | null) ?? undefined;
 
     if (!file || !type) {
-      return Response.json({ error: "file and type are required" }, { status: 400 });
+      return Response.json({ error: "Please choose a file and upload type before continuing." }, { status: 400 });
     }
 
     if (!TEAM_UPLOAD_TYPES.has(type)) {
@@ -75,7 +80,9 @@ export async function POST(request: Request) {
     return Response.json({ success: true, url, path, id: record.id });
   } catch (error: unknown) {
     await logServerError("team.upload", error, request);
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return jsonErrorResponse(error, {
+      status: 500,
+      fallback: "We couldn't upload that team file right now. Please try again shortly.",
+    });
   }
 }

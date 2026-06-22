@@ -3,7 +3,7 @@ import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import type { Tables } from "@/types/database.types";
 
 const ADMIN_ROLES = new Set(["super_admin", "admin", "moderator"]);
-const PLATFORM_ROLES = new Set(["super_admin", "admin", "moderator", "team_igl", "caster", "viewer"]);
+const PLATFORM_ROLES = new Set(["super_admin", "admin", "moderator", "team_manager", "team_igl", "player", "caster", "viewer"]);
 
 export const SESSION_COOKIE = "bravo_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 5; // 5 days

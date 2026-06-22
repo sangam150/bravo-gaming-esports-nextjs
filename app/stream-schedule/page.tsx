@@ -59,7 +59,7 @@ export default async function StreamSchedulePage() {
               </div>
             ) : (
               <p className="mt-4 text-sm text-text-muted">
-                Stream schedule entries will appear here once they are published from admin.
+                No featured broadcast is currently scheduled. Please check back later for upcoming live streams and featured broadcasts.
               </p>
             )}
           </div>

@@ -1,9 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { formatDisplayNumber } from "@/lib/display-format";
 import { compareMatchPlayerResults, compareMatchTeamResults } from "@/lib/ranking-sort";
 import { useRealtimeMatchResult } from "@/lib/realtime-hooks";
 import type { MatchPlayerResult, TournamentMatch } from "@/lib/types";
+
+function readText(value?: string | null, fallback = "TBD") {
+  const normalizedValue = value?.trim();
+  return normalizedValue ? normalizedValue : fallback;
+}
+
+function readNumber(value?: number | null, fallback = 0) {
+  return Number.isFinite(value) ? Number(value) : fallback;
+}
 
 function formatPlayedAt(value?: string) {
   if (!value) return "Time unavailable";
@@ -26,13 +36,36 @@ function formatSurvivalTime(totalSeconds?: number) {
 }
 
 function sortTeamResults(match: TournamentMatch) {
-  return [...(match.teamResults ?? [])].sort(
-    (firstResult, secondResult) => compareMatchTeamResults(firstResult, secondResult)
-  );
+  return [...(match.teamResults ?? [])]
+    .map((teamResult) => ({
+      ...teamResult,
+      teamName: readText(teamResult.teamName),
+      placement: readNumber(teamResult.placement),
+      kills: readNumber(teamResult.kills),
+      placementPoints: readNumber(teamResult.placementPoints),
+      totalPoints: readNumber(teamResult.totalPoints),
+    }))
+    .sort((firstResult, secondResult) => compareMatchTeamResults(firstResult, secondResult));
+}
+
+function sortPlayerResults(match: TournamentMatch) {
+  return [...(match.playerResults ?? [])]
+    .map((playerResult) => ({
+      ...playerResult,
+      playerName: readText(playerResult.playerName),
+      teamName: readText(playerResult.teamName),
+      kills: readNumber(playerResult.kills),
+      assists: readNumber(playerResult.assists),
+      knocks: readNumber(playerResult.knocks),
+      damage: readNumber(playerResult.damage),
+      survivalTime: readNumber(playerResult.survivalTime),
+      totalPoints: readNumber(playerResult.totalPoints),
+    }))
+    .sort((firstPlayer, secondPlayer) => compareMatchPlayerResults(firstPlayer, secondPlayer));
 }
 
 function getMvp(match: TournamentMatch): MatchPlayerResult | null {
-  const playerResults = [...(match.playerResults ?? [])];
+  const playerResults = sortPlayerResults(match);
   if (playerResults.length === 0) return null;
 
   return (
@@ -51,9 +84,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
   const { data: liveMatch } = useRealtimeMatchResult(initialMatch.id, initialMatch);
   const activeMatch = liveMatch ?? initialMatch;
   const sortedTeamResults = sortTeamResults(activeMatch);
-  const sortedPlayerResults = [...(activeMatch.playerResults ?? [])].sort((firstPlayer, secondPlayer) =>
-    compareMatchPlayerResults(firstPlayer, secondPlayer)
-  );
+  const sortedPlayerResults = sortPlayerResults(activeMatch);
   const mvp = getMvp(activeMatch);
   const matchAssets = Array.from(
     new Set(
@@ -70,11 +101,11 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="section-title">Match Result</p>
-              <h1 className="hero-h1 mt-2 !text-4xl">
-                Match {activeMatch.sequenceNumber ?? "-"} | {activeMatch.map}
+              <h1 className="hero-h1 mt-2 !text-3xl sm:!text-4xl">
+                Match {activeMatch.sequenceNumber ?? "-"} | {readText(activeMatch.map)}
               </h1>
               <p className="mt-4 text-sm text-text-muted">
-                PUBG Match ID: <span className="font-mono text-white">{activeMatch.pubgMatchId}</span>
+                PUBG Match ID: <span className="font-mono text-white">{readText(activeMatch.pubgMatchId)}</span>
               </p>
               <p className="mt-1 text-sm text-text-muted">Played: {formatPlayedAt(activeMatch.playedAt)}</p>
               {activeMatch.tournamentId && (
@@ -92,7 +123,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="esports-card p-5">
             <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Winner</p>
-            <p className="mt-3 text-lg font-black text-white">{activeMatch.winner}</p>
+            <p className="mt-3 text-lg font-black text-white">{readText(activeMatch.winner)}</p>
           </div>
           <div className="esports-card p-5">
             <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Teams</p>
@@ -104,7 +135,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
           </div>
           <div className="esports-card p-5">
             <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Lobby Kills</p>
-            <p className="mt-3 text-3xl font-black text-white">{activeMatch.knockouts}</p>
+            <p className="mt-3 text-3xl font-black text-white">{readNumber(activeMatch.knockouts)}</p>
           </div>
         </section>
 
@@ -151,32 +182,38 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
               <p className="section-heading !text-sm">Placement Table</p>
               <p className="mt-1 text-sm text-text-muted">Placement points, kills, and total points for every team.</p>
             </div>
-            <div className="table-scroll">
-              <table className="data-table min-w-full">
-                <thead>
-                  <tr>
-                    <th>Rank</th>
-                    <th>Slot</th>
-                    <th>Team</th>
-                    <th>Kills</th>
-                    <th>Placement Pts</th>
-                    <th>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedTeamResults.map((teamResult) => (
-                    <tr key={`${activeMatch.id}-${teamResult.teamName}`}>
-                      <td>#{teamResult.placement}</td>
-                      <td>{teamResult.slotNumber ? `#${teamResult.slotNumber}` : "-"}</td>
-                      <td className="font-semibold text-white">{teamResult.teamName}</td>
-                      <td>{teamResult.kills}</td>
-                      <td>{teamResult.placementPoints}</td>
-                      <td className="points-cell">{teamResult.totalPoints}</td>
+            {sortedTeamResults.length > 0 ? (
+              <div className="table-scroll">
+                <table className="data-table min-w-full">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Slot</th>
+                      <th>Team</th>
+                      <th>Kills</th>
+                      <th>Placement Pts</th>
+                      <th>Total</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {sortedTeamResults.map((teamResult, index) => (
+                      <tr key={`${activeMatch.id}-${teamResult.teamId ?? teamResult.teamName}-${index}`}>
+                        <td>#{teamResult.placement || index + 1}</td>
+                        <td>{teamResult.slotNumber ? `#${teamResult.slotNumber}` : "-"}</td>
+                        <td className="font-semibold text-white">{readText(teamResult.teamName)}</td>
+                        <td>{readNumber(teamResult.kills)}</td>
+                        <td>{readNumber(teamResult.placementPoints)}</td>
+                        <td className="points-cell">{readNumber(teamResult.totalPoints)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-8 text-center text-sm text-text-muted">
+                Results will appear after admin approval.
+              </div>
+            )}
           </div>
 
           <div className="esports-card p-6">
@@ -184,9 +221,9 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
             {mvp ? (
               <div className="mt-4 space-y-4">
                 <div>
-                  <p className="text-2xl font-black text-white">{mvp.playerName}</p>
+                  <p className="text-2xl font-black text-white">{readText(mvp.playerName)}</p>
                   <p className="mt-1 text-sm text-text-muted">
-                    {mvp.teamName} {mvp.slotNumber ? `| Slot ${mvp.slotNumber}` : ""}
+                    {readText(mvp.teamName)} {mvp.slotNumber ? `| Slot ${mvp.slotNumber}` : ""}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -200,7 +237,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                   </div>
                   <div className="rounded-card border border-white/10 bg-bg-primary p-3">
                     <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Damage</p>
-                    <p className="mt-2 font-mono-stat text-white">{mvp.damage.toLocaleString()}</p>
+                    <p className="mt-2 font-mono-stat text-white">{formatDisplayNumber(mvp.damage)}</p>
                   </div>
                   <div className="rounded-card border border-white/10 bg-bg-primary p-3">
                     <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Survival</p>
@@ -239,14 +276,14 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                   {sortedPlayerResults.map((playerResult) => (
                     <tr key={`${activeMatch.id}-${playerResult.pubgPlayerId ?? playerResult.playerName}`}>
                       <td className="font-semibold text-white">{playerResult.playerName}</td>
-                      <td>{playerResult.teamName}</td>
+                      <td>{readText(playerResult.teamName)}</td>
                       <td>{playerResult.slotNumber ? `#${playerResult.slotNumber}` : "-"}</td>
-                      <td>{playerResult.kills}</td>
-                      <td>{playerResult.damage.toLocaleString()}</td>
-                      <td>{playerResult.assists}</td>
-                      <td>{playerResult.knocks}</td>
+                      <td>{readNumber(playerResult.kills)}</td>
+                      <td>{formatDisplayNumber(readNumber(playerResult.damage))}</td>
+                      <td>{readNumber(playerResult.assists)}</td>
+                      <td>{readNumber(playerResult.knocks)}</td>
                       <td>{formatSurvivalTime(playerResult.survivalTime)}</td>
-                      <td className="points-cell">{playerResult.totalPoints}</td>
+                      <td className="points-cell">{readNumber(playerResult.totalPoints)}</td>
                     </tr>
                   ))}
                 </tbody>

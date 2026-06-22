@@ -112,7 +112,7 @@ export default async function CommunityPage() {
                 </Link>
               ))}
               {announcements.length === 0 ? (
-                <EmptyState title="No announcements yet" description="Platform announcements will appear here once the editorial lane is publishing." />
+                <EmptyState title="No announcements yet" description="No articles have been published yet. Stay tuned for upcoming announcements and updates." />
               ) : null}
             </div>
           </div>

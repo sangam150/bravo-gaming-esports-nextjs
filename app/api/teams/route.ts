@@ -2,6 +2,7 @@ import { getTeams, saveTeam } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { revalidateTeamPaths } from "@/lib/revalidate-public";
+import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
 export async function GET() {
   const data = await getTeams();
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     if (!body.name) {
-      return Response.json({ error: "name is required" }, { status: 400 });
+      return Response.json({ error: "Please provide a team name before saving." }, { status: 400 });
     }
     const result = await saveTeam(body, body.id);
     await writeAuditLogFromRequest(request, {
@@ -26,7 +27,6 @@ export async function POST(request: Request) {
     revalidateTeamPaths(result.slug ?? result.id);
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return jsonErrorResponse(error, { status: 500, fallback: USER_FACING_ERROR_MESSAGES.admin });
   }
 }

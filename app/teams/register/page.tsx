@@ -1,8 +1,13 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
+import {
+  getResponseErrorMessage,
+  toUserFacingErrorMessage,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 
 function RegisterForm() {
   const searchParams = useSearchParams();
@@ -16,12 +21,12 @@ function RegisterForm() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/registrations", {
+      const response = await fetch("/api/registrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -32,11 +37,21 @@ function RegisterForm() {
           tournamentId: tournamentId || undefined,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Registration failed");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          getResponseErrorMessage(response, (data as { error?: string }).error, {
+            fallback: USER_FACING_ERROR_MESSAGES.registration,
+          })
+        );
+      }
       setSuccess(true);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+    } catch (submissionError: unknown) {
+      setError(
+        toUserFacingErrorMessage(submissionError, {
+          fallback: USER_FACING_ERROR_MESSAGES.registration,
+        })
+      );
     } finally {
       setLoading(false);
     }
@@ -45,21 +60,33 @@ function RegisterForm() {
   if (success) {
     return (
       <div className="esports-card p-12 text-center">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-bravoGreen/30 bg-bravoGreen/15 text-sm font-black uppercase tracking-[0.2em] text-bravoGreen">
+          Sent
+        </div>
+        <div className="hidden" aria-hidden="true">
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-bravoGreen/15 text-4xl text-bravoGreen">✓</div>
-        <h2 className="mt-6 text-2xl font-black text-white">Registration Submitted!</h2>
-        <p className="mt-3 text-slate-400">Pending admin approval. We&apos;ll contact you on Discord.</p>
-        <Link href="/teams" className="btn-esports-primary mt-8 inline-flex">Back to Teams</Link>
+        </div>
+        <h2 className="mt-6 text-2xl font-black text-white">Registration submitted</h2>
+        <p className="mt-3 text-slate-400">
+          Your registration is pending review. We&apos;ll follow up through Discord once it has been approved.
+        </p>
+        <Link href="/teams" className="btn-esports-primary mt-8 inline-flex">
+          Back to Teams
+        </Link>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="esports-card space-y-6 p-8">
-      {tournamentId && (
+      {tournamentId ? (
         <div className="rounded-xl border border-bravoBlue/25 bg-bravoBlue/10 px-4 py-3 text-sm text-bravoBlue">
+          Tournament entry: <strong>{tournamentId}</strong>
+          <span className="hidden" aria-hidden="true">
           🏆 Registering for tournament <strong>{tournamentId}</strong>
+          </span>
         </div>
-      )}
+      ) : null}
       <div>
         <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Team Name *</label>
         <input className="input-esports" value={teamName} onChange={(e) => setTeamName(e.target.value)} required placeholder="Your team name" />
@@ -92,9 +119,13 @@ function RegisterForm() {
           ))}
         </div>
       </div>
-      {error && <p className="text-sm text-bravoRed">{error}</p>}
+      {error ? (
+        <div className="rounded-xl border border-bravoRed/25 bg-bravoRed/10 px-4 py-3 text-sm text-bravoRed">
+          {error}
+        </div>
+      ) : null}
       <button type="submit" disabled={loading} className="btn-esports-primary w-full sm:w-auto">
-        {loading ? "Submitting..." : "Submit Registration"}
+        {loading ? "Submitting your registration..." : "Submit Registration"}
       </button>
     </form>
   );
@@ -106,9 +137,11 @@ export default function TeamRegisterPage() {
       <div className="mb-8">
         <p className="section-title">Team Registration</p>
         <h1 className="section-heading mt-3">Register Your Squad</h1>
-        <p className="mt-3 text-slate-400">Join Bravo Gaming tournaments and daily scrims.</p>
+        <p className="mt-3 text-slate-400">
+          Join Bravo Gaming tournaments and daily scrims with a registration flow that stays simple and review-ready.
+        </p>
       </div>
-      <Suspense fallback={<div className="esports-card p-8 text-slate-500">Loading...</div>}>
+      <Suspense fallback={<div className="esports-card p-8 text-slate-500">Preparing registration form...</div>}>
         <RegisterForm />
       </Suspense>
     </main>

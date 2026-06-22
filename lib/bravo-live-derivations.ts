@@ -79,6 +79,37 @@ function sortTeams(firstTeam: Team, secondTeam: Team) {
   return compareBravoTeamSlotOrder(firstTeam, secondTeam);
 }
 
+function hasTrackedTeamActivity(team: Team) {
+  return (
+    (team.matches ?? 0) > 0 ||
+    (team.totalPoints ?? 0) > 0 ||
+    (team.kills ?? 0) > 0 ||
+    (team.killPoints ?? 0) > 0 ||
+    (team.placementPoints ?? 0) > 0 ||
+    (team.chickenDinners ?? 0) > 0 ||
+    (team.seasonDayNumbers?.length ?? 0) > 0
+  );
+}
+
+function hasManagedTeamProfile(team: Team) {
+  return Boolean(
+    (team.playerIds?.length ?? 0) > 0 ||
+    team.logoUrl?.trim() ||
+    team.logo?.trim() ||
+    team.country?.trim() ||
+    team.captainName?.trim() ||
+    team.captainDiscord?.trim() ||
+    team.captainEmail?.trim() ||
+    team.captainPhone?.trim()
+  );
+}
+
+function isPubliclyVisibleSeasonTeam(team: Team) {
+  if (team.scope === "tournament") return false;
+  if ((team.sourceProvider ?? "").trim() !== "season_bootstrap") return true;
+  return hasTrackedTeamActivity(team) || hasManagedTeamProfile(team);
+}
+
 function normalizeTeam(team: Team): Team {
   const resolvedTeam = resolveBravoTeamIdentity(team.name ?? team.id ?? team.sourceTeamName);
   const inferredSlotNumber =
@@ -167,6 +198,7 @@ export function buildCurrentSeasonOverviewFromCollections(input: {
   const seasonTeams = input.teams
     .filter((team) => team.seasonId === currentSeason.id && team.scope === "season")
     .map(normalizeTeam)
+    .filter(isPubliclyVisibleSeasonTeam)
     .sort(sortTeams);
 
   const seasonPlayers = input.players

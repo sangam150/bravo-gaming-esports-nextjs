@@ -92,7 +92,7 @@ body::before {
   }
 
   .hero-h1 {
-    @apply font-display text-[40px] font-black uppercase leading-[0.95] tracking-tight text-white sm:text-[52px] lg:text-[56px];
+    @apply font-display text-[34px] font-black uppercase leading-[0.95] tracking-tight text-white sm:text-[46px] lg:text-[56px];
   }
 
   .tagline-italic {

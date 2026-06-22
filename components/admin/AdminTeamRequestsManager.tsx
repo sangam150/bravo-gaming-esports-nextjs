@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/lib/admin-api";
+import { formatDisplayDateTime } from "@/lib/display-format";
+import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
 type AdminRosterRequest = {
   id: string;
@@ -46,9 +48,7 @@ const textareaClass =
 
 function formatTimestamp(value: string | null) {
   if (!value) return "Pending";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+  return formatDisplayDateTime(value, "Pending");
 }
 
 function getStatusClasses(status: string) {
@@ -90,7 +90,7 @@ export default function AdminTeamRequestsManager() {
       const response = await adminFetch("/api/admin/team-requests");
       setData(response.data ?? { rosterRequests: [], mossSubmissions: [] });
     } catch (loadError: unknown) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load team requests");
+      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setLoading(false);
     }
@@ -124,7 +124,7 @@ export default function AdminTeamRequestsManager() {
       setMessage("Team request updated");
       await loadData();
     } catch (saveError: unknown) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to update team request");
+      setError(toUserFacingErrorMessage(saveError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setSavingKey(null);
     }

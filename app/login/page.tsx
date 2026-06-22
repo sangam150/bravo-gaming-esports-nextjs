@@ -4,7 +4,7 @@ import LoginHubClient from "@/components/auth/LoginHubClient";
 
 export const metadata: Metadata = {
   title: "Login",
-  description: "Role-aware Bravo Gaming Esports login hub for future Discord, Google, email, and dashboard access.",
+  description: "Bravo Gaming Esports Supabase login hub for admin, team, and player access.",
 };
 
 export const revalidate = 300;

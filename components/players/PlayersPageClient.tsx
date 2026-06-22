@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import SearchInput from "@/components/ui/SearchInput";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { formatDisplayNumber } from "@/lib/display-format";
 import { comparePlayerLeaderboardPerformance } from "@/lib/ranking-sort";
 import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { Player } from "@/lib/types";
@@ -106,7 +107,7 @@ export default function PlayersPageClient({ initialPlayers }: { initialPlayers: 
                       </td>
                       <td className="text-text-muted uppercase">{player.teamName ?? "-"}</td>
                       <td className="font-mono-stat">{player.kills}</td>
-                      <td className="font-mono-stat text-text-muted">{player.damage.toLocaleString()}</td>
+                      <td className="font-mono-stat text-text-muted">{formatDisplayNumber(player.damage)}</td>
                       <td className="font-mono-stat">{player.mvpCount}</td>
                       <td className="font-mono-stat text-accent-green">
                         {typeof player.winRate === "number" ? `${Math.round(player.winRate * 100)}%` : "-"}

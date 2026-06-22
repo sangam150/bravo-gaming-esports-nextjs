@@ -6,6 +6,10 @@ import {
 } from "@/lib/supabase-auth-server";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
+import {
+  jsonErrorResponse,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 
 export async function POST(request: Request) {
   const limited = enforceRateLimit(request, { key: "auth-session", maxRequests: 10, windowMs: 60_000 });
@@ -21,7 +25,10 @@ export async function POST(request: Request) {
           : "";
 
     if (!accessToken) {
-      return Response.json({ error: "accessToken is required" }, { status: 400 });
+      return Response.json(
+        { error: "A valid sign-in session is required before access can be granted." },
+        { status: 400 }
+      );
     }
     const decoded = await verifyAccessToken(accessToken);
     const sessionCookie = await createSessionCookie(accessToken, SESSION_MAX_AGE * 1000);
@@ -45,8 +52,10 @@ export async function POST(request: Request) {
     return response;
   } catch (error: unknown) {
     await logServerError("auth.session.create", error, request);
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 401 });
+    return jsonErrorResponse(error, {
+      status: 401,
+      fallback: USER_FACING_ERROR_MESSAGES.session,
+    });
   }
 }
 

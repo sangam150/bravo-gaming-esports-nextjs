@@ -8,9 +8,29 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+async function resolveTeam(teamId: string) {
+  try {
+    return await getPubgTeamById(teamId);
+  } catch {
+    return null;
+  }
+}
+
+async function resolveTeamDataset(teamId: string) {
+  try {
+    const dataset = await getPubgHubDataset();
+    const normalizedTeamId = teamId.trim().toLowerCase();
+    const team =
+      dataset.teams.find((item) => item.id === teamId || item.slug.toLowerCase() === normalizedTeamId) ?? null;
+    return { dataset, team };
+  } catch {
+    return { dataset: null, team: null };
+  }
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { teamId } = await params;
-  const team = await getPubgTeamById(teamId);
+  const team = await resolveTeam(teamId);
 
   if (!team) {
     return { title: "PUBG Team Not Found" };
@@ -25,11 +45,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export const revalidate = 300;
 
 export default async function PubgTeamDetailRoute({ params, searchParams }: PageProps) {
-  const [{ teamId }, resolvedSearchParams, dataset] = await Promise.all([params, searchParams, getPubgHubDataset()]);
-  const normalizedTeamId = teamId.trim().toLowerCase();
-  const team = dataset.teams.find((item) => item.id === teamId || item.slug.toLowerCase() === normalizedTeamId) ?? null;
+  const [{ teamId }, resolvedSearchParams] = await Promise.all([params, searchParams]);
+  const { dataset, team } = await resolveTeamDataset(teamId);
 
-  if (!team) {
+  if (!dataset || !team) {
     notFound();
   }
 

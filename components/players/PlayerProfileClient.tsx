@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatDisplayNumber } from "@/lib/display-format";
 import { buildPlayerPreferredTeam, buildPlayerTeamHistory, sortMatchPlayersByPlayedAtDesc } from "@/lib/profile-derivations";
 import { useRealtimeMatchPlayersBySourcePlayerId, useRealtimePlayer, useRealtimeTeam } from "@/lib/realtime-hooks";
 import type { MatchPlayerRecord, Player, Team } from "@/lib/types";
@@ -39,7 +40,7 @@ export default function PlayerProfileClient({
 
   const stats = [
     { label: "Kills", value: activePlayer.kills, accent: "text-accent-red" },
-    { label: "Damage", value: activePlayer.damage.toLocaleString(), accent: "text-accent-blue" },
+    { label: "Damage", value: formatDisplayNumber(activePlayer.damage), accent: "text-accent-blue" },
     { label: "Assists", value: activePlayer.assists ?? 0, accent: "text-accent-green" },
     { label: "MVP Awards", value: activePlayer.mvpCount, accent: "text-amber-400" },
     { label: "Matches", value: activePlayer.matches, accent: "text-white" },
@@ -163,7 +164,7 @@ export default function PlayerProfileClient({
                         <td>{matchPlayer.map ?? "-"}</td>
                         <td>#{matchPlayer.placement}</td>
                         <td>{matchPlayer.kills}</td>
-                        <td>{matchPlayer.damage.toLocaleString()}</td>
+                        <td>{formatDisplayNumber(matchPlayer.damage)}</td>
                         <td>{matchPlayer.assists}</td>
                         <td className="points-cell">{matchPlayer.totalPoints}</td>
                         <td className="text-text-muted">{formatPlayedAt(matchPlayer.playedAt)}</td>

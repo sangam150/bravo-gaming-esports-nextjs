@@ -13,6 +13,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import { useAdminAuth } from "./AuthProvider";
 import { adminFetch } from "@/lib/admin-api";
 import type { AuditLogRecord } from "@/lib/audit-logs";
+import { formatAnnouncementDate, formatDisplayDate, formatDisplayDateTime } from "@/lib/display-format";
 import type {
   FooterLinkRecord,
   HomepageContentRecord,
@@ -94,9 +95,9 @@ const defaultHomepageForm: HomepageContentRecord = {
     {
       id: "hero-slide-1",
       badge: "Nepal's Premier Esports Platform",
-      title: "Daily scrims, major events, news, and rankings in one home",
+      title: "Published matches, rankings, news, and events in one home",
       description:
-        "Follow Bravo Gaming Daily PUBG PC Scrims, PUBG Mahasangram, M8, Team HAKU, N3P, FYB Esports, LTG, and the wider Nepal scene from one premium Bravo platform.",
+        "Bravo Gaming Esports brings together real match coverage, verified standings, news, and community updates for Nepal esports.",
       primaryLabel: "Watch Live",
       primaryHref: "/live-stream",
       secondaryLabel: "Explore Events",
@@ -107,22 +108,22 @@ const defaultHomepageForm: HomepageContentRecord = {
     {
       id: "hero-slide-2",
       badge: "Flagship PUBG Coverage",
-      title: "PUBG remains the flagship with real team and player coverage",
+      title: "PUBG PC remains the flagship competitive hub",
       description:
-        "Bravo's strongest section already tracks events, teams, players, results, leaderboards, compare tools, map splits, and real public data flow.",
+        "Published seasons, events, teams, players, matches, and standings will appear here automatically as results are approved.",
       primaryLabel: "Open PUBG",
       primaryHref: "/pubg",
       secondaryLabel: "Leaderboards",
       secondaryHref: "/pubg/leaderboards",
-      tertiaryLabel: "Compare",
-      tertiaryHref: "/compare",
+      tertiaryLabel: "Latest Results",
+      tertiaryHref: "/pubg/results",
     },
     {
       id: "hero-slide-3",
       badge: "Sponsors, Media, and Community",
-      title: "Hukut, Gorkhali Roleplay, highlights, and the Nepal community stay in view",
+      title: "Sponsors, media, and community stay connected",
       description:
-        "Sponsor campaigns, event posters, highlight drops, and community access live beside the competition data so the platform feels public-facing and broadcast-ready.",
+        "Sponsor profiles, media coverage, and community touchpoints are managed from the backend and only appear when published.",
       primaryLabel: "Browse Games",
       primaryHref: "/games",
       secondaryLabel: "Read News",
@@ -133,19 +134,19 @@ const defaultHomepageForm: HomepageContentRecord = {
   ],
   breakingNewsSlug: "",
   featuredNewsSlugs: [],
-  featuredEventSlugs: ["daily-scrims-day-7", "pubg-mahasangram-2026", "daily-scrims-day-8", "monsoon-circuit-open"],
-  featuredSponsorSlugs: ["hukut", "gorkhali-roleplay"],
-  featuredMediaIds: ["media-poster-mahasangram", "media-clips-bravo-finish", "media-interview-expansion"],
-  featuredTeamIds: ["m8", "team-haku", "near-edge-protocol", "fyb-esports", "npl", "lang-tang-gang"],
-  featuredPlayerIds: ["m8-tommyvercettio-o", "team-haku-haku-yeti", "near-edge-protocol-n3p-vanta", "fyb-esports-fyb-slice", "npl-npl-saber"],
-  liveTitle: "Bravo Gaming Daily PUBG PC Scrims Live Feed",
-  liveSubtitle: "Watch published lobbies, featured events, and the current match-center pulse from Bravo Gaming Esports Nepal.",
+  featuredEventSlugs: [],
+  featuredSponsorSlugs: [],
+  featuredMediaIds: [],
+  featuredTeamIds: [],
+  featuredPlayerIds: [],
+  liveTitle: "Bravo Gaming Esports Live Feed",
+  liveSubtitle: "Published broadcasts and live coverage will appear here automatically once a stream is active.",
   liveViewers: "Broadcast scheduled",
   liveHref: "/live-stream",
   footerTitle: "Bravo Gaming Esports",
   footerTagline: "Nepal's Premier Esports Platform",
   footerDescription:
-    "Bravo Gaming Esports is building the public home of Nepal esports with flagship PUBG coverage, real match results, sponsor visibility, and community-first access.",
+    "Bravo Gaming Esports is building a clean, trustworthy home for Nepal esports with published match data, verified standings, and community-first coverage.",
   footerPrimaryLabel: "Watch Live",
   footerPrimaryHref: "/live-stream",
   footerSecondaryLabel: "Join Discord",
@@ -981,7 +982,7 @@ export default function AdminDashboard({
         method: "POST",
         body: JSON.stringify({
           ...announcementForm,
-          date: announcementForm.date ?? new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase(),
+          date: announcementForm.date ?? formatAnnouncementDate(),
         }),
       });
       setMessage("Announcement published");
@@ -1169,7 +1170,7 @@ export default function AdminDashboard({
                           <td className="text-accent-blue">{m.map}</td>
                           <td className="font-semibold">{m.winner}</td>
                           <td>{m.knockouts}</td>
-                          <td className="text-text-muted">{m.syncedAt ? new Date(m.syncedAt).toLocaleString() : "-"}</td>
+                          <td className="text-text-muted">{m.syncedAt ? formatDisplayDateTime(m.syncedAt) : "-"}</td>
                           <td className="text-accent-green">{m.dataSource}</td>
                         </tr>
                       ))}
@@ -1202,7 +1203,7 @@ export default function AdminDashboard({
                     {(stats.recentUploads ?? recentUploads).map((u) => (
                       <li key={u.id} className="flex justify-between border-b border-white/5 py-2">
                         <span className="text-white">{u.type.replace(/_/g, " ")}</span>
-                        <span className="text-text-muted">{new Date(u.uploadedAt).toLocaleDateString()}</span>
+                        <span className="text-text-muted">{formatDisplayDate(u.uploadedAt)}</span>
                       </li>
                     ))}
                   </ul>
@@ -1220,7 +1221,7 @@ export default function AdminDashboard({
                           {log.actorName ?? log.actorEmail ?? "Admin"} | {log.action.replace(/_/g, " ")} {log.entity_type}
                         </p>
                         <p className="text-xs text-text-muted">
-                          {new Date(log.created_at).toLocaleString()} {log.entity_id ? `| ${log.entity_id}` : ""}
+                          {formatDisplayDateTime(log.created_at)} {log.entity_id ? `| ${log.entity_id}` : ""}
                         </p>
                       </li>
                     ))}
@@ -1656,7 +1657,7 @@ export default function AdminDashboard({
                           {messageItem.subject || (messageItem.kind === "feedback" ? "Community feedback" : "Contact request")}
                         </p>
                         <p className="mt-1 text-sm text-text-muted">
-                          {messageItem.name} | {messageItem.email} | {new Date(messageItem.createdAt).toLocaleString()}
+                          {messageItem.name} | {messageItem.email} | {formatDisplayDateTime(messageItem.createdAt)}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -2485,9 +2486,9 @@ export default function AdminDashboard({
                         <p className="mt-1 text-sm text-text-muted">
                           {batch.previews?.length ?? 0} match{(batch.previews?.length ?? 0) === 1 ? "" : "es"} |{" "}
                           {batch.approvedAt
-                            ? `Published ${new Date(batch.approvedAt).toLocaleString()}`
+                            ? `Published ${formatDisplayDateTime(batch.approvedAt)}`
                             : batch.rejectedAt
-                            ? `Rejected ${new Date(batch.rejectedAt).toLocaleString()}`
+                            ? `Rejected ${formatDisplayDateTime(batch.rejectedAt)}`
                             : "Awaiting timestamp"}
                         </p>
                       </div>
@@ -2571,7 +2572,7 @@ export default function AdminDashboard({
                           <td className="font-semibold">{m.winner}</td>
                           <td className="points-cell">{m.points}</td>
                           <td>{m.knockouts}</td>
-                          <td className="text-text-muted">{m.syncedAt ? new Date(m.syncedAt).toLocaleString() : "-"}</td>
+                          <td className="text-text-muted">{m.syncedAt ? formatDisplayDateTime(m.syncedAt) : "-"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -2699,7 +2700,7 @@ export default function AdminDashboard({
                     <div key={log.id} className="rounded-card border border-white/10 bg-bg-primary p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-sm font-semibold text-white">{log.scope}</p>
-                        <p className="text-xs text-text-muted">{new Date(log.createdAt).toLocaleString()}</p>
+                        <p className="text-xs text-text-muted">{formatDisplayDateTime(log.createdAt)}</p>
                       </div>
                       <p className="mt-2 text-sm text-slate-300">{log.message}</p>
                       {log.pathname && (

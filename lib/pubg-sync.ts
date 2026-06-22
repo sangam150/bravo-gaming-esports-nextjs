@@ -1338,10 +1338,19 @@ export async function getLiveMatchResults(limit = 20) {
 }
 
 export async function getMatchResult(matchId: string) {
-  const match = await getDocument<TournamentMatch>(COLLECTIONS.matchResults, matchId);
-  if (!match) return null;
+  const normalizedMatchId = matchId?.trim();
+  if (!normalizedMatchId) {
+    return null;
+  }
 
-  const normalizedMatch = normalizeStoredMatchForDisplay(match);
-  return normalizedMatch.status === "draft" ? null : normalizedMatch;
+  try {
+    const match = await getDocument<TournamentMatch>(COLLECTIONS.matchResults, normalizedMatchId);
+    if (!match) return null;
+
+    const normalizedMatch = normalizeStoredMatchForDisplay(match);
+    return normalizedMatch.status === "draft" ? null : normalizedMatch;
+  } catch {
+    return null;
+  }
 }
 

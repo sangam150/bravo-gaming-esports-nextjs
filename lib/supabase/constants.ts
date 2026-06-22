@@ -48,7 +48,9 @@ export const SUPABASE_ROLES = [
   "super_admin",
   "admin",
   "moderator",
+  "team_manager",
   "team_igl",
+  "player",
   "caster",
   "viewer",
 ] as const;

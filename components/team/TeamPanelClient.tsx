@@ -4,8 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { formatDisplayDateTime } from "@/lib/display-format";
 import type { AuthenticatedUserProfile, TeamWorkspaceData } from "@/lib/types";
 import { MOSS_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
+import {
+  getResponseErrorMessage,
+  toUserFacingErrorMessage,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 import BravoLogo from "@/components/ui/BravoLogo";
 
 type TeamUploadType = "team_logo" | "moss_file";
@@ -43,9 +49,17 @@ const defaultMossForm: MossFormState = {
 async function readJsonResponse<T>(response: Response) {
   const data = (await response.json().catch(() => ({}))) as T & { error?: string };
   if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+    throw new Error(
+      getResponseErrorMessage(response, data.error, {
+        fallback: USER_FACING_ERROR_MESSAGES.teamWorkspace,
+      })
+    );
   }
   return data;
+}
+
+function hasTeamWorkspaceAccess(role?: string | null, isAdmin?: boolean) {
+  return Boolean(isAdmin || role === "team_igl" || role === "team_manager");
 }
 
 export default function TeamPanelClient() {
@@ -69,7 +83,6 @@ export default function TeamPanelClient() {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const supabase = useMemo(() => (configured ? getSupabaseBrowserClient() : null), [configured]);
-
   async function getAccessToken() {
     if (!supabase) return null;
     const {
@@ -147,14 +160,18 @@ export default function TeamPanelClient() {
       } = await supabase.auth.getSession();
       const nextProfile = await syncSession(session);
 
-      if (nextProfile && (nextProfile.isAdmin || nextProfile.role === "team_igl")) {
+      if (nextProfile && hasTeamWorkspaceAccess(nextProfile.role, nextProfile.isAdmin)) {
         await loadWorkspace();
       } else if (nextProfile) {
         setWorkspace(null);
-        setAuthError("This account is signed in, but it does not have a team IGL role.");
+        setAuthError("This account is signed in, but it does not have team workspace access.");
       }
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : "Unable to verify the current session.");
+      setAuthError(
+        toUserFacingErrorMessage(error, {
+          fallback: USER_FACING_ERROR_MESSAGES.teamWorkspace,
+        })
+      );
     } finally {
       setLoading(false);
     }
@@ -177,7 +194,7 @@ export default function TeamPanelClient() {
 
         try {
           const nextProfile = await syncSession(session);
-          if (nextProfile && (nextProfile.isAdmin || nextProfile.role === "team_igl")) {
+          if (nextProfile && hasTeamWorkspaceAccess(nextProfile.role, nextProfile.isAdmin)) {
             await loadWorkspace();
           } else if (!nextProfile) {
             setWorkspace(null);
@@ -186,7 +203,11 @@ export default function TeamPanelClient() {
             setAuthError("This account does not have access to the team workspace.");
           }
         } catch (error: unknown) {
-          setAuthError(error instanceof Error ? error.message : "Unable to refresh the team workspace session.");
+          setAuthError(
+            toUserFacingErrorMessage(error, {
+              fallback: USER_FACING_ERROR_MESSAGES.teamWorkspace,
+            })
+          );
         } finally {
           setLoading(false);
         }
@@ -217,16 +238,20 @@ export default function TeamPanelClient() {
       }
 
       const nextProfile = await syncSession(data.session);
-      if (!nextProfile || !(nextProfile.isAdmin || nextProfile.role === "team_igl")) {
+      if (!nextProfile || !hasTeamWorkspaceAccess(nextProfile.role, nextProfile.isAdmin)) {
         await supabase.auth.signOut();
-        throw new Error("This account does not have a team IGL role.");
+        throw new Error("This account does not have team workspace access.");
       }
 
       await loadWorkspace();
       setEmail("");
       setPassword("");
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : "Login failed");
+      setAuthError(
+        toUserFacingErrorMessage(error, {
+          fallback: USER_FACING_ERROR_MESSAGES.login,
+        })
+      );
     } finally {
       setAuthLoading(false);
     }
@@ -293,7 +318,11 @@ export default function TeamPanelClient() {
       await loadWorkspace();
       setNotice("Logo update request submitted for admin approval.");
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : "Logo upload failed.");
+      setAuthError(
+        toUserFacingErrorMessage(error, {
+          fallback: "We couldn't upload the team logo right now. Please try again shortly.",
+        })
+      );
     } finally {
       setLogoUploading(false);
     }
@@ -322,7 +351,11 @@ export default function TeamPanelClient() {
       await loadWorkspace();
       setNotice("Roster request submitted for admin review.");
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : "Unable to submit the roster request.");
+      setAuthError(
+        toUserFacingErrorMessage(error, {
+          fallback: "We couldn't submit that roster request right now. Please try again shortly.",
+        })
+      );
     } finally {
       setRequestSubmitting(false);
     }
@@ -359,7 +392,11 @@ export default function TeamPanelClient() {
       await loadWorkspace();
       setNotice("MOSS submission sent to admins.");
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : "Unable to submit MOSS.");
+      setAuthError(
+        toUserFacingErrorMessage(error, {
+          fallback: "We couldn't submit that MOSS report right now. Please try again shortly.",
+        })
+      );
     } finally {
       setMossUploading(false);
       setMossSubmitting(false);
@@ -373,10 +410,9 @@ export default function TeamPanelClient() {
           <div className="mx-auto w-fit">
             <BravoLogo size={64} />
           </div>
-          <h1 className="mt-5 font-display text-3xl font-black uppercase text-white">Team IGL Panel</h1>
+          <h1 className="mt-5 font-display text-3xl font-black uppercase text-white">Team Workspace</h1>
           <p className="mt-3 text-sm text-text-muted">
-            Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`), and `SUPABASE_SERVICE_ROLE_KEY`
-            to enable team logins and approvals.
+            Team sign-in is temporarily unavailable until Supabase authentication is fully connected.
           </p>
         </div>
       </div>
@@ -386,18 +422,18 @@ export default function TeamPanelClient() {
   if (loading) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-4 py-12 text-sm text-text-muted">
-        Verifying team workspace session...
+        Preparing team workspace...
       </div>
     );
   }
 
-  if (!profile || !(profile.isAdmin || profile.role === "team_igl")) {
+  if (!profile || !hasTeamWorkspaceAccess(profile.role, profile.isAdmin)) {
     return (
       <div className="mx-auto grid min-h-[70vh] max-w-6xl gap-8 px-4 py-10 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(0,163,255,0.18),transparent_50%),rgba(9,12,18,0.95)] p-8 shadow-2xl shadow-black/30">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-blue">Bravo Gaming Esports Nepal</p>
           <h1 className="mt-4 font-display text-4xl font-black uppercase leading-none text-white sm:text-5xl">
-            Team IGL Workspace
+            Team Workspace
           </h1>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300">
             Manage roster requests, update team branding, review schedules, and track published match results from one
@@ -423,9 +459,9 @@ export default function TeamPanelClient() {
               <BravoLogo size={56} />
             </div>
             <p className="section-title mt-4">Team Access</p>
-            <h2 className="mt-2 font-display text-3xl font-black uppercase text-white">IGL Login</h2>
+            <h2 className="mt-2 font-display text-3xl font-black uppercase text-white">Team Login</h2>
             <p className="mt-2 text-sm text-text-muted">
-              Sign in with your Supabase team account. Admins can also use this panel for testing.
+              Sign in with your Supabase team manager or team IGL account. Admins can also use this panel for testing.
             </p>
           </div>
 
@@ -455,7 +491,7 @@ export default function TeamPanelClient() {
               required
             />
             <button type="submit" disabled={authLoading} className="btn-primary w-full justify-center disabled:opacity-60">
-              {authLoading ? "Signing In..." : "Open Team Panel"}
+            {authLoading ? "Checking access..." : "Open Team Workspace"}
             </button>
           </div>
         </form>
@@ -467,7 +503,7 @@ export default function TeamPanelClient() {
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(0,163,255,0.16),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(255,106,0,0.16),transparent_35%),rgba(8,11,17,0.95)] p-6 shadow-2xl shadow-black/25">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-blue">Team IGL Workspace</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-blue">Team Workspace</p>
           <h1 className="mt-3 font-display text-3xl font-black uppercase text-white sm:text-4xl">
             {workspace?.team?.name ?? profile.displayName ?? profile.email}
           </h1>
@@ -631,7 +667,7 @@ export default function TeamPanelClient() {
             />
 
             <button type="submit" disabled={requestSubmitting} className="btn-primary w-full justify-center disabled:opacity-60">
-              {requestSubmitting ? "Submitting..." : "Submit Request"}
+              {requestSubmitting ? "Submitting roster request..." : "Submit Request"}
             </button>
           </form>
         </section>
@@ -689,7 +725,7 @@ export default function TeamPanelClient() {
                         {match.eventName ?? "Published Match"} {match.matchNumber ? `| Match ${match.matchNumber}` : ""}
                       </p>
                       <p className="mt-1 text-xs uppercase tracking-[0.14em] text-text-muted">
-                        {match.mapName ?? "Map Pending"} {match.startTime ? `| ${new Date(match.startTime).toLocaleString()}` : ""}
+                        {match.mapName ?? "Map Pending"} {match.startTime ? `| ${formatDisplayDateTime(match.startTime)}` : ""}
                       </p>
                     </div>
                     <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-text-muted">
@@ -782,7 +818,7 @@ export default function TeamPanelClient() {
             </label>
 
             <button type="submit" disabled={mossSubmitting} className="btn-primary w-full justify-center disabled:opacity-60">
-              {mossSubmitting ? (mossUploading ? "Uploading & Submitting..." : "Submitting...") : "Submit MOSS"}
+              {mossSubmitting ? (mossUploading ? "Uploading evidence..." : "Submitting evidence...") : "Submit MOSS"}
             </button>
           </form>
         </section>
@@ -794,7 +830,7 @@ export default function TeamPanelClient() {
           <div className="mt-5 space-y-3">
             {(workspace?.requests ?? []).length === 0 ? (
               <p className="rounded-3xl border border-white/10 bg-bg-primary/60 px-4 py-4 text-sm text-text-muted">
-                No roster requests yet.
+                No roster requests have been submitted yet.
               </p>
             ) : (
               workspace?.requests.map((request) => (
@@ -802,7 +838,7 @@ export default function TeamPanelClient() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold capitalize text-white">{request.requestType.replace(/_/g, " ")}</p>
-                      <p className="mt-1 text-xs text-text-muted">{new Date(request.createdAt).toLocaleString()}</p>
+                      <p className="mt-1 text-xs text-text-muted">{formatDisplayDateTime(request.createdAt)}</p>
                     </div>
                     <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-text-muted">
                       {request.status}

@@ -4,10 +4,11 @@ import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { isSupabaseServiceRoleConfigured } from "./supabase/env";
 import { placementPoints, totalPoints } from "./pubg";
 import { normalizeMapName } from "./tournament-standings";
+import { getUserFacingPlayerLabel, getUserFacingTeamLabel } from "./user-facing-errors";
 import type { Player, Scrim, Team, Tournament, TournamentMatch } from "./types";
 import type { Database } from "@/types/database.types";
 
-export type PubgHubSource = "supabase" | "launch_seed";
+export type PubgHubSource = "supabase" | "launch_seed" | "empty";
 export type PubgHubEventStatus = "upcoming" | "ongoing" | "finished";
 export type PubgHubEventState = "published" | "locked" | "draft";
 
@@ -1035,6 +1036,20 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
   };
 }
 
+function buildEmptyBaseDataset(): BaseDataset {
+  return {
+    source: "empty",
+    teams: [],
+    players: [],
+    rosterHistory: [],
+    events: [],
+    eventTeams: [],
+    matches: [],
+    teamResults: [],
+    playerResults: [],
+  };
+}
+
 async function fetchSupabaseRows<TableName extends keyof Database["public"]["Tables"]>(tableName: TableName) {
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client.from(tableName).select("*");
@@ -1559,7 +1574,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
 
           return {
             teamId: teamResult.teamId,
-            teamName: team?.name ?? "Unknown Team",
+            teamName: getUserFacingTeamLabel(team?.name),
             tag: team?.tag ?? null,
             slotNumber: team?.slotNumber ?? null,
             logoUrl: team?.logoUrl ?? null,
@@ -1582,9 +1597,9 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
 
           return {
             playerId: playerResult.playerId,
-            pubgName: player?.pubgName ?? "Unknown Player",
+            pubgName: getUserFacingPlayerLabel(player?.pubgName),
             teamId: playerResult.teamId,
-            teamName: team?.name ?? "Unknown Team",
+            teamName: getUserFacingTeamLabel(team?.name),
             avatarUrl: player?.avatarUrl ?? null,
             placement: placementByTeamId.get(playerResult.teamId) ?? 0,
             kills: playerResult.kills,
@@ -1897,7 +1912,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
     const currentHistory = teamPreviousRosterMap.get(historyRow.teamId) ?? [];
     currentHistory.push({
       playerId: historyRow.playerId,
-      pubgName: player?.pubgName ?? "Unknown Player",
+      pubgName: getUserFacingPlayerLabel(player?.pubgName),
       startDate: historyRow.startDate,
       endDate: historyRow.endDate ?? null,
       status: historyRow.status,
@@ -2348,7 +2363,7 @@ export const getPubgHubDataset = cache(async () => {
     }
   }
 
-  return buildDataset(buildFallbackSeedBaseDataset());
+  return buildDataset(buildEmptyBaseDataset());
 });
 
 export const getPubgDashboardData = cache(async () => {

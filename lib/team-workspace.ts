@@ -1,5 +1,6 @@
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { sanitizeJsonObject } from "./json-utils";
+import { getUserFacingPlayerLabel } from "./user-facing-errors";
 import type {
   AuthenticatedUserProfile,
   MossSubmission,
@@ -40,8 +41,8 @@ function buildProfile(session: VerifiedSession): AuthenticatedUserProfile {
 }
 
 function ensureTeamScopedSession(session: VerifiedSession) {
-  if (!(session.isAdmin || session.role === "team_igl")) {
-    throw new Error("Only admins and team IGL users can access the team workspace.");
+  if (!(session.isAdmin || session.role === "team_igl" || session.role === "team_manager")) {
+    throw new Error("Only admins and team managers can access the team workspace.");
   }
 
   if (!session.teamId) {
@@ -238,7 +239,7 @@ export async function getTeamWorkspace(session: VerifiedSession): Promise<TeamWo
       : null,
     roster: ((players ?? []) as PlayerRecord[]).map((player) => ({
       id: player.id,
-      pubgName: player.pubg_name ?? "Unknown Player",
+      pubgName: getUserFacingPlayerLabel(player.pubg_name),
       avatarUrl: player.avatar_url ?? player.photo_url ?? null,
       isActive: player.is_active ?? true,
     })),

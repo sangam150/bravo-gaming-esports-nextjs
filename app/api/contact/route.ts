@@ -1,4 +1,9 @@
 import { createContactMessage } from "@/lib/contact-messages";
+import { logServerError } from "@/lib/server-monitoring";
+import {
+  jsonErrorResponse,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +15,10 @@ export async function POST(request: Request) {
     const message = typeof body.message === "string" ? body.message.trim() : "";
 
     if (!name || !email || !message) {
-      return Response.json({ error: "name, email, and message are required" }, { status: 400 });
+      return Response.json(
+        { error: "Please provide your name, email address, and message before submitting." },
+        { status: 400 }
+      );
     }
 
     const result = await createContactMessage({
@@ -23,7 +31,10 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    await logServerError("contact.create", error, request);
+    return jsonErrorResponse(error, {
+      status: 500,
+      fallback: USER_FACING_ERROR_MESSAGES.contact,
+    });
   }
 }

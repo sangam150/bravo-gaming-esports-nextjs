@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import {
+  getResponseErrorMessage,
+  toUserFacingErrorMessage,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 
 type ContactFormClientProps = {
   kind: "contact" | "feedback";
@@ -49,7 +54,11 @@ export default function ContactFormClient({
 
       const data = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
-        throw new Error(data.error || "Unable to send your message.");
+        throw new Error(
+          getResponseErrorMessage(response, data.error, {
+            fallback: USER_FACING_ERROR_MESSAGES.contact,
+          })
+        );
       }
 
       setName("");
@@ -58,7 +67,11 @@ export default function ContactFormClient({
       setMessage("");
       setNotice(kind === "feedback" ? "Feedback sent to the Bravo admin inbox." : "Message sent to the Bravo admin inbox.");
     } catch (submissionError: unknown) {
-      setError(submissionError instanceof Error ? submissionError.message : "Unable to send your message.");
+      setError(
+        toUserFacingErrorMessage(submissionError, {
+          fallback: USER_FACING_ERROR_MESSAGES.contact,
+        })
+      );
     } finally {
       setSubmitting(false);
     }
@@ -88,7 +101,7 @@ export default function ContactFormClient({
       <input className={inputClass} value={subject} onChange={(event) => setSubject(event.target.value)} placeholder={subjectLabel} />
       <textarea className={inputClass} rows={5} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Message" required />
       <button type="submit" disabled={submitting} className="w-full rounded-full bg-bravoBlue px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white/90 disabled:opacity-60">
-        {submitting ? "Sending..." : submitLabel}
+        {submitting ? "Sending your message..." : submitLabel}
       </button>
     </form>
   );

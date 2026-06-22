@@ -5,6 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import {
+  getResponseErrorMessage,
+  toUserFacingErrorMessage,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 
 type SessionResponse = {
   user?: {
@@ -14,7 +19,46 @@ type SessionResponse = {
   error?: string;
 };
 
-export default function LoginHubClient() {
+type LoginVariant = "hub" | "team" | "player";
+
+type LoginHubClientProps = {
+  variant?: LoginVariant;
+};
+
+function hasTeamWorkspaceAccess(role?: string, isAdmin?: boolean) {
+  return Boolean(isAdmin || role === "team_igl" || role === "team_manager");
+}
+
+function getVariantContent(variant: LoginVariant) {
+  switch (variant) {
+    case "team":
+      return {
+        badge: "Team Login",
+        title: "Open the Bravo team workspace",
+        description:
+          "Use your Supabase team manager or team IGL account to manage roster requests, uploads, and team operations.",
+        buttonLabel: "Open Team Workspace",
+      };
+    case "player":
+      return {
+        badge: "Player Login",
+        title: "Open the Bravo player dashboard",
+        description:
+          "Use your Supabase player account to access your profile, stats, and player dashboard once your account is approved.",
+        buttonLabel: "Open Player Dashboard",
+      };
+    default:
+      return {
+        badge: "Platform Login",
+        title: "Sign in to the Bravo platform",
+        description:
+          "Use your Supabase account and Bravo will route you to the right workspace for admin, team, or player access.",
+        buttonLabel: "Sign In",
+      };
+  }
+}
+
+export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps) {
   const configured = isSupabaseConfigured();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,6 +66,7 @@ export default function LoginHubClient() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const content = getVariantContent(variant);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,21 +99,48 @@ export default function LoginHubClient() {
       const sessionData = (await sessionResponse.json().catch(() => ({}))) as SessionResponse;
 
       if (!sessionResponse.ok) {
-        throw new Error(sessionData.error || "Unable to start your session.");
+        throw new Error(
+          getResponseErrorMessage(sessionResponse, sessionData.error, {
+            fallback: USER_FACING_ERROR_MESSAGES.session,
+          })
+        );
+      }
+
+      const isTeamUser = hasTeamWorkspaceAccess(sessionData.user?.role, sessionData.user?.isAdmin);
+      const isPlayerUser = Boolean(sessionData.user?.isAdmin || sessionData.user?.role === "player");
+
+      if (variant === "team" && !isTeamUser) {
+        await fetch("/api/auth/session", { method: "DELETE", credentials: "include" }).catch(() => undefined);
+        await supabase.auth.signOut().catch(() => undefined);
+        throw new Error("This account does not have team workspace access.");
+      }
+
+      if (variant === "player" && !isPlayerUser) {
+        await fetch("/api/auth/session", { method: "DELETE", credentials: "include" }).catch(() => undefined);
+        await supabase.auth.signOut().catch(() => undefined);
+        throw new Error("This account does not have player dashboard access.");
       }
 
       const redirectTarget =
         searchParams.get("redirect") ||
-        (sessionData.user?.isAdmin
-          ? "/admin"
-          : sessionData.user?.role === "team_igl"
-            ? "/team"
-            : "/dashboard/player");
+        (variant === "team"
+          ? "/team"
+          : variant === "player"
+            ? "/dashboard/player"
+            : sessionData.user?.isAdmin
+              ? "/admin"
+              : isTeamUser
+                ? "/team"
+                : "/dashboard/player");
 
       router.push(redirectTarget);
       router.refresh();
     } catch (submissionError: unknown) {
-      setError(submissionError instanceof Error ? submissionError.message : "Login failed");
+      setError(
+        toUserFacingErrorMessage(submissionError, {
+          fallback: USER_FACING_ERROR_MESSAGES.login,
+        })
+      );
     } finally {
       setLoading(false);
     }
@@ -81,10 +153,10 @@ export default function LoginHubClient() {
           <section className="hero-banner overflow-hidden p-8">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,_rgba(29,155,240,0.18),_transparent_30%),radial-gradient(circle_at_84%_18%,_rgba(0,230,118,0.14),_transparent_30%),linear-gradient(135deg,rgba(8,15,30,0.98),rgba(8,15,30,0.82))]" />
             <div className="relative z-10 max-w-3xl">
-              <span className="brand-badge">Login</span>
-              <h1 className="hero-h1 mt-5">Supabase auth needs to be configured</h1>
+              <span className="brand-badge">{content.badge}</span>
+              <h1 className="hero-h1 mt-5">Sign-in is temporarily unavailable</h1>
               <p className="mt-4 text-sm leading-relaxed text-text-muted">
-                Add the Bravo Supabase environment variables to enable player, team, and admin logins from this hub.
+                Bravo login will return here automatically once Supabase authentication is fully connected for this environment.
               </p>
             </div>
           </section>
@@ -100,26 +172,41 @@ export default function LoginHubClient() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,_rgba(29,155,240,0.18),_transparent_30%),radial-gradient(circle_at_84%_18%,_rgba(0,230,118,0.14),_transparent_30%),linear-gradient(135deg,rgba(8,15,30,0.98),rgba(8,15,30,0.82))]" />
           <div className="relative z-10 grid gap-8 xl:grid-cols-[1.05fr,0.95fr]">
             <div>
-              <span className="brand-badge">Platform Login</span>
-              <h1 className="hero-h1 mt-5">
-                Enter Bravo through
-                <br />
-                a real working auth hub
-              </h1>
+              <span className="brand-badge">{content.badge}</span>
+              <h1 className="hero-h1 mt-5">{content.title}</h1>
               <p className="mt-4 max-w-3xl text-sm leading-relaxed text-text-muted">
-                Sign in with your Supabase account and Bravo will route you to the right workspace for admin, team IGL,
-                or player access.
+                {content.description}
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
-                <Link href="/admin" className="btn-secondary">
-                  Admin Panel
-                </Link>
-                <Link href="/team" className="btn-secondary">
-                  Team IGL Panel
-                </Link>
-                <Link href="/dashboard/player" className="btn-secondary">
-                  Player Dashboard
-                </Link>
+                {variant === "hub" ? (
+                  <>
+                    <Link href="/admin/login" className="btn-secondary">
+                      Admin Login
+                    </Link>
+                    <Link href="/team/login" className="btn-secondary">
+                      Team Login
+                    </Link>
+                    <Link href="/player/login" className="btn-secondary">
+                      Player Login
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login" className="btn-secondary">
+                      Login Hub
+                    </Link>
+                    {variant !== "team" ? (
+                      <Link href="/team/login" className="btn-secondary">
+                        Team Login
+                      </Link>
+                    ) : null}
+                    {variant !== "player" ? (
+                      <Link href="/player/login" className="btn-secondary">
+                        Player Login
+                      </Link>
+                    ) : null}
+                  </>
+                )}
               </div>
             </div>
 
@@ -156,7 +243,7 @@ export default function LoginHubClient() {
                   required
                 />
                 <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
-                  {loading ? "Signing in..." : "Sign In"}
+                  {loading ? "Checking access..." : content.buttonLabel}
                 </button>
               </div>
             </form>

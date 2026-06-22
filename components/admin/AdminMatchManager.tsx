@@ -5,6 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import FileUpload from "./FileUpload";
 import { adminFetch } from "@/lib/admin-api";
 import { compareMatchPlayerResults, compareMatchTeamResults, compareMatchSequenceOrder } from "@/lib/ranking-sort";
+import {
+  getUserFacingPlayerLabel,
+  getUserFacingTeamLabel,
+  toUserFacingErrorMessage,
+  USER_FACING_ERROR_MESSAGES,
+  USER_FACING_LABELS,
+} from "@/lib/user-facing-errors";
 import type { MatchPlayerResult, Scrim, TeamMatchResult, Tournament, TournamentMatch } from "@/lib/types";
 
 const inputClass = "input-esports";
@@ -145,7 +152,7 @@ function parseTeamResults(value: string) {
       const normalizedPlacementPoints = placementPoints ? toFiniteNumber(placementPoints) : placementPointsForPlacement(normalizedPlacement);
       const normalizedKillPoints = killPoints ? toFiniteNumber(killPoints) : normalizedKills;
       return {
-        teamName: teamName || "Unknown Team",
+        teamName: getUserFacingTeamLabel(teamName, USER_FACING_LABELS.teamPendingMapping),
         slotNumber: slotNumber ? toFiniteNumber(slotNumber) : undefined,
         placement: normalizedPlacement,
         kills: normalizedKills,
@@ -175,7 +182,7 @@ function parsePlayerResults(value: string, teamResults: TeamMatchResult[]) {
         pubgPlayerId = "",
         survivalTime = "",
       ] = line.split("|").map((part) => part.trim());
-      const normalizedTeamName = teamName || "Unknown Team";
+      const normalizedTeamName = getUserFacingTeamLabel(teamName, USER_FACING_LABELS.teamPendingMapping);
       const fallbackPlacement = teamPlacementByName.get(normalizedTeamName.toLowerCase()) ?? 0;
       const normalizedKills = toFiniteNumber(kills);
       const normalizedAssists = toFiniteNumber(assists);
@@ -183,7 +190,7 @@ function parsePlayerResults(value: string, teamResults: TeamMatchResult[]) {
 
       return {
         playerId: playerId || pubgPlayerId || slugify(playerName || "player"),
-        playerName: playerName || "Unknown Player",
+        playerName: getUserFacingPlayerLabel(playerName, USER_FACING_LABELS.playerPendingMapping),
         pubgPlayerId: pubgPlayerId || undefined,
         teamName: normalizedTeamName,
         placement: placement ? toFiniteNumber(placement) : fallbackPlacement,
@@ -303,7 +310,7 @@ export default function AdminMatchManager({
       );
       setMatches(loadedMatches);
     } catch (loadError: unknown) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load matches");
+      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setLoading(false);
     }
@@ -377,7 +384,7 @@ export default function AdminMatchManager({
       await refreshAfterMutation(editingId ? "Match updated." : "Match created.");
       resetForm();
     } catch (submissionError: unknown) {
-      setError(submissionError instanceof Error ? submissionError.message : "Unable to save match");
+      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setSaving(false);
     }
@@ -433,7 +440,7 @@ export default function AdminMatchManager({
       setBulkForm(defaultBulkForm);
       await refreshAfterMutation(`${matchIds.length} match shell${matchIds.length === 1 ? "" : "s"} created.`);
     } catch (submissionError: unknown) {
-      setError(submissionError instanceof Error ? submissionError.message : "Unable to create bulk matches");
+      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
       setBulkSaving(false);
     }
@@ -453,7 +460,7 @@ export default function AdminMatchManager({
       });
       await refreshAfterMutation(match.status === "draft" ? "Match published." : "Match moved back to draft.");
     } catch (toggleError: unknown) {
-      setError(toggleError instanceof Error ? toggleError.message : "Unable to change publish state");
+      setError(toUserFacingErrorMessage(toggleError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     }
   }
 
@@ -469,7 +476,7 @@ export default function AdminMatchManager({
       }
       await refreshAfterMutation("Match deleted.");
     } catch (deleteError: unknown) {
-      setError(deleteError instanceof Error ? deleteError.message : "Unable to delete match");
+      setError(toUserFacingErrorMessage(deleteError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     }
   }
 

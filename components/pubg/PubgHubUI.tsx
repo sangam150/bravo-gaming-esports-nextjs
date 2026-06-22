@@ -64,7 +64,7 @@ export function formatDecimal(value: number, digits = 1) {
 }
 
 export function formatDate(value?: string | null) {
-  if (!value) return "Date pending";
+  if (!value) return "Date TBA";
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
@@ -75,7 +75,7 @@ export function formatDate(value?: string | null) {
 }
 
 export function formatDateTime(value?: string | null) {
-  if (!value) return "Time pending";
+  if (!value) return "Time TBA";
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
@@ -87,7 +87,7 @@ export function formatDateTime(value?: string | null) {
 
 export function formatDateRange(startDate?: string | null, endDate?: string | null) {
   if (!startDate) {
-    return "Schedule pending";
+    return "Schedule TBA";
   }
 
   const startLabel = formatDate(startDate);
@@ -111,7 +111,7 @@ export function formatDateRange(startDate?: string | null, endDate?: string | nu
 }
 
 export function sourceLabel(source: PubgHubSource) {
-  return source === "supabase" ? "Supabase live data" : "Launch dataset fallback";
+  return source === "supabase" ? "Verified live data" : "Verified results archive";
 }
 
 export function SectionHeader({
@@ -391,7 +391,7 @@ export function DualTrendChart({
   const maxLength = Math.max(firstValues.length, secondValues.length);
 
   if (maxLength === 0) {
-    return <EmptyState title="Trend data pending" description="Recent form charts will appear once enough match history is available." />;
+    return <EmptyState title="Recent form is not available yet" description="Recent form will appear once enough official match data has been published." />;
   }
 
   const paddedFirst = [...firstValues];
@@ -486,7 +486,7 @@ export function PlayerIdentity({
       <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="sm" />
       <div className="min-w-0">
         <p className="truncate font-semibold text-white">{player.pubgName}</p>
-        <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team pending"}</p>
+        <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
       </div>
       {meta ? <div className="ml-auto shrink-0">{meta}</div> : null}
     </div>
@@ -578,7 +578,7 @@ export function MapStatsTable({
       ) : null}
       {stats.length === 0 ? (
         <div className="p-6">
-          <EmptyState title="Map splits pending" description="Map-based output will appear once match-level data is published for this view." />
+          <EmptyState title="Map statistics are not available yet" description="Map-based statistics will appear once official match results are published." />
         </div>
       ) : (
         <div className="table-scroll">
@@ -622,14 +622,14 @@ export function RecentMatchCards({
   teamLookup?: Map<string, PubgHubTeam>;
 }) {
   if (matches.length === 0) {
-    return <EmptyState title="No match activity yet" description="Recent match cards will appear here once this section has published results." />;
+    return <EmptyState title="No match results have been published yet" description="Results will appear once they are officially verified." />;
   }
 
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {matches.map((match) => {
         const isRecentMatch = "teamName" in match;
-        const winnerName = isRecentMatch ? match.teamName : match.winnerTeamName ?? "Winner pending";
+        const winnerName = isRecentMatch ? match.teamName : match.winnerTeamName ?? "Winner TBD";
         const winnerLogo = isRecentMatch
           ? teamLookup?.get(match.teamId)?.logoUrl ?? null
           : match.winnerTeamId
@@ -719,7 +719,7 @@ export function RadarComparison({
   secondLabel: string;
 }) {
   if (points.length === 0) {
-    return <EmptyState title="Comparison data pending" description="Radar signals will appear once both sides have enough tracked stats." />;
+    return <EmptyState title="Comparison data is not available yet" description="Comparison statistics will appear once both sides have enough published match data." />;
   }
 
   const size = 240;

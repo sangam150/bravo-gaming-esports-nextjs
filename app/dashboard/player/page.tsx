@@ -4,7 +4,7 @@ import { getPubgHubDataset } from "@/lib/pubg-hub";
 
 export const metadata: Metadata = {
   title: "Player Dashboard",
-  description: "Bravo Gaming Esports player dashboard for profile claims, stats, match history, and future fantasy participation.",
+  description: "Bravo Gaming Esports player dashboard for approved player profile access, stats, and match history.",
 };
 
 export const revalidate = 300;

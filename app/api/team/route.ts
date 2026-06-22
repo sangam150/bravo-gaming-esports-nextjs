@@ -2,6 +2,10 @@ import { requireAuthenticatedUser } from "@/lib/admin-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import { getTeamWorkspace } from "@/lib/team-workspace";
+import {
+  jsonErrorResponse,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 
 export async function GET(request: Request) {
   const limited = enforceRateLimit(request, { key: "team-workspace", maxRequests: 30, windowMs: 60_000 });
@@ -9,7 +13,8 @@ export async function GET(request: Request) {
 
   const auth = await requireAuthenticatedUser(request);
   if (auth.response || !auth.session) {
-    return auth.response ?? Response.json({ error: "Unauthorized. Login required." }, { status: 401 });
+    return auth.response ??
+      Response.json({ error: USER_FACING_ERROR_MESSAGES.session }, { status: 401 });
   }
 
   try {
@@ -23,6 +28,10 @@ export async function GET(request: Request) {
       await logServerError("team.workspace.fetch", error, request);
     }
 
-    return Response.json({ error: message }, { status });
+    return jsonErrorResponse(error, {
+      status,
+      fallback:
+        status === 403 ? USER_FACING_ERROR_MESSAGES.permission : USER_FACING_ERROR_MESSAGES.teamWorkspace,
+    });
   }
 }

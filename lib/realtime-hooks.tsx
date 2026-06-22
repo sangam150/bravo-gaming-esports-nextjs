@@ -12,6 +12,7 @@ import {
   compareMvpRankingPlayers,
   comparePlayerLeaderboardPerformance,
 } from "./ranking-sort";
+import { getUserFacingTeamLabel } from "./user-facing-errors";
 import { buildCurrentSeasonOverviewFromCollections, buildFallbackLeaderboardRows, buildScrimDayResultsFromCollections, buildTournamentLeaderboardGroups } from "./bravo-live-derivations";
 import { COLLECTIONS } from "./document-store-collections";
 import { getSupabaseBrowserClient } from "./supabase/browser-client";
@@ -54,7 +55,7 @@ function getNormalizedTeamName(rawTeamName: string | undefined, inferredSlotNumb
   if (resolvedTeamName) return resolvedTeamName;
   const trimmedTeamName = rawTeamName?.trim();
   if (trimmedTeamName) return trimmedTeamName;
-  return buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? "Unknown Team";
+  return getUserFacingTeamLabel(buildFallbackTeamNameFromSlot(inferredSlotNumber));
 }
 
 function normalizeRealtimeTeam(team: Team): Team {

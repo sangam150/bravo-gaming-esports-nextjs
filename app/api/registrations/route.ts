@@ -2,6 +2,10 @@ import { createRegistration, getRegistrations, updateRegistrationStatus } from "
 import { requireAdmin } from "@/lib/admin-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
+import {
+  jsonErrorResponse,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 
 export async function GET(request: Request) {
   const unauthorized = await requireAdmin(request);
@@ -17,7 +21,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     if (!body.teamName || !body.captainName || !body.captainDiscord) {
-      return Response.json({ error: "teamName, captainName, and captainDiscord are required" }, { status: 400 });
+      return Response.json(
+        { error: "Please provide the team name, captain name, and captain Discord before submitting." },
+        { status: 400 }
+      );
     }
     const result = await createRegistration({
       teamName: body.teamName,
@@ -29,8 +36,10 @@ export async function POST(request: Request) {
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
     await logServerError("registrations.create", error, request);
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return jsonErrorResponse(error, {
+      status: 500,
+      fallback: USER_FACING_ERROR_MESSAGES.registration,
+    });
   }
 }
 
@@ -50,7 +59,9 @@ export async function PATCH(request: Request) {
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
     await logServerError("registrations.update", error, request);
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return jsonErrorResponse(error, {
+      status: 500,
+      fallback: USER_FACING_ERROR_MESSAGES.admin,
+    });
   }
 }

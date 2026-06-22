@@ -2,6 +2,10 @@ import { requireAuthenticatedUser } from "@/lib/admin-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import { createMossSubmission } from "@/lib/team-workspace";
+import {
+  jsonErrorResponse,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/lib/user-facing-errors";
 
 export async function POST(request: Request) {
   const limited = enforceRateLimit(request, { key: "team-moss-submit", maxRequests: 10, windowMs: 60_000 });
@@ -9,7 +13,8 @@ export async function POST(request: Request) {
 
   const auth = await requireAuthenticatedUser(request);
   if (auth.response || !auth.session) {
-    return auth.response ?? Response.json({ error: "Unauthorized. Login required." }, { status: 401 });
+    return auth.response ??
+      Response.json({ error: USER_FACING_ERROR_MESSAGES.session }, { status: 401 });
   }
 
   try {
@@ -27,6 +32,12 @@ export async function POST(request: Request) {
     await logServerError("team.moss.create", error, request);
     const message = error instanceof Error ? error.message : String(error);
     const status = /team workspace|linked to a team|profile record/i.test(message) ? 403 : 500;
-    return Response.json({ error: message }, { status });
+    return jsonErrorResponse(error, {
+      status,
+      fallback:
+        status === 403
+          ? USER_FACING_ERROR_MESSAGES.permission
+          : "We couldn't submit that MOSS report right now. Please try again shortly.",
+    });
   }
 }

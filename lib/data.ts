@@ -16,13 +16,12 @@ import {
   getDocumentByIdOrSlug,
   softDeleteDocumentEntity,
 } from "./document-entities";
+import { formatAnnouncementDate } from "./display-format";
 import {
   seedAnnouncements,
-  seedPlayers,
   seedSponsors,
   seedStats,
   seedStreams,
-  seedTeams,
   seedTournaments,
   seedVideos,
 } from "./seed-data";
@@ -126,6 +125,40 @@ function toOptionalNumber(value: number | undefined) {
 
 function compareIsoDateDesc(firstValue?: string, secondValue?: string) {
   return (secondValue ?? "").localeCompare(firstValue ?? "");
+}
+
+function hasTrackedTeamActivity(team: Team) {
+  return (
+    (team.matches ?? 0) > 0 ||
+    (team.totalPoints ?? 0) > 0 ||
+    (team.kills ?? 0) > 0 ||
+    (team.killPoints ?? 0) > 0 ||
+    (team.placementPoints ?? 0) > 0 ||
+    (team.chickenDinners ?? 0) > 0 ||
+    (team.seasonDayNumbers?.length ?? 0) > 0
+  );
+}
+
+function hasManagedTeamProfile(team: Team) {
+  return Boolean(
+    (team.playerIds?.length ?? 0) > 0 ||
+    cleanString(team.logoUrl ?? team.logo) ||
+    cleanString(team.country) ||
+    cleanString(team.captainName) ||
+    cleanString(team.captainDiscord) ||
+    cleanString(team.captainEmail) ||
+    cleanString(team.captainPhone)
+  );
+}
+
+function isPubliclyVisibleTeam(team: Team) {
+  if (team.scope === "tournament") return false;
+  if ((team.sourceProvider ?? "").trim() !== "season_bootstrap") return true;
+  return hasTrackedTeamActivity(team) || hasManagedTeamProfile(team);
+}
+
+function filterPublicTeams(teams: Team[]) {
+  return teams.filter((team) => isPubliclyVisibleTeam(team));
 }
 
 function normalizeSeasonPayload(data: Partial<Season> & { title: string; slug?: string }) {
@@ -358,13 +391,7 @@ function normalizeAnnouncementPayload(data: Partial<Announcement> & { title: str
   return {
     title: data.title.trim(),
     detail: data.detail.trim(),
-    date:
-      cleanString(data.date) ??
-      new Date().toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }).toUpperCase(),
+    date: cleanString(data.date) ?? formatAnnouncementDate(),
     category: cleanString(data.category),
     published: data.published !== false,
   } satisfies Partial<Announcement> & { title: string; detail: string };
@@ -703,39 +730,9 @@ export async function getSeasonStandings(seasonId: string): Promise<TournamentSt
 
 export async function getSeasonLeaderboard(seasonId: string): Promise<LeaderboardRow[]> {
   const [standings, teams] = await Promise.all([getSeasonStandings(seasonId), getTeams()]);
-  const seasonTeams = teams.filter((team) => team.seasonId === seasonId && team.scope !== "tournament");
+  const seasonTeams = filterPublicTeams(teams.filter((team) => team.seasonId === seasonId && team.scope !== "tournament"));
   const teamsById = new Map(seasonTeams.map((team) => [team.id, team]));
-  const builtEntries = buildSeasonLeaderboard(standings, teamsById);
-  const entryByTeamId = new Set(builtEntries.map((entry) => entry.teamId));
-
-  const paddedEntries = [
-    ...builtEntries,
-    ...seasonTeams
-      .filter((team) => !entryByTeamId.has(team.id))
-      .map((team) => ({
-        teamId: team.id,
-        teamName: team.name,
-        matches: team.matches ?? 0,
-        kills: team.kills ?? 0,
-        killPoints: team.killPoints ?? 0,
-        placementPoints: team.placementPoints ?? 0,
-        totalPoints: team.totalPoints ?? 0,
-        averagePlacement: team.averagePlacement ?? 0,
-        chickenDinners: team.chickenDinners ?? 0,
-        bestPlacement: 0,
-        dayNumbers: team.seasonDayNumbers ?? [],
-        latestDayNumber: Math.max(...(team.seasonDayNumbers ?? [0])),
-        rank: 0,
-        slotNumber: team.slotNumber,
-        logoUrl: team.logoUrl ?? team.logo,
-      })),
-  ]
-    .sort(
-      (firstEntry, secondEntry) => compareTeamLeaderboardPerformance(firstEntry, secondEntry)
-    )
-    .map((entry, index) => ({ ...entry, rank: index + 1 }));
-
-  return seasonLeaderboardToRows(paddedEntries);
+  return seasonLeaderboardToRows(buildSeasonLeaderboard(standings, teamsById));
 }
 
 export async function getSeasonTeams(seasonId: string): Promise<Team[]> {
@@ -772,6 +769,7 @@ async function buildSeasonOverview(season: Season | null) {
     getSeasonTeams(season.id),
     getSeasonPlayers(season.id),
   ]);
+  const publicSeasonTeams = filterPublicTeams(seasonTeams);
 
   const orderedTournaments = [...seasonTournaments].sort(
     (firstTournament, secondTournament) =>
@@ -793,10 +791,10 @@ async function buildSeasonOverview(season: Season | null) {
     season,
     tournaments: orderedTournaments,
     leaderboard: seasonLeaderboard,
-    teams: seasonTeams,
+    teams: publicSeasonTeams,
     players: seasonPlayers,
     currentTournament,
-    registeredTeams: seasonTeams.length,
+    registeredTeams: publicSeasonTeams.length,
     matchesPlayed,
     completedDays,
     recentResults: orderedTournaments.filter((tournament) => (tournament.matchCount ?? 0) > 0).slice(-3).reverse(),
@@ -1047,7 +1045,7 @@ export async function getTeams(): Promise<Team[]> {
     ).map(normalizeStoredTeam)
   );
 
-  const visibleTeams = teams.filter((team) => team.scope !== "tournament");
+  const visibleTeams = filterPublicTeams(teams.filter((team) => team.scope !== "tournament"));
   const currentSeason = await getCurrentSeason();
   if (currentSeason) {
     const currentSeasonTeams = visibleTeams.filter((team) => team.scope === "season" && team.seasonId === currentSeason.id);
@@ -1273,12 +1271,13 @@ export async function getLiveStreamFeed(): Promise<StreamSchedule> {
 
   return {
     id: activeStream?.id ?? "stream-default",
-    time: activeStream?.time ?? "Schedule coming soon",
+    time: activeStream?.time ?? "Schedule to be announced",
     title: activeStream?.title ?? "Bravo Gaming Esports Live Feed",
     platform: activeStream?.platform ?? "YouTube",
     isLive: activeStream?.isLive ?? false,
     description:
-      activeStream?.description ?? "Publish a stream entry from admin to feature the next broadcast here.",
+      activeStream?.description ??
+      "No featured broadcast is currently scheduled. Please check back later for upcoming live streams and featured broadcasts.",
     viewers: activeStream?.viewers,
     embedUrl: activeStream?.embedUrl ?? buildLiveEmbedUrl(),
     channelUrl: activeStream?.channelUrl ?? buildYouTubeChannelUrl(),
@@ -1400,7 +1399,7 @@ export async function registerTeamForTournament(tournamentId: string, teamId: st
 
 export async function seedDocumentStore() {
   if (!isDocumentStoreConfigured()) {
-    return { seeded: false, message: "Supabase document store not configured — using local seed data" };
+    return { seeded: false, message: "Supabase document store not configured." };
   }
 
   await saveDocument(COLLECTIONS.siteStats, "main", seedStats as unknown as Record<string, unknown>);
@@ -1409,19 +1408,11 @@ export async function seedDocumentStore() {
     const { id, ...rest } = t;
     await saveDocument(COLLECTIONS.tournaments, id, rest as unknown as Record<string, unknown>);
   }
-  for (const t of seedTeams) {
-    const { id, ...rest } = t;
-    await saveDocument(COLLECTIONS.teams, id, rest as unknown as Record<string, unknown>);
-  }
-  for (const p of seedPlayers) {
-    const { id, ...rest } = p;
-    await saveDocument(COLLECTIONS.players, id, rest as unknown as Record<string, unknown>);
-  }
   for (const a of seedAnnouncements) {
     const { id, ...rest } = a;
     await saveDocument(COLLECTIONS.announcements, id, rest as unknown as Record<string, unknown>);
   }
-  return { seeded: true, message: "Supabase document store seeded with teams, players, and tournaments. Match results import from live PUBG API only." };
+  return { seeded: true, message: "Supabase document store seeded only with neutral platform defaults." };
 }
 
 export async function getAdminDashboardStats() {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
+import { formatDisplayNumber } from "@/lib/display-format";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
 import TeamAvatar from "@/components/ui/TeamAvatar";
@@ -327,7 +328,7 @@ export default function TournamentDetailClient({
                             <td className="font-semibold">{player.name}</td>
                             <td>{player.teamName ?? "Unavailable"}</td>
                             <td>{player.kills}</td>
-                            <td>{player.damage.toLocaleString()}</td>
+                            <td>{formatDisplayNumber(player.damage)}</td>
                             <td className="points-cell">{player.totalPoints ?? player.rating ?? 0}</td>
                           </tr>
                         ))}

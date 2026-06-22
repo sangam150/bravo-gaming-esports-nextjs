@@ -1,9 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
+import { formatDisplayNumber } from "@/lib/display-format";
 import { getSiteStats } from "@/lib/data";
 
 export default async function AboutPage() {
   const stats = await getSiteStats();
+  const statItems = [
+    { value: `${stats.tournamentsCompleted}`, label: "Tournaments" },
+    { value: `${stats.matchesHosted}`, label: "Matches" },
+    { value: formatDisplayNumber(stats.communityMembers), label: "Community" },
+    { value: stats.prizePoolsAwarded, label: "Prize Pools" },
+  ];
+  const hasPublishedStats = stats.tournamentsCompleted > 0 || stats.matchesHosted > 0 || stats.communityMembers > 0;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -44,19 +52,20 @@ export default async function AboutPage() {
             ))}
           </div>
 
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { value: `${stats.tournamentsCompleted}+`, label: "Tournaments" },
-              { value: `${stats.matchesHosted}+`, label: "Matches" },
-              { value: `${stats.communityMembers.toLocaleString()}+`, label: "Community" },
-              { value: stats.prizePoolsAwarded, label: "Prize Pools" },
-            ].map((stat) => (
-              <div key={stat.label} className="stat-pill text-center">
-                <p className="font-mono-stat text-lg font-bold text-white">{stat.value}</p>
-                <p className="text-label uppercase text-text-muted">{stat.label}</p>
-              </div>
-            ))}
-          </div>
+          {hasPublishedStats ? (
+            <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {statItems.map((stat) => (
+                <div key={stat.label} className="stat-pill text-center">
+                  <p className="font-mono-stat text-lg font-bold text-white">{stat.value}</p>
+                  <p className="text-label uppercase text-text-muted">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-8 rounded-card border border-white/[0.08] bg-bg-card p-5 text-sm text-text-muted">
+              Platform totals will appear here once published events and results are available.
+            </div>
+          )}
 
           <Link href="/contact" className="btn-primary mt-8 inline-flex">
             Contact Us

@@ -321,8 +321,10 @@ function EventCard({ event }: { event: PlatformEvent }) {
 }
 
 function MatchCard({ match }: { match: PlatformMatch }) {
+  const href = match.gameSlug === "pubg-pc" ? `/pubg/matches/${match.id}` : `/matches/${match.id}`;
+
   return (
-    <Link href={`/matches/${match.id}`} className="block rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+    <Link href={href} className="block rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{match.gameName}</p>
@@ -348,7 +350,7 @@ function MatchCard({ match }: { match: PlatformMatch }) {
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Viewer Count</p>
-          <p className="mt-1 text-white">{match.viewerCount ?? "Audience pending"}</p>
+          <p className="mt-1 text-white">{match.viewerCount ?? "Audience TBA"}</p>
         </div>
       </div>
     </Link>
@@ -466,7 +468,7 @@ function buildTopPlayerCards(pubg: PubgHubDataset) {
     slug: player.slug,
     name: player.pubgName,
     avatarUrl: player.avatarUrl ?? undefined,
-    teamName: player.currentTeamName ?? "Team pending",
+    teamName: player.currentTeamName ?? "Team TBD",
     kills: player.kills,
     damage: player.damage,
     form: player.formLabel,
@@ -509,19 +511,21 @@ export function PlatformHomePage({
 }) {
   const liveTournament = hub.events.find((event) => event.status === "live") ?? null;
   const featuredTournament = liveTournament ?? hub.home.featuredEvents[0] ?? hub.events[0] ?? null;
-  const breakingNews = hub.home.breakingNews;
   const homepageSponsors = hub.home.featuredSponsors.length > 0 ? hub.home.featuredSponsors : hub.sponsors.filter((sponsor) => sponsor.showOnHomepage);
-  const sponsorHighlight = homepageSponsors[0] ?? null;
-  const heroSlides = hub.home.heroSlides.slice(0, 3);
-  const primaryHeroSlide = heroSlides[0] ?? null;
-  const secondaryHeroSlides = heroSlides.slice(1);
+  const primaryHeroSlide = hub.home.heroSlides[0] ?? null;
   const topTeams = resolveFeaturedTeamCards(pubg, hub.home.featuredTeamIds);
   const topPlayers = resolveFeaturedPlayerCards(pubg, hub.home.featuredPlayerIds);
-  const leadStory = hub.home.featuredNews[0] ?? breakingNews ?? null;
-  const supportingStories = hub.home.featuredNews.filter((article) => article.slug !== leadStory?.slug).slice(0, 3);
   const spotlightMatches =
     (hub.home.liveMatches.length > 0 ? hub.home.liveMatches : hub.home.upcomingMatches.length > 0 ? hub.home.upcomingMatches : hub.home.recentMatches).slice(0, 4);
+  const heroHeadline = primaryHeroSlide?.title ?? "Nepal's esports home for live standings, teams, players, and results";
+  const heroSummary =
+    primaryHeroSlide?.description ??
+    "Bravo Gaming Esports keeps PUBG results, leaderboards, teams, players, media, sponsors, and event coverage connected in one public platform.";
+  const homeStandings = topTeams.slice(0, 5);
+  const featuredPlayer = topPlayers[0] ?? null;
+  const registerForScrimsHref = featuredTournament ? `/teams/register?tournament=${featuredTournament.id}` : "/teams/register";
   const communityCount = new Set(pubg.teams.map((team) => team.region).filter(Boolean)).size;
+  const liveEventCount = hub.events.filter((event) => event.status === "live").length;
   const platformPulse = [
     { label: "Tracked Teams", value: pubg.teams.length, detail: "Verified public profiles with roster, form, and event history.", tone: "green" as const },
     { label: "Tracked Players", value: pubg.players.length, detail: "Fraggers, IGLs, support players, and rising talent in one hub.", tone: "blue" as const },
@@ -536,191 +540,137 @@ export function PlatformHomePage({
       <div className="page-stack">
         <section className="relative overflow-hidden rounded-[38px] border border-white/[0.08] bg-[linear-gradient(135deg,rgba(8,12,20,0.98),rgba(7,12,22,0.92))] p-6 shadow-[0_40px_120px_rgba(0,0,0,0.4)] sm:p-8 xl:p-10">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_16%,rgba(0,198,255,0.2),transparent_28%),radial-gradient(circle_at_88%_18%,rgba(255,82,47,0.16),transparent_26%),radial-gradient(circle_at_80%_82%,rgba(0,230,118,0.14),transparent_28%)]" />
-          <div className="relative grid gap-6 xl:grid-cols-[1.15fr,0.85fr]">
-            <div className="space-y-6">
+          <div className="relative grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+            <div className="min-w-0 space-y-6">
               <div className="max-w-4xl">
-                <span className="brand-badge">{primaryHeroSlide?.badge ?? hub.brand.tagline}</span>
-                <h1 className="mt-5 font-display text-5xl font-black uppercase leading-[0.9] text-white sm:text-6xl xl:text-7xl">
-                  {primaryHeroSlide?.title ?? "Nepal's premier esports platform"}
+                <span className="brand-badge">{primaryHeroSlide?.badge ?? "Bravo Gaming Esports"}</span>
+                <h1 className="mt-5 max-w-4xl font-display text-[38px] font-black uppercase leading-[0.92] text-white sm:text-5xl xl:text-6xl">
+                  {heroHeadline}
                 </h1>
-                <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300">
-                  {primaryHeroSlide?.description ??
-                    "Bravo Gaming Esports brings tournaments, news, rankings, teams, players, sponsors, media, and community coverage together in one public home for Nepal esports."}
+                <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base sm:leading-8">
+                  {heroSummary}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-3">
-                {primaryHeroSlide?.primaryLabel && primaryHeroSlide.primaryHref ? (
-                  <HeroActionLink href={primaryHeroSlide.primaryHref} label={primaryHeroSlide.primaryLabel} className="btn-watch-live" />
-                ) : null}
-                {primaryHeroSlide?.secondaryLabel && primaryHeroSlide.secondaryHref ? (
-                  <HeroActionLink href={primaryHeroSlide.secondaryHref} label={primaryHeroSlide.secondaryLabel} className="btn-primary" />
-                ) : null}
-                {primaryHeroSlide?.tertiaryLabel && primaryHeroSlide.tertiaryHref ? (
-                  <HeroActionLink href={primaryHeroSlide.tertiaryHref} label={primaryHeroSlide.tertiaryLabel} className="btn-discord" />
-                ) : null}
+                <Link href="/pubg/leaderboards" className="btn-primary">
+                  View Leaderboards
+                </Link>
+                <Link href="/pubg/results" className="btn-secondary">
+                  Latest Results
+                </Link>
               </div>
 
-              {secondaryHeroSlides.length > 0 ? (
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {secondaryHeroSlides.map((slide) => (
-                    <div key={slide.id} className="rounded-[28px] border border-white/[0.08] bg-black/25 p-5">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{slide.badge}</p>
-                      <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">{slide.title}</h2>
-                      <p className="mt-3 text-sm leading-7 text-slate-300">{slide.description}</p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {slide.primaryLabel && slide.primaryHref ? (
-                          <HeroActionLink href={slide.primaryHref} label={slide.primaryLabel} className="btn-primary" />
-                        ) : null}
-                        {slide.secondaryLabel && slide.secondaryHref ? (
-                          <HeroActionLink href={slide.secondaryHref} label={slide.secondaryLabel} className="btn-secondary" />
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <MetricCard label="Games Covered" value={hub.games.length} tone="blue" compact />
-                <MetricCard label="Events Live" value={hub.events.filter((event) => event.status === "live").length} tone="red" compact />
-                <MetricCard label="Tracked Matches" value={hub.matches.length} tone="green" compact />
-                <MetricCard label="News Stories" value={hub.news.length} tone="yellow" compact />
+                <MetricCard label="Active Events" value={liveEventCount} tone="red" compact />
+                <MetricCard label="Matches Tracked" value={pubg.matches.length} tone="green" compact />
+                <MetricCard label="Teams" value={pubg.teams.length} tone="blue" compact />
+                <MetricCard label="Players" value={pubg.players.length} tone="yellow" compact />
               </div>
 
               {featuredTournament ? (
-                <div className="overflow-hidden rounded-[30px] border border-white/[0.08] bg-black/30">
-                  {featuredTournament.bannerUrl ? (
-                    <img src={featuredTournament.bannerUrl} alt={featuredTournament.name} className="h-56 w-full object-cover sm:h-64" />
-                  ) : null}
-                  <div className="grid gap-5 p-5 lg:grid-cols-[1fr,auto] lg:items-end">
-                    <div>
-                      <div className="flex flex-wrap gap-2">
-                        <PlatformStatusPill status={featuredTournament.status} />
-                        <ContentStatePill state={featuredTournament.state} />
-                        <CategoryPill label={featuredTournament.gameName} />
-                      </div>
-                      <h2 className="mt-4 font-display text-3xl font-black uppercase text-white sm:text-4xl">{featuredTournament.name}</h2>
-                      <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">{featuredTournament.summary}</p>
-                      <div className="mt-5 grid gap-3 sm:grid-cols-4">
-                        <MetricCard label="Teams" value={featuredTournament.teamsCount} compact tone="blue" />
-                        <MetricCard label="Matches" value={featuredTournament.matchesCount} compact tone="green" />
-                        <MetricCard label="Region" value={featuredTournament.region} compact tone="yellow" />
-                        <MetricCard label="Prize" value={featuredTournament.prizePool} compact tone="red" />
-                      </div>
+                <div className="rounded-[30px] border border-white/[0.08] bg-black/30 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="section-title">Featured Event</p>
+                      <h2 className="mt-2 font-display text-2xl font-black uppercase text-white sm:text-3xl">{featuredTournament.name}</h2>
                     </div>
-                    <div className="flex flex-wrap gap-2 lg:justify-end">
-                      <Link href={`/events/${featuredTournament.slug}`} className="btn-primary">
-                        Open Event
-                      </Link>
-                      {featuredTournament.analyticsHref ? (
-                        <Link href={featuredTournament.analyticsHref} className="btn-secondary">
-                          Analytics
-                        </Link>
-                      ) : null}
+                    <div className="flex flex-wrap gap-2">
+                      <PlatformStatusPill status={featuredTournament.status} />
+                      <ContentStatePill state={featuredTournament.state} />
+                      <CategoryPill label={featuredTournament.gameName} />
                     </div>
                   </div>
+                  <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">{featuredTournament.summary}</p>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <MetricCard label="Teams" value={featuredTournament.teamsCount} compact tone="blue" />
+                    <MetricCard label="Matches" value={featuredTournament.matchesCount} compact tone="green" />
+                    <MetricCard label="Region" value={featuredTournament.region} compact tone="yellow" />
+                    <MetricCard label="Prize" value={featuredTournament.prizePool} compact tone="red" />
+                  </div>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <Link href={`/events/${featuredTournament.slug}`} className="btn-secondary">
+                      Open Event
+                    </Link>
+                    <Link href="/pubg" className="btn-primary">
+                      Open PUBG Hub
+                    </Link>
+                  </div>
                 </div>
-              ) : null}
+              ) : (
+                <div className="rounded-[30px] border border-white/[0.08] bg-black/30 p-5">
+                  <EmptyState title="No upcoming tournaments" description="There are currently no upcoming tournaments. New events will be announced soon." />
+                </div>
+              )}
             </div>
 
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <div className="rounded-[30px] border border-white/[0.08] bg-black/25 p-5">
-                <p className="section-title">Live Platform Signal</p>
-                <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">{hub.home.liveFeature.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-slate-300">{hub.home.liveFeature.subtitle}</p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <MetricCard label="Viewers" value={hub.home.liveFeature.viewers} compact tone="red" />
-                  <MetricCard label="Live Matches" value={hub.home.liveMatches.length} compact tone="blue" />
-                  <MetricCard label="Upcoming" value={hub.home.upcomingMatches.length} compact tone="green" />
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <p className="section-title">Live Standings</p>
+                    <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Current top teams</h2>
+                  </div>
+                  <Link href="/pubg/leaderboards" className="text-xs font-bold uppercase tracking-[0.18em] text-accent-blue transition hover:text-white">
+                    Full board
+                  </Link>
                 </div>
-                <div className="mt-4">
-                  <a href={hub.home.liveFeature.href} target={hub.home.liveFeature.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="btn-watch-live">
-                    Watch Broadcast
+                {homeStandings.length > 0 ? (
+                  <div className="mt-4 space-y-3">
+                    {homeStandings.map((team, index) => (
+                      <Link
+                        key={team.id}
+                        href={`/pubg/teams/${team.slug ?? team.id}`}
+                        className="flex min-w-0 items-center gap-3 rounded-[22px] border border-white/[0.08] bg-bg-primary/70 p-3 transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                      >
+                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 font-mono-stat text-xs text-white">
+                          #{index + 1}
+                        </span>
+                        <TeamAvatar name={team.name} imageUrl={team.logoUrl} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-display text-base font-black uppercase text-white">{team.name}</p>
+                          <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{team.form}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="font-mono-stat text-accent-green">{formatNumber(team.points)} pts</p>
+                          <p className="text-xs text-text-muted">{formatNumber(team.kills)} kills</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <EmptyState title="Leaderboard data is not available yet" description="Leaderboard data will be available once matches have been completed and officially published." />
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-[30px] border border-white/[0.08] bg-black/25 p-5">
+                <p className="section-title">Daily Scrims</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Register for the next room</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-300">
+                  Need a faster path into the next Bravo lobby? Register your team once, then use the public PUBG hub to track results, standings,
+                  and player output as soon as they are published.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <MetricCard label="Upcoming Matches" value={hub.home.upcomingMatches.length} compact tone="yellow" />
+                  <MetricCard
+                    label="Top Fragger"
+                    value={featuredPlayer?.name ?? "Pending"}
+                    detail={featuredPlayer ? `${formatNumber(featuredPlayer.kills)} kills` : "Player stats will appear after results are published."}
+                    compact
+                    tone="blue"
+                  />
+                </div>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Link href={registerForScrimsHref} className="btn-primary">
+                    Register for Scrims
+                  </Link>
+                  <a href="https://kamaucha.me/bravo" target="_blank" rel="noreferrer" className="btn-discord">
+                    Join Discord
                   </a>
                 </div>
               </div>
-
-              {leadStory ? (
-                <div className="rounded-[30px] border border-white/[0.08] bg-black/25 p-5">
-                  <div className="flex flex-wrap gap-2">
-                    <CategoryPill label="Breaking News" />
-                    <CategoryPill label={leadStory.category} />
-                  </div>
-                  <h2 className="mt-4 font-display text-2xl font-black uppercase text-white">{leadStory.title}</h2>
-                  <p className="mt-3 text-sm leading-7 text-slate-300">{leadStory.summary}</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {leadStory.tags.slice(0, 3).map((tag) => (
-                      <CategoryPill key={tag} label={tag} />
-                    ))}
-                  </div>
-                  <div className="mt-5">
-                    <Link href={`/news/${leadStory.slug}`} className="btn-primary">
-                      Read Story
-                    </Link>
-                  </div>
-                </div>
-              ) : null}
-
-              {supportingStories.length > 0 ? (
-                <div className="rounded-[30px] border border-white/[0.08] bg-black/25 p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="section-title">Featured News</p>
-                      <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Editorial pulse</h2>
-                    </div>
-                    <Link href="/news" className="text-xs font-bold uppercase tracking-[0.18em] text-accent-blue hover:text-white">
-                      All news
-                    </Link>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {supportingStories.map((article) => (
-                      <Link key={article.slug} href={`/news/${article.slug}`} className="block rounded-2xl border border-white/[0.08] bg-bg-primary/70 p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{article.category}</p>
-                        <p className="mt-2 font-semibold text-white">{article.title}</p>
-                        <p className="mt-2 text-sm text-text-muted">{article.summary}</p>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {sponsorHighlight ? (
-                <div className="rounded-[30px] border border-white/[0.08] bg-black/25 p-5">
-                  <p className="section-title">Sponsor Showcase</p>
-                  {sponsorHighlight.bannerUrl ?? sponsorHighlight.designAssetUrl ? (
-                    <div className="mt-4 overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
-                      <img
-                        src={sponsorHighlight.bannerUrl ?? sponsorHighlight.designAssetUrl ?? undefined}
-                        alt={sponsorHighlight.name}
-                        className="h-40 w-full object-cover"
-                      />
-                    </div>
-                  ) : null}
-                  <div className="mt-3 flex items-center gap-4">
-                    {sponsorHighlight.logoUrl ? (
-                      <img src={sponsorHighlight.logoUrl} alt={sponsorHighlight.name} className="h-16 w-16 rounded-2xl border border-white/10 bg-bg-primary p-2 object-contain" />
-                    ) : null}
-                    <div>
-                      <h2 className="font-display text-2xl font-black uppercase text-white">{sponsorHighlight.name}</h2>
-                      <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-accent-blue">
-                        {sponsorHighlight.tier} | {sponsorKindLabel(sponsorHighlight.kind)}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm leading-7 text-slate-300">{sponsorHighlight.description}</p>
-                  <div className="mt-4">
-                    <div className="flex flex-wrap gap-3">
-                      <Link href={`/sponsors/${sponsorHighlight.slug}`} className="btn-secondary">
-                        Open Profile
-                      </Link>
-                      {sponsorHighlight.websiteUrl ? (
-                        <HeroActionLink href={sponsorHighlight.websiteUrl} label="Visit Website" className="btn-primary" />
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
             </div>
           </div>
         </section>
@@ -735,7 +685,11 @@ export function PlatformHomePage({
             </div>
             <div className="mt-5 grid gap-3">
               {spotlightMatches.map((match) => (
-                <Link key={match.id} href={`/matches/${match.id}`} className="block rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+                <Link
+                  key={match.id}
+                  href={match.gameSlug === "pubg-pc" ? `/pubg/matches/${match.id}` : `/matches/${match.id}`}
+                  className="block rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold text-white">
@@ -784,7 +738,7 @@ export function PlatformHomePage({
               </div>
             ) : (
               <div className="mt-5">
-                <EmptyState title="Event publishing is quiet" description="Publish or feature a live event and it will appear here with its full tournament banner." />
+                <EmptyState title="No upcoming tournaments" description="There are currently no upcoming tournaments. New events will be announced soon." />
               </div>
             )}
           </div>
@@ -798,14 +752,14 @@ export function PlatformHomePage({
             ))}
             {hub.home.featuredNews.length === 0 ? (
               <div className="xl:col-span-4">
-                <EmptyState title="News publishing is quiet" description="Publish featured or breaking stories to turn the homepage into a real editorial surface." />
+                <EmptyState title="No articles have been published yet" description="Stay tuned for upcoming announcements and updates." />
               </div>
             ) : null}
           </div>
         </section>
 
         <section className="esports-card p-6">
-          <SectionHeader eyebrow="Platform Pulse" title="The public pulse of Bravo Gaming" description="Strong public signals keep the homepage feeling like a real esports destination: stories, competition, rankings, sponsors, and community momentum." />
+          <SectionHeader eyebrow="Bravo Snapshot" title="The current Bravo ecosystem" description="Stories, competition, rankings, sponsors, and community momentum should all feel visible at a glance." />
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {platformPulse.map((item) => (
               <MetricCard key={item.label} label={item.label} value={item.value} detail={item.detail} tone={item.tone} />
@@ -827,7 +781,7 @@ export function PlatformHomePage({
             <SectionHeader eyebrow="Rankings Preview" title="Featured teams and leaderboard pressure" description="Team logos, recent form, and current scoreboard pressure should be visible at a glance." />
             <div className="mt-5 space-y-3">
               {topTeams.map((team, index) => (
-                <Link key={team.id} href={`/teams/${team.slug ?? team.id}`} className="block rounded-[26px] border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+                <Link key={team.id} href={`/pubg/teams/${team.slug ?? team.id}`} className="block rounded-[26px] border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
                   <div className="flex items-center gap-3">
                     <span className="inline-flex min-w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono-stat text-xs text-white">
                       #{index + 1}
@@ -859,7 +813,7 @@ export function PlatformHomePage({
             <SectionHeader eyebrow="Featured Player" title="Top fragger and player spotlight" description="Player presentation needs to feel like personalities and stars, not just rows in a stat table." />
             <div className="mt-5 space-y-3">
               {topPlayers.map((player, index) => (
-                <Link key={player.id} href={`/players/${player.slug ?? player.id}`} className="block rounded-[26px] border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+                <Link key={player.id} href={`/pubg/players/${player.slug ?? player.id}`} className="block rounded-[26px] border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
                   <div className="flex items-center gap-3">
                     <span className="inline-flex min-w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono-stat text-xs text-white">
                       #{index + 1}
@@ -897,7 +851,7 @@ export function PlatformHomePage({
               ))}
               {homepageSponsors.length === 0 ? (
                 <div className="sm:col-span-2">
-                  <EmptyState title="Homepage partner slots are quiet" description="Assign sponsor or partner entries to the homepage from admin and they will appear here automatically." />
+                  <EmptyState title="No sponsors or partners announced yet" description="Our sponsors and partners will be featured here once officially announced." />
                 </div>
               ) : null}
             </div>
@@ -1063,7 +1017,7 @@ export function PlatformNewsPage({
           ))}
           {articles.length === 0 ? (
             <div className="xl:col-span-2">
-              <EmptyState title="No stories match this filter" description="Try clearing the category or search term to widen the news board again." />
+              <EmptyState title="No results found" description="Try adjusting your search or browse available categories." />
             </div>
           ) : null}
         </section>
@@ -1151,7 +1105,7 @@ export function PlatformNewsDetailPage({
             ))}
             {relatedArticles.length === 0 ? (
               <div className="xl:col-span-3">
-                <EmptyState title="No related stories yet" description="Related editorial coverage will appear here as the platform news volume grows." />
+                  <EmptyState title="No related articles are available yet" description="Stay tuned for upcoming announcements and updates." />
               </div>
             ) : null}
           </div>
@@ -1171,10 +1125,10 @@ export function PlatformGamesPage({ hub }: { hub: PlatformHubData }) {
             <>
               Every game gets
               <br />
-              a real home here
+              a scalable Bravo home
             </>
           }
-          description="PUBG leads today, but every Bravo game hub follows the same clean public structure: overview, events, teams, players, matches, rankings, media, and news."
+          description="PUBG PC is the active flagship today. Additional Bravo game hubs will open as coverage expands, without fragmenting the platform."
           actions={
             <>
               <Link href="/pubg" className="btn-primary">
@@ -1217,6 +1171,7 @@ export function PlatformGameDetailPage({
   const relatedMatches = hub.matches.filter((match) => match.gameSlug === game.slug).slice(0, 4);
   const topTeam = game.slug === "pubg-pc" ? pubg?.teams[0] ?? null : null;
   const topPlayer = game.slug === "pubg-pc" ? pubg?.players[0] ?? null : null;
+  const futureTitle = game.slug !== "pubg-pc";
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -1237,7 +1192,7 @@ export function PlatformGameDetailPage({
                 Back to games
               </Link>
               <Link href={game.analyticsHref ?? game.primaryHref} className="btn-primary">
-                {game.slug === "pubg-pc" ? "Open flagship analytics" : "Open game lane"}
+                {game.slug === "pubg-pc" ? "Open flagship analytics" : "Open game hub"}
               </Link>
             </>
           }
@@ -1268,7 +1223,46 @@ export function PlatformGameDetailPage({
           }
         />
 
-        {game.slug === "pubg-pc" && topTeam && topPlayer ? (
+        {futureTitle ? (
+          <section className="esports-card p-8">
+            <SectionHeader
+              eyebrow="Coming Soon"
+              title="Coverage for this title is opening soon."
+              description="Bravo will expand into this title with the same competition, stats, media, and team infrastructure once live coverage begins."
+            />
+            <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr,0.9fr]">
+              <div className="rounded-card border border-white/[0.08] bg-bg-primary p-5">
+                <p className="text-sm leading-7 text-slate-300">
+                  Join the Bravo community now to follow launch announcements, register interest, and help shape which events, teams, and storylines open this title first.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <a href="https://kamaucha.me/bravo" target="_blank" rel="noreferrer" className="btn-primary">
+                    Join Discord
+                  </a>
+                  <Link href="/feedback" className="btn-secondary">
+                    Request Coverage
+                  </Link>
+                </div>
+              </div>
+              <div className="rounded-card border border-white/[0.08] bg-bg-primary p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Launch Plan</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <CategoryPill label="Teams" />
+                  <CategoryPill label="Players" />
+                  <CategoryPill label="Matches" />
+                  <CategoryPill label="Standings" />
+                  <CategoryPill label="Media" />
+                  <CategoryPill label="News" />
+                </div>
+                <p className="mt-4 text-sm leading-7 text-slate-300">
+                  This hub will stay intentionally lightweight until real Bravo coverage begins. No fake stats, empty tables, or filler standings will be shown here.
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!futureTitle && game.slug === "pubg-pc" && topTeam && topPlayer ? (
           <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
             <div className="esports-card p-6">
               <SectionHeader eyebrow="Top Team" title={topTeam.name} description="The current flagship leaderboard leader across tracked PUBG coverage." />
@@ -1291,6 +1285,7 @@ export function PlatformGameDetailPage({
           </section>
         ) : null}
 
+        {!futureTitle ? (
         <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
           <div className="esports-card p-6">
             <SectionHeader eyebrow="Events" title="Game event lane" description="Every game plugs into the same event model and can grow from planned to fully tracked without a redesign." />
@@ -1299,7 +1294,7 @@ export function PlatformGameDetailPage({
                 <EventCard key={event.id} event={event} />
               ))}
               {relatedEvents.length === 0 ? (
-                <EmptyState title="No events in this game lane yet" description="The game hub is live, but its first event set has not been published yet." />
+                  <EmptyState title="No upcoming tournaments" description="There are currently no upcoming tournaments. New events will be announced soon." />
               ) : null}
             </div>
           </div>
@@ -1310,12 +1305,14 @@ export function PlatformGameDetailPage({
                 <MatchCard key={match.id} match={match} />
               ))}
               {relatedMatches.length === 0 ? (
-                <EmptyState title="No matches in this lane yet" description="The game hub is ready for match center coverage as soon as live operations begin." />
+                  <EmptyState title="No match results have been published yet" description="Results will appear once they are officially verified." />
               ) : null}
             </div>
           </div>
         </section>
+        ) : null}
 
+        {!futureTitle ? (
         <section className="esports-card p-6">
           <SectionHeader eyebrow="News" title="Game-specific editorial coverage" description="Game hubs can collect their own event stories, roster updates, scene coverage, and platform announcements." />
           <div className="mt-6 grid gap-4 xl:grid-cols-3">
@@ -1324,11 +1321,12 @@ export function PlatformGameDetailPage({
             ))}
             {relatedNews.length === 0 ? (
               <div className="xl:col-span-3">
-                <EmptyState title="No game-specific stories yet" description="Editorial coverage will populate here once this game lane starts receiving regular content." />
+                  <EmptyState title="No articles have been published yet" description="Stay tuned for upcoming announcements and updates." />
               </div>
             ) : null}
           </div>
         </section>
+        ) : null}
       </div>
     </main>
   );
@@ -1414,7 +1412,7 @@ export function PlatformEventsPage({
           ))}
           {events.length === 0 ? (
             <div className="xl:col-span-2">
-              <EmptyState title="No events match this filter" description="Try widening the game or status filter to bring more events back into the board." />
+              <EmptyState title="No results found" description="Try adjusting your search or browse available categories." />
             </div>
           ) : null}
         </section>
@@ -1538,7 +1536,7 @@ export function PlatformEventDetailPage({
                 </div>
               ))}
               {relatedMatches.length === 0 ? (
-                <EmptyState title="No match schedule yet" description="The event exists, but its match schedule is not published or tracked yet." />
+                  <EmptyState title="Match schedule information is not available yet" description="Please check back later for official timing updates." />
               ) : null}
             </div>
           </div>
@@ -1577,7 +1575,7 @@ export function PlatformEventDetailPage({
                       <p className="font-mono-stat text-accent-blue">{formatNumber(row.kills)} K</p>
                     </div>
                     <p className="mt-2 text-sm text-text-muted">
-                      {row.teamName ?? "Team pending"} | {formatNumber(row.assists)} assists | {formatNumber(row.damage)} damage
+                      {row.teamName ?? "Team TBD"} | {formatNumber(row.assists)} assists | {formatNumber(row.damage)} damage
                     </p>
                   </div>
                 ))}
@@ -1586,7 +1584,7 @@ export function PlatformEventDetailPage({
           </section>
         ) : (
           <section className="esports-card p-6">
-            <SectionHeader eyebrow="Event Modules" title="Statistics, media, sponsors, and rules" description="This event route already exposes the public structure every future game lane will need." />
+            <SectionHeader eyebrow="Event Modules" title="Statistics, media, sponsors, and rules" description="This event route already exposes the public structure every future game hub will need." />
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {[
                 "Standings and rankings",
@@ -1807,7 +1805,7 @@ export function PlatformMatchesPage({
           ))}
           {matches.length === 0 ? (
             <div className="xl:col-span-2">
-              <EmptyState title="No matches match this filter" description="Try widening the status or game lens to bring the match board back." />
+              <EmptyState title="No results found" description="Try adjusting your search or browse available categories." />
             </div>
           ) : null}
         </section>
@@ -1887,14 +1885,14 @@ export function PlatformMatchDetailPage({
               </div>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <MetricCard label="Winner" value={match.winnerName ?? "Pending"} compact tone="green" />
-              <MetricCard label="MVP" value={match.mvpName ?? "Pending"} compact tone="yellow" />
-              <MetricCard label="Viewer Count" value={match.viewerCount ?? "Pending"} compact tone="blue" />
+              <MetricCard label="Winner" value={match.winnerName ?? "Winner TBA"} compact tone="green" />
+              <MetricCard label="MVP" value={match.mvpName ?? "MVP TBA"} compact tone="yellow" />
+              <MetricCard label="Viewer Count" value={match.viewerCount ?? "Audience TBA"} compact tone="blue" />
             </div>
           </div>
 
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Match Context" title="Event, schedule, and VOD links" description="Universal details that work for every game lane." />
+            <SectionHeader eyebrow="Match Context" title="Event, schedule, and VOD links" description="Universal details that work for every game hub." />
             <div className="mt-5 space-y-3">
               <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Event</p>
@@ -1906,7 +1904,7 @@ export function PlatformMatchDetailPage({
               </div>
               <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">VOD</p>
-                <p className="mt-2 text-sm text-white">{match.vodHref ? "Linked" : "Will appear when broadcast VOD is published"}</p>
+                <p className="mt-2 text-sm text-white">{match.vodHref ? "Linked" : "Broadcast replay will appear here once it is officially published."}</p>
               </div>
             </div>
           </div>
@@ -1944,7 +1942,7 @@ export function PlatformMatchDetailPage({
           </section>
         ) : (
           <section className="esports-card p-6">
-            <SectionHeader eyebrow="Detail Modules" title="Results, statistics, VOD, and MVP" description="This route already provides the right shell for every game lane as match data expands." />
+            <SectionHeader eyebrow="Detail Modules" title="Results, statistics, VOD, and MVP" description="This route already provides the right shell for every game hub as match data expands." />
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {["Scoreboard", "Results", "Statistics", "VOD / MVP"].map((item) => (
                 <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary p-4 text-sm text-white">
@@ -2008,7 +2006,7 @@ export function PlatformTeamsPage({
               flagship form, and rosters
             </>
           }
-          description="Bravo's team database is platform-shaped from day one. PUBG supplies the live flagship profiles today, while future game lanes can plug into the same searchable directory and profile model."
+          description="Bravo's team database is platform-shaped from day one. PUBG supplies the live flagship profiles today, while future game titles can plug into the same searchable directory and profile model."
           actions={
             <>
               <Link href="/pubg/teams" className="btn-primary">
@@ -2048,7 +2046,7 @@ export function PlatformTeamsPage({
           <form method="get" className="grid gap-3 xl:grid-cols-[1.1fr,0.8fr,0.8fr,auto]">
             <input name="q" defaultValue={query} className="input-esports h-11" placeholder="Search team, tag, or region" />
             <select name="game" defaultValue={game} className="input-esports h-11">
-              <option value="all">All game lanes</option>
+              <option value="all">All game titles</option>
               {hub.games.map((item) => (
                 <option key={item.slug} value={item.slug}>
                   {item.name}
@@ -2081,7 +2079,7 @@ export function PlatformTeamsPage({
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">PUBG PC</p>
                   <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">{team.name}</h2>
                   <p className="text-sm uppercase tracking-[0.16em] text-text-muted">
-                    {team.tag ? `[${team.tag}]` : "TEAM"} | {team.region ?? "Region pending"}
+                    {team.tag ? `[${team.tag}]` : "TEAM"} | {team.region ?? "Region TBA"}
                   </p>
                 </div>
                 <div className="ml-auto">
@@ -2131,8 +2129,8 @@ export function PlatformTeamsPage({
                 title={game !== "all" && game !== "pubg-pc" ? "Teams will appear after registration is approved." : "No teams match this filter"}
                 description={
                   game !== "all" && game !== "pubg-pc"
-                    ? "That game lane is already wired into the platform, but public team profiles will show up after live event and roster data is published."
-                    : "Try broadening the search or switching back to all game lanes."
+                    ? "That title already has platform support, but public team profiles will show up after live event and roster data are published."
+                    : "Try broadening the search or switching back to all game titles."
                 }
               />
             </div>
@@ -2212,7 +2210,7 @@ export function PlatformPlayersPage({
                       {player.formLabel}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm text-text-muted">{player.currentTeamName ?? "Team pending"}</p>
+                  <p className="mt-2 text-sm text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
                   <div className="mt-3">
                     <TrendBars values={player.recentTrend} tone="blue" />
                   </div>
@@ -2226,7 +2224,7 @@ export function PlatformPlayersPage({
           <form method="get" className="grid gap-3 xl:grid-cols-[1.1fr,0.8fr,0.8fr,auto]">
             <input name="q" defaultValue={query} className="input-esports h-11" placeholder="Search player or team" />
             <select name="game" defaultValue={game} className="input-esports h-11">
-              <option value="all">All game lanes</option>
+              <option value="all">All game titles</option>
               {hub.games.map((item) => (
                 <option key={item.slug} value={item.slug}>
                   {item.name}
@@ -2261,7 +2259,7 @@ export function PlatformPlayersPage({
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">PUBG PC</p>
                   <p className="font-semibold text-white">{player.pubgName}</p>
-                  <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team pending"}</p>
+                  <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
                 </div>
                 <div className="ml-auto">
                   <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white">
@@ -2315,8 +2313,8 @@ export function PlatformPlayersPage({
                 title={game !== "all" && game !== "pubg-pc" ? "Match data will appear once results are published." : "No players match this filter"}
                 description={
                   game !== "all" && game !== "pubg-pc"
-                    ? "That game lane is already modeled into the platform, but player cards will surface when public results and roster data are published."
-                    : "Try broadening the search or switching back to all game lanes."
+                    ? "That title is already modeled into the platform, but player cards will surface when public results and roster data are published."
+                    : "Try broadening the search or switching back to all game titles."
                 }
               />
             </div>
@@ -2422,7 +2420,7 @@ export function PlatformRankingsPage({
                       </td>
                       <td>#{index + 1}</td>
                       <td>
-                        <Link href={`/teams/${team.slug ?? team.id}`} className="font-semibold text-white hover:text-accent-blue">
+                        <Link href={`/pubg/teams/${team.slug ?? team.id}`} className="font-semibold text-white hover:text-accent-blue">
                           {team.name}
                         </Link>
                       </td>
@@ -2466,13 +2464,13 @@ export function PlatformRankingsPage({
                       </td>
                       <td>#{index + 1}</td>
                       <td>
-                        <Link href={`/players/${player.slug ?? player.id}`} className="font-semibold text-white hover:text-accent-blue">
+                        <Link href={`/pubg/players/${player.slug ?? player.id}`} className="font-semibold text-white hover:text-accent-blue">
                           {player.pubgName}
                         </Link>
                       </td>
                       <td>
                         {player.currentTeamId ? (
-                          <Link href={`/teams/${player.currentTeamId}`} className="text-white hover:text-accent-blue">
+                          <Link href={`/pubg/teams/${player.currentTeamId}`} className="text-white hover:text-accent-blue">
                             {player.currentTeamName ?? "Pending"}
                           </Link>
                         ) : (
@@ -2732,7 +2730,7 @@ export function PlatformMediaDetailPage({
             ))}
             {relatedMedia.length === 0 ? (
               <div className="md:col-span-2 xl:col-span-3">
-                <EmptyState title="No related media yet" description="Media will appear here once more published items are connected to this category or game lane." />
+                  <EmptyState title="No media is currently available" description="Check back later for new published content." />
               </div>
             ) : null}
           </div>
@@ -2778,6 +2776,11 @@ export function PlatformOrganizationsPage({ hub }: { hub: PlatformHubData }) {
           {hub.organizations.map((organization) => (
             <OrganizationCard key={organization.slug} organization={organization} />
           ))}
+          {hub.organizations.length === 0 ? (
+            <div className="xl:col-span-2">
+              <EmptyState title="No organization profiles are available yet" description="Organization profiles will be featured here once officially announced." />
+            </div>
+          ) : null}
         </section>
       </div>
     </main>
@@ -2896,7 +2899,7 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
           ))}
           {publicSponsors.length === 0 ? (
             <div className="md:col-span-2 xl:col-span-3">
-              <EmptyState title="No sponsor profiles are published here yet" description="Assign sponsor, partner, or design entries to the sponsors page from admin and they will appear here automatically." />
+              <EmptyState title="No sponsors or partners announced yet" description="Our sponsors and partners will be featured here once officially announced." />
             </div>
           ) : null}
         </section>
@@ -3022,13 +3025,19 @@ export function PlatformSponsorDetailPage({
 
         <section className="esports-card p-6">
           <SectionHeader eyebrow="Partnership History" title="Relationship timeline" description="A better sponsor page than a logo wall helps sell the platform as serious infrastructure." />
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {sponsor.partnershipHistory.map((item) => (
-              <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white">
-                {item}
-              </div>
-            ))}
-          </div>
+          {sponsor.partnershipHistory.length > 0 ? (
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {sponsor.partnershipHistory.map((item) => (
+                <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white">
+                  {item}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-5 rounded-card border border-dashed border-white/10 bg-bg-primary px-4 py-5 text-sm text-text-muted">
+              Partner details will be updated soon.
+            </div>
+          )}
         </section>
       </div>
     </main>
@@ -3048,20 +3057,20 @@ export function PlatformDashboardIndexPage() {
               for the Bravo ecosystem
             </>
           }
-          description="The platform dashboard model is built around players, team IGLs, admins, and future caster or coach roles instead of one generic panel."
+          description="Bravo uses Supabase-backed dashboards for admins, team managers, team IGLs, and players instead of one generic panel."
           actions={
             <>
-              <Link href="/dashboard/player" className="btn-primary">
-                Player Dashboard
+              <Link href="/player/login" className="btn-primary">
+                Player Login
               </Link>
-              <Link href="/team" className="btn-secondary">
-                Team IGL Panel
+              <Link href="/team/login" className="btn-secondary">
+                Team Login
               </Link>
             </>
           }
           stats={[
-            { label: "Live Roles", value: 2, tone: "green" },
-            { label: "Preview Roles", value: 2, tone: "yellow" },
+            { label: "Live Roles", value: 3, tone: "green" },
+            { label: "Team Roles", value: 2, tone: "yellow" },
             { label: "Auth", value: "Supabase", tone: "blue" },
             { label: "Scope", value: "Platform", tone: "red" },
           ]}
@@ -3069,10 +3078,10 @@ export function PlatformDashboardIndexPage() {
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
-            { title: "Player Dashboard", detail: "Claim profile, view stats, match history, and fantasy in the future.", href: "/dashboard/player" },
-            { title: "Team IGL Panel", detail: "Manage roster, uploads, MOSS, and team operations.", href: "/team" },
-            { title: "Admin Panel", detail: "Run platform operations, content, matches, and event publishing.", href: "/admin" },
-            { title: "Login Hub", detail: "Enter through Discord, Google, email, and role-aware access routes.", href: "/login" },
+            { title: "Player Login", detail: "Access player profile, stats, and dashboard features through Supabase Auth.", href: "/player/login" },
+            { title: "Team Login", detail: "Manage roster, uploads, MOSS, and team operations.", href: "/team/login" },
+            { title: "Admin Login", detail: "Run platform operations, content, matches, and event publishing.", href: "/admin/login" },
+            { title: "Login Hub", detail: "Choose the right Bravo role before you enter the platform.", href: "/login" },
           ].map((item) => (
             <Link key={item.href} href={item.href} className="rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
               <p className="font-display text-lg font-black uppercase text-white">{item.title}</p>
@@ -3100,10 +3109,10 @@ export function PlatformPlayerDashboardPage({ pubg }: { pubg: PubgHubDataset }) 
               stats, and fantasy
             </>
           }
-          description="The player dashboard route is ready as a first-class platform lane for profile claims, stats, match history, and future fantasy participation."
+          description="The player dashboard is reserved for approved Supabase player accounts and personal data only."
           actions={
             <>
-              <Link href="/login" className="btn-primary">
+              <Link href="/player/login" className="btn-primary">
                 Login to Continue
               </Link>
               <Link href="/pubg/players" className="btn-secondary">
@@ -3136,7 +3145,7 @@ export function PlatformPlayerDashboardPage({ pubg }: { pubg: PubgHubDataset }) 
             </div>
           </div>
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Flagship Example" title={spotlightPlayer?.pubgName ?? "Top player pending"} description="A flagship player profile preview makes the dashboard direction feel grounded in real data." />
+            <SectionHeader eyebrow="Flagship Example" title={spotlightPlayer?.pubgName ?? "Featured player"} description="A flagship player profile preview makes the dashboard direction feel grounded in real data." />
             {spotlightPlayer ? (
               <div className="mt-5 grid gap-3 sm:grid-cols-4">
                 <MetricCard label="Kills" value={spotlightPlayer.kills} compact tone="blue" />
@@ -3146,87 +3155,9 @@ export function PlatformPlayerDashboardPage({ pubg }: { pubg: PubgHubDataset }) 
               </div>
             ) : (
               <div className="mt-5">
-                <EmptyState title="Player preview pending" description="A flagship player preview will appear here when tracked data is available." />
+                <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
               </div>
             )}
-          </div>
-        </section>
-      </div>
-    </main>
-  );
-}
-
-export function PlatformLoginPage() {
-  return (
-    <main className="page-shell pb-12 pt-6">
-      <div className="page-stack">
-        <PageHero
-          badge="Login"
-          title={
-            <>
-              Enter the platform
-              <br />
-              through the right role
-            </>
-          }
-          description="Bravo is being structured around Supabase Auth with Discord, Google, and email entry points, while preserving clear route-level access for admins, team IGLs, and future player roles."
-          actions={
-            <>
-              <Link href="/dashboard" className="btn-primary">
-                Dashboard Index
-              </Link>
-              <Link href="/pubg/access" className="btn-secondary">
-                PUBG Access
-              </Link>
-            </>
-          }
-          stats={[
-            { label: "Auth Provider", value: "Supabase Auth", tone: "blue" },
-            { label: "Discord", value: "Planned", tone: "yellow" },
-            { label: "Google", value: "Planned", tone: "green" },
-            { label: "Email", value: "Planned", tone: "red" },
-          ]}
-        />
-
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            { title: "Discord Login", detail: "Future low-friction player and community sign-in flow." },
-            { title: "Google Login", detail: "Broad user onboarding for players, staff, and partners." },
-            { title: "Email Login", detail: "Baseline universal auth path for serious platform operations." },
-            { title: "Role Routing", detail: "Admins, IGLs, and players all get clear post-login destinations." },
-          ].map((item) => (
-            <div key={item.title} className="rounded-card border border-white/[0.08] bg-bg-card p-5">
-              <p className="font-display text-lg font-black uppercase text-white">{item.title}</p>
-              <p className="mt-3 text-sm text-text-muted">{item.detail}</p>
-            </div>
-          ))}
-        </section>
-
-        <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
-          <div className="esports-card p-6">
-            <SectionHeader eyebrow="Current Access" title="Routes already in use" description="These are live today and should remain easy to discover." />
-            <div className="mt-5 grid gap-3">
-              <Link href="/admin" className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
-                <p className="font-display text-sm font-black uppercase text-white">Admin Panel</p>
-              </Link>
-              <Link href="/team" className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
-                <p className="font-display text-sm font-black uppercase text-white">Team IGL Panel</p>
-              </Link>
-              <Link href="/dashboard/player" className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
-                <p className="font-display text-sm font-black uppercase text-white">Player Dashboard</p>
-              </Link>
-            </div>
-          </div>
-
-          <div className="esports-card p-6">
-            <SectionHeader eyebrow="Future Access" title="Role expansion map" description="Future roles stay visible so the platform expansion feels deliberate." />
-            <div className="mt-5 grid gap-3">
-              {["Coach", "Caster", "Organizer", "Sponsor Contact"].map((item) => (
-                <div key={item} className="rounded-card border border-dashed border-white/10 bg-bg-primary px-4 py-3 text-sm text-white">
-                  {item}
-                </div>
-              ))}
-            </div>
           </div>
         </section>
       </div>

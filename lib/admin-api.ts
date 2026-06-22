@@ -2,6 +2,10 @@
 
 import { getSupabaseBrowserClient } from "./supabase/browser-client";
 import type { UploadType } from "./upload-config";
+import {
+  getResponseErrorMessage,
+  USER_FACING_ERROR_MESSAGES,
+} from "./user-facing-errors";
 
 export async function getIdToken(): Promise<string | null> {
   const supabase = getSupabaseBrowserClient();
@@ -23,7 +27,13 @@ export async function adminFetch(url: string, options: RequestInit = {}) {
 
   const res = await fetch(url, { ...options, headers, credentials: "include" });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Request failed");
+  if (!res.ok) {
+    throw new Error(
+      getResponseErrorMessage(res, data.error, {
+        fallback: USER_FACING_ERROR_MESSAGES.admin,
+      })
+    );
+  }
   return data;
 }
 
@@ -70,11 +80,22 @@ async function sendUploadRequest(
         return;
       }
 
-      reject(new Error(data.error || "Upload failed"));
+      reject(
+        new Error(
+          getResponseErrorMessage(
+            new Response(null, { status: xhr.status || 500 }),
+            data.error,
+            {
+              fallback: "We couldn't upload that file right now. Please try again shortly.",
+            }
+          )
+        )
+      );
     };
 
-    xhr.onerror = () => reject(new Error("Upload failed"));
-    xhr.onabort = () => reject(new Error("Upload canceled"));
+    xhr.onerror = () =>
+      reject(new Error(USER_FACING_ERROR_MESSAGES.network));
+    xhr.onabort = () => reject(new Error("The upload was canceled before it finished."));
     xhr.send(formData);
   });
 }

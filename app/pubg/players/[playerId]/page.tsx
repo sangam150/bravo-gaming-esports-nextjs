@@ -8,9 +8,29 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+async function resolvePlayer(playerId: string) {
+  try {
+    return await getPubgPlayerById(playerId);
+  } catch {
+    return null;
+  }
+}
+
+async function resolvePlayerDataset(playerId: string) {
+  try {
+    const dataset = await getPubgHubDataset();
+    const normalizedPlayerId = playerId.trim().toLowerCase();
+    const player =
+      dataset.players.find((item) => item.id === playerId || item.slug.toLowerCase() === normalizedPlayerId) ?? null;
+    return { dataset, player };
+  } catch {
+    return { dataset: null, player: null };
+  }
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { playerId } = await params;
-  const player = await getPubgPlayerById(playerId);
+  const player = await resolvePlayer(playerId);
 
   if (!player) {
     return { title: "PUBG Player Not Found" };
@@ -25,11 +45,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export const revalidate = 300;
 
 export default async function PubgPlayerDetailRoute({ params, searchParams }: PageProps) {
-  const [{ playerId }, resolvedSearchParams, dataset] = await Promise.all([params, searchParams, getPubgHubDataset()]);
-  const normalizedPlayerId = playerId.trim().toLowerCase();
-  const player = dataset.players.find((item) => item.id === playerId || item.slug.toLowerCase() === normalizedPlayerId) ?? null;
+  const [{ playerId }, resolvedSearchParams] = await Promise.all([params, searchParams]);
+  const { dataset, player } = await resolvePlayerDataset(playerId);
 
-  if (!player) {
+  if (!dataset || !player) {
     notFound();
   }
 

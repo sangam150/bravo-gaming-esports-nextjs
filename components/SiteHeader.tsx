@@ -14,7 +14,7 @@ type HeaderFeatureCard = {
 };
 
 function formatShortDate(value?: string | null) {
-  if (!value) return "Date pending";
+  if (!value) return "Date TBA";
 
   const parsedDate = new Date(value);
   if (Number.isNaN(parsedDate.getTime())) {
@@ -54,10 +54,10 @@ export default async function SiteHeader() {
 
   const featuredEventCard: HeaderFeatureCard = {
     eyebrow: "Featured Event",
-    title: featuredEvent?.name ?? "Next published event",
+    title: featuredEvent?.name ?? "Featured PUBG Event",
     description:
       featuredEvent?.summary ??
-      "The next flagship PUBG event will headline this lane automatically once it is published.",
+      "The next flagship PUBG event will appear here automatically as soon as it is published.",
     meta: featuredEvent
       ? `${toTitleCase(featuredEvent.status)} | ${formatShortDate(featuredEvent.startDate)}`
       : "PUBG event lane",
@@ -68,13 +68,13 @@ export default async function SiteHeader() {
 
   const currentSeasonCard: HeaderFeatureCard = {
     eyebrow: "Current Season",
-    title: overview?.season.title ?? "Season tracker",
+    title: overview?.season.title ?? "Current Season",
     description: overview?.currentTournament
       ? `${overview.currentTournament.title} is the active season window with standings, results, and day flow kept in sync.`
       : "Season cards stay connected to scrim days, tournament flow, and the public leaderboard.",
     meta: overview
       ? `Day ${overview.season.currentDay}/${overview.season.configuredDays} | ${overview.matchesPlayed} matches`
-      : "Season sync pending",
+      : "Season archive live",
     href: overview?.season.slug ? `/pubg/seasons/${overview.season.slug}` : "/pubg/seasons/current",
     actionLabel: "Open Season",
     tone: "blue",
@@ -82,10 +82,10 @@ export default async function SiteHeader() {
 
   const topTeamCard: HeaderFeatureCard = {
     eyebrow: "Top Team",
-    title: topTeam?.name ?? "Leaderboard leader",
+    title: topTeam?.name ?? "Top Team",
     description: topTeam
       ? `${topTeam.formLabel} form with ${topTeam.totalPoints} total points and ${topTeam.kills} kills across the current tracked results window.`
-      : "The live leaderboard leader will surface here automatically once public PUBG data is available.",
+      : "The leaderboard leader will appear here automatically once published PUBG results are available.",
     meta: topTeam ? `#1 board slot | ${topTeam.matches} matches | ${topTeam.wins} WWCD` : "PUBG flagship board",
     href: topTeam ? `/pubg/teams/${topTeam.slug ?? topTeam.id}` : "/pubg/teams",
     actionLabel: topTeam ? "Open Team" : "Browse Teams",

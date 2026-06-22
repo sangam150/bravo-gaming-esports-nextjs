@@ -232,10 +232,10 @@ const GAME_BLUEPRINTS = [
       "Planned as the next full game hub with event listings, team profiles, match center, rankings, media, and organizer support.",
     status: "building",
     flagship: false,
-    heroLabel: "Building Coverage",
+    heroLabel: "Coming Soon",
     primaryHref: "/games/valorant",
     sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
-    completionLabel: "Scaffolding complete, live data next",
+    completionLabel: "Coverage opening soon",
   },
   {
     slug: "cs2",
@@ -246,10 +246,10 @@ const GAME_BLUEPRINTS = [
       "Prepared for Nepal CS2 circuits, LAN brackets, roster tracking, rankings, and match center coverage.",
     status: "building",
     flagship: false,
-    heroLabel: "Building Coverage",
+    heroLabel: "Coming Soon",
     primaryHref: "/games/cs2",
     sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
-    completionLabel: "Game hub foundation ready",
+    completionLabel: "Coverage opening soon",
   },
   {
     slug: "dota-2",
@@ -260,10 +260,10 @@ const GAME_BLUEPRINTS = [
       "Ready for seasonal competition coverage, roster history, organizer profiles, and match archives once live data is added.",
     status: "planned",
     flagship: false,
-    heroLabel: "Planned Coverage",
+    heroLabel: "Coming Soon",
     primaryHref: "/games/dota-2",
     sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
-    completionLabel: "Platform-ready for activation",
+    completionLabel: "Coverage opening soon",
   },
   {
     slug: "mobile-legends",
@@ -274,10 +274,10 @@ const GAME_BLUEPRINTS = [
       "Prepared for mobile competition calendars, team directories, match center views, and sponsor-facing event packages.",
     status: "planned",
     flagship: false,
-    heroLabel: "Planned Coverage",
+    heroLabel: "Coming Soon",
     primaryHref: "/games/mobile-legends",
     sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
-    completionLabel: "Awaiting first live season",
+    completionLabel: "Coverage opening soon",
   },
   {
     slug: "free-fire",
@@ -288,297 +288,22 @@ const GAME_BLUEPRINTS = [
       "The Bravo games hub is already structured so Free Fire can slot into the same public event, team, match, and media experience when coverage expands.",
     status: "planned",
     flagship: false,
-    heroLabel: "Planned Coverage",
+    heroLabel: "Coming Soon",
     primaryHref: "/games/free-fire",
     sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
-    completionLabel: "Future title support enabled",
+    completionLabel: "Coverage opening soon",
   },
 ] as const satisfies ReadonlyArray<Omit<PlatformGame, "activeEvents" | "trackedMatches" | "trackedTeams" | "trackedPlayers" | "featuredNewsCount">>;
 
-const PLANNED_EVENTS = [
-  {
-    id: "bravo-valorant-open",
-    slug: "bravo-valorant-open",
-    name: "Bravo Valorant Open",
-    gameSlug: "valorant",
-    gameName: "Valorant",
-    type: "invitational",
-    status: "planned",
-    state: "planned",
-    featured: true,
-    region: "Nepal",
-    organizerName: "Bravo Gaming Esports",
-    prizePool: "NPR 75,000",
-    teamsCount: 8,
-    matchesCount: 0,
-    startDate: "2026-07-06T18:00:00+05:45",
-    endDate: "2026-07-08T22:00:00+05:45",
-    summary:
-      "Bravo's tactical FPS expansion lane with bracket-ready structure, sponsor slots, and the same premium public event shell used across the platform.",
-    analyticsHref: "/games/valorant",
-    streamHref: "/live-stream",
-    topTeamName: null,
-    topPlayerName: null,
-    sponsorName: "Hukut",
-    tabs: ["Overview", "Teams", "Matches", "Schedule", "Statistics", "Sponsors", "Rules"],
-  },
-  {
-    id: "cs2-himalayan-masters",
-    slug: "cs2-himalayan-masters",
-    name: "CS2 Himalayan Masters",
-    gameSlug: "cs2",
-    gameName: "CS2",
-    type: "league",
-    status: "planned",
-    state: "planned",
-    featured: false,
-    region: "Nepal",
-    organizerName: "Bravo Gaming Esports",
-    prizePool: "NPR 60,000",
-    teamsCount: 6,
-    matchesCount: 0,
-    startDate: "2026-07-14T19:00:00+05:45",
-    endDate: "2026-07-20T22:00:00+05:45",
-    summary:
-      "Prepared as a structured CS2 competition lane with league tables, match center support, and sponsor-ready LAN presentation.",
-    analyticsHref: "/games/cs2",
-    streamHref: "/live-stream",
-    topTeamName: null,
-    topPlayerName: null,
-    sponsorName: "Hukut",
-    tabs: ["Overview", "Teams", "Matches", "Schedule", "Statistics", "Sponsors", "Rules"],
-  },
-  {
-    id: "dota-kathmandu-cup",
-    slug: "dota-kathmandu-cup",
-    name: "Dota 2 Kathmandu Cup",
-    gameSlug: "dota-2",
-    gameName: "Dota 2",
-    type: "season",
-    status: "planned",
-    state: "coming_soon",
-    featured: false,
-    region: "Nepal",
-    organizerName: "Bravo Gaming Esports",
-    prizePool: "NPR 50,000",
-    teamsCount: 8,
-    matchesCount: 0,
-    startDate: "2026-08-02T18:00:00+05:45",
-    endDate: "2026-08-12T22:00:00+05:45",
-    summary:
-      "A future MOBA competition lane designed to plug into the same Bravo event, ranking, media, and sponsor systems once public registrations go live.",
-    analyticsHref: "/games/dota-2",
-    streamHref: "/live-stream",
-    topTeamName: null,
-    topPlayerName: null,
-    sponsorName: "Hukut",
-    tabs: ["Overview", "Teams", "Matches", "Schedule", "Statistics", "Sponsors", "Rules"],
-  },
-] satisfies PlatformEvent[];
+const PLANNED_EVENTS: PlatformEvent[] = [];
 
-const PLANNED_MATCHES = [
-  {
-    id: "bravo-valorant-open-upper-1",
-    gameSlug: "valorant",
-    gameName: "Valorant",
-    eventSlug: "bravo-valorant-open",
-    eventName: "Bravo Valorant Open",
-    status: "planned",
-    scheduledAt: "2026-07-06T19:00:00+05:45",
-    stageLabel: "Upper Round 1",
-    format: "BO3",
-    mapLabel: "Ascent / Lotus / Haven",
-    teamA: "M8",
-    teamB: "Team HAKU",
-    scoreA: null,
-    scoreB: null,
-    winnerName: null,
-    mvpName: null,
-    analyticsHref: "/games/valorant",
-    vodHref: null,
-    viewerCount: null,
-    summary: "An opening showcase slot showing how Bravo's match center handles tactical FPS presentation, scheduling, and future scorelines.",
-  },
-  {
-    id: "cs2-himalayan-masters-showmatch",
-    gameSlug: "cs2",
-    gameName: "CS2",
-    eventSlug: "cs2-himalayan-masters",
-    eventName: "CS2 Himalayan Masters",
-    status: "planned",
-    scheduledAt: "2026-07-14T20:30:00+05:45",
-    stageLabel: "Opening Series",
-    format: "BO3",
-    mapLabel: "Mirage / Ancient / Inferno",
-    teamA: "NPL",
-    teamB: "FYB Esports",
-    scoreA: null,
-    scoreB: null,
-    winnerName: null,
-    mvpName: null,
-    analyticsHref: "/games/cs2",
-    vodHref: null,
-    viewerCount: null,
-    summary: "A cross-title opener showing the shared match center can support multi-map formats beyond PUBG without losing Bravo identity.",
-  },
-] satisfies PlatformMatch[];
+const PLANNED_MATCHES: PlatformMatch[] = [];
 
-const ARTICLE_SEEDS = [
-  {
-    id: "platform-vision-1",
-    title: "M8 lead Bravo Gaming Daily PUBG PC Scrims heading into the next lobby",
-    category: "PUBG",
-    date: "2026-06-18",
-    gameSlug: undefined,
-    featured: true,
-    breaking: true,
-    authorName: "Bravo Editorial Desk",
-    tags: ["PUBG", "M8", "Daily Scrims", "Nepal Esports"],
-    summary:
-      "M8 sit on top of the Bravo board while Team HAKU, N3P, FYB Esports, and NPL chase the next swing in the nightly PUBG PC lobby cycle.",
-    body: [
-      "The latest Bravo Gaming Daily PUBG PC Scrims stretch has M8 controlling the top of the table through cleaner finishes, stronger kill pressure, and better late-lobby stability.",
-      "Team HAKU and N3P remain close enough to punish any slow night, while FYB Esports and NPL keep the chase group active across recent published match sets.",
-      "This is the kind of day-to-day competitive pulse the Bravo platform is meant to surface publicly: current form, real standings pressure, and clear event context.",
-    ],
-  },
-  {
-    id: "platform-vision-2",
-    title: "PUBG Mahasangram remains the flagship proof of Bravo event coverage",
-    category: "Bravo Gaming",
-    date: "2026-06-18",
-    gameSlug: undefined,
-    featured: true,
-    breaking: false,
-    authorName: "Bravo Editorial Desk",
-    tags: ["PUBG Mahasangram", "Events", "Bravo Gaming"],
-    summary:
-      "Bravo's featured PUBG Mahasangram coverage shows how banners, standings, match cards, player stats, media, and sponsor visibility can live together on one public event shell.",
-    body: [
-      "PUBG Mahasangram is the clearest public example of what Bravo wants the platform to feel like: a proper esports event destination, not only an admin workflow.",
-      "The event shell already supports standings, team and player visibility, map-aware match context, sponsor placement, and media distribution from the same route family.",
-      "That flagship standard is what future Valorant, CS2, Dota 2, Mobile Legends, and Free Fire lanes are meant to inherit.",
-    ],
-  },
-  {
-    id: "platform-vision-3",
-    title: "Team HAKU, N3P, LTG, and Loot Addicts keep the Bravo board honest",
-    category: "PUBG",
-    date: "2026-06-18",
-    gameSlug: undefined,
-    featured: false,
-    breaking: false,
-    authorName: "Bravo Editorial Desk",
-    tags: ["Team HAKU", "N3P", "LTG", "Loot Addicts"],
-    summary:
-      "The chase pack behind M8 is still active, with Team HAKU, N3P, LTG, and Loot Addicts all producing enough pressure to keep the next scrim block relevant.",
-    body: [
-      "Team HAKU continue to trade steady placement for efficient points, while N3P stay dangerous whenever kill-heavy lobbies break open.",
-      "LTG and Loot Addicts add enough volatility to keep the middle of the board interesting instead of static.",
-      "That competitive variety is what makes the public leaderboard, compare, and player pages worth revisiting between major event windows.",
-    ],
-  },
-  {
-    id: "platform-vision-4",
-    title: "Hukut and Gorkhali Roleplay headline sponsor visibility across Bravo broadcasts",
-    category: "Bravo Gaming",
-    date: "2026-06-18",
-    gameSlug: undefined,
-    featured: false,
-    breaking: false,
-    authorName: "Bravo Editorial Desk",
-    tags: ["Sponsors", "Hukut", "Gorkhali Roleplay"],
-    summary:
-      "Bravo's sponsor hub now gives public space to Hukut and Gorkhali Roleplay so partner visibility feels like part of the platform, not an afterthought.",
-    body: [
-      "Hukut and Gorkhali Roleplay now have a stronger public presence across sponsor surfaces, featured event support, and supporting media placement.",
-      "That matters because a serious Nepal esports platform needs sponsor storytelling, not only tournament administration.",
-      "The result is a site that feels more useful to partners, more credible to audiences, and more complete for future commercial campaigns.",
-    ],
-  },
-] as const;
+const ARTICLE_SEEDS: PlatformArticle[] = [];
 
-const ORGANIZATION_SEEDS = [
-  {
-    slug: "bravo-gaming-esports",
-    name: "Bravo Gaming Esports",
-    type: "Platform Operator",
-    summary: "Nepal's premier esports platform with flagship PUBG operations and expanding multi-game coverage.",
-    description:
-      "Bravo Gaming Esports is building a unified public home for Nepal esports, with events, rankings, game hubs, media, sponsors, and community coverage under one identity.",
-    headquarters: "Kathmandu, Nepal",
-    games: ["PUBG PC", "Valorant", "CS2", "Dota 2", "Mobile Legends", "Free Fire"],
-    teams: ["M8", "Team HAKU", "N3P", "FYB Esports", "NPL", "LTG"],
-    eventsHosted: 5,
-    prizePools: "NPR 100,000+",
-    sponsors: ["Hukut", "Gorkhali Roleplay", "Bravo Community Cup"],
-    achievements: [
-      "Flagship PUBG PC analytics coverage built",
-      "Multi-game public hub foundation shipped",
-      "Admin and Team IGL operational panels active",
-    ],
-    website: "/",
-  },
-  {
-    slug: "nepal-esports-partner-network",
-    name: "Nepal Esports Partner Network",
-    type: "Organizer Network",
-    summary: "A future-facing directory for tournament hosts, circuits, and community organizers across Nepal.",
-    description:
-      "The partner network route shows how Bravo can evolve into a home for multiple organizers, not only Bravo-run operations, while maintaining one consistent ecosystem design.",
-    headquarters: "Nepal",
-    games: ["Valorant", "CS2", "Dota 2", "Mobile Legends"],
-    teams: ["Community circuits", "Campus squads", "Open qualifiers"],
-    eventsHosted: 3,
-    prizePools: "NPR 50,000+",
-    sponsors: ["Hukut", "Community Partners"],
-    achievements: [
-      "Prepared for cross-organizer onboarding",
-      "Supports universal event pages and match center coverage",
-      "Creates space for non-Bravo competition listings",
-    ],
-    website: "/organizations",
-  },
-] satisfies PlatformOrganization[];
+const ORGANIZATION_SEEDS: PlatformOrganization[] = [];
 
-const MEDIA_SEEDS = [
-  {
-    id: "media-poster-mahasangram",
-    slug: "pubg-mahasangram-event-poster-pack",
-    title: "PUBG Mahasangram event poster pack",
-    kind: "Poster",
-    category: "Posters",
-    gameSlug: "pubg-pc",
-    duration: undefined,
-    summary: "Tournament poster and key-art pack used across community promotion and sponsor surfaces.",
-    url: "/pubg/events/pubg-mahasangram-2026",
-    featured: true,
-  },
-  {
-    id: "media-clips-bravo-finish",
-    slug: "daily-scrims-endgame-clip-collection",
-    title: "Daily scrims endgame clip collection",
-    kind: "Clip",
-    category: "Highlights",
-    gameSlug: "pubg-pc",
-    duration: "02:15",
-    summary: "Short-form clip package ready for public match center and media hub distribution.",
-    url: "/highlights",
-    featured: false,
-  },
-  {
-    id: "media-interview-expansion",
-    slug: "bravo-scrims-and-mahasangram-interview",
-    title: "Bravo scrims and Mahasangram interview",
-    kind: "Interview",
-    category: "Interviews",
-    gameSlug: "pubg-pc",
-    duration: "08:40",
-    summary: "Editorial feature highlighting Bravo daily scrims, PUBG Mahasangram, leading teams, and sponsor-backed coverage plans.",
-    url: "/videos",
-    featured: false,
-  },
-] satisfies PlatformMediaItem[];
+const MEDIA_SEEDS: PlatformMediaItem[] = [];
 
 function slugify(value: string) {
   return value
@@ -657,11 +382,7 @@ function pickArticleTags(category: string, title: string) {
 }
 
 function normalizeArticleBody(summary: string, detail: string) {
-  return [
-    summary,
-    detail,
-    "Bravo is building a more complete esports ecosystem where this update can connect to games, events, teams, players, rankings, media, and sponsor visibility instead of living in isolation.",
-  ];
+  return [summary, detail].filter(Boolean);
 }
 
 function compareByDateDesc<T extends { startDate?: string; scheduledAt?: string; date?: string }>(firstValue: T, secondValue: T) {
@@ -738,13 +459,7 @@ function buildSponsorProfiles(
     name: row.name,
     kind: normalizeSponsorKind(row.kind, row.tier),
     tier: row.tier,
-    description:
-      row.description ??
-      (row.name === "Hukut"
-        ? "A premium partner with campaign-ready visibility across event, media, and community surfaces."
-        : row.name === "Gorkhali Roleplay"
-          ? "A community-facing partner that strengthens cross-scene reach and audience familiarity."
-          : DEFAULT_PARTNER_DESCRIPTION),
+    description: row.description ?? DEFAULT_PARTNER_DESCRIPTION,
     websiteUrl: row.websiteUrl ?? row.url,
     socialUrl: row.socialUrl,
     logoUrl: row.logoUrl ?? null,
@@ -762,14 +477,7 @@ function buildSponsorProfiles(
       ])
     ),
     supportedEvents: row.supportedEvents ?? [],
-    partnershipHistory:
-      row.partnershipHistory?.length
-        ? row.partnershipHistory
-        : [
-            "Activated across Bravo public platform surfaces",
-            "Visible in sponsor hub and campaign-ready event placements",
-            "Positioned for future featured-news and media integrations",
-          ],
+    partnershipHistory: row.partnershipHistory?.length ? row.partnershipHistory : [],
     visible: row.visible !== false,
     featured: Boolean(row.featured),
     showOnHomepage: Boolean(row.showOnHomepage),
@@ -801,69 +509,7 @@ function buildSponsorProfiles(
     };
   });
 
-  const ensuredRows = [...hydratedRows];
-
-  if (!ensuredRows.some((row) => row.name === "Hukut")) {
-    ensuredRows.push({
-      id: "sponsor-hukut",
-      slug: "hukut",
-      name: "Hukut",
-      kind: "sponsor",
-      tier: "Title Sponsor",
-      description: "A featured sponsor profile used to anchor premium partner presentation across the Bravo ecosystem.",
-      websiteUrl: undefined,
-      socialUrl: undefined,
-      logoUrl: null,
-      bannerUrl: null,
-      designAssetUrl: null,
-      supportedEvents: eventRows.slice(0, 3).map((eventRow) => eventRow.name),
-      eventSlugs: eventRows.slice(0, 3).map((eventRow) => eventRow.slug),
-      partnershipHistory: [
-        "Featured in flagship platform messaging",
-        "Aligned with premium esports campaign placement",
-        "Ready for event-level activation packages",
-      ],
-      visible: true,
-      featured: true,
-      showOnHomepage: true,
-      showOnSponsorsPage: true,
-      showOnEventPage: true,
-      showOnPubgPage: true,
-      updatedAt: undefined,
-    });
-  }
-
-  if (!ensuredRows.some((row) => row.name === "Gorkhali Roleplay")) {
-    ensuredRows.push({
-      id: "sponsor-gorkhali-roleplay",
-      slug: "gorkhali-roleplay",
-      name: "Gorkhali Roleplay",
-      kind: "partner",
-      tier: "Community Partner",
-      description: "A Nepal-first community partner that helps Bravo widen reach beyond event operations into fandom and cultural identity.",
-      websiteUrl: undefined,
-      socialUrl: undefined,
-      logoUrl: null,
-      bannerUrl: null,
-      designAssetUrl: null,
-      supportedEvents: eventRows.filter((eventRow) => eventRow.gameSlug === "pubg-pc").slice(0, 2).map((eventRow) => eventRow.name),
-      eventSlugs: eventRows.filter((eventRow) => eventRow.gameSlug === "pubg-pc").slice(0, 2).map((eventRow) => eventRow.slug),
-      partnershipHistory: [
-        "Visible in community-facing Bravo platform messaging",
-        "Connected to public event and sponsor surfaces",
-        "Ready for collaborative campaigns and community activations",
-      ],
-      visible: true,
-      featured: false,
-      showOnHomepage: true,
-      showOnSponsorsPage: true,
-      showOnEventPage: true,
-      showOnPubgPage: true,
-      updatedAt: undefined,
-    });
-  }
-
-  return ensuredRows.filter((row) => row.visible).sort(sortSponsorProfiles);
+  return hydratedRows.filter((row) => row.visible).sort(sortSponsorProfiles);
 }
 
 export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
@@ -979,7 +625,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     streamHref: event.streamUrl ?? "/live-stream",
     topTeamName: event.standings[0]?.teamName ?? null,
     topPlayerName: event.playerTable[0]?.pubgName ?? null,
-    sponsorName: "Hukut",
+    sponsorName: null,
     pointSystemName: "Bravo PUBG",
     tabs: ["Overview", "Standings", "Teams", "Players", "Matches", "Schedule", "Statistics", "Media", "Sponsors", "Rules"],
     updatedAt: event.startDate,
