@@ -20,14 +20,14 @@ export default function LogoBadge({
         alt={label}
         loading="lazy"
         decoding="async"
-        className={`shrink-0 border border-white/10 object-cover ${sizes[size]}`}
+        className={`shrink-0 border border-white/10 bg-bg-primary object-cover shadow-[0_12px_24px_rgba(0,0,0,0.22)] ${sizes[size]}`}
       />
     );
   }
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center border border-white/10 bg-gradient-to-br from-slate-800 to-[#0a1628] font-black uppercase tracking-[0.15em] text-white shadow-[0_0_20px_rgba(0,180,255,0.1)] ${sizes[size]}`}
+      className={`flex shrink-0 items-center justify-center border border-accent-blue/20 bg-[linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] font-black uppercase tracking-[0.15em] text-white shadow-[0_0_24px_rgba(20,126,245,0.12)] ${sizes[size]}`}
     >
       {label.replace(/[^a-zA-Z0-9]/g, "").slice(0, 3).toUpperCase()}
     </div>

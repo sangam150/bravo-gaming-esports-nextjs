@@ -91,7 +91,6 @@ export function formatDateRange(startDate?: string | null, endDate?: string | nu
   }
 
   const startLabel = formatDate(startDate);
-
   if (!endDate) {
     return startLabel;
   }
@@ -127,12 +126,52 @@ export function SectionHeader({
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
-      <div>
+      <div className="min-w-0">
         <p className="section-title">{eyebrow}</p>
-        <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">{title}</h2>
-        {description ? <p className="mt-2 max-w-3xl text-sm text-text-muted">{description}</p> : null}
+        <h2 className="mt-2 font-display text-[1.55rem] font-black uppercase text-white sm:text-[1.8rem]">
+          {title}
+        </h2>
+        {description ? <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">{description}</p> : null}
       </div>
       {action}
+    </div>
+  );
+}
+
+function StatTone({
+  tone = "blue",
+}: {
+  tone?: "blue" | "green" | "red" | "yellow";
+}) {
+  return tone === "green"
+    ? "text-accent-green"
+    : tone === "red"
+      ? "text-accent-red"
+      : tone === "yellow"
+        ? "text-accent-yellow"
+        : "text-accent-blue-light";
+}
+
+export function MetricCard({
+  label,
+  value,
+  detail,
+  tone = "blue",
+  compact = false,
+}: {
+  label: string;
+  value: string | number;
+  detail?: string;
+  tone?: "blue" | "green" | "red" | "yellow";
+  compact?: boolean;
+}) {
+  return (
+    <div className={joinClasses("stat-pill", compact ? "p-4" : "p-5")}>
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">{label}</p>
+      <p className={joinClasses("mt-3 font-mono-stat text-2xl", StatTone({ tone }))}>
+        {typeof value === "number" ? formatNumber(value) : value}
+      </p>
+      {detail ? <p className="mt-2 text-xs leading-6 text-text-muted">{detail}</p> : null}
     </div>
   );
 }
@@ -153,14 +192,16 @@ export function PageHero({
   aside?: ReactNode;
 }) {
   return (
-    <section className="hero-banner overflow-hidden p-8">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,_rgba(29,155,240,0.18),_transparent_30%),radial-gradient(circle_at_84%_18%,_rgba(0,230,118,0.14),_transparent_30%),linear-gradient(135deg,rgba(8,15,30,0.98),rgba(8,15,30,0.82))]" />
-      <div className="relative z-10 grid gap-8 xl:grid-cols-[1.35fr,0.85fr]">
-        <div>
+    <section className="hero-banner">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(47,152,255,0.18),transparent_28%),radial-gradient(circle_at_86%_18%,rgba(20,126,245,0.14),transparent_24%)]" />
+      <div className="relative grid gap-6 xl:grid-cols-[1.25fr,0.75fr]">
+        <div className="min-w-0">
           <span className="brand-badge">{badge}</span>
           <h1 className="hero-h1 mt-5">{title}</h1>
-          <p className="mt-4 max-w-3xl text-sm leading-relaxed text-text-muted">{description}</p>
-          {actions ? <div className="mt-6 flex flex-wrap gap-2">{actions}</div> : null}
+          <p className="mt-5 max-w-3xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
+            {description}
+          </p>
+          {actions ? <div className="mt-6 flex flex-wrap gap-3">{actions}</div> : null}
           {stats?.length ? (
             <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {stats.map((stat) => (
@@ -169,55 +210,26 @@ export function PageHero({
             </div>
           ) : null}
         </div>
-        {aside ? <div className="rounded-card border border-white/[0.08] bg-bg-primary/75 p-5">{aside}</div> : null}
+        {aside ? (
+          <div className="rounded-[24px] border border-white/[0.06] bg-black/24 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+            {aside}
+          </div>
+        ) : null}
       </div>
     </section>
   );
 }
 
-export function MetricCard({
-  label,
-  value,
-  detail,
-  tone = "blue",
-  compact = false,
-}: {
-  label: string;
-  value: string | number;
-  detail?: string;
-  tone?: "blue" | "green" | "red" | "yellow";
-  compact?: boolean;
-}) {
-  const toneClass =
-    tone === "green"
-      ? "text-accent-green"
-      : tone === "red"
-        ? "text-accent-red"
-        : tone === "yellow"
-          ? "text-accent-yellow"
-          : "text-accent-blue";
-
-  return (
-    <div className={joinClasses("stat-pill", compact ? "p-4" : "p-5")}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">{label}</p>
-      <p className={joinClasses("mt-3 font-mono-stat text-2xl", toneClass)}>
-        {typeof value === "number" ? formatNumber(value) : value}
-      </p>
-      {detail ? <p className="mt-2 text-xs text-text-muted">{detail}</p> : null}
-    </div>
-  );
-}
-
 function toneClassForStatus(status: PubgHubEventStatus) {
   if (status === "ongoing") {
-    return "border-accent-red/30 bg-accent-red/10 text-accent-red";
+    return "border-accent-red/30 bg-accent-red/10 text-white";
   }
 
   if (status === "finished") {
     return "border-accent-green/30 bg-accent-green/10 text-accent-green";
   }
 
-  return "border-accent-blue/30 bg-accent-blue/10 text-accent-blue";
+  return "border-accent-blue/30 bg-accent-blue/10 text-accent-blue-light";
 }
 
 function toneClassForState(state: PubgHubEventState) {
@@ -233,10 +245,15 @@ function toneClassForState(state: PubgHubEventState) {
 }
 
 export function StatusPill({ status }: { status: PubgHubEventStatus }) {
-  const label = status === "ongoing" ? "Live" : status === "finished" ? "Finished" : "Upcoming";
+  const label = status === "ongoing" ? "Live" : status === "finished" ? "Completed" : "Upcoming";
 
   return (
-    <span className={joinClasses("inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", toneClassForStatus(status))}>
+    <span
+      className={joinClasses(
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
+        toneClassForStatus(status)
+      )}
+    >
       {status === "ongoing" ? <span className="live-dot h-1.5 w-1.5" /> : null}
       {label}
     </span>
@@ -247,7 +264,12 @@ export function StatePill({ state }: { state: PubgHubEventState }) {
   const label = state === "draft" ? "Draft" : state === "locked" ? "Locked" : "Published";
 
   return (
-    <span className={joinClasses("inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", toneClassForState(state))}>
+    <span
+      className={joinClasses(
+        "inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
+        toneClassForState(state)
+      )}
+    >
       {label}
     </span>
   );
@@ -260,7 +282,7 @@ export function SyncPill({ syncStatus }: { syncStatus: PubgHubEvent["syncStatus"
       : syncStatus === "awaiting_approval"
         ? "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
         : syncStatus === "scheduled"
-          ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue"
+          ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue-light"
           : "border-white/10 bg-white/5 text-text-muted";
 
   const label =
@@ -272,31 +294,43 @@ export function SyncPill({ syncStatus }: { syncStatus: PubgHubEvent["syncStatus"
           ? "Scheduled"
           : "Draft";
 
-  return <span className={joinClasses("inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", className)}>{label}</span>;
+  return (
+    <span className={joinClasses("inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]", className)}>
+      {label}
+    </span>
+  );
 }
 
 export function FormPill({ label }: { label: string }) {
   const className =
     label === "Surging"
-      ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
+      ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue-light"
       : label === "Steady"
-        ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue"
+        ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
         : label === "Rising"
           ? "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
           : "border-white/10 bg-white/5 text-text-muted";
 
-  return <span className={joinClasses("inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", className)}>{label}</span>;
+  return (
+    <span className={joinClasses("inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]", className)}>
+      {label}
+    </span>
+  );
 }
 
 export function RankBadge({ rank }: { rank: number }) {
   const className =
     rank === 1
-      ? "bg-accent-yellow/12 text-accent-yellow border-accent-yellow/25"
-      : rank <= 3
-        ? "bg-accent-blue/12 text-accent-blue border-accent-blue/25"
-        : "bg-white/5 text-text-muted border-white/10";
+      ? "border-accent-blue/35 bg-accent-blue/10 text-white"
+      : rank <= 4
+        ? "border-accent-blue/20 bg-accent-blue/5 text-accent-blue-light"
+        : "border-white/10 bg-white/5 text-text-muted";
 
-  return <span className={joinClasses("inline-flex min-w-10 items-center justify-center rounded-full border px-2.5 py-1 font-mono-stat text-xs", className)}>#{rank}</span>;
+  return (
+    <span className={joinClasses("inline-flex min-w-10 items-center justify-center rounded-full border px-2.5 py-1 font-mono-stat text-xs", className)}>
+      #{rank}
+    </span>
+  );
 }
 
 export function EmptyState({
@@ -309,10 +343,10 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-card border border-dashed border-white/10 bg-bg-primary/50 p-6 text-center">
+    <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 p-6 text-center">
       <p className="font-display text-lg font-black uppercase text-white">{title}</p>
-      <p className="mt-2 text-sm text-text-muted">{description}</p>
-      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
+      <p className="mt-3 text-sm leading-7 text-text-muted">{description}</p>
+      {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
     </div>
   );
 }
@@ -320,33 +354,33 @@ export function EmptyState({
 export function TrendBars({
   values,
   tone = "blue",
-  height = 46,
+  height = 42,
 }: {
   values: number[];
   tone?: "blue" | "green" | "red" | "yellow";
   height?: number;
 }) {
   if (values.length === 0) {
-    return <div className="h-12 rounded-card border border-dashed border-white/10 bg-bg-primary/40" />;
+    return <div className="h-12 rounded-[18px] border border-dashed border-white/10 bg-black/10" />;
   }
 
   const maxValue = Math.max(...values, 1);
   const barClass =
     tone === "green"
-      ? "from-accent-green/35 to-accent-green"
+      ? "from-accent-green/40 to-accent-green"
       : tone === "red"
-        ? "from-accent-red/35 to-accent-red"
+        ? "from-accent-red/40 to-accent-red"
         : tone === "yellow"
-          ? "from-accent-yellow/35 to-accent-yellow"
-          : "from-accent-blue/35 to-accent-blue";
+          ? "from-accent-yellow/40 to-accent-yellow"
+          : "from-accent-blue/40 to-accent-blue-light";
 
   return (
-    <div className="flex items-end gap-1">
+    <div className="flex items-end gap-1.5">
       {values.map((value, index) => {
-        const computedHeight = Math.max(10, Math.round((value / maxValue) * height));
+        const computedHeight = Math.max(8, Math.round((value / maxValue) * height));
 
         return (
-          <div key={`${index}-${value}`} className="flex-1 rounded-full bg-white/5 p-0.5">
+          <div key={`${index}-${value}`} className="flex-1 rounded-full bg-white/5 p-[2px]">
             <div className={joinClasses("w-full rounded-full bg-gradient-to-t", barClass)} style={{ height: computedHeight }} />
           </div>
         );
@@ -391,7 +425,12 @@ export function DualTrendChart({
   const maxLength = Math.max(firstValues.length, secondValues.length);
 
   if (maxLength === 0) {
-    return <EmptyState title="Recent form is not available yet" description="Recent form will appear once enough official match data has been published." />;
+    return (
+      <EmptyState
+        title="Recent form is not available yet"
+        description="Recent form appears once enough official match data has been published."
+      />
+    );
   }
 
   const paddedFirst = [...firstValues];
@@ -401,10 +440,10 @@ export function DualTrendChart({
   while (paddedSecond.length < maxLength) paddedSecond.unshift(0);
 
   return (
-    <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
-      <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-[0.18em]">
-        <span className="inline-flex items-center gap-2 text-accent-blue">
-          <span className="h-2.5 w-2.5 rounded-full bg-accent-blue" />
+    <div className="rounded-[22px] border border-white/[0.06] bg-black/15 p-4">
+      <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.18em]">
+        <span className="inline-flex items-center gap-2 text-accent-blue-light">
+          <span className="h-2.5 w-2.5 rounded-full bg-accent-blue-light" />
           {firstLabel}
         </span>
         <span className="inline-flex items-center gap-2 text-accent-green">
@@ -413,16 +452,6 @@ export function DualTrendChart({
         </span>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 h-36 w-full">
-        <defs>
-          <linearGradient id="pubgTrendBlue" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="rgba(29,155,240,0.2)" />
-            <stop offset="100%" stopColor="rgba(29,155,240,1)" />
-          </linearGradient>
-          <linearGradient id="pubgTrendGreen" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="rgba(0,230,118,0.2)" />
-            <stop offset="100%" stopColor="rgba(0,230,118,1)" />
-          </linearGradient>
-        </defs>
         {[0.2, 0.4, 0.6, 0.8].map((step) => (
           <line
             key={step}
@@ -434,8 +463,8 @@ export function DualTrendChart({
             strokeWidth="1"
           />
         ))}
-        <polyline fill="none" stroke="url(#pubgTrendBlue)" strokeWidth="3" points={buildLinePoints(paddedFirst, width, height, 12)} />
-        <polyline fill="none" stroke="url(#pubgTrendGreen)" strokeWidth="3" points={buildLinePoints(paddedSecond, width, height, 12)} />
+        <polyline fill="none" stroke="rgba(47,152,255,0.95)" strokeWidth="3" points={buildLinePoints(paddedFirst, width, height, 12)} />
+        <polyline fill="none" stroke="rgba(22,163,74,0.95)" strokeWidth="3" points={buildLinePoints(paddedSecond, width, height, 12)} />
       </svg>
     </div>
   );
@@ -455,7 +484,9 @@ export function TeamIdentity({
       <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="sm" />
       <div className="min-w-0">
         <p className="truncate font-semibold text-white">{team.name}</p>
-        <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{team.tag ? `[${team.tag}]` : "PUBG Team"}</p>
+        <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">
+          {team.tag ? `[${team.tag}]` : "PUBG Team"}
+        </p>
       </div>
       {meta ? <div className="ml-auto shrink-0">{meta}</div> : null}
     </div>
@@ -466,7 +497,7 @@ export function TeamIdentity({
   }
 
   return (
-    <Link href={href} className="block rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+    <Link href={href} className="block rounded-[18px] border border-white/[0.06] bg-black/15 p-4 transition hover:border-accent-blue/25 hover:bg-accent-blue/5">
       {content}
     </Link>
   );
@@ -486,7 +517,9 @@ export function PlayerIdentity({
       <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="sm" />
       <div className="min-w-0">
         <p className="truncate font-semibold text-white">{player.pubgName}</p>
-        <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
+        <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">
+          {player.currentTeamName ?? "Team TBD"}
+        </p>
       </div>
       {meta ? <div className="ml-auto shrink-0">{meta}</div> : null}
     </div>
@@ -497,7 +530,7 @@ export function PlayerIdentity({
   }
 
   return (
-    <Link href={href} className="block rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+    <Link href={href} className="block rounded-[18px] border border-white/[0.06] bg-black/15 p-4 transition hover:border-accent-blue/25 hover:bg-accent-blue/5">
       {content}
     </Link>
   );
@@ -511,50 +544,28 @@ export function EventSummaryCard({
   href: string;
 }) {
   return (
-    <Link href={href} className="block rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+    <Link href={href} className="block rounded-[24px] border border-white/[0.06] bg-black/15 p-5 transition hover:border-accent-blue/25 hover:bg-accent-blue/5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{event.region}</p>
-          <h3 className="mt-2 font-display text-lg font-black uppercase text-white">{event.name}</h3>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">{event.region}</p>
+          <h3 className="mt-2 font-display text-xl font-black uppercase text-white">{event.name}</h3>
         </div>
         <div className="flex flex-wrap gap-2">
           <StatusPill status={event.status} />
           <SyncPill syncStatus={event.syncStatus} />
         </div>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Date</p>
-          <p className="mt-1 text-sm text-white">{formatDateRange(event.startDate, event.endDate)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">State</p>
-          <div className="mt-2">
-            <StatePill state={event.state} />
-          </div>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Format</p>
-          <p className="mt-1 text-sm text-white">
-            {event.mode} {event.perspective}
-          </p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Teams</p>
-          <p className="mt-1 font-mono-stat text-white">{formatNumber(event.teamCount)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Matches</p>
-          <p className="mt-1 font-mono-stat text-white">{formatNumber(event.matchCount)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Prize</p>
-          <p className="mt-1 text-sm text-white">{event.prizePool}</p>
-        </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <MetricCard label="Dates" value={formatDateRange(event.startDate, event.endDate)} compact />
+        <MetricCard label="Teams" value={event.teamCount} tone="blue" compact />
+        <MetricCard label="Matches" value={event.matchCount} tone="green" compact />
       </div>
-      <div className="mt-4 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-accent-blue">
+      <p className="mt-4 text-sm leading-7 text-text-muted">
+        {event.description?.trim() || "Published PUBG event coverage with standings, player stats, and recent match context."}
+      </p>
+      <div className="mt-4 inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em] text-accent-blue-light">
         Open event
-        <span aria-hidden="true">&gt;</span>
+        <span aria-hidden="true">/</span>
       </div>
     </Link>
   );
@@ -572,13 +583,16 @@ export function MapStatsTable({
   return (
     <div className="esports-card overflow-hidden !p-0">
       {title ? (
-        <div className="border-b border-white/[0.08] px-5 py-4">
+        <div className="border-b border-white/[0.06] px-5 py-4">
           <SectionHeader eyebrow="Map Read" title={title} description={description} />
         </div>
       ) : null}
       {stats.length === 0 ? (
         <div className="p-6">
-          <EmptyState title="Map statistics are not available yet" description="Map-based statistics will appear once official match results are published." />
+          <EmptyState
+            title="Map statistics are not available yet"
+            description="Map-based statistics will appear once official match results are published."
+          />
         </div>
       ) : (
         <div className="table-scroll">
@@ -591,19 +605,19 @@ export function MapStatsTable({
                 <th>Wins</th>
                 <th>Avg Place</th>
                 <th>Damage</th>
-                <th>Points</th>
+                <th>Total</th>
               </tr>
             </thead>
             <tbody>
               {stats.map((row) => (
                 <tr key={row.map}>
                   <td className="font-semibold text-white">{row.map}</td>
-                  <td>{formatNumber(row.matches)}</td>
-                  <td>{formatNumber(row.kills)}</td>
-                  <td>{formatNumber(row.wins)}</td>
-                  <td>{formatDecimal(row.avgPlacement, 2)}</td>
-                  <td>{formatNumber(row.damage)}</td>
-                  <td className="points-cell">{formatNumber(row.points)}</td>
+                  <td className="text-right">{formatNumber(row.matches)}</td>
+                  <td className="text-right">{formatNumber(row.kills)}</td>
+                  <td className="text-right">{formatNumber(row.wins)}</td>
+                  <td className="text-right">{formatDecimal(row.avgPlacement, 2)}</td>
+                  <td className="text-right">{formatNumber(row.damage)}</td>
+                  <td className="points-cell text-right">{formatNumber(row.points)}</td>
                 </tr>
               ))}
             </tbody>
@@ -622,7 +636,12 @@ export function RecentMatchCards({
   teamLookup?: Map<string, PubgHubTeam>;
 }) {
   if (matches.length === 0) {
-    return <EmptyState title="No match results have been published yet" description="Results will appear once they are officially verified." />;
+    return (
+      <EmptyState
+        title="No match results have been published yet"
+        description="Results will appear once they are officially verified."
+      />
+    );
   }
 
   return (
@@ -638,17 +657,21 @@ export function RecentMatchCards({
         const href = `/pubg/matches/${isRecentMatch ? match.matchId : match.id}`;
 
         return (
-          <Link key={isRecentMatch ? match.matchId : match.id} href={href} className="block rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+          <Link
+            key={isRecentMatch ? match.matchId : match.id}
+            href={href}
+            className="block rounded-[22px] border border-white/[0.06] bg-black/15 p-4 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
+          >
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">
                   {"eventName" in match ? match.eventName : "Match"}
                 </p>
                 <h3 className="mt-2 font-display text-base font-black uppercase text-white">
-                  Map {isRecentMatch ? match.mapName : match.mapName} | Match {"matchNumber" in match ? match.matchNumber : "-"}
+                  {match.mapName} | Match {"matchNumber" in match ? match.matchNumber : "-"}
                 </h3>
               </div>
-              <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+              <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
                 {formatDate(match.startTime)}
               </span>
             </div>
@@ -659,21 +682,15 @@ export function RecentMatchCards({
                 <p className="font-semibold text-white">{winnerName}</p>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Place</p>
-                <p className="mt-1 font-mono-stat text-white">{isRecentMatch ? `#${match.placement}` : "Full lobby"}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Kills</p>
-                <p className="mt-1 font-mono-stat text-white">{formatNumber(isRecentMatch ? match.kills : match.totalKills)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Points</p>
-                <p className="mt-1 font-mono-stat text-accent-green">
-                  {formatNumber(isRecentMatch ? match.totalPoints : Math.max(...match.teamResults.map((teamResult) => teamResult.totalPoints), 0))}
-                </p>
-              </div>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <MetricCard label="Place" value={isRecentMatch ? `#${match.placement}` : "Lobby"} compact />
+              <MetricCard label="Kills" value={isRecentMatch ? match.kills : match.totalKills} tone="blue" compact />
+              <MetricCard
+                label="Total"
+                value={isRecentMatch ? match.totalPoints : Math.max(...match.teamResults.map((teamResult) => teamResult.totalPoints), 0)}
+                tone="green"
+                compact
+              />
             </div>
           </Link>
         );
@@ -691,7 +708,7 @@ type RadarPoint = {
 function buildRadarPolygon(values: number[], radius: number, center: number) {
   return values
     .map((value, index) => {
-      const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / values.length;
+      const angle = -Math.PI / 2 + (Math.PI * 2 * index) / values.length;
       const x = center + Math.cos(angle) * radius * value;
       const y = center + Math.sin(angle) * radius * value;
       return `${x},${y}`;
@@ -699,11 +716,11 @@ function buildRadarPolygon(values: number[], radius: number, center: number) {
     .join(" ");
 }
 
-function buildAxisLabelStyle(label: string, x: number, y: number): CSSProperties {
+function buildAxisLabelStyle(_label: string, x: number, y: number): CSSProperties {
   return {
     left: x,
     top: y,
-    transform: label.length > 8 ? "translate(-50%, -50%)" : "translate(-50%, -50%)",
+    transform: "translate(-50%, -50%)",
   };
 }
 
@@ -719,7 +736,12 @@ export function RadarComparison({
   secondLabel: string;
 }) {
   if (points.length === 0) {
-    return <EmptyState title="Comparison data is not available yet" description="Comparison statistics will appear once both sides have enough published match data." />;
+    return (
+      <EmptyState
+        title="Comparison data is not available yet"
+        description="Comparison statistics will appear once both sides have enough published match data."
+      />
+    );
   }
 
   const size = 240;
@@ -730,15 +752,15 @@ export function RadarComparison({
   const normalizedSecond = points.map((point) => Math.max(0.08, point.secondValue / maxValue));
 
   return (
-    <div className="rounded-card border border-white/[0.08] bg-bg-primary p-5">
+    <div className="rounded-[24px] border border-white/[0.06] bg-black/15 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Radar Layer</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">Comparison Lens</p>
           <h3 className="mt-2 font-display text-lg font-black uppercase text-white">{title}</h3>
         </div>
-        <div className="flex flex-wrap gap-3 text-[10px] font-bold uppercase tracking-[0.18em]">
-          <span className="inline-flex items-center gap-2 text-accent-blue">
-            <span className="h-2.5 w-2.5 rounded-full bg-accent-blue" />
+        <div className="flex flex-wrap gap-3 text-[10px] font-black uppercase tracking-[0.18em]">
+          <span className="inline-flex items-center gap-2 text-accent-blue-light">
+            <span className="h-2.5 w-2.5 rounded-full bg-accent-blue-light" />
             {firstLabel}
           </span>
           <span className="inline-flex items-center gap-2 text-accent-green">
@@ -759,22 +781,26 @@ export function RadarComparison({
             />
           ))}
           {points.map((_, index) => {
-            const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / points.length;
+            const angle = -Math.PI / 2 + (Math.PI * 2 * index) / points.length;
             const x = center + Math.cos(angle) * radius;
             const y = center + Math.sin(angle) * radius;
 
             return <line key={`axis-${index}`} x1={center} y1={center} x2={x} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />;
           })}
-          <polygon points={buildRadarPolygon(normalizedSecond, radius, center)} fill="rgba(0,230,118,0.14)" stroke="rgba(0,230,118,0.92)" strokeWidth="2.5" />
-          <polygon points={buildRadarPolygon(normalizedFirst, radius, center)} fill="rgba(29,155,240,0.14)" stroke="rgba(29,155,240,0.92)" strokeWidth="2.5" />
+          <polygon points={buildRadarPolygon(normalizedSecond, radius, center)} fill="rgba(22,163,74,0.14)" stroke="rgba(22,163,74,0.92)" strokeWidth="2.5" />
+          <polygon points={buildRadarPolygon(normalizedFirst, radius, center)} fill="rgba(47,152,255,0.14)" stroke="rgba(47,152,255,0.92)" strokeWidth="2.5" />
         </svg>
         {points.map((point, index) => {
-          const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / points.length;
+          const angle = -Math.PI / 2 + (Math.PI * 2 * index) / points.length;
           const x = center + Math.cos(angle) * (radius + 26);
           const y = center + Math.sin(angle) * (radius + 26);
 
           return (
-            <div key={point.label} className="absolute text-center text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted" style={buildAxisLabelStyle(point.label, x, y)}>
+            <div
+              key={point.label}
+              className="absolute text-center text-[10px] font-black uppercase tracking-[0.14em] text-text-muted"
+              style={buildAxisLabelStyle(point.label, x, y)}
+            >
               {point.label}
             </div>
           );
@@ -783,4 +809,3 @@ export function RadarComparison({
     </div>
   );
 }
-

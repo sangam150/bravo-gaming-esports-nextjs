@@ -1,8 +1,8 @@
 const mapColors: Record<string, string> = {
-  Rondo: "from-emerald-800 to-emerald-950",
-  Erangel: "from-green-800 to-green-950",
-  Miramar: "from-amber-800 to-amber-950",
-  Taego: "from-purple-800 to-purple-950",
+  Rondo: "from-sky-900 to-slate-950",
+  Erangel: "from-emerald-900 to-slate-950",
+  Miramar: "from-amber-900 to-slate-950",
+  Taego: "from-cyan-900 to-slate-950",
 };
 
 export default function MapThumb({ map }: { map: string }) {

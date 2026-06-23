@@ -21,14 +21,14 @@ export default function TeamAvatar({
         alt={name}
         loading="lazy"
         decoding="async"
-        className={`shrink-0 rounded-2xl border border-white/10 bg-bg-primary object-cover shadow-[0_10px_24px_rgba(0,0,0,0.22)] ${sizes[size]}`}
+        className={`shrink-0 rounded-[18px] border border-white/10 bg-bg-primary object-cover shadow-[0_14px_28px_rgba(0,0,0,0.24)] ${sizes[size]}`}
       />
     );
   }
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-accent-blue to-blue-900 font-display font-extrabold text-white shadow-[0_10px_24px_rgba(0,0,0,0.22)] ${sizes[size]}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-[18px] border border-accent-blue/25 bg-[linear-gradient(180deg,rgba(47,152,255,0.92),rgba(8,80,178,0.96))] font-display font-extrabold text-white shadow-[0_14px_28px_rgba(0,0,0,0.24)] ${sizes[size]}`}
     >
       {initials}
     </span>

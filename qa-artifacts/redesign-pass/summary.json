@@ -1,0 +1,149 @@
+{
+  "generatedAt": "2026-06-23T18:52:41.062Z",
+  "baseURL": "http://127.0.0.1:3001",
+  "routes": [
+    {
+      "route": "/",
+      "status": 200,
+      "hasErrorUi": false,
+      "overflow": false
+    },
+    {
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "hasErrorUi": false,
+      "overflow": false
+    },
+    {
+      "route": "/events",
+      "status": 200,
+      "hasErrorUi": false,
+      "overflow": false
+    },
+    {
+      "route": "/media",
+      "status": 200,
+      "hasErrorUi": false,
+      "overflow": false
+    },
+    {
+      "route": "/sponsors",
+      "status": 200,
+      "hasErrorUi": false,
+      "overflow": false
+    },
+    {
+      "route": "/news",
+      "status": 200,
+      "hasErrorUi": false,
+      "overflow": false
+    },
+    {
+      "route": "/contact",
+      "status": 200,
+      "hasErrorUi": false,
+      "overflow": false
+    }
+  ],
+  "screenshots": [
+    "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\homepage.png",
+    "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\leaderboards.png",
+    "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\events.png",
+    "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\media.png",
+    "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\sponsors.png",
+    "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\news.png",
+    "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\contact.png"
+  ],
+  "mobile": [
+    {
+      "width": 360,
+      "height": 844,
+      "route": "/",
+      "status": 200,
+      "overflow": false,
+      "hasErrorUi": false,
+      "drawer": false,
+      "screenshot": "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\mobile\\360-home.png"
+    },
+    {
+      "width": 360,
+      "height": 844,
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "overflow": false,
+      "hasErrorUi": false,
+      "drawer": false,
+      "screenshot": "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\mobile\\360-leaderboards.png"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "route": "/",
+      "status": 200,
+      "overflow": false,
+      "hasErrorUi": false,
+      "drawer": false,
+      "screenshot": "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\mobile\\390-home.png"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "overflow": false,
+      "hasErrorUi": false,
+      "drawer": false,
+      "screenshot": "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\mobile\\390-leaderboards.png"
+    },
+    {
+      "width": 430,
+      "height": 844,
+      "route": "/",
+      "status": 200,
+      "overflow": false,
+      "hasErrorUi": false,
+      "drawer": false,
+      "screenshot": "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\mobile\\430-home.png"
+    },
+    {
+      "width": 430,
+      "height": 844,
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "overflow": false,
+      "hasErrorUi": false,
+      "drawer": false,
+      "screenshot": "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\mobile\\430-leaderboards.png"
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "route": "/",
+      "status": 200,
+      "overflow": false,
+      "hasErrorUi": false,
+      "drawer": false,
+      "screenshot": "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\mobile\\768-home.png"
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "overflow": false,
+      "hasErrorUi": false,
+      "drawer": false,
+      "screenshot": "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\mobile\\768-leaderboards.png"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "route": "/",
+      "status": 200,
+      "overflow": false,
+      "hasErrorUi": false,
+      "drawer": true,
+      "screenshot": "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\redesign-pass\\mobile\\390-nav-open.png"
+    }
+  ]
+}

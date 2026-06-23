@@ -16,7 +16,7 @@ type ContactFormClientProps = {
 };
 
 const inputClass =
-  "w-full rounded-3xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition focus:border-bravoBlue";
+  "w-full rounded-[16px] border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white outline-none transition placeholder:text-text-muted focus:border-bravoBlue focus:ring-1 focus:ring-bravoBlue/30";
 
 export default function ContactFormClient({
   kind,
@@ -82,20 +82,23 @@ export default function ContactFormClient({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-[28px] border border-white/10 bg-slate-950/80 p-6">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(16,24,43,0.95),rgba(10,16,32,0.95))] p-6 shadow-[0_0_30px_rgba(20,126,245,0.08)]"
+    >
       <div>
-        <p className="text-lg font-semibold text-white">{title}</p>
-        <p className="mt-2 text-sm text-slate-300">{description}</p>
+        <p className="font-display text-lg font-black uppercase text-white">{title}</p>
+        <p className="mt-2 text-sm leading-7 text-text-muted">{description}</p>
       </div>
 
       {notice ? (
-        <div className="rounded-2xl border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-200">
+        <div className="rounded-[16px] border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-100">
           {notice}
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-[16px] border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-100">
           {error}
         </div>
       ) : null}
@@ -104,7 +107,11 @@ export default function ContactFormClient({
       <input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email Address" required />
       <input className={inputClass} value={subject} onChange={(event) => setSubject(event.target.value)} placeholder={subjectLabel} />
       <textarea className={inputClass} rows={5} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Message" required />
-      <button type="submit" disabled={submitting} className="w-full rounded-full bg-bravoBlue px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white/90 disabled:opacity-60">
+      <button
+        type="submit"
+        disabled={submitting}
+        className="w-full rounded-[16px] bg-[linear-gradient(180deg,#2F98FF,#147EF5)] px-5 py-3 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:brightness-110 disabled:opacity-60"
+      >
         {submitting ? "Sending your message..." : submitLabel}
       </button>
     </form>

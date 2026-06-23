@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { PubgTeamDetailPage } from "@/components/pubg/PubgPublicPages";
+import { PubgTeamProfileShowcasePage } from "@/components/pubg/PubgShowcasePages";
 import { getPubgHubDataset, getPubgTeamById } from "@/lib/pubg-hub";
 
 type PageProps = {
@@ -56,5 +56,5 @@ export default async function PubgTeamDetailRoute({ params, searchParams }: Page
     redirect(`/pubg/teams/${team.slug}`);
   }
 
-  return <PubgTeamDetailPage team={team} dataset={dataset} searchParams={resolvedSearchParams} />;
+  return <PubgTeamProfileShowcasePage team={team} dataset={dataset} searchParams={resolvedSearchParams} />;
 }

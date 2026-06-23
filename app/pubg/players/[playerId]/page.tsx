@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { PubgPlayerDetailPage } from "@/components/pubg/PubgPublicPages";
+import { PubgPlayerProfileShowcasePage } from "@/components/pubg/PubgShowcasePages";
 import { getPubgHubDataset, getPubgPlayerById } from "@/lib/pubg-hub";
 
 type PageProps = {
@@ -56,5 +56,5 @@ export default async function PubgPlayerDetailRoute({ params, searchParams }: Pa
     redirect(`/pubg/players/${player.slug}`);
   }
 
-  return <PubgPlayerDetailPage player={player} dataset={dataset} searchParams={resolvedSearchParams} />;
+  return <PubgPlayerProfileShowcasePage player={player} dataset={dataset} searchParams={resolvedSearchParams} />;
 }
