@@ -1,81 +1,139 @@
-import Image from "next/image";
 import Link from "next/link";
-import { formatDisplayNumber } from "@/lib/display-format";
-import { getSiteStats } from "@/lib/data";
+import type { Metadata } from "next";
+import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
+import { buildContentMetadata } from "@/lib/metadata";
 
-export default async function AboutPage() {
-  const stats = await getSiteStats();
-  const statItems = [
-    { value: `${stats.tournamentsCompleted}`, label: "Tournaments" },
-    { value: `${stats.matchesHosted}`, label: "Matches" },
-    { value: formatDisplayNumber(stats.communityMembers), label: "Community" },
-    { value: stats.prizePoolsAwarded, label: "Prize Pools" },
-  ];
-  const hasPublishedStats = stats.tournamentsCompleted > 0 || stats.matchesHosted > 0 || stats.communityMembers > 0;
+const pillars = [
+  {
+    title: "Flagship PUBG Coverage",
+    detail:
+      "Bravo leads with PUBG PC, bringing seasons, events, teams, players, standings, and match reporting into one public home.",
+  },
+  {
+    title: "Verified Publishing",
+    detail:
+      "Public results, rankings, community updates, sponsors, and media are meant to reflect official Bravo coverage, not filler content.",
+  },
+  {
+    title: "Built For Growth",
+    detail:
+      "Future support for more titles will open only when real events, teams, and coverage are ready for public launch.",
+  },
+] as const;
 
+const commitments = [
+  "Publish clear, match-backed competition coverage for Nepal esports.",
+  "Keep teams, players, fans, sponsors, and organizers connected through one reliable platform.",
+  "Prioritize fast navigation, clean mobile browsing, and professional presentation.",
+  "Expand into new titles only when Bravo can support them with genuine public coverage.",
+] as const;
+
+export const metadata: Metadata = buildContentMetadata({
+  title: "About Bravo Gaming Esports",
+  description: "Learn how Bravo Gaming Esports is building Nepal's home for competitive esports with PUBG PC as the flagship ecosystem.",
+  path: "/about",
+  type: "website",
+});
+
+export default function AboutPage() {
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div>
-          <p className="section-title">About Bravo Gaming</p>
-          <h1 className="hero-h1 mt-3 !text-4xl">Our Journey, Mission & Vision</h1>
-
-          <section className="mt-8">
-            <h2 className="section-heading !text-lg">Our Story</h2>
-            <p className="mt-4 text-sm leading-relaxed text-text-muted">
-              Bravo Gaming Esports Nepal was founded with a vision to build a strong esports ecosystem in Nepal. We
-              organize PUBG PC scrims, tournaments, and live events to provide a platform for talented players and
-              entertain a growing community. Our dedication to fair play, competitive spirit, and community programmes
-              make us one of the leading esports organizations in Nepal.
-            </p>
-          </section>
-
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                title: "Our Mission",
-                text: "Elevate Nepal's esports by creating opportunities, hosting professional tournaments, and representing Nepal on the global stage.",
-              },
-              {
-                title: "Our Vision",
-                text: "Become Nepal's most respected esports brand and represent Nepal on the global esports stage.",
-              },
-              {
-                title: "Our Values",
-                text: "Fair Play | Respect | Excellence | Integrity | Community",
-              },
-            ].map((block) => (
-              <div key={block.title} className="esports-card p-4">
-                <h3 className="font-display text-sm font-bold uppercase text-accent-blue">{block.title}</h3>
-                <p className="mt-2 text-xs text-text-muted">{block.text}</p>
+    <main className="page-shell pb-12 pt-6">
+      <div className="page-stack">
+        <section className="hero-banner overflow-hidden p-8">
+          <div className="relative z-10 grid gap-8 xl:grid-cols-[1.1fr,0.9fr]">
+            <div>
+              <p className="section-title">About Bravo</p>
+              <h1 className="mt-4 font-display text-4xl font-black uppercase text-white sm:text-5xl">
+                Nepal&apos;s home for
+                <br />
+                competitive esports
+              </h1>
+              <p className="mt-5 max-w-3xl text-sm leading-7 text-text-muted sm:text-base">
+                Bravo Gaming Esports is building a trustworthy public platform for Nepal esports, with PUBG PC as the
+                flagship ecosystem and room to grow into more titles as real coverage expands.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/pubg" className="btn-primary">
+                  Open PUBG Hub
+                </Link>
+                <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+                  Join Discord
+                </a>
+                <a href={BRAVO_INSTAGRAM_URL} target="_blank" rel="noreferrer" className="btn-secondary">
+                  Follow Instagram
+                </a>
               </div>
-            ))}
-          </div>
+            </div>
 
-          {hasPublishedStats ? (
-            <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {statItems.map((stat) => (
-                <div key={stat.label} className="stat-pill text-center">
-                  <p className="font-mono-stat text-lg font-bold text-white">{stat.value}</p>
-                  <p className="text-label uppercase text-text-muted">{stat.label}</p>
+            <div className="rounded-[28px] border border-white/[0.08] bg-black/20 p-6">
+              <p className="section-title">Official Channels</p>
+              <div className="mt-5 grid gap-3">
+                <a
+                  href={BRAVO_INSTAGRAM_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                >
+                  Instagram | @bravo_esport
+                </a>
+                <a
+                  href={BRAVO_DISCORD_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                >
+                  Discord | Official community server
+                </a>
+                <Link
+                  href="/contact"
+                  className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                >
+                  Contact | Reach the Bravo team directly
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          {pillars.map((pillar) => (
+            <div key={pillar.title} className="esports-card p-6">
+              <h2 className="font-display text-xl font-black uppercase text-white">{pillar.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-text-muted">{pillar.detail}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
+          <div className="esports-card p-6">
+            <p className="section-title">What Bravo Stands For</p>
+            <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Reliable public coverage</h2>
+            <div className="mt-5 grid gap-3">
+              {commitments.map((item) => (
+                <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white">
+                  {item}
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="mt-8 rounded-card border border-white/[0.08] bg-bg-card p-5 text-sm text-text-muted">
-              Platform totals will appear here once published events and results are available.
+          </div>
+
+          <div className="esports-card p-6">
+            <p className="section-title">Community</p>
+            <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Follow the next update</h2>
+            <p className="mt-5 text-sm leading-7 text-text-muted">
+              Bravo&apos;s public community route keeps official updates, team discovery, player browsing, and support
+              close together so the platform stays easy to trust and easy to use.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/pubg/community" className="btn-primary">
+                Open Community
+              </Link>
+              <Link href="/news" className="btn-secondary">
+                Read News
+              </Link>
             </div>
-          )}
-
-          <Link href="/contact" className="btn-primary mt-8 inline-flex">
-            Contact Us
-          </Link>
-        </div>
-
-        <div className="relative min-h-[400px] overflow-hidden rounded-card border border-white/[0.08] bg-bg-card">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(29,155,240,0.15),_transparent_60%)]" />
-          <Image src="/images/hero-character.svg" alt="" fill className="object-contain object-bottom p-8 opacity-80" />
-        </div>
+          </div>
+        </section>
       </div>
     </main>
   );

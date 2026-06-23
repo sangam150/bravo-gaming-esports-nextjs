@@ -1,7 +1,7 @@
-import { getServerAuthenticatedSession } from "@/lib/admin-auth";
+import { getRequestSession } from "@/lib/admin-auth";
 
-export async function GET() {
-  const session = await getServerAuthenticatedSession();
+export async function GET(request: Request) {
+  const session = await getRequestSession(request);
   if (!session) {
     return Response.json({ authenticated: false }, { status: 401 });
   }
@@ -13,6 +13,7 @@ export async function GET() {
       email: session.email,
       role: session.role,
       teamId: session.teamId,
+      playerId: session.playerId,
       displayName: session.displayName,
       isAdmin: session.isAdmin,
     },

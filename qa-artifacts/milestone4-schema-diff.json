@@ -1,0 +1,764 @@
+{
+  "tables": {
+    "profiles": {
+      "missingTable": false,
+      "missingColumns": [
+        "display_name"
+      ],
+      "mismatchedColumns": [
+        {
+          "columnName": "id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid",
+            "default null missing gen_random_uuid"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "auth_user_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid",
+            "nullable true != false"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "email",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "role",
+          "mismatches": [
+            "udtName undefined != user_role",
+            "default null missing viewer"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "team_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "created_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "updated_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        }
+      ],
+      "missingIndexes": []
+    },
+    "users": {
+      "missingTable": false,
+      "missingColumns": [],
+      "mismatchedColumns": [
+        {
+          "columnName": "id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid",
+            "default null missing gen_random_uuid"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "auth_user_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        }
+      ],
+      "missingIndexes": []
+    },
+    "seasons": {
+      "missingTable": false,
+      "missingColumns": [
+        "slug",
+        "series_title",
+        "season_number",
+        "configured_days",
+        "completed_at",
+        "archived_at",
+        "ended_early",
+        "notes",
+        "description",
+        "game",
+        "format",
+        "region",
+        "perspective",
+        "current_event_id"
+      ],
+      "mismatchedColumns": [],
+      "missingIndexes": [
+        "seasons_slug_unique_idx"
+      ]
+    },
+    "events": {
+      "missingTable": false,
+      "missingColumns": [
+        "region",
+        "tier",
+        "competition_status",
+        "server",
+        "schedule",
+        "map_rotation",
+        "max_teams",
+        "team_count",
+        "season_day_number",
+        "match_count",
+        "source_url"
+      ],
+      "mismatchedColumns": [
+        {
+          "columnName": "name",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "slug",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "type",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "mode",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "perspective",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "prize_pool",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "rules",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "stream_url",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "discord_url",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "published",
+          "mismatches": [
+            "dataType undefined != boolean",
+            "udtName undefined != bool"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "published_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "deleted_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "point_system_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        }
+      ],
+      "missingIndexes": []
+    },
+    "matches": {
+      "missingTable": false,
+      "missingColumns": [
+        "external_match_id",
+        "data_source"
+      ],
+      "mismatchedColumns": [
+        {
+          "columnName": "day_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid",
+            "nullable false != true"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "event_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "map_name",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "start_time",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "vod_url",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "source_url",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "scoreboard_image_url",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "result_image_url",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "screenshot_urls",
+          "mismatches": [
+            "dataType undefined != jsonb",
+            "udtName undefined != jsonb"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "published_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "deleted_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "point_system_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        }
+      ],
+      "missingIndexes": []
+    },
+    "match_team_results": {
+      "missingTable": false,
+      "missingColumns": [
+        "team_name",
+        "slot_number"
+      ],
+      "mismatchedColumns": [
+        {
+          "columnName": "team_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid",
+            "nullable false != true"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "placement",
+          "mismatches": [
+            "dataType undefined != integer",
+            "udtName undefined != int4"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "kills",
+          "mismatches": [
+            "dataType undefined != integer",
+            "udtName undefined != int4"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "placement_points",
+          "mismatches": [
+            "dataType undefined != integer",
+            "udtName undefined != int4"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "kill_points",
+          "mismatches": [
+            "dataType undefined != numeric",
+            "udtName undefined != numeric"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "total_points",
+          "mismatches": [
+            "dataType undefined != numeric",
+            "udtName undefined != numeric"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "wwcd",
+          "mismatches": [
+            "dataType undefined != boolean",
+            "udtName undefined != bool"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "created_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "updated_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        }
+      ],
+      "missingIndexes": []
+    },
+    "match_player_results": {
+      "missingTable": false,
+      "missingColumns": [
+        "player_name",
+        "pubg_account_id",
+        "team_name",
+        "slot_number",
+        "placement",
+        "placement_points",
+        "total_points"
+      ],
+      "mismatchedColumns": [
+        {
+          "columnName": "player_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid",
+            "nullable false != true"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "team_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "kills",
+          "mismatches": [
+            "dataType undefined != integer",
+            "udtName undefined != int4"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "assists",
+          "mismatches": [
+            "dataType undefined != integer",
+            "udtName undefined != int4"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "knocks",
+          "mismatches": [
+            "dataType undefined != integer",
+            "udtName undefined != int4"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "damage",
+          "mismatches": [
+            "dataType undefined != integer",
+            "udtName undefined != int4"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "survival_time",
+          "mismatches": [
+            "dataType undefined != integer",
+            "udtName undefined != int4"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "created_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "updated_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        }
+      ],
+      "missingIndexes": []
+    },
+    "point_systems": {
+      "missingTable": false,
+      "missingColumns": [],
+      "mismatchedColumns": [
+        {
+          "columnName": "placement_points",
+          "mismatches": [
+            "dataType undefined != jsonb",
+            "udtName undefined != jsonb"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "kill_points",
+          "mismatches": [
+            "dataType undefined != numeric",
+            "udtName undefined != numeric"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "rules_json",
+          "mismatches": [
+            "dataType undefined != jsonb",
+            "udtName undefined != jsonb"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "active",
+          "mismatches": [
+            "dataType undefined != boolean",
+            "udtName undefined != bool"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "deleted_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        }
+      ],
+      "missingIndexes": []
+    },
+    "audit_logs": {
+      "missingTable": false,
+      "missingColumns": [],
+      "mismatchedColumns": [
+        {
+          "columnName": "actor_id",
+          "mismatches": [
+            "dataType undefined != uuid",
+            "udtName undefined != uuid"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "action",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "entity_type",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        },
+        {
+          "columnName": "entity_id",
+          "mismatches": [
+            "dataType undefined != text",
+            "udtName undefined != text"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "old_data",
+          "mismatches": [
+            "dataType undefined != jsonb",
+            "udtName undefined != jsonb"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "new_data",
+          "mismatches": [
+            "dataType undefined != jsonb",
+            "udtName undefined != jsonb"
+          ],
+          "actual": {
+            "nullable": true
+          }
+        },
+        {
+          "columnName": "created_at",
+          "mismatches": [
+            "udtName undefined != timestamptz"
+          ],
+          "actual": {
+            "nullable": false
+          }
+        }
+      ],
+      "missingIndexes": []
+    }
+  },
+  "views": {
+    "team_leaderboard": {
+      "missingView": false,
+      "missingFragments": [
+        "match_team_results"
+      ]
+    },
+    "player_leaderboard": {
+      "missingView": false,
+      "missingFragments": [
+        "match_player_results"
+      ]
+    },
+    "mvp_rankings": {
+      "missingView": false,
+      "missingFragments": [
+        "match_player_results"
+      ]
+    }
+  }
+}

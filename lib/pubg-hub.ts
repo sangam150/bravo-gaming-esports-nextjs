@@ -1,8 +1,8 @@
-import { cache } from "react";
 import { COLLECTIONS, fetchDocumentCollection, isDocumentStoreConfigured } from "./document-store";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
-import { isSupabaseServiceRoleConfigured } from "./supabase/env";
+import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
 import { placementPoints, totalPoints } from "./pubg";
+import { BRAVO_DISCORD_URL } from "./brand-links";
 import { normalizeMapName } from "./tournament-standings";
 import { getUserFacingPlayerLabel, getUserFacingTeamLabel } from "./user-facing-errors";
 import type { Player, Scrim, Team, Tournament, TournamentMatch } from "./types";
@@ -795,7 +795,7 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       rules:
         "Squad TPP. Lobby opens at 7:45 PM NPT. Stream delay required. MOSS mandatory. Admin decision final.",
       streamUrl: "https://www.youtube.com/@bravogamingnepal7981",
-      discordUrl: "https://kamaucha.me/bravo",
+      discordUrl: BRAVO_DISCORD_URL,
       published: true,
     },
     {
@@ -816,7 +816,7 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       description: "Bravo Gaming's nightly PUBG PC scrim block used to track team form, rotation control, and pressure heading into bigger event windows.",
       rules: "Four-map Bravo daily scrim format. Stream delay remains required and results publish after admin approval.",
       streamUrl: "https://www.youtube.com/@bravogamingnepal7981",
-      discordUrl: "https://kamaucha.me/bravo",
+      discordUrl: BRAVO_DISCORD_URL,
       published: true,
     },
     {
@@ -837,7 +837,7 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       description: "An active Bravo Gaming nightly scrim window with live standings pressure, late-circle trade tracking, and leaderboard movement for M8, Team HAKU, N3P, FYB Esports, and NPL.",
       rules: "Standard Bravo daily scrim policy. Results publish after admin review and approval.",
       streamUrl: "https://www.youtube.com/@bravogamingnepal7981",
-      discordUrl: "https://kamaucha.me/bravo",
+      discordUrl: BRAVO_DISCORD_URL,
       published: true,
     },
     {
@@ -858,7 +858,7 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       description: "The next Bravo nightly scrim session with full roster tracking, match imports, and ready-to-publish standings across Nepal's active PUBG lineups.",
       rules: "Lobby opens 7:45 PM NPT. Results publish after admin approval.",
       streamUrl: "https://www.youtube.com/@bravogamingnepal7981",
-      discordUrl: "https://kamaucha.me/bravo",
+      discordUrl: BRAVO_DISCORD_URL,
       published: true,
     },
     {
@@ -879,7 +879,7 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       description: "Bravo's next featured tournament lane is staged for approval with full branding, roster visibility, and analytics support.",
       rules: "Rules will publish with the final approved format.",
       streamUrl: null,
-      discordUrl: "https://kamaucha.me/bravo",
+      discordUrl: BRAVO_DISCORD_URL,
       published: false,
     },
   ];
@@ -1047,6 +1047,30 @@ function buildEmptyBaseDataset(): BaseDataset {
     matches: [],
     teamResults: [],
     playerResults: [],
+  };
+}
+
+function buildHiddenLaunchSeedDataset(): PubgHubDataset {
+  return {
+    source: "launch_seed",
+    generatedAt: new Date().toISOString(),
+    communities: [],
+    summary: {
+      trackedMatches: 0,
+      activeEvents: 0,
+      teamsInForm: 0,
+      recentEvents: 0,
+      communitiesActive: 0,
+    },
+    teams: [],
+    players: [],
+    events: [],
+    matches: [],
+    fantasy: {
+      enabled: false,
+      events: [],
+      leaderboard: [],
+    },
   };
 }
 
@@ -1530,10 +1554,20 @@ function aggregateMapStats(values: Array<{ mapName: string; placement: number; k
     .sort((firstValue, secondValue) => secondValue.points - firstValue.points || firstValue.avgPlacement - secondValue.avgPlacement);
 }
 
+function isPublicMatchStatus(status: string) {
+  const normalizedStatus = status.trim().toLowerCase();
+  return normalizedStatus === "approved" || normalizedStatus === "published" || normalizedStatus === "completed";
+}
+
 function buildDataset(base: BaseDataset): PubgHubDataset {
+  if (base.source === "launch_seed") {
+    return buildHiddenLaunchSeedDataset();
+  }
+
   const teamsById = new Map(base.teams.map((team) => [team.id, team] as const));
   const playersById = new Map(base.players.map((player) => [player.id, player] as const));
-  const eventsById = new Map(base.events.map((event) => [event.id, event] as const));
+  const publicEvents = base.events.filter((event) => event.published);
+  const eventsById = new Map(publicEvents.map((event) => [event.id, event] as const));
   const eventTeamIds = new Map<string, Set<string>>();
 
   for (const eventTeam of base.eventTeams) {
@@ -1542,13 +1576,20 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
     eventTeamIds.set(eventTeam.eventId, currentEventTeams);
   }
 
+  const publicBaseMatches = base.matches.filter((match) => eventsById.has(match.eventId) && isPublicMatchStatus(match.status));
+  const publicMatchesById = new Map(publicBaseMatches.map((match) => [match.id, match] as const));
+
   const teamResultsByMatchId = new Map<string, BaseTeamResultRow[]>();
   for (const teamResult of base.teamResults) {
+    if (!publicMatchesById.has(teamResult.matchId)) {
+      continue;
+    }
+
     const currentResults = teamResultsByMatchId.get(teamResult.matchId) ?? [];
     currentResults.push(teamResult);
     teamResultsByMatchId.set(teamResult.matchId, currentResults);
 
-    const match = base.matches.find((candidate) => candidate.id === teamResult.matchId);
+    const match = publicMatchesById.get(teamResult.matchId);
     if (match) {
       const currentEventTeams = eventTeamIds.get(match.eventId) ?? new Set<string>();
       currentEventTeams.add(teamResult.teamId);
@@ -1558,12 +1599,16 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
 
   const playerResultsByMatchId = new Map<string, BasePlayerResultRow[]>();
   for (const playerResult of base.playerResults) {
+    if (!publicMatchesById.has(playerResult.matchId)) {
+      continue;
+    }
+
     const currentResults = playerResultsByMatchId.get(playerResult.matchId) ?? [];
     currentResults.push(playerResult);
     playerResultsByMatchId.set(playerResult.matchId, currentResults);
   }
 
-  const matches: PubgHubMatch[] = base.matches
+  const matches: PubgHubMatch[] = publicBaseMatches
     .map((match) => {
       const event = eventsById.get(match.eventId);
       if (!event) return null;
@@ -1653,7 +1698,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
     });
   });
 
-  const events: PubgHubEvent[] = base.events
+  const events: PubgHubEvent[] = publicEvents
     .map((event) => {
       const eventMatches = (matchesByEventId.get(event.id) ?? []).sort(sortByNewest);
       const standingsMap = new Map<
@@ -2351,7 +2396,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
   } satisfies PubgHubDataset;
 }
 
-export const getPubgHubDataset = cache(async () => {
+export async function getPubgHubDataset() {
   const liveDataset = await buildSupabaseBaseDataset();
   const documentStoreDataset = await buildDocumentStoreBaseDataset();
   const mergedDataset = mergeBaseDatasets(liveDataset, documentStoreDataset);
@@ -2364,9 +2409,9 @@ export const getPubgHubDataset = cache(async () => {
   }
 
   return buildDataset(buildEmptyBaseDataset());
-});
+}
 
-export const getPubgDashboardData = cache(async () => {
+export async function getPubgDashboardData() {
   const dataset = await getPubgHubDataset();
   const topTeams = dataset.teams.slice(0, 6);
   const topPlayers = dataset.players.slice(0, 6);
@@ -2397,7 +2442,7 @@ export const getPubgDashboardData = cache(async () => {
     recentMatches,
     mapPulse,
   };
-});
+}
 
 export async function getPubgEventBySlug(slug: string) {
   const dataset = await getPubgHubDataset();

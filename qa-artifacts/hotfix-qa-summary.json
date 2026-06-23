@@ -1,0 +1,367 @@
+{
+  "generatedAt": "2026-06-23T14:25:26.250Z",
+  "routeQa": [
+    {
+      "name": "Homepage",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Stats",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "PUBG",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "PUBG Community",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "PUBG Leaderboards",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Events",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Media",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "News",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Sponsors",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "About",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Contact",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Privacy",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Terms",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "PUBG Team Detail",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "PUBG Player Detail",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "PUBG Season Detail",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "PUBG Match Detail",
+      "status": "pass",
+      "details": "HTTP 200"
+    }
+  ],
+  "authQa": [
+    {
+      "name": "Anonymous auth check",
+      "status": "pass",
+      "details": "HTTP 401"
+    },
+    {
+      "name": "Admin login session",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Team login workspace access",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Player login dashboard access",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Session persistence",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Wrong-role admin denial",
+      "status": "pass",
+      "details": "HTTP 403"
+    },
+    {
+      "name": "Wrong-role team denial",
+      "status": "pass",
+      "details": "HTTP 403"
+    },
+    {
+      "name": "Protected admin API",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Logout clears session",
+      "status": "pass",
+      "details": "HTTP 401"
+    },
+    {
+      "name": "Cleanup QA auth users",
+      "status": "pass",
+      "details": "4 removed"
+    }
+  ],
+  "resultEntryQa": [
+    {
+      "name": "Preview points",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Create draft match without PUBG Match ID",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Unpublished match hidden",
+      "status": "pass",
+      "details": "HTTP 404"
+    },
+    {
+      "name": "Unpublished leaderboard hidden",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Publish match",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Published leaderboard update",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Recalculate match",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Unpublish match",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Unpublished match re-hidden",
+      "status": "pass",
+      "details": "HTTP 404"
+    },
+    {
+      "name": "Unpublished leaderboard removed",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Rollback match",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Rollback restores public match",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Audit logs recorded",
+      "status": "pass",
+      "details": "preview=true; actions=rollback, unpublish, recalculate, publish, create"
+    },
+    {
+      "name": "Delete QA match",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Cleanup QA event",
+      "status": "pass",
+      "details": "1f2a855d-0121-4910-9033-bc47c77e7abd"
+    },
+    {
+      "name": "Cleanup QA season",
+      "status": "pass",
+      "details": "cec20bca-d1d2-425d-aa25-e45561e7bd36"
+    },
+    {
+      "name": "Cleanup QA players",
+      "status": "pass",
+      "details": "2 updated"
+    },
+    {
+      "name": "Cleanup QA teams",
+      "status": "pass",
+      "details": "3 updated"
+    }
+  ],
+  "newsQa": [
+    {
+      "name": "Anonymous news document query",
+      "status": "pass",
+      "details": "0 rows returned"
+    },
+    {
+      "name": "Public news index hides draft and scheduled",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Draft news route returns 404",
+      "status": "pass",
+      "details": "HTTP 404"
+    },
+    {
+      "name": "Scheduled news route returns 404",
+      "status": "pass",
+      "details": "HTTP 404"
+    },
+    {
+      "name": "Published news detail SEO metadata",
+      "status": "skip",
+      "details": "No real published news article was available for this verification."
+    },
+    {
+      "name": "Sitemap publishes only public news",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "Cleanup QA news docs",
+      "status": "pass",
+      "details": "2 removed"
+    }
+  ],
+  "securityQa": [
+    {
+      "name": "Profiles RLS query (anon)",
+      "status": "pass",
+      "details": "0 rows"
+    },
+    {
+      "name": "Profiles RLS query (authenticated)",
+      "status": "pass",
+      "details": "0 rows"
+    },
+    {
+      "name": "Profiles RLS query (admin)",
+      "status": "pass",
+      "details": "1 rows"
+    },
+    {
+      "name": "Profiles RLS query (team)",
+      "status": "pass",
+      "details": "1 rows"
+    },
+    {
+      "name": "Profiles RLS query (player)",
+      "status": "pass",
+      "details": "0 rows"
+    },
+    {
+      "name": "PNG upload",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "JPG upload",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "WEBP upload",
+      "status": "pass",
+      "details": "HTTP 200"
+    },
+    {
+      "name": "TXT rejected",
+      "status": "pass",
+      "details": "HTTP 400"
+    },
+    {
+      "name": "EXE rejected",
+      "status": "pass",
+      "details": "HTTP 400"
+    },
+    {
+      "name": "Oversized PNG rejected",
+      "status": "pass",
+      "details": "HTTP 400"
+    },
+    {
+      "name": "Team mapping avoids global slot fallback",
+      "status": "pass",
+      "details": "Resolved team_id=null"
+    },
+    {
+      "name": "Cleanup uploaded team logos",
+      "status": "pass",
+      "details": "3 removed"
+    },
+    {
+      "name": "Cleanup upload records",
+      "status": "pass",
+      "details": "3 removed"
+    }
+  ],
+  "notes": [
+    "No real published news article was available for detail-page SEO verification."
+  ],
+  "created": {
+    "season": {
+      "id": "cec20bca-d1d2-425d-aa25-e45561e7bd36",
+      "slug": "qa-hotfix-season-20260623142526",
+      "title": "QA HOTFIX Season 20260623142526"
+    },
+    "event": {
+      "id": "1f2a855d-0121-4910-9033-bc47c77e7abd",
+      "slug": "qa-hotfix-event-20260623142526",
+      "name": "QA HOTFIX Event 20260623142526"
+    },
+    "teams": [
+      "QA Hotfix Alpha 20260623142526",
+      "QA Hotfix Bravo 20260623142526",
+      "QA Trap Slot 20260623142526"
+    ],
+    "player": "QA Player 20260623142526",
+    "publishedNewsSlug": null
+  },
+  "cleanup": [],
+  "overallFailures": 0
+}

@@ -1,6 +1,12 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import LoginHubClient from "@/components/auth/LoginHubClient";
+import {
+  hasPlayerDashboardAccess,
+  hasTeamWorkspaceAccess,
+} from "@/lib/authz";
+import { getServerAuthenticatedSession } from "@/lib/admin-auth";
 
 export const metadata: Metadata = {
   title: "Login",
@@ -9,7 +15,21 @@ export const metadata: Metadata = {
 
 export const revalidate = 300;
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const session = await getServerAuthenticatedSession();
+
+  if (session?.isAdmin) {
+    redirect("/admin");
+  }
+
+  if (session && hasTeamWorkspaceAccess(session.role, session.isAdmin)) {
+    redirect("/team");
+  }
+
+  if (session && hasPlayerDashboardAccess(session.role, session.isAdmin)) {
+    redirect("/dashboard/player");
+  }
+
   return (
     <Suspense
       fallback={

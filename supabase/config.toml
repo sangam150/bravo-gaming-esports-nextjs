@@ -10,6 +10,10 @@ schema_paths = [
   "./migrations/002_readiness_recovery.sql",
   "./migrations/003_storage_buckets_and_policies.sql",
   "./migrations/004_seed_defaults.sql",
+  "./migrations/005_milestone4_live_schema_alignment.sql",
+  "./migrations/006_milestone4_profiles_auth_upsert_compat.sql",
+  "./migrations/007_milestone4_legacy_users_auth_compat.sql",
+  "./migrations/008_launch_hotfix_blockers.sql",
 ]
 
 [db.seed]

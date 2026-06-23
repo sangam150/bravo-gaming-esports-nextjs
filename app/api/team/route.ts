@@ -1,4 +1,4 @@
-import { requireAuthenticatedUser } from "@/lib/admin-auth";
+import { requireTeamWorkspaceUser } from "@/lib/admin-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import { getTeamWorkspace } from "@/lib/team-workspace";
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   const limited = enforceRateLimit(request, { key: "team-workspace", maxRequests: 30, windowMs: 60_000 });
   if (limited) return limited;
 
-  const auth = await requireAuthenticatedUser(request);
+  const auth = await requireTeamWorkspaceUser(request);
   if (auth.response || !auth.session) {
     return auth.response ??
       Response.json({ error: USER_FACING_ERROR_MESSAGES.session }, { status: 401 });

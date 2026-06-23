@@ -4,6 +4,7 @@ export type PlatformRole =
   | "super_admin"
   | "admin"
   | "moderator"
+  | "organizer"
   | "team_manager"
   | "team_igl"
   | "player"
@@ -456,6 +457,7 @@ export interface AuthenticatedUserProfile {
   email: string;
   role: PlatformRole | string;
   teamId: string | null;
+  playerId: string | null;
   displayName: string | null;
   isAdmin: boolean;
 }

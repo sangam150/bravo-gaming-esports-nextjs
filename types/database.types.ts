@@ -153,6 +153,7 @@ export type Database = {
       events: {
         Row: {
           banner_url: string | null;
+          competition_status: string;
           created_at: string;
           deleted_at: string | null;
           description: string | null;
@@ -161,6 +162,9 @@ export type Database = {
           event_type: string;
           game: string;
           id: string;
+          map_rotation: Json;
+          match_count: number;
+          max_teams: number;
           mode: string | null;
           name: string | null;
           perspective: string | null;
@@ -168,18 +172,26 @@ export type Database = {
           prize_pool: string | null;
           published: boolean;
           published_at: string | null;
+          region: string | null;
           rules: string | null;
+          schedule: string | null;
+          season_day_number: number | null;
           season_id: string | null;
+          server: string | null;
           slug: string | null;
           start_date: string | null;
           status: Database["public"]["Enums"]["event_status"];
           stream_url: string | null;
+          team_count: number;
+          tier: string | null;
           title: string;
           type: string | null;
           updated_at: string;
+          source_url: string | null;
         };
         Insert: {
           banner_url?: string | null;
+          competition_status?: string;
           created_at?: string;
           deleted_at?: string | null;
           description?: string | null;
@@ -188,6 +200,9 @@ export type Database = {
           event_type?: string;
           game?: string;
           id?: string;
+          map_rotation?: Json;
+          match_count?: number;
+          max_teams?: number;
           mode?: string | null;
           name?: string | null;
           perspective?: string | null;
@@ -195,18 +210,26 @@ export type Database = {
           prize_pool?: string | null;
           published?: boolean;
           published_at?: string | null;
+          region?: string | null;
           rules?: string | null;
+          schedule?: string | null;
+          season_day_number?: number | null;
           season_id?: string | null;
+          server?: string | null;
           slug?: string | null;
           start_date?: string | null;
           status?: Database["public"]["Enums"]["event_status"];
           stream_url?: string | null;
+          team_count?: number;
+          tier?: string | null;
           title: string;
           type?: string | null;
           updated_at?: string;
+          source_url?: string | null;
         };
         Update: {
           banner_url?: string | null;
+          competition_status?: string;
           created_at?: string;
           deleted_at?: string | null;
           description?: string | null;
@@ -215,6 +238,9 @@ export type Database = {
           event_type?: string;
           game?: string;
           id?: string;
+          map_rotation?: Json;
+          match_count?: number;
+          max_teams?: number;
           mode?: string | null;
           name?: string | null;
           perspective?: string | null;
@@ -222,15 +248,22 @@ export type Database = {
           prize_pool?: string | null;
           published?: boolean;
           published_at?: string | null;
+          region?: string | null;
           rules?: string | null;
+          schedule?: string | null;
+          season_day_number?: number | null;
           season_id?: string | null;
+          server?: string | null;
           slug?: string | null;
           start_date?: string | null;
           status?: Database["public"]["Enums"]["event_status"];
           stream_url?: string | null;
+          team_count?: number;
+          tier?: string | null;
           title?: string;
           type?: string | null;
           updated_at?: string;
+          source_url?: string | null;
         };
         Relationships: [];
       };
@@ -267,9 +300,16 @@ export type Database = {
           kills: number;
           knocks: number;
           match_id: string;
-          player_id: string;
+          player_name: string | null;
+          placement: number;
+          placement_points: number;
+          player_id: string | null;
+          pubg_account_id: string | null;
+          slot_number: number | null;
           survival_time: number;
           team_id: string | null;
+          team_name: string | null;
+          total_points: number;
           updated_at: string;
         };
         Insert: {
@@ -280,9 +320,16 @@ export type Database = {
           kills?: number;
           knocks?: number;
           match_id: string;
-          player_id: string;
+          player_name?: string | null;
+          placement?: number;
+          placement_points?: number;
+          player_id?: string | null;
+          pubg_account_id?: string | null;
+          slot_number?: number | null;
           survival_time?: number;
           team_id?: string | null;
+          team_name?: string | null;
+          total_points?: number;
           updated_at?: string;
         };
         Update: {
@@ -293,9 +340,16 @@ export type Database = {
           kills?: number;
           knocks?: number;
           match_id?: string;
-          player_id?: string;
+          player_name?: string | null;
+          placement?: number;
+          placement_points?: number;
+          player_id?: string | null;
+          pubg_account_id?: string | null;
+          slot_number?: number | null;
           survival_time?: number;
           team_id?: string | null;
+          team_name?: string | null;
+          total_points?: number;
           updated_at?: string;
         };
         Relationships: [];
@@ -408,7 +462,9 @@ export type Database = {
           match_id: string;
           placement: number;
           placement_points: number;
-          team_id: string;
+          slot_number: number | null;
+          team_id: string | null;
+          team_name: string | null;
           total_points: number;
           updated_at: string;
           wwcd: boolean;
@@ -421,7 +477,9 @@ export type Database = {
           match_id: string;
           placement?: number;
           placement_points?: number;
-          team_id: string;
+          slot_number?: number | null;
+          team_id?: string | null;
+          team_name?: string | null;
           total_points?: number;
           updated_at?: string;
           wwcd?: boolean;
@@ -434,7 +492,9 @@ export type Database = {
           match_id?: string;
           placement?: number;
           placement_points?: number;
-          team_id?: string;
+          slot_number?: number | null;
+          team_id?: string | null;
+          team_name?: string | null;
           total_points?: number;
           updated_at?: string;
           wwcd?: boolean;
@@ -444,9 +504,11 @@ export type Database = {
       matches: {
         Row: {
           created_at: string;
-          day_id: string;
+          data_source: string;
+          day_id: string | null;
           deleted_at: string | null;
           event_id: string | null;
+          external_match_id: string | null;
           id: string;
           map: string;
           map_name: string | null;
@@ -468,9 +530,11 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
-          day_id: string;
+          data_source?: string;
+          day_id?: string | null;
           deleted_at?: string | null;
           event_id?: string | null;
+          external_match_id?: string | null;
           id?: string;
           map: string;
           map_name?: string | null;
@@ -492,9 +556,11 @@ export type Database = {
         };
         Update: {
           created_at?: string;
-          day_id?: string;
+          data_source?: string;
+          day_id?: string | null;
           deleted_at?: string | null;
           event_id?: string | null;
+          external_match_id?: string | null;
           id?: string;
           map?: string;
           map_name?: string | null;
@@ -776,33 +842,75 @@ export type Database = {
       };
       seasons: {
         Row: {
+          archived_at: string | null;
+          completed_at: string | null;
+          configured_days: number;
           created_at: string;
+          current_event_id: string | null;
           current_day_number: number;
+          description: string | null;
           end_date: string | null;
+          ended_early: boolean;
+          format: string;
+          game: string;
           id: string;
           name: string;
+          notes: string | null;
+          perspective: string;
+          region: string;
+          season_number: number;
+          series_title: string | null;
+          slug: string | null;
           start_date: string;
           status: Database["public"]["Enums"]["season_status"];
           type: string;
           updated_at: string;
         };
         Insert: {
+          archived_at?: string | null;
+          completed_at?: string | null;
+          configured_days?: number;
           created_at?: string;
+          current_event_id?: string | null;
           current_day_number?: number;
+          description?: string | null;
           end_date?: string | null;
+          ended_early?: boolean;
+          format?: string;
+          game?: string;
           id?: string;
           name: string;
+          notes?: string | null;
+          perspective?: string;
+          region?: string;
+          season_number?: number;
+          series_title?: string | null;
+          slug?: string | null;
           start_date: string;
           status?: Database["public"]["Enums"]["season_status"];
           type?: string;
           updated_at?: string;
         };
         Update: {
+          archived_at?: string | null;
+          completed_at?: string | null;
+          configured_days?: number;
           created_at?: string;
+          current_event_id?: string | null;
           current_day_number?: number;
+          description?: string | null;
           end_date?: string | null;
+          ended_early?: boolean;
+          format?: string;
+          game?: string;
           id?: string;
           name?: string;
+          notes?: string | null;
+          perspective?: string;
+          region?: string;
+          season_number?: number;
+          series_title?: string | null;
+          slug?: string | null;
           start_date?: string;
           status?: Database["public"]["Enums"]["season_status"];
           type?: string;
@@ -1141,6 +1249,10 @@ export type Database = {
           total_damage: number | null;
           total_kills: number | null;
         };
+        Relationships: [];
+      };
+      standings: {
+        Row: Database["public"]["Views"]["team_leaderboard"]["Row"];
         Relationships: [];
       };
       team_leaderboard: {

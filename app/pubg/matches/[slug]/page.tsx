@@ -20,9 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const matchResult = await resolveMatchResult(slug);
 
   if (!matchResult) {
-    return {
-      title: "PUBG Match Not Found",
-    };
+    notFound();
   }
 
   return {

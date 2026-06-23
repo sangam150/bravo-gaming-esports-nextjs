@@ -16,6 +16,7 @@ import {
   getDocumentByIdOrSlug,
   softDeleteDocumentEntity,
 } from "./document-entities";
+import { BRAVO_DISCORD_URL } from "./brand-links";
 import { formatAnnouncementDate } from "./display-format";
 import {
   seedAnnouncements,
@@ -34,6 +35,23 @@ import {
   resolveBravoTeamIdentity,
 } from "./bravo-teams";
 import {
+  deleteCompetitionEvent,
+  deleteCompetitionSeason,
+  getCurrentCompetitionSeason,
+  getCompetitionEvent,
+  getCompetitionMatchesForEvent,
+  getCompetitionSeason,
+  getCompetitionSeasonLeaderboardRows,
+  getCompetitionSeasonPlayers,
+  getCompetitionSeasonTeams,
+  listCompetitionEvents,
+  listCompetitionPlayers,
+  listCompetitionSeasons,
+  listCompetitionTeams,
+  saveCompetitionEvent,
+  saveCompetitionSeason,
+} from "./competition-relational";
+import {
   compareMatchSequenceOrder,
   comparePlayerLeaderboardPerformance,
   compareTeamLeaderboardPerformance,
@@ -41,6 +59,7 @@ import {
   sortTournamentStandings,
 } from "./ranking-sort";
 import { buildSeasonLeaderboard, seasonLeaderboardToRows } from "./season-standings";
+import { buildTournamentStandings } from "./tournament-standings";
 import { getRecentUploadRecords } from "./upload-records";
 import type {
   Announcement,
@@ -610,6 +629,19 @@ export async function getSiteStats(): Promise<SiteStats> {
 }
 
 export async function getSeasons(): Promise<Season[]> {
+  try {
+    const seasons = await listCompetitionSeasons();
+    if (seasons.length > 0) {
+      return seasons.sort((a, b) => {
+        const dateComparison = compareIsoDateDesc(a.startDate, b.startDate);
+        if (dateComparison !== 0) return dateComparison;
+        return (b.seasonNumber ?? 0) - (a.seasonNumber ?? 0);
+      });
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   return fromDocumentStoreOrSeed<Season>(COLLECTIONS.seasons, [], (a, b) => {
     const dateComparison = compareIsoDateDesc(a.startDate, b.startDate);
     if (dateComparison !== 0) return dateComparison;
@@ -618,10 +650,28 @@ export async function getSeasons(): Promise<Season[]> {
 }
 
 export async function getSeason(id: string): Promise<Season | null> {
+  try {
+    const season = await getCompetitionSeason(id);
+    if (season) {
+      return season;
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   return oneFromDocumentStoreOrSeed(COLLECTIONS.seasons, id, []);
 }
 
 export async function getCurrentSeason(): Promise<Season | null> {
+  try {
+    const season = await getCurrentCompetitionSeason();
+    if (season) {
+      return season;
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   const seasons = await getSeasons();
   return (
     seasons.find((season) => season.status === "active") ??
@@ -681,16 +731,23 @@ async function ensureSeasonTeamSlots(seasonId: string, seasonTitle: string) {
 }
 
 export async function saveSeason(data: Partial<Season> & { title: string }, id?: string) {
-  const payload = normalizeSeasonPayload(data);
-  const docId = id ?? payload.slug;
+  const savedSeason = await saveCompetitionSeason(data, id);
+  const compatibilityPayload = normalizeSeasonPayload(savedSeason);
+
   if (isDocumentStoreConfigured()) {
-    await saveDocument(COLLECTIONS.seasons, docId, payload as Record<string, unknown>);
-    await ensureSeasonTeamSlots(docId, payload.seriesTitle ?? payload.title);
+    await saveDocument(
+      COLLECTIONS.seasons,
+      savedSeason.id,
+      compatibilityPayload as unknown as Record<string, unknown>
+    );
+    await ensureSeasonTeamSlots(savedSeason.id, savedSeason.seriesTitle ?? savedSeason.title);
   }
-  return { id: docId, ...payload };
+
+  return savedSeason;
 }
 
 export async function deleteSeason(id: string) {
+  await deleteCompetitionSeason(id).catch(() => null);
   if (isDocumentStoreConfigured()) {
     await deleteDocument(COLLECTIONS.seasons, id);
   }
@@ -698,6 +755,22 @@ export async function deleteSeason(id: string) {
 }
 
 export async function getSeasonTournaments(seasonId: string): Promise<Tournament[]> {
+  try {
+    const [season, tournaments] = await Promise.all([getCompetitionSeason(seasonId), listCompetitionEvents()]);
+    if (season) {
+      return tournaments
+        .filter((tournament) => tournament.seasonId === season.id)
+        .sort(
+          (firstTournament, secondTournament) =>
+            (firstTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) -
+              (secondTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) ||
+            firstTournament.startDate.localeCompare(secondTournament.startDate)
+        );
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   if (!isDocumentStoreConfigured()) return [];
   try {
     const tournaments = await queryDocumentCollection<Tournament>(COLLECTIONS.tournaments, "seasonId", seasonId, 200);
@@ -729,6 +802,18 @@ export async function getSeasonStandings(seasonId: string): Promise<TournamentSt
 }
 
 export async function getSeasonLeaderboard(seasonId: string): Promise<LeaderboardRow[]> {
+  try {
+    const [season, leaderboard] = await Promise.all([
+      getCompetitionSeason(seasonId),
+      getCompetitionSeasonLeaderboardRows(seasonId),
+    ]);
+    if (season) {
+      return leaderboard;
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   const [standings, teams] = await Promise.all([getSeasonStandings(seasonId), getTeams()]);
   const seasonTeams = filterPublicTeams(teams.filter((team) => team.seasonId === seasonId && team.scope !== "tournament"));
   const teamsById = new Map(seasonTeams.map((team) => [team.id, team]));
@@ -736,6 +821,15 @@ export async function getSeasonLeaderboard(seasonId: string): Promise<Leaderboar
 }
 
 export async function getSeasonTeams(seasonId: string): Promise<Team[]> {
+  try {
+    const [season, teams] = await Promise.all([getCompetitionSeason(seasonId), getCompetitionSeasonTeams(seasonId)]);
+    if (season) {
+      return filterPublicTeams(teams).sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam));
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   if (!isDocumentStoreConfigured()) return [];
   try {
     const teams = await queryDocumentCollection<Team>(COLLECTIONS.teams, "seasonId", seasonId, 500);
@@ -749,6 +843,15 @@ export async function getSeasonTeams(seasonId: string): Promise<Team[]> {
 }
 
 export async function getSeasonPlayers(seasonId: string): Promise<Player[]> {
+  try {
+    const [season, players] = await Promise.all([getCompetitionSeason(seasonId), getCompetitionSeasonPlayers(seasonId)]);
+    if (season) {
+      return players.sort((firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer));
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   if (!isDocumentStoreConfigured()) return [];
   try {
     const players = await queryDocumentCollection<Player>(COLLECTIONS.players, "seasonId", seasonId, 1500);
@@ -802,6 +905,15 @@ async function buildSeasonOverview(season: Season | null) {
 }
 
 export async function getSeasonBySlug(seasonIdOrSlug: string) {
+  try {
+    const season = await getCompetitionSeason(seasonIdOrSlug);
+    if (season) {
+      return season;
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   const seasons = await getSeasons();
   const normalizedSeasonIdOrSlug = seasonIdOrSlug.trim().toLowerCase();
   return seasons.find((season) => season.id === seasonIdOrSlug || season.slug.toLowerCase() === normalizedSeasonIdOrSlug) ?? null;
@@ -816,6 +928,19 @@ export async function getCurrentSeasonOverview() {
 }
 
 export async function getTournaments(status?: string): Promise<Tournament[]> {
+  try {
+    const [tournaments, seasons] = await Promise.all([listCompetitionEvents(), listCompetitionSeasons()]);
+    if (tournaments.length > 0 || seasons.length > 0) {
+      if (!status) {
+        return tournaments;
+      }
+
+      return tournaments.filter((tournament) => tournament.status === status);
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   const all = await fromDocumentStoreOrSeed<Tournament>(COLLECTIONS.tournaments, seedTournaments, (a, b) => {
     const dateComparison = compareIsoDateDesc(a.startDate, b.startDate);
     if (dateComparison !== 0) return dateComparison;
@@ -826,19 +951,33 @@ export async function getTournaments(status?: string): Promise<Tournament[]> {
 }
 
 export async function getTournament(id: string): Promise<Tournament | null> {
+  try {
+    const tournament = await getCompetitionEvent(id);
+    if (tournament) {
+      return tournament;
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   return oneFromDocumentStoreOrSeed(COLLECTIONS.tournaments, id, seedTournaments);
 }
 
 export async function saveTournament(data: Partial<Tournament> & { title: string }, id?: string) {
-  const payload = normalizeTournamentPayload(data);
-  const docId = id ?? slugify(payload.title);
+  const savedTournament = await saveCompetitionEvent(data, id);
+  const compatibilityPayload = normalizeTournamentPayload(savedTournament);
   if (isDocumentStoreConfigured()) {
-    await saveDocument(COLLECTIONS.tournaments, docId, payload as Record<string, unknown>);
+    await saveDocument(
+      COLLECTIONS.tournaments,
+      savedTournament.id,
+      compatibilityPayload as unknown as Record<string, unknown>
+    );
   }
-  return { id: docId, ...payload };
+  return savedTournament;
 }
 
 export async function deleteTournament(id: string) {
+  await deleteCompetitionEvent(id).catch(() => null);
   if (isDocumentStoreConfigured()) {
     await deleteDocument(COLLECTIONS.tournaments, id);
   }
@@ -849,6 +988,16 @@ export async function getTournamentMatches(
   tournamentId: string,
   options: { includeDrafts?: boolean } = {}
 ): Promise<TournamentMatch[]> {
+  try {
+    const tournament = await getCompetitionEvent(tournamentId);
+    if (tournament) {
+      const matches = await getCompetitionMatchesForEvent(tournament.id, options);
+      return matches.sort((firstMatch, secondMatch) => compareMatchSequenceOrder(firstMatch, secondMatch));
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   if (!isDocumentStoreConfigured()) return [];
   try {
     let matches = await queryDocumentCollection<TournamentMatch>(COLLECTIONS.matches, "tournamentId", tournamentId, 200);
@@ -867,6 +1016,16 @@ export async function getTournamentMatches(
 }
 
 export async function getTournamentStandings(tournamentId: string): Promise<TournamentStanding[]> {
+  try {
+    const tournament = await getCompetitionEvent(tournamentId);
+    if (tournament) {
+      const matches = await getCompetitionMatchesForEvent(tournament.id);
+      return buildTournamentStandings(tournament.id, tournament.title, matches);
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   if (!isDocumentStoreConfigured()) return [];
   try {
     const standings = await queryDocumentCollection<TournamentStanding>(COLLECTIONS.standings, "tournamentId", tournamentId, 100);
@@ -881,6 +1040,49 @@ export async function getTournamentStandings(tournamentId: string): Promise<Tour
 }
 
 export async function getTournamentTeams(tournamentId: string): Promise<Team[]> {
+  try {
+    const tournament = await getCompetitionEvent(tournamentId);
+    if (tournament) {
+      const [matches, seasonTeams] = await Promise.all([
+        getCompetitionMatchesForEvent(tournament.id),
+        tournament.seasonId ? getCompetitionSeasonTeams(tournament.seasonId) : listCompetitionTeams(),
+      ]);
+      const teamIds = new Set<string>(tournament.registeredTeamIds ?? []);
+      const fallbackTeams = new Map<string, Team>();
+
+      for (const match of matches) {
+        for (const teamResult of match.teamResults ?? []) {
+          if (teamResult.teamId) {
+            teamIds.add(teamResult.teamId);
+          }
+
+          const fallbackId = teamResult.teamId ?? slugify(teamResult.teamName);
+          if (!fallbackTeams.has(fallbackId)) {
+            fallbackTeams.set(fallbackId, {
+              id: fallbackId,
+              slug: slugify(teamResult.teamName),
+              name: teamResult.teamName,
+              slotNumber: teamResult.slotNumber,
+              totalPoints: 0,
+              kills: 0,
+              matches: 0,
+              scope: "tournament",
+              sourceTournamentId: tournament.id,
+              sourceTournamentTitle: tournament.title,
+            });
+          }
+        }
+      }
+
+      const teams = seasonTeams.filter((team) => teamIds.has(team.id));
+      const knownTeamKeys = new Set(teams.map((team) => team.id));
+      const supplementalTeams = Array.from(fallbackTeams.values()).filter((team) => !knownTeamKeys.has(team.id));
+      return [...teams, ...supplementalTeams].sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam));
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   if (!isDocumentStoreConfigured()) return [];
   try {
     const teams = await queryDocumentCollection<Team>(COLLECTIONS.teams, "sourceTournamentId", tournamentId, 100);
@@ -891,6 +1093,57 @@ export async function getTournamentTeams(tournamentId: string): Promise<Team[]> 
 }
 
 export async function getTournamentPlayers(tournamentId: string): Promise<Player[]> {
+  try {
+    const tournament = await getCompetitionEvent(tournamentId);
+    if (tournament) {
+      const [matches, seasonPlayers] = await Promise.all([
+        getCompetitionMatchesForEvent(tournament.id),
+        tournament.seasonId ? getCompetitionSeasonPlayers(tournament.seasonId) : listCompetitionPlayers(),
+      ]);
+      const playerIds = new Set<string>();
+      const fallbackPlayers = new Map<string, Player>();
+
+      for (const match of matches) {
+        for (const playerResult of match.playerResults ?? []) {
+          if (playerResult.playerId) {
+            playerIds.add(playerResult.playerId);
+          }
+
+          const fallbackId = playerResult.playerId || playerResult.pubgPlayerId || slugify(playerResult.playerName);
+          if (!fallbackPlayers.has(fallbackId)) {
+            fallbackPlayers.set(fallbackId, {
+              id: fallbackId,
+              slug: slugify(playerResult.playerName),
+              name: playerResult.playerName,
+              inGameName: playerResult.playerName,
+              teamId: playerResult.teamId,
+              teamName: playerResult.teamName,
+              pubgId: playerResult.pubgPlayerId,
+              pubgName: playerResult.playerName,
+              kills: 0,
+              damage: 0,
+              mvpCount: 0,
+              chickenDinners: 0,
+              matches: 0,
+              scope: "tournament",
+              sourceTournamentId: tournament.id,
+              sourceTournamentTitle: tournament.title,
+            });
+          }
+        }
+      }
+
+      const players = seasonPlayers.filter((player) => playerIds.has(player.id));
+      const knownPlayerKeys = new Set(players.map((player) => player.id));
+      const supplementalPlayers = Array.from(fallbackPlayers.values()).filter((player) => !knownPlayerKeys.has(player.id));
+      return [...players, ...supplementalPlayers].sort((firstPlayer, secondPlayer) =>
+        comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer)
+      );
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   if (!isDocumentStoreConfigured()) return [];
   try {
     const players = await queryDocumentCollection<Player>(COLLECTIONS.players, "sourceTournamentId", tournamentId, 500);
@@ -1039,6 +1292,17 @@ export async function saveTournamentMatch(data: TournamentMatch) {
 }
 
 export async function getTeams(): Promise<Team[]> {
+  try {
+    const [teams, currentSeason] = await Promise.all([listCompetitionTeams(), getCurrentCompetitionSeason().catch(() => null)]);
+    if (teams.length > 0 || currentSeason) {
+      return filterPublicTeams(teams.filter((team) => team.scope !== "tournament")).sort((firstTeam, secondTeam) =>
+        compareBravoTeamSlotOrder(firstTeam, secondTeam)
+      );
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   const teams = filterSoftDeleted(
     (
     await fromDocumentStoreOrSeed<Team>(COLLECTIONS.teams, [], (a, b) => compareBravoTeamSlotOrder(a, b), 500)
@@ -1100,6 +1364,18 @@ export async function deleteTeam(id: string) {
 }
 
 export async function getPlayers(): Promise<Player[]> {
+  try {
+    const [players, currentSeason] = await Promise.all([
+      listCompetitionPlayers(),
+      getCurrentCompetitionSeason().catch(() => null),
+    ]);
+    if (players.length > 0 || currentSeason) {
+      return players.sort((firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer));
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   const players = filterSoftDeleted(await fromDocumentStoreOrSeed<Player>(
     COLLECTIONS.players,
     [],
@@ -1180,6 +1456,15 @@ export async function deletePlayer(id: string) {
 }
 
 export async function getLeaderboard(): Promise<LeaderboardRow[]> {
+  try {
+    const currentSeason = await getCurrentCompetitionSeason();
+    if (currentSeason) {
+      return await getCompetitionSeasonLeaderboardRows(currentSeason.id);
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   const currentSeason = await getCurrentSeason();
   if (currentSeason) {
     const seasonLeaderboard = await getSeasonLeaderboard(currentSeason.id);
@@ -1281,7 +1566,7 @@ export async function getLiveStreamFeed(): Promise<StreamSchedule> {
     viewers: activeStream?.viewers,
     embedUrl: activeStream?.embedUrl ?? buildLiveEmbedUrl(),
     channelUrl: activeStream?.channelUrl ?? buildYouTubeChannelUrl(),
-    supportUrl: activeStream?.supportUrl ?? "https://kamaucha.me/bravo",
+    supportUrl: activeStream?.supportUrl ?? BRAVO_DISCORD_URL,
   };
 }
 

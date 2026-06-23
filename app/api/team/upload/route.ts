@@ -1,4 +1,4 @@
-import { requireAuthenticatedUser } from "@/lib/admin-auth";
+import { requireTeamWorkspaceUser } from "@/lib/admin-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import { buildStoragePath, deleteFromStorageByUrl, uploadToStorage } from "@/lib/supabase-storage";
@@ -17,18 +17,10 @@ export async function POST(request: Request) {
   const limited = enforceRateLimit(request, { key: "team-upload", maxRequests: 12, windowMs: 60_000 });
   if (limited) return limited;
 
-  const auth = await requireAuthenticatedUser(request);
+  const auth = await requireTeamWorkspaceUser(request);
   if (auth.response || !auth.session) {
     return auth.response ??
       Response.json({ error: USER_FACING_ERROR_MESSAGES.session }, { status: 401 });
-  }
-
-  if (!(auth.session.isAdmin || auth.session.role === "team_igl" || auth.session.role === "team_manager")) {
-    return Response.json({ error: USER_FACING_ERROR_MESSAGES.permission }, { status: 403 });
-  }
-
-  if (!auth.session.teamId) {
-    return Response.json({ error: "This account is not linked to a team yet." }, { status: 403 });
   }
 
   try {

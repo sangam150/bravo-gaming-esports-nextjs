@@ -1,7 +1,7 @@
 import {
   createSessionCookie,
+  getSessionCookieMaxAge,
   SESSION_COOKIE,
-  SESSION_MAX_AGE,
   verifyAccessToken,
 } from "@/lib/supabase-auth-server";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -31,7 +31,8 @@ export async function POST(request: Request) {
       );
     }
     const decoded = await verifyAccessToken(accessToken);
-    const sessionCookie = await createSessionCookie(accessToken, SESSION_MAX_AGE * 1000);
+    const sessionCookieMaxAge = getSessionCookieMaxAge(accessToken);
+    const sessionCookie = await createSessionCookie(accessToken, sessionCookieMaxAge * 1000);
     const response = Response.json({
       success: true,
       user: {
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
         email: decoded.email,
         role: decoded.role,
         teamId: decoded.teamId,
+        playerId: decoded.playerId,
         displayName: decoded.displayName,
         isAdmin: decoded.isAdmin,
       },
@@ -47,7 +49,7 @@ export async function POST(request: Request) {
     const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
     response.headers.append(
       "Set-Cookie",
-      `${SESSION_COOKIE}=${sessionCookie}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${SESSION_MAX_AGE}${secure}`
+      `${SESSION_COOKIE}=${sessionCookie}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${sessionCookieMaxAge}${secure}`
     );
     return response;
   } catch (error: unknown) {

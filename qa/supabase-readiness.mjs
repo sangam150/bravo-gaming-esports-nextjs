@@ -221,6 +221,7 @@ async function main() {
   const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
   const authPublicKey = publishableKey || anonKey;
   const restPublicKey = anonKey || publishableKey;
+  const secretKey = env.SUPABASE_SECRET_KEY || "";
   const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 
   const firebaseKeys = Object.keys(env).filter((key) => key.startsWith("NEXT_PUBLIC_FIREBASE_") || key.startsWith("FIREBASE_"));
@@ -234,10 +235,11 @@ async function main() {
   const anonAuth = supabaseUrl && anonKey
     ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, anonKey, "anon-auth")
     : null;
-  const serviceAuth = supabaseUrl && serviceRoleKey
-    ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, serviceRoleKey, "service-auth")
+  const privilegedKey = secretKey || serviceRoleKey;
+  const serviceAuth = supabaseUrl && privilegedKey
+    ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, privilegedKey, "service-auth")
     : null;
-  const storageAdminKey = serviceRoleKey || restPublicKey;
+  const storageAdminKey = privilegedKey || restPublicKey;
   const bucketsResponse = supabaseUrl && storageAdminKey
     ? await safeJsonRequest(`${supabaseUrl}/storage/v1/bucket`, storageAdminKey, "storage-buckets")
     : null;
@@ -274,11 +276,14 @@ async function main() {
       hasSupabaseUrl: Boolean(supabaseUrl),
       hasPublishableKey: Boolean(publishableKey),
       hasAnonKey: Boolean(anonKey),
+      hasSecretKey: Boolean(secretKey),
       hasServiceRoleKey: Boolean(serviceRoleKey),
       publicKeySource: publishableKey ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" : anonKey ? "NEXT_PUBLIC_SUPABASE_ANON_KEY" : null,
       restKeySource: anonKey ? "NEXT_PUBLIC_SUPABASE_ANON_KEY" : publishableKey ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" : null,
+      serviceKeySource: secretKey ? "SUPABASE_SECRET_KEY" : serviceRoleKey ? "SUPABASE_SERVICE_ROLE_KEY" : null,
       publishableKeyPreview: maskPreview(publishableKey),
       anonKeyPreview: maskPreview(anonKey),
+      secretKeyPreview: maskPreview(secretKey),
       serviceRoleKeyPreview: maskPreview(serviceRoleKey),
       serviceRoleKeyShape,
       serviceRoleKeyWarning:

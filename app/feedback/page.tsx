@@ -41,7 +41,7 @@ export default function FeedbackPage() {
           <ContactFormClient
             kind="feedback"
             title="Send feedback"
-            description="Feedback submissions are saved to Supabase and visible in the Bravo admin inbox for follow-up."
+            description="Share match review notes, event ideas, or broadcast feedback directly with the Bravo team."
             submitLabel="Send Feedback"
             subjectLabel="Topic"
           />

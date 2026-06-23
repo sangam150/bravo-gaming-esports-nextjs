@@ -6,15 +6,16 @@ import { getSiteUrl } from "@/lib/site";
 
 const staticRoutes = [
   "",
+  "/stats",
   "/about",
   "/contact",
   "/events",
   "/media",
+  "/news",
   "/privacy",
   "/pubg",
-  "/pubg/hall-of-fame",
+  "/pubg/community",
   "/pubg/leaderboards",
-  "/pubg/results",
   "/sponsors",
   "/terms",
 ];
@@ -54,13 +55,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.7,
     })),
-    ...pubg.matches.map((match) => ({
+    ...pubg.matches.filter((match) => match.status === "published").map((match) => ({
       url: `${siteUrl}/pubg/matches/${match.id}`,
       lastModified: new Date(match.startTime ?? now),
       changeFrequency: "daily" as const,
       priority: 0.8,
     })),
-    ...hub.events.map((event) => ({
+    ...hub.events.filter((event) => event.state === "published").map((event) => ({
       url: `${siteUrl}/events/${event.slug}`,
       lastModified: new Date(event.updatedAt ?? event.startDate ?? now),
       changeFrequency: "daily" as const,
@@ -77,6 +78,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(item.updatedAt ?? item.publishedAt ?? now),
       changeFrequency: "weekly" as const,
       priority: item.featured ? 0.8 : 0.6,
+    })),
+    ...hub.news.map((article) => ({
+      url: `${siteUrl}/news/${article.slug}`,
+      lastModified: new Date(article.updatedAt ?? article.publishedAt ?? article.date ?? now),
+      changeFrequency: "weekly" as const,
+      priority: article.featured || article.breaking ? 0.8 : 0.7,
     })),
   ];
 

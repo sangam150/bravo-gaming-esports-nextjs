@@ -12,14 +12,11 @@ create table if not exists public.app_documents (
 create index if not exists app_documents_collection_name_idx on public.app_documents (collection_name);
 create index if not exists app_documents_collection_updated_at_idx on public.app_documents (collection_name, updated_at desc);
 
-create type public.user_role as enum (
-  'super_admin',
-  'admin',
-  'moderator',
-  'team_igl',
-  'caster',
-  'viewer'
-);
+do $$
+begin
+  create type public.user_role as enum ('super_admin','admin','moderator','team_igl','caster','viewer');
+exception when duplicate_object then null;
+end $$;
 
 create type public.season_status as enum ('planned', 'active', 'completed', 'archived');
 create type public.day_status as enum ('scheduled', 'active', 'completed', 'waiting_for_data', 'cancelled');
@@ -76,6 +73,19 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+-- Compatibility for databases where profiles was previously created with id = auth.users.id.
+alter table public.profiles add column if not exists auth_user_id uuid;
+alter table public.users add column if not exists auth_user_id uuid;
+
+update public.profiles p
+set auth_user_id = p.id
+where p.auth_user_id is null
+  and exists (select 1 from auth.users u where u.id = p.id);
+
+create unique index if not exists profiles_auth_user_id_unique_idx
+on public.profiles (auth_user_id)
+where auth_user_id is not null;
+
 create table if not exists public.seasons (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -87,6 +97,21 @@ create table if not exists public.seasons (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.seasons add column if not exists slug text;
+alter table public.seasons add column if not exists series_title text;
+alter table public.seasons add column if not exists season_number integer not null default 1;
+alter table public.seasons add column if not exists configured_days integer not null default 15;
+alter table public.seasons add column if not exists completed_at timestamptz;
+alter table public.seasons add column if not exists archived_at timestamptz;
+alter table public.seasons add column if not exists ended_early boolean not null default false;
+alter table public.seasons add column if not exists notes text;
+alter table public.seasons add column if not exists description text;
+alter table public.seasons add column if not exists game text not null default 'PUBG PC';
+alter table public.seasons add column if not exists format text not null default 'Squad';
+alter table public.seasons add column if not exists region text not null default 'Global';
+alter table public.seasons add column if not exists perspective text not null default 'TPP';
+create unique index if not exists seasons_slug_unique_idx on public.seasons (slug) where slug is not null;
 
 create table if not exists public.days (
   id uuid primary key default gen_random_uuid(),
@@ -118,12 +143,23 @@ create table if not exists public.events (
 alter table public.events add column if not exists name text;
 alter table public.events add column if not exists slug text;
 alter table public.events add column if not exists type text;
+alter table public.events add column if not exists region text;
+alter table public.events add column if not exists tier text;
+alter table public.events add column if not exists competition_status text not null default 'UPCOMING';
 alter table public.events add column if not exists mode text;
 alter table public.events add column if not exists perspective text;
 alter table public.events add column if not exists prize_pool text;
 alter table public.events add column if not exists rules text;
 alter table public.events add column if not exists stream_url text;
 alter table public.events add column if not exists discord_url text;
+alter table public.events add column if not exists server text;
+alter table public.events add column if not exists schedule text;
+alter table public.events add column if not exists map_rotation jsonb not null default '[]'::jsonb;
+alter table public.events add column if not exists max_teams integer not null default 32;
+alter table public.events add column if not exists team_count integer not null default 0;
+alter table public.events add column if not exists season_day_number integer;
+alter table public.events add column if not exists match_count integer not null default 0;
+alter table public.events add column if not exists source_url text;
 alter table public.events add column if not exists published boolean not null default false;
 alter table public.events add column if not exists published_at timestamptz;
 alter table public.events add column if not exists deleted_at timestamptz;
@@ -134,6 +170,8 @@ create index if not exists events_published_idx on public.events (published);
 create index if not exists events_published_at_idx on public.events (published_at desc);
 create index if not exists events_deleted_at_idx on public.events (deleted_at);
 create index if not exists events_point_system_id_idx on public.events (point_system_id);
+
+alter table public.seasons add column if not exists current_event_id uuid references public.events(id) on delete set null;
 
 create table if not exists public.teams (
   id uuid primary key default gen_random_uuid(),
@@ -194,11 +232,14 @@ create table if not exists public.matches (
   unique (day_id, match_number)
 );
 
+alter table public.matches alter column day_id drop not null;
+alter table public.matches add column if not exists external_match_id text;
 alter table public.matches add column if not exists event_id uuid references public.events(id) on delete set null;
 alter table public.matches add column if not exists map_name text;
 alter table public.matches add column if not exists start_time timestamptz;
 alter table public.matches add column if not exists vod_url text;
 alter table public.matches add column if not exists source_url text;
+alter table public.matches add column if not exists data_source text not null default 'manual';
 alter table public.matches add column if not exists scoreboard_image_url text;
 alter table public.matches add column if not exists result_image_url text;
 alter table public.matches add column if not exists screenshot_urls jsonb;
@@ -320,12 +361,14 @@ create table if not exists public.event_teams (
 create table if not exists public.match_team_results (
   id uuid primary key default gen_random_uuid(),
   match_id uuid not null references public.matches(id) on delete cascade,
-  team_id uuid not null references public.teams(id) on delete cascade,
+  team_id uuid references public.teams(id) on delete cascade,
+  team_name text,
+  slot_number integer,
   placement integer not null default 0,
   kills integer not null default 0,
   placement_points integer not null default 0,
-  kill_points integer not null default 0,
-  total_points integer not null default 0,
+  kill_points numeric(10,2) not null default 0,
+  total_points numeric(10,2) not null default 0,
   wwcd boolean not null default false,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
@@ -335,13 +378,20 @@ create table if not exists public.match_team_results (
 create table if not exists public.match_player_results (
   id uuid primary key default gen_random_uuid(),
   match_id uuid not null references public.matches(id) on delete cascade,
-  player_id uuid not null references public.players(id) on delete cascade,
+  player_id uuid references public.players(id) on delete cascade,
+  player_name text,
+  pubg_account_id text,
   team_id uuid references public.teams(id) on delete set null,
+  team_name text,
+  slot_number integer,
+  placement integer not null default 0,
   kills integer not null default 0,
   assists integer not null default 0,
   knocks integer not null default 0,
   damage integer not null default 0,
   survival_time integer not null default 0,
+  placement_points integer not null default 0,
+  total_points numeric(10,2) not null default 0,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
   unique (match_id, player_id)
@@ -469,10 +519,12 @@ create or replace function public.current_user_role()
 returns public.user_role
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select coalesce(
-    (select role from public.profiles where auth_user_id = auth.uid() limit 1),
-    (select role from public.users where auth_user_id = auth.uid() limit 1),
+    (select role::text::public.user_role from public.profiles where auth_user_id = auth.uid() limit 1),
+    (select role::text::public.user_role from public.users where auth_user_id = auth.uid() limit 1),
     'viewer'::public.user_role
   );
 $$;
@@ -481,6 +533,8 @@ create or replace function public.current_user_team_id()
 returns uuid
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select coalesce(
     (select team_id from public.profiles where auth_user_id = auth.uid() limit 1),
@@ -494,6 +548,82 @@ language sql
 stable
 as $$
   select public.current_user_role() in ('super_admin', 'admin', 'moderator');
+$$;
+
+create or replace function public.parse_optional_timestamptz(value text)
+returns timestamptz
+language plpgsql
+stable
+as $$
+begin
+  if value is null or btrim(value) = '' then
+    return null;
+  end if;
+
+  return value::timestamptz;
+exception
+  when others then
+    return null;
+end;
+$$;
+
+create or replace function public.jsonb_flag_true_by_default(payload jsonb, key text)
+returns boolean
+language sql
+immutable
+as $$
+  select coalesce(
+    case
+      when payload ? key and lower(coalesce(payload ->> key, '')) in ('true', 'false')
+        then lower(payload ->> key) = 'true'
+      else null
+    end,
+    true
+  );
+$$;
+
+create or replace function public.is_public_app_document(collection_name text, payload jsonb)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when payload is null then false
+    when nullif(trim(coalesce(payload ->> 'deletedAt', '')), '') is not null then false
+    when collection_name in ('registrations', 'uploads', 'pubgImportBatches', 'pubgImportWatchers', 'errorLogs', 'contactMessages') then false
+    when collection_name = 'newsArticles' then
+      case
+        when coalesce(lower(payload ->> 'state'), 'draft') = 'published' then true
+        when coalesce(lower(payload ->> 'state'), 'draft') = 'scheduled'
+          and public.parse_optional_timestamptz(payload ->> 'publishAt') <= now() then true
+        else false
+      end
+    when collection_name in ('announcements', 'videos', 'sponsors', 'platformGames', 'platformEvents') then
+      public.jsonb_flag_true_by_default(payload, 'published')
+    when collection_name in (
+      'homepageContent',
+      'siteStats',
+      'streams',
+      'seasons',
+      'tournaments',
+      'standings',
+      'matches',
+      'teams',
+      'players',
+      'tournamentMatches',
+      'scrims',
+      'matchResults',
+      'matchPlayers',
+      'pubgMatches',
+      'pubgPlayers'
+    ) then
+      public.jsonb_flag_true_by_default(payload, 'published')
+      and coalesce(lower(payload ->> 'status'), 'published') not in ('draft', 'pending', 'private')
+      and coalesce(lower(payload ->> 'state'), 'published') not in ('draft', 'private')
+    else false
+  end;
 $$;
 
 create or replace function public.ensure_active_scrim_season()
@@ -564,24 +694,25 @@ with approved_matches as (
   select id, season_id, day_id, match_date
   from public.matches
   where status in ('approved', 'published')
+    and deleted_at is null
 ),
 aggregated as (
   select
-    mr.team_id,
-    coalesce(t.name, format('Team Slot %s', mr.slot_number)) as team_name,
-    mr.slot_number,
+    mtr.team_id,
+    coalesce(t.name, mtr.team_name, format('Team Slot %s', mtr.slot_number)) as team_name,
+    coalesce(mtr.slot_number, t.slot_number) as slot_number,
     am.season_id,
     count(*)::int as matches_played,
-    sum(case when mr.chicken_dinner then 1 else 0 end)::int as chicken_dinners,
-    sum(mr.kills)::int as total_kills,
-    sum(mr.placement_points)::int as placement_points,
-    sum(mr.total_points)::int as total_points,
-    min(mr.placement)::int as best_placement,
+    sum(case when mtr.wwcd then 1 else 0 end)::int as chicken_dinners,
+    sum(mtr.kills)::int as total_kills,
+    sum(mtr.placement_points)::int as placement_points,
+    sum(mtr.total_points)::int as total_points,
+    min(mtr.placement)::int as best_placement,
     max(am.match_date) as latest_match_date
-  from public.match_results mr
-  join approved_matches am on am.id = mr.match_id
-  left join public.teams t on t.id = mr.team_id
-  group by mr.team_id, t.name, mr.slot_number, am.season_id
+  from public.match_team_results mtr
+  join approved_matches am on am.id = mtr.match_id
+  left join public.teams t on t.id = mtr.team_id
+  group by mtr.team_id, coalesce(t.name, mtr.team_name, format('Team Slot %s', mtr.slot_number)), coalesce(mtr.slot_number, t.slot_number), am.season_id
 )
 select
   row_number() over (
@@ -596,26 +727,27 @@ with approved_matches as (
   select id, season_id, match_date
   from public.matches
   where status in ('approved', 'published')
+    and deleted_at is null
 ),
 aggregated as (
   select
-    mp.player_id,
-    coalesce(p.display_name, p.pubg_name, mp.player_name) as player_name,
-    mp.pubg_account_id,
-    mp.team_id,
-    coalesce(t.name, format('Team Slot %s', mp.slot_number)) as team_name,
-    mp.slot_number,
+    mpr.player_id,
+    coalesce(p.display_name, p.pubg_name, mpr.player_name) as player_name,
+    coalesce(p.pubg_account_id, mpr.pubg_account_id) as pubg_account_id,
+    mpr.team_id,
+    coalesce(t.name, mpr.team_name, format('Team Slot %s', mpr.slot_number)) as team_name,
+    coalesce(mpr.slot_number, t.slot_number) as slot_number,
     am.season_id,
     count(*)::int as matches_played,
-    sum(mp.kills)::int as total_kills,
-    sum(mp.damage)::numeric(12,2) as total_damage,
-    sum(mp.assists)::int as total_assists,
+    sum(mpr.kills)::int as total_kills,
+    sum(mpr.damage)::numeric(12,2) as total_damage,
+    sum(mpr.assists)::int as total_assists,
     max(am.match_date) as latest_match_date
-  from public.match_players mp
-  join approved_matches am on am.id = mp.match_id
-  left join public.players p on p.id = mp.player_id
-  left join public.teams t on t.id = mp.team_id
-  group by mp.player_id, p.display_name, p.pubg_name, mp.player_name, mp.pubg_account_id, mp.team_id, t.name, mp.slot_number, am.season_id
+  from public.match_player_results mpr
+  join approved_matches am on am.id = mpr.match_id
+  left join public.players p on p.id = mpr.player_id
+  left join public.teams t on t.id = mpr.team_id
+  group by mpr.player_id, coalesce(p.display_name, p.pubg_name, mpr.player_name), coalesce(p.pubg_account_id, mpr.pubg_account_id), mpr.team_id, coalesce(t.name, mpr.team_name, format('Team Slot %s', mpr.slot_number)), coalesce(mpr.slot_number, t.slot_number), am.season_id
 )
 select
   row_number() over (
@@ -634,25 +766,26 @@ with approved_matches as (
   select id, season_id
   from public.matches
   where status in ('approved', 'published')
+    and deleted_at is null
 ),
 match_mvps as (
   select
     am.season_id,
-    mp.player_id,
-    coalesce(p.display_name, p.pubg_name, mp.player_name) as player_name,
-    mp.team_id,
-    coalesce(t.name, format('Team Slot %s', mp.slot_number)) as team_name,
-    mp.kills,
-    mp.damage,
-    mp.assists,
+    mpr.player_id,
+    coalesce(p.display_name, p.pubg_name, mpr.player_name) as player_name,
+    mpr.team_id,
+    coalesce(t.name, mpr.team_name, format('Team Slot %s', mpr.slot_number)) as team_name,
+    mpr.kills,
+    mpr.damage,
+    mpr.assists,
     row_number() over (
-      partition by mp.match_id
-      order by mp.kills desc, mp.damage desc, mp.assists desc, mp.player_name asc
+      partition by mpr.match_id
+      order by mpr.total_points desc, mpr.kills desc, mpr.damage desc, mpr.assists desc, coalesce(p.display_name, p.pubg_name, mpr.player_name) asc
     ) as match_mvp_rank
-  from public.match_players mp
-  join approved_matches am on am.id = mp.match_id
-  left join public.players p on p.id = mp.player_id
-  left join public.teams t on t.id = mp.team_id
+  from public.match_player_results mpr
+  join approved_matches am on am.id = mpr.match_id
+  left join public.players p on p.id = mpr.player_id
+  left join public.teams t on t.id = mpr.team_id
 ),
 aggregated as (
   select
@@ -661,7 +794,7 @@ aggregated as (
     player_name,
     team_id,
     team_name,
-    count(*)::int filter (where match_mvp_rank = 1) as mvp_awards,
+    count(*) filter (where match_mvp_rank = 1)::int as mvp_awards,
     sum(kills)::int as total_kills,
     sum(damage)::numeric(12,2) as total_damage,
     sum(assists)::int as total_assists,
@@ -676,6 +809,10 @@ select
   ) as rank,
   *
 from aggregated;
+
+create or replace view public.standings as
+select *
+from public.team_leaderboard;
 
 alter table public.users enable row level security;
 alter table public.profiles enable row level security;
@@ -704,42 +841,55 @@ alter table public.videos enable row level security;
 alter table public.settings enable row level security;
 alter table public.app_documents enable row level security;
 
+drop policy if exists "public read seasons" on public.seasons;
 create policy "public read seasons" on public.seasons
 for select using (true);
 
+drop policy if exists "public read days" on public.days;
 create policy "public read days" on public.days
 for select using (true);
 
+drop policy if exists "public read events" on public.events;
 create policy "public read events" on public.events
 for select using (coalesce(published, true));
 
+drop policy if exists "public read teams" on public.teams;
 create policy "public read teams" on public.teams
 for select using (true);
 
+drop policy if exists "public read players" on public.players;
 create policy "public read players" on public.players
 for select using (true);
 
+drop policy if exists "public read event teams" on public.event_teams;
 create policy "public read event teams" on public.event_teams
 for select using (true);
 
+drop policy if exists "public read roster history" on public.team_roster_history;
 create policy "public read roster history" on public.team_roster_history
 for select using (true);
 
+drop policy if exists "public read announcements" on public.announcements;
 create policy "public read announcements" on public.announcements
 for select using (status = 'published');
 
+drop policy if exists "public read sponsors" on public.sponsors;
 create policy "public read sponsors" on public.sponsors
 for select using (status = 'published');
 
+drop policy if exists "public read videos" on public.videos;
 create policy "public read videos" on public.videos
 for select using (status = 'published');
 
+drop policy if exists "public read settings" on public.settings;
 create policy "public read settings" on public.settings
 for select using (true);
 
+drop policy if exists "public read approved matches" on public.matches;
 create policy "public read approved matches" on public.matches
 for select using (status in ('approved', 'published'));
 
+drop policy if exists "public read approved match results" on public.match_results;
 create policy "public read approved match results" on public.match_results
 for select using (
   exists (
@@ -750,6 +900,7 @@ for select using (
   )
 );
 
+drop policy if exists "public read approved match players" on public.match_players;
 create policy "public read approved match players" on public.match_players
 for select using (
   exists (
@@ -760,6 +911,7 @@ for select using (
   )
 );
 
+drop policy if exists "public read approved team results" on public.match_team_results;
 create policy "public read approved team results" on public.match_team_results
 for select using (
   exists (
@@ -770,6 +922,7 @@ for select using (
   )
 );
 
+drop policy if exists "public read approved player results" on public.match_player_results;
 create policy "public read approved player results" on public.match_player_results
 for select using (
   exists (
@@ -780,164 +933,206 @@ for select using (
   )
 );
 
+drop policy if exists "admin manage all users" on public.users;
 create policy "admin manage all users" on public.users
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage all profiles" on public.profiles;
+drop policy if exists "Admins can manage profiles" on public.profiles;
+drop policy if exists "Users can view own profile" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "admin manage all profiles" on public.profiles
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "self read user profile" on public.users;
 create policy "self read user profile" on public.users
 for select using (auth.uid() = auth_user_id);
 
+drop policy if exists "self update user profile" on public.users;
 create policy "self update user profile" on public.users
 for update using (auth.uid() = auth_user_id)
 with check (auth.uid() = auth_user_id);
 
+drop policy if exists "self read profile" on public.profiles;
 create policy "self read profile" on public.profiles
 for select using (auth.uid() = auth_user_id);
 
+drop policy if exists "self update profile" on public.profiles;
 create policy "self update profile" on public.profiles
 for update using (auth.uid() = auth_user_id)
 with check (auth.uid() = auth_user_id);
 
+drop policy if exists "admin manage seasons" on public.seasons;
 create policy "admin manage seasons" on public.seasons
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage days" on public.days;
 create policy "admin manage days" on public.days
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage events" on public.events;
 create policy "admin manage events" on public.events
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "public read point systems" on public.point_systems;
 create policy "public read point systems" on public.point_systems
 for select using (deleted_at is null and active = true);
 
+drop policy if exists "admin manage point systems" on public.point_systems;
 create policy "admin manage point systems" on public.point_systems
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage event teams" on public.event_teams;
 create policy "admin manage event teams" on public.event_teams
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage teams" on public.teams;
 create policy "admin manage teams" on public.teams
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage players" on public.players;
 create policy "admin manage players" on public.players
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage roster history" on public.team_roster_history;
 create policy "admin manage roster history" on public.team_roster_history
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage matches" on public.matches;
 create policy "admin manage matches" on public.matches
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage team results" on public.match_team_results;
 create policy "admin manage team results" on public.match_team_results
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage player results" on public.match_player_results;
 create policy "admin manage player results" on public.match_player_results
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage match players" on public.match_players;
 create policy "admin manage match players" on public.match_players
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage match results" on public.match_results;
 create policy "admin manage match results" on public.match_results
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage pending imports" on public.pending_imports;
 create policy "admin manage pending imports" on public.pending_imports
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin read import logs" on public.import_logs;
 create policy "admin read import logs" on public.import_logs
 for select using (public.is_admin_role());
 
+drop policy if exists "admin manage announcements" on public.announcements;
 create policy "admin manage announcements" on public.announcements
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage sponsors" on public.sponsors;
 create policy "admin manage sponsors" on public.sponsors
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage videos" on public.videos;
 create policy "admin manage videos" on public.videos
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin manage settings" on public.settings;
 create policy "admin manage settings" on public.settings
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "public read app documents" on public.app_documents;
 create policy "public read app documents" on public.app_documents
-for select using (true);
+for select using (public.is_public_app_document(collection_name, data));
 
+drop policy if exists "admin manage app documents" on public.app_documents;
 create policy "admin manage app documents" on public.app_documents
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "admin read roster requests" on public.roster_requests;
 create policy "admin read roster requests" on public.roster_requests
 for select using (public.is_admin_role());
 
+drop policy if exists "admin review roster requests" on public.roster_requests;
 create policy "admin review roster requests" on public.roster_requests
 for update using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "igl create own team requests" on public.roster_requests;
 create policy "igl create own team requests" on public.roster_requests
 for insert with check (
   public.current_user_role() = 'team_igl'
   and team_id = public.current_user_team_id()
 );
 
+drop policy if exists "igl read own team requests" on public.roster_requests;
 create policy "igl read own team requests" on public.roster_requests
 for select using (
   public.current_user_role() = 'team_igl'
   and team_id = public.current_user_team_id()
 );
 
+drop policy if exists "admin manage moss submissions" on public.moss_submissions;
 create policy "admin manage moss submissions" on public.moss_submissions
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "igl submit own team moss" on public.moss_submissions;
 create policy "igl submit own team moss" on public.moss_submissions
 for insert with check (
   public.current_user_role() = 'team_igl'
   and team_id = public.current_user_team_id()
 );
 
+drop policy if exists "igl read own team moss" on public.moss_submissions;
 create policy "igl read own team moss" on public.moss_submissions
 for select using (
   public.current_user_role() = 'team_igl'
   and team_id = public.current_user_team_id()
 );
 
+drop policy if exists "admin manage uploads" on public.uploads;
 create policy "admin manage uploads" on public.uploads
 for all using (public.is_admin_role())
 with check (public.is_admin_role());
 
+drop policy if exists "igl read own team uploads" on public.uploads;
 create policy "igl read own team uploads" on public.uploads
 for select using (
   public.current_user_role() = 'team_igl'
   and related_id = public.current_user_team_id()
 );
 
+drop policy if exists "igl create own team uploads" on public.uploads;
 create policy "igl create own team uploads" on public.uploads
 for insert with check (
   public.current_user_role() = 'team_igl'
   and related_id = public.current_user_team_id()
 );
 
+drop policy if exists "admin read audit logs" on public.audit_logs;
 create policy "admin read audit logs" on public.audit_logs
 for select using (public.is_admin_role());
 
@@ -1450,82 +1645,102 @@ set
   data = excluded.data,
   updated_at = timezone('utc', now());
 
+drop trigger if exists seasons_set_updated_at on public.seasons;
 create trigger seasons_set_updated_at
 before update on public.seasons
 for each row execute function public.set_updated_at();
 
+drop trigger if exists days_set_updated_at on public.days;
 create trigger days_set_updated_at
 before update on public.days
 for each row execute function public.set_updated_at();
 
+drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
 before update on public.profiles
 for each row execute function public.set_updated_at();
 
+drop trigger if exists point_systems_set_updated_at on public.point_systems;
 create trigger point_systems_set_updated_at
 before update on public.point_systems
 for each row execute function public.set_updated_at();
 
+drop trigger if exists events_set_updated_at on public.events;
 create trigger events_set_updated_at
 before update on public.events
 for each row execute function public.set_updated_at();
 
+drop trigger if exists event_teams_set_updated_at on public.event_teams;
 create trigger event_teams_set_updated_at
 before update on public.event_teams
 for each row execute function public.set_updated_at();
 
+drop trigger if exists teams_set_updated_at on public.teams;
 create trigger teams_set_updated_at
 before update on public.teams
 for each row execute function public.set_updated_at();
 
+drop trigger if exists players_set_updated_at on public.players;
 create trigger players_set_updated_at
 before update on public.players
 for each row execute function public.set_updated_at();
 
+drop trigger if exists team_roster_history_set_updated_at on public.team_roster_history;
 create trigger team_roster_history_set_updated_at
 before update on public.team_roster_history
 for each row execute function public.set_updated_at();
 
+drop trigger if exists matches_set_updated_at on public.matches;
 create trigger matches_set_updated_at
 before update on public.matches
 for each row execute function public.set_updated_at();
 
+drop trigger if exists match_team_results_set_updated_at on public.match_team_results;
 create trigger match_team_results_set_updated_at
 before update on public.match_team_results
 for each row execute function public.set_updated_at();
 
+drop trigger if exists match_player_results_set_updated_at on public.match_player_results;
 create trigger match_player_results_set_updated_at
 before update on public.match_player_results
 for each row execute function public.set_updated_at();
 
+drop trigger if exists pending_imports_set_updated_at on public.pending_imports;
 create trigger pending_imports_set_updated_at
 before update on public.pending_imports
 for each row execute function public.set_updated_at();
 
+drop trigger if exists roster_requests_set_updated_at on public.roster_requests;
 create trigger roster_requests_set_updated_at
 before update on public.roster_requests
 for each row execute function public.set_updated_at();
 
+drop trigger if exists moss_submissions_set_updated_at on public.moss_submissions;
 create trigger moss_submissions_set_updated_at
 before update on public.moss_submissions
 for each row execute function public.set_updated_at();
 
+drop trigger if exists announcements_set_updated_at on public.announcements;
 create trigger announcements_set_updated_at
 before update on public.announcements
 for each row execute function public.set_updated_at();
 
+drop trigger if exists sponsors_set_updated_at on public.sponsors;
 create trigger sponsors_set_updated_at
 before update on public.sponsors
 for each row execute function public.set_updated_at();
 
+drop trigger if exists videos_set_updated_at on public.videos;
 create trigger videos_set_updated_at
 before update on public.videos
 for each row execute function public.set_updated_at();
 
+drop trigger if exists settings_set_updated_at on public.settings;
 create trigger settings_set_updated_at
 before update on public.settings
 for each row execute function public.set_updated_at();
 
+drop trigger if exists app_documents_set_updated_at on public.app_documents;
 create trigger app_documents_set_updated_at
 before update on public.app_documents
 for each row execute function public.set_updated_at();

@@ -65,7 +65,11 @@ export default function ContactFormClient({
       setEmail("");
       setSubject("");
       setMessage("");
-      setNotice(kind === "feedback" ? "Feedback sent to the Bravo admin inbox." : "Message sent to the Bravo admin inbox.");
+      setNotice(
+        kind === "feedback"
+          ? "Feedback received. Thank you for helping improve Bravo."
+          : "Message received. The Bravo team will get back to you soon."
+      );
     } catch (submissionError: unknown) {
       setError(
         toUserFacingErrorMessage(submissionError, {

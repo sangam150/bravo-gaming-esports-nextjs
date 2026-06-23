@@ -41,5 +41,5 @@ Keep secret keys only in `.env.local`.
 
 Production notes:
 - Set `NEXT_PUBLIC_SITE_URL` (or `SITE_URL`) to your live domain for metadata, sitemap, and robots output
-- Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel
+- Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SECRET_KEY` in Vercel
 - Run the SQL in [supabase/schema.sql](./supabase/schema.sql) before using the admin data tools

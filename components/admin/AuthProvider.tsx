@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { isAdminRole } from "@/lib/authz";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -166,7 +167,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   }, [configured, clearSession]);
 
   const value = useMemo(
-    () => ({ user, role, isAdmin: role === "super_admin" || role === "admin" || role === "moderator", loading, configured, login, logout }),
+    () => ({ user, role, isAdmin: isAdminRole(role), loading, configured, login, logout }),
     [user, role, loading, configured, login, logout]
   );
 

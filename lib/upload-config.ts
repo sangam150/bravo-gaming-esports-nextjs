@@ -90,6 +90,20 @@ function getMaxUploadBytes(type: UploadType) {
   return MOSS_UPLOAD_TYPES.has(type) ? MOSS_UPLOAD_MAX_BYTES : IMAGE_UPLOAD_MAX_BYTES;
 }
 
+function isAllowedUploadExtension(type: UploadType, fileName: string) {
+  const extension = getFileExtension(fileName);
+  return (getAllowedExtensions(type) as readonly string[]).includes(extension);
+}
+
+function isAllowedUploadContentType(type: UploadType, contentType: string | null | undefined) {
+  const normalizedContentType = contentType?.trim().toLowerCase();
+  if (!normalizedContentType) {
+    return false;
+  }
+
+  return (getAllowedContentTypes(type) as readonly string[]).includes(normalizedContentType);
+}
+
 export const IMAGE_FILE_INPUT_ACCEPT = ALLOWED_IMAGE_EXTENSIONS.join(",");
 export const MOSS_FILE_INPUT_ACCEPT = ALLOWED_MOSS_EXTENSIONS.join(",");
 
@@ -146,14 +160,18 @@ export function resolveUploadContentType(
   contentType: string | null | undefined
 ) {
   const normalizedContentType = contentType?.trim().toLowerCase();
-  const allowedContentTypes = getAllowedContentTypes(type) as readonly string[];
+  const extension = getFileExtension(fileName);
+  const extensionContentType = CONTENT_TYPE_BY_EXTENSION[extension as keyof typeof CONTENT_TYPE_BY_EXTENSION] ?? null;
 
-  if (normalizedContentType && allowedContentTypes.includes(normalizedContentType)) {
+  if (normalizedContentType && isAllowedUploadContentType(type, normalizedContentType) && isAllowedUploadExtension(type, fileName)) {
     return normalizedContentType;
   }
 
-  const extension = getFileExtension(fileName);
-  return CONTENT_TYPE_BY_EXTENSION[extension as keyof typeof CONTENT_TYPE_BY_EXTENSION] ?? null;
+  if (extensionContentType && isAllowedUploadExtension(type, fileName)) {
+    return extensionContentType;
+  }
+
+  return null;
 }
 
 export function resolveImageContentType(fileName: string, contentType: string | null | undefined) {
@@ -185,7 +203,13 @@ export function validateUpload(input: {
     return `Files must be ${formatUploadSize(maxBytes)} or smaller.`;
   }
 
-  if (!resolveUploadContentType(normalizedType, input.fileName, input.contentType)) {
+  if (!isAllowedUploadExtension(normalizedType, input.fileName)) {
+    return normalizedType === "moss_file"
+      ? "Upload a ZIP, RAR, 7Z, PDF, or TXT file."
+      : "Upload a JPG, PNG, WEBP, GIF, or AVIF image.";
+  }
+
+  if (!isAllowedUploadContentType(normalizedType, input.contentType)) {
     return normalizedType === "moss_file"
       ? "Upload a ZIP, RAR, 7Z, PDF, or TXT file."
       : "Upload a JPG, PNG, WEBP, GIF, or AVIF image.";

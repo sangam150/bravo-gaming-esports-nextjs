@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { formatDisplayDateTime } from "@/lib/display-format";
@@ -58,12 +61,9 @@ async function readJsonResponse<T>(response: Response) {
   return data;
 }
 
-function hasTeamWorkspaceAccess(role?: string | null, isAdmin?: boolean) {
-  return Boolean(isAdmin || role === "team_igl" || role === "team_manager");
-}
-
 export default function TeamPanelClient() {
   const configured = isSupabaseConfigured();
+  const router = useRouter();
   const [profile, setProfile] = useState<AuthenticatedUserProfile | null>(null);
   const [workspace, setWorkspace] = useState<TeamWorkspaceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +81,7 @@ export default function TeamPanelClient() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [mossUploading, setMossUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const profileLinkPending = !profile?.profileId;
 
   const supabase = useMemo(() => (configured ? getSupabaseBrowserClient() : null), [configured]);
   async function getAccessToken() {
@@ -265,6 +266,8 @@ export default function TeamPanelClient() {
     await supabase.auth.signOut();
     setProfile(null);
     setWorkspace(null);
+    router.push("/team/login");
+    router.refresh();
   }
 
   async function uploadTeamFile(file: File, type: TeamUploadType, previousUrl?: string) {
@@ -491,8 +494,15 @@ export default function TeamPanelClient() {
               required
             />
             <button type="submit" disabled={authLoading} className="btn-primary w-full justify-center disabled:opacity-60">
-            {authLoading ? "Checking access..." : "Open Team Workspace"}
+              {authLoading ? "Checking access..." : "Open Team Workspace"}
             </button>
+          </div>
+
+          <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 text-sm">
+            <span className="text-text-muted">Need help with your password?</span>
+            <Link href="/reset-password" className="text-accent-blue transition hover:text-white hover:underline">
+              Password recovery
+            </Link>
           </div>
         </form>
       </div>
@@ -545,6 +555,12 @@ export default function TeamPanelClient() {
       {notice && (
         <div className="rounded-2xl border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-200">
           {notice}
+        </div>
+      )}
+
+      {profileLinkPending && (
+        <div className="rounded-2xl border border-accent-yellow/30 bg-accent-yellow/10 px-4 py-3 text-sm text-yellow-100">
+          Your account can view the workspace, but Bravo still needs to finish linking your profile record before roster requests can be submitted.
         </div>
       )}
 
@@ -619,6 +635,11 @@ export default function TeamPanelClient() {
           <p className="mt-2 text-sm text-text-muted">
             Submit roster updates here. Admins review every change before it reaches public pages.
           </p>
+          {profileLinkPending && (
+            <p className="mt-3 text-sm text-accent-yellow">
+              Roster requests unlock automatically after your profile link is completed.
+            </p>
+          )}
 
           <form onSubmit={handleRequestSubmit} className="mt-5 space-y-4">
             <select
@@ -666,7 +687,11 @@ export default function TeamPanelClient() {
               onChange={(event) => setRequestForm((current) => ({ ...current, notes: event.target.value }))}
             />
 
-            <button type="submit" disabled={requestSubmitting} className="btn-primary w-full justify-center disabled:opacity-60">
+            <button
+              type="submit"
+              disabled={requestSubmitting || profileLinkPending}
+              className="btn-primary w-full justify-center disabled:opacity-60"
+            >
               {requestSubmitting ? "Submitting roster request..." : "Submit Request"}
             </button>
           </form>

@@ -1,4 +1,5 @@
 import { ensureSeasonDay, getSeasonDayContext } from "./admin-season-days";
+import { getCompetitionMatch, listCompetitionMatches } from "./competition-relational";
 import { getCurrentSeason, getTournament, getTournamentMatches } from "./data";
 import { BRAVO_DAILY_SCRIMS_SEASON, syncBravoDailyScrimSeason } from "./bravo-season-sync";
 import { buildFallbackTeamNameFromSlot, canonicalizeBravoTeamName, getBravoCanonicalTeams, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
@@ -1327,6 +1328,17 @@ export async function importPubgMatch(
 
 export async function getLiveMatchResults(limit = 20) {
   try {
+    const matches = await listCompetitionMatches(limit);
+    if (matches.length > 0) {
+      return matches
+        .filter((match) => match.status !== "draft")
+        .sort((firstMatch, secondMatch) => (secondMatch.syncedAt ?? "").localeCompare(firstMatch.syncedAt ?? ""));
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
+  try {
     const docs = await fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matchResults, limit);
     return docs
       .map(normalizeStoredMatchForDisplay)
@@ -1343,12 +1355,23 @@ export async function getMatchResult(matchId: string) {
     return null;
   }
 
+  const isPublicMatchStatus = (status: string | null | undefined) => status === "published" || status === "approved";
+
+  try {
+    const match = await getCompetitionMatch(normalizedMatchId);
+    if (match) {
+      return isPublicMatchStatus(match.status) ? match : null;
+    }
+  } catch {
+    // Fall back to the document compatibility layer when relational data is unavailable.
+  }
+
   try {
     const match = await getDocument<TournamentMatch>(COLLECTIONS.matchResults, normalizedMatchId);
     if (!match) return null;
 
     const normalizedMatch = normalizeStoredMatchForDisplay(match);
-    return normalizedMatch.status === "draft" ? null : normalizedMatch;
+    return isPublicMatchStatus(normalizedMatch.status) ? normalizedMatch : null;
   } catch {
     return null;
   }

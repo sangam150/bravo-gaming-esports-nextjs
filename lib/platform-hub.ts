@@ -35,6 +35,7 @@ export interface PlatformArticle {
   slug: string;
   title: string;
   summary: string;
+  excerpt?: string;
   date: string;
   category: string;
   tags: string[];
@@ -45,8 +46,11 @@ export interface PlatformArticle {
   imageUrl?: string;
   seoTitle?: string;
   seoDescription?: string;
+  ogImageUrl?: string;
+  canonicalUrl?: string;
   body: string[];
   relatedSlugs: string[];
+  publishedAt?: string;
   updatedAt?: string;
 }
 
@@ -530,7 +534,8 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     slug: article.slug,
     title: article.title,
     summary: article.summary,
-    date: article.date,
+    excerpt: article.excerpt ?? article.summary,
+    date: article.publishedAt ?? article.publishAt ?? article.date,
     category: article.category,
     tags: [...article.tags],
     authorName: article.authorName,
@@ -540,8 +545,11 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     imageUrl: article.imageUrl,
     seoTitle: article.seoTitle,
     seoDescription: article.seoDescription,
+    ogImageUrl: article.ogImageUrl,
+    canonicalUrl: article.canonicalUrl,
     body: [...article.body],
     relatedSlugs: [],
+    publishedAt: article.publishedAt ?? article.publishAt,
     updatedAt: article.updatedAt ?? article.date,
   }));
 
@@ -554,6 +562,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       slug,
       title: announcement.title,
       summary: announcement.detail,
+      excerpt: announcement.detail,
       date: announcement.date,
       category,
       tags: pickArticleTags(category, announcement.title),
@@ -566,6 +575,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       seoDescription: undefined,
       body: normalizeArticleBody(announcement.title, announcement.detail),
       relatedSlugs: [],
+      publishedAt: announcement.date,
       updatedAt: announcement.date,
     };
   });
@@ -575,6 +585,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     slug: slugify(item.title),
     title: item.title,
     summary: item.summary,
+    excerpt: item.excerpt ?? item.summary,
     date: item.date,
     category: item.category,
     tags: [...item.tags],
@@ -587,6 +598,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     seoDescription: undefined,
     body: [...item.body],
     relatedSlugs: [],
+    publishedAt: item.publishedAt,
     updatedAt: item.date,
   }));
 

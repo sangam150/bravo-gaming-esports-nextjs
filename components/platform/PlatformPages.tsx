@@ -11,6 +11,7 @@ import type {
   PlatformOrganization,
   PlatformSponsorProfile,
 } from "@/lib/platform-hub";
+import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
 import { getSiteUrl } from "@/lib/site";
 import {
   EmptyState,
@@ -666,7 +667,7 @@ export function PlatformHomePage({
                   <Link href={registerForScrimsHref} className="btn-primary">
                     Register for Scrims
                   </Link>
-                  <a href="https://kamaucha.me/bravo" target="_blank" rel="noreferrer" className="btn-discord">
+                  <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
                     Join Discord
                   </a>
                 </div>
@@ -905,8 +906,9 @@ export function PlatformHomePage({
             <SectionHeader eyebrow="Community" title="The public home of Nepal esports" description="Discord, rules, support, announcements, and ecosystem access are treated like core platform features, not side links." />
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-2">
               {[
-                { title: "Discord", detail: "Join Bravo's live community hub for scrims, event updates, and ecosystem chatter.", href: "https://kamaucha.me/bravo" },
-                { title: "Rules", detail: "Unified competition, conduct, and event rule references as the platform expands.", href: "/community" },
+                { title: "Discord", detail: "Join Bravo's official community hub for scrims, event updates, and ecosystem chatter.", href: BRAVO_DISCORD_URL },
+                { title: "Instagram", detail: "Follow official Bravo posters, clips, and platform updates.", href: BRAVO_INSTAGRAM_URL },
+                { title: "Rules", detail: "Unified competition, conduct, and event rule references as the platform expands.", href: "/pubg/community" },
                 { title: "Support", detail: "Support lanes for players, teams, organizers, and sponsors.", href: "/contact" },
                 { title: "Announcements", detail: "Editorial and operational updates from the platform desk.", href: "/news" },
               ].map((item) => (
@@ -1236,7 +1238,7 @@ export function PlatformGameDetailPage({
                   Join the Bravo community now to follow launch announcements, register interest, and help shape which events, teams, and storylines open this title first.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
-                  <a href="https://kamaucha.me/bravo" target="_blank" rel="noreferrer" className="btn-primary">
+                  <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-primary">
                     Join Discord
                   </a>
                   <Link href="/feedback" className="btn-secondary">
@@ -2812,9 +2814,7 @@ export function PlatformOrganizationDetailPage({
                 Back to organizations
               </Link>
               {organization.website ? (
-                <Link href={organization.website} className="btn-primary">
-                  Open linked route
-                </Link>
+                <HeroActionLink href={organization.website} label="Visit Website" className="btn-primary" />
               ) : null}
             </>
           }

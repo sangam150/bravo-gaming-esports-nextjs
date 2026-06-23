@@ -1,3 +1,5 @@
+import "server-only";
+import { hasTeamWorkspaceAccess } from "./authz";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { sanitizeJsonObject } from "./json-utils";
 import { getUserFacingPlayerLabel } from "./user-facing-errors";
@@ -35,19 +37,24 @@ function buildProfile(session: VerifiedSession): AuthenticatedUserProfile {
     email: session.email,
     role: session.role,
     teamId: session.teamId,
+    playerId: session.playerId,
     displayName: session.displayName,
     isAdmin: session.isAdmin,
   };
 }
 
-function ensureTeamScopedSession(session: VerifiedSession) {
-  if (!(session.isAdmin || session.role === "team_igl" || session.role === "team_manager")) {
+function ensureTeamWorkspaceSession(session: VerifiedSession) {
+  if (!hasTeamWorkspaceAccess(session.role, session.isAdmin)) {
     throw new Error("Only admins and team managers can access the team workspace.");
   }
 
   if (!session.teamId) {
     throw new Error("This account is not linked to a team in Supabase yet.");
   }
+}
+
+function ensureTeamMutationSession(session: VerifiedSession) {
+  ensureTeamWorkspaceSession(session);
 
   if (!session.profileId) {
     throw new Error("Create a profile record for this user before using the team workspace.");
@@ -171,7 +178,7 @@ async function safeListRecentMatches(teamId: string) {
 }
 
 export async function getTeamWorkspace(session: VerifiedSession): Promise<TeamWorkspaceData> {
-  ensureTeamScopedSession(session);
+  ensureTeamWorkspaceSession(session);
 
   const client = getSupabaseServiceRoleClient();
 
@@ -286,7 +293,7 @@ export async function createTeamRosterRequest(
     payload?: Record<string, unknown>;
   }
 ) {
-  ensureTeamScopedSession(session);
+  ensureTeamMutationSession(session);
 
   const client = getSupabaseServiceRoleClient();
   const payload = input.payload ?? {};
@@ -339,7 +346,7 @@ export async function createMossSubmission(
     externalLink?: string | null;
   }
 ) {
-  ensureTeamScopedSession(session);
+  ensureTeamWorkspaceSession(session);
 
   if (!input.fileUrl && !input.externalLink) {
     throw new Error("Attach a MOSS file or provide an external link.");

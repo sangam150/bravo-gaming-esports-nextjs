@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { COLLECTIONS } from "./document-store-collections";
 import { getRequestedServerDataBackend } from "./data-backend";
 import { readJsonObject, sanitizeJsonObject, sanitizeJsonValue } from "./json-utils";
-import { isSupabaseServiceRoleConfigured } from "./supabase/env";
+import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import {
   SUPABASE_DOCUMENT_STORE_TABLE,
@@ -86,7 +86,7 @@ async function requireSupabaseDocumentStore() {
 
   if (!isSupabaseServiceRoleConfigured()) {
     throw new Error(
-      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY), and SUPABASE_SERVICE_ROLE_KEY."
+      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY), and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY)."
     );
   }
 

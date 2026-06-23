@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import {
+  hasPlayerDashboardAccess,
+  hasTeamWorkspaceAccess,
+} from "@/lib/authz";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
@@ -24,10 +28,6 @@ type LoginVariant = "hub" | "team" | "player";
 type LoginHubClientProps = {
   variant?: LoginVariant;
 };
-
-function hasTeamWorkspaceAccess(role?: string, isAdmin?: boolean) {
-  return Boolean(isAdmin || role === "team_igl" || role === "team_manager");
-}
 
 function getVariantContent(variant: LoginVariant) {
   switch (variant) {
@@ -107,7 +107,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
       }
 
       const isTeamUser = hasTeamWorkspaceAccess(sessionData.user?.role, sessionData.user?.isAdmin);
-      const isPlayerUser = Boolean(sessionData.user?.isAdmin || sessionData.user?.role === "player");
+      const isPlayerUser = hasPlayerDashboardAccess(sessionData.user?.role, sessionData.user?.isAdmin);
 
       if (variant === "team" && !isTeamUser) {
         await fetch("/api/auth/session", { method: "DELETE", credentials: "include" }).catch(() => undefined);
@@ -131,7 +131,9 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
               ? "/admin"
               : isTeamUser
                 ? "/team"
-                : "/dashboard/player");
+                : isPlayerUser
+                  ? "/dashboard/player"
+                  : "/dashboard");
 
       router.push(redirectTarget);
       router.refresh();
@@ -245,6 +247,13 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                 <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
                   {loading ? "Checking access..." : content.buttonLabel}
                 </button>
+              </div>
+
+              <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 text-sm">
+                <span className="text-text-muted">Need help with your password?</span>
+                <Link href="/reset-password" className="text-accent-blue transition hover:text-white hover:underline">
+                  Password recovery
+                </Link>
               </div>
             </form>
           </div>

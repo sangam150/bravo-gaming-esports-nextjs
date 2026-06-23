@@ -1,8 +1,18 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
-import { deleteAdminMatch, getAdminMatch, listAdminMatches, saveAdminMatch, saveAdminMatches } from "@/lib/admin-matches";
-import { syncTournamentAndSeasonDerivedData } from "@/lib/pubg-sync";
+import {
+  deleteCompetitionMatch,
+  getCompetitionMatch,
+  listCompetitionMatches,
+  listCompetitionPointSystems,
+  recalculateCompetitionMatch,
+  restoreCompetitionMatchFromSnapshot,
+  saveCompetitionMatch,
+  setCompetitionMatchPublishedState,
+} from "@/lib/competition-relational";
+import { readJsonObject } from "@/lib/json-utils";
 import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
+import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import { getRecentUploadRecords } from "@/lib/upload-records";
 import {
   getUserFacingPlayerLabel,
@@ -99,6 +109,8 @@ function normalizeMatchInput(value: Record<string, unknown>) {
     map: typeof value.map === "string" ? value.map : "",
     eventName: typeof value.eventName === "string" ? value.eventName : undefined,
     eventSlug: typeof value.eventSlug === "string" ? value.eventSlug : undefined,
+    pointSystemId: typeof value.pointSystemId === "string" ? value.pointSystemId : undefined,
+    pointSystemName: typeof value.pointSystemName === "string" ? value.pointSystemName : undefined,
     status: value.status === "draft" ? "draft" : "published",
     winner: typeof value.winner === "string" ? value.winner : undefined,
     points: typeof value.points === "number" && Number.isFinite(value.points) ? value.points : undefined,
@@ -124,22 +136,43 @@ function normalizeMatchInput(value: Record<string, unknown>) {
   } satisfies Partial<TournamentMatch> & { pubgMatchId: string; map: string };
 }
 
-function getAffectedTournamentIds(matches: TournamentMatch | TournamentMatch[] | null | undefined) {
-  const records = Array.isArray(matches) ? matches : matches ? [matches] : [];
-  return Array.from(
-    new Set(records.map((match) => match.tournamentId).filter((tournamentId): tournamentId is string => Boolean(tournamentId)))
-  );
+async function getLatestRollbackSnapshot(matchId: string) {
+  const client = getSupabaseServiceRoleClient();
+  const { data, error } = await client
+    .from("audit_logs")
+    .select("old_data,new_data")
+    .eq("entity_type", "match")
+    .eq("entity_id", matchId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    throw error;
+  }
+
+  for (const row of data ?? []) {
+    const oldValue = readJsonObject(row.old_data);
+    if (oldValue && typeof oldValue === "object" && typeof oldValue.id === "string") {
+      return oldValue as unknown as TournamentMatch;
+    }
+  }
+
+  return null;
 }
 
 export async function GET(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const [matches, uploads] = await Promise.all([listAdminMatches(200), getRecentUploadRecords(20).catch(() => [])]);
+  const [matches, uploads, pointSystems] = await Promise.all([
+    listCompetitionMatches(200),
+    getRecentUploadRecords(20).catch(() => []),
+    listCompetitionPointSystems().catch(() => []),
+  ]);
 
   return Response.json({
     success: true,
-    data: { matches, uploads },
+    data: { matches, uploads, pointSystems },
     message: matches.filter((match) => match.status !== "draft").length === 0
       ? "Match data will appear once results are published."
       : undefined,
@@ -158,18 +191,24 @@ export async function POST(request: Request) {
           .map(normalizeMatchInput)
       : [normalizeMatchInput(body)];
 
-    if (entries.some((entry) => !entry.pubgMatchId || !entry.map)) {
-      return Response.json({ error: "pubgMatchId and map are required for every match" }, { status: 400 });
+    if (entries.some((entry) => !entry.tournamentId || !entry.map)) {
+      return Response.json({ error: "tournamentId and map are required for every match" }, { status: 400 });
     }
 
-    const data = entries.length === 1 ? await saveAdminMatch(entries[0]) : await saveAdminMatches(entries);
+    const data =
+      entries.length === 1
+        ? await saveCompetitionMatch(entries[0], { publish: entries[0].status === "published" })
+        : await Promise.all(
+            entries.map((entry) =>
+              saveCompetitionMatch(entry, { publish: entry.status === "published" })
+            )
+          );
     await writeAuditLogFromRequest(request, {
       action: entries.length === 1 ? "create" : "bulk_create",
       entityType: "match",
       entityId: Array.isArray(data) ? null : data.id,
       newValue: data,
     });
-    await Promise.all(getAffectedTournamentIds(data).map((tournamentId) => syncTournamentAndSeasonDerivedData(tournamentId)));
     revalidateCompetitionPaths(Array.isArray(data) ? undefined : data.id);
     return Response.json({ success: true, data });
   } catch (error: unknown) {
@@ -184,22 +223,72 @@ export async function PUT(request: Request) {
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
+    const action = typeof body.action === "string" ? body.action : undefined;
     const entry = normalizeMatchInput(body);
+    const matchId = entry.id ?? (typeof body.id === "string" ? body.id : undefined);
 
-    if (!entry.pubgMatchId || !entry.map) {
-      return Response.json({ error: "pubgMatchId and map are required" }, { status: 400 });
+    if (action === "publish" || action === "unpublish" || action === "recalculate" || action === "rollback") {
+      if (!matchId) {
+        return Response.json({ error: "id is required" }, { status: 400 });
+      }
+
+      const existingMatch = await getCompetitionMatch(matchId);
+      if (!existingMatch) {
+        return Response.json({ error: "Match not found" }, { status: 404 });
+      }
+
+      let data: TournamentMatch;
+      let auditAction = action;
+
+      if (action === "publish") {
+        data = await saveCompetitionMatch(
+          {
+            ...existingMatch,
+            status: "published",
+          },
+          { publish: true }
+        );
+      } else if (action === "unpublish") {
+        data = await setCompetitionMatchPublishedState(matchId, false);
+      } else if (action === "recalculate") {
+        data = await recalculateCompetitionMatch(matchId);
+      } else {
+        const snapshot = await getLatestRollbackSnapshot(matchId);
+        if (!snapshot) {
+          return Response.json({ error: "No rollback snapshot is available for this match yet." }, { status: 409 });
+        }
+
+        data = await restoreCompetitionMatchFromSnapshot({
+          ...snapshot,
+          id: matchId,
+        });
+        auditAction = "rollback";
+      }
+
+      await writeAuditLogFromRequest(request, {
+        action: auditAction,
+        entityType: "match",
+        entityId: data.id,
+        oldValue: existingMatch,
+        newValue: data,
+      });
+      revalidateCompetitionPaths(data.id);
+      return Response.json({ success: true, data });
     }
 
-    const existingMatch = entry.id ? await getAdminMatch(entry.id) : null;
-    const data = await saveAdminMatch(entry);
+    if (!entry.tournamentId || !entry.map) {
+      return Response.json({ error: "tournamentId and map are required" }, { status: 400 });
+    }
+
+    const existingMatch = entry.id ? await getCompetitionMatch(entry.id) : null;
+    const data = await saveCompetitionMatch(entry, { publish: entry.status === "published" });
     await writeAuditLogFromRequest(request, {
-      action: "update",
+      action: "edit",
       entityType: "match",
       entityId: data.id,
       oldValue: existingMatch,
       newValue: data,
     });
-    await Promise.all(getAffectedTournamentIds(data).map((tournamentId) => syncTournamentAndSeasonDerivedData(tournamentId)));
     revalidateCompetitionPaths(data.id);
     return Response.json({ success: true, data });
   } catch (error: unknown) {
@@ -219,16 +308,15 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "id is required" }, { status: 400 });
   }
 
-  const existingMatch = await getAdminMatch(id);
-  const data = await deleteAdminMatch(id);
+  const existingMatch = await getCompetitionMatch(id);
+  const data = await deleteCompetitionMatch(id);
   await writeAuditLogFromRequest(request, {
-    action: "soft_delete",
+    action: "delete",
     entityType: "match",
     entityId: id,
     oldValue: existingMatch,
     newValue: existingMatch ? { ...existingMatch, deletedAt: new Date().toISOString() } : { id, deletedAt: new Date().toISOString() },
   });
-  await Promise.all(getAffectedTournamentIds(existingMatch).map((tournamentId) => syncTournamentAndSeasonDerivedData(tournamentId)));
   revalidateCompetitionPaths(id);
   return Response.json({ success: true, data });
 }

@@ -6,7 +6,11 @@ type ContentMetadataInput = {
   description: string;
   path: string;
   imageUrl?: string | null;
+  ogImageUrl?: string | null;
+  canonicalUrl?: string | null;
   type?: "website" | "article";
+  publishedTime?: string | null;
+  modifiedTime?: string | null;
 };
 
 function resolveAbsoluteUrl(value: string) {
@@ -18,22 +22,33 @@ export function buildContentMetadata({
   description,
   path,
   imageUrl,
+  ogImageUrl,
+  canonicalUrl,
   type = "article",
+  publishedTime,
+  modifiedTime,
 }: ContentMetadataInput): Metadata {
-  const canonicalUrl = resolveAbsoluteUrl(path);
-  const socialImage = resolveAbsoluteUrl(imageUrl || "/images/bravo-logo.png");
+  const canonicalPath = canonicalUrl || path;
+  const absoluteCanonicalUrl = resolveAbsoluteUrl(canonicalPath);
+  const socialImage = resolveAbsoluteUrl(ogImageUrl || imageUrl || "/images/bravo-logo.png");
 
   return {
     title,
     description,
     alternates: {
-      canonical: path,
+      canonical: canonicalPath,
     },
     openGraph: {
       type,
-      url: canonicalUrl,
+      url: absoluteCanonicalUrl,
       title,
       description,
+      ...(type === "article"
+        ? {
+            publishedTime: publishedTime ?? undefined,
+            modifiedTime: modifiedTime ?? undefined,
+          }
+        : {}),
       images: [
         {
           url: socialImage,

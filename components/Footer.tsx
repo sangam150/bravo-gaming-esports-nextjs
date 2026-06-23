@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BravoLogo from "@/components/ui/BravoLogo";
+import { BRAVO_SOCIAL_LINKS } from "@/lib/brand-links";
 import { getHomepageContent } from "@/lib/platform-content";
 
 function FooterLinkItem({ label, href }: { label: string; href: string }) {
@@ -72,6 +73,22 @@ export default async function Footer() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <FooterAction href={content.footerPrimaryHref} label={content.footerPrimaryLabel} variant="primary" />
                 <FooterAction href={content.footerSecondaryHref} label={content.footerSecondaryLabel} variant="secondary" />
+              </div>
+              <div className="mt-6">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">Official Socials</p>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  {BRAVO_SOCIAL_LINKS.map((social) => (
+                    <a
+                      key={social.label}
+                      href={social.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-text-muted transition hover:border-accent-blue/30 hover:text-white"
+                    >
+                      {social.label}
+                    </a>
+                  ))}
+                </div>
               </div>
             </div>
 

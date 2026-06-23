@@ -1,6 +1,6 @@
 import Link from "next/link";
 import TeamAvatar from "@/components/ui/TeamAvatar";
-import type { PlatformMediaItem, PlatformSponsorProfile } from "@/lib/platform-hub";
+import type { PlatformHubData, PlatformMediaItem, PlatformSponsorProfile } from "@/lib/platform-hub";
 import type {
   PubgHubDataset,
   PubgHubEvent,
@@ -10,6 +10,7 @@ import type {
   PubgHubRecentMatch,
   PubgHubTeam,
 } from "@/lib/pubg-hub";
+import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
 import {
   buildHref,
   DualTrendChart,
@@ -93,6 +94,7 @@ const dashboardNavItems = [
   { label: "Matches", href: "#matches" },
   { label: "Results", href: "/pubg/results" },
   { label: "Leaderboards", href: "/pubg/leaderboards" },
+  { label: "Community", href: "/pubg/community" },
   { label: "Teams", href: "/pubg/teams" },
   { label: "Players", href: "/pubg/players" },
   { label: "Stats", href: "#stats" },
@@ -1202,6 +1204,257 @@ export function PubgEventsPage({
             ) : null}
           </div>
         </section>
+      </div>
+    </main>
+  );
+}
+
+export function PubgCommunityPage({
+  dataset,
+  hub,
+  searchParams,
+}: {
+  dataset: PubgHubDataset;
+  hub: PlatformHubData;
+  searchParams: SearchParamDictionary;
+}) {
+  const query = readSearchParam(searchParams.q).trim().toLowerCase();
+  const requestedView = readSearchParam(searchParams.view, "all");
+  const view = requestedView === "teams" || requestedView === "players" ? requestedView : "all";
+  const latestAnnouncements = hub.news.slice(0, 3);
+  const communityRegions = Array.from(
+    new Set(dataset.teams.map((team) => team.region).filter((value): value is string => Boolean(value)))
+  ).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
+  const filteredTeams = dataset.teams
+    .filter((team) => {
+      if (!query) return true;
+      return `${team.name} ${team.tag ?? ""} ${team.region ?? ""}`.toLowerCase().includes(query);
+    })
+    .sort((firstValue, secondValue) => secondValue.formScore - firstValue.formScore || secondValue.totalPoints - firstValue.totalPoints);
+  const filteredPlayers = dataset.players
+    .filter((player) => {
+      if (!query) return true;
+      return `${player.pubgName} ${player.currentTeamName ?? ""}`.toLowerCase().includes(query);
+    })
+    .sort((firstValue, secondValue) => secondValue.kills - firstValue.kills || secondValue.damage - firstValue.damage);
+  const visibleTeams = filteredTeams.slice(0, query ? 12 : 8);
+  const visiblePlayers = filteredPlayers.slice(0, query ? 12 : 8);
+  const showTeams = view !== "players";
+  const showPlayers = view !== "teams";
+  const resetHref = buildHref("/pubg/community", {
+    view: view === "all" ? undefined : view,
+  });
+
+  return (
+    <main className="page-shell pb-12 pt-6">
+      <div className="page-stack">
+        <PageHero
+          badge="PUBG Community"
+          title={
+            <>
+              Teams, players,
+              <br />
+              and community momentum
+            </>
+          }
+          description="Bravo's PUBG community surface brings together verified team cards, player spotlights, latest announcements, and the fastest public routes into the active competitive ecosystem."
+          actions={
+            <>
+              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+                Join Discord
+              </a>
+              <Link href="/pubg/teams" className="btn-primary">
+                Browse Teams
+              </Link>
+              <Link href="/pubg/players" className="btn-secondary">
+                Browse Players
+              </Link>
+            </>
+          }
+          stats={[
+            { label: "Tracked Teams", value: dataset.teams.length, tone: "blue" },
+            { label: "Tracked Players", value: dataset.players.length, tone: "green" },
+            { label: "Published Matches", value: dataset.matches.length, tone: "yellow" },
+            { label: "Announcements", value: hub.news.length, tone: "red" },
+          ]}
+          aside={
+            <div className="space-y-4">
+              <div>
+                <p className="section-title">Community Lanes</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Join, follow, and scout the active PUBG scene</h2>
+              </div>
+              {[
+                `Community regions tracked: ${communityRegions.length}`,
+                `Upcoming or live events: ${dataset.events.filter((event) => event.status !== "finished").length}`,
+                "Published announcements, team cards, and player spotlights stay easy to browse in one community lane.",
+                "New matches, rankings, and community updates appear here as soon as they are officially published.",
+              ].map((item) => (
+                <div key={item} className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
+                  {item}
+                </div>
+              ))}
+            </div>
+          }
+        />
+
+        <div className="tab-bar">
+          {[
+            { value: "all", label: "All" },
+            { value: "teams", label: "Teams" },
+            { value: "players", label: "Players" },
+          ].map((tab) => (
+            <Link
+              key={tab.value}
+              href={buildHref("/pubg/community", {
+                view: tab.value === "all" ? undefined : tab.value,
+                q: query || undefined,
+              })}
+              className={`tab-item ${view === tab.value ? "tab-item-active" : ""}`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </div>
+
+        <FilterBar
+          action={
+            <Link href={resetHref} className="btn-secondary h-11">
+              Reset
+            </Link>
+          }
+        >
+          <input name="q" defaultValue={query} className="input-esports h-11" placeholder="Search team, player, or region" />
+          <input type="hidden" name="view" value={view} />
+          <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
+            Switch tabs to focus on one directory, or stay on <span className="font-semibold text-white">All</span> for the combined community view.
+          </div>
+          <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
+            Team and player cards only reflect published match-backed data from the live PUBG hub.
+          </div>
+        </FilterBar>
+
+        <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
+          <DashboardSection
+            eyebrow="Community Actions"
+            title="Public routes into the ecosystem"
+            description="Community support, current coverage, and public event discovery should stay one click away from the team and player directories."
+          >
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {[
+                { title: "Discord", detail: "Join the official Bravo Discord for scrim coordination, announcements, and community support.", href: BRAVO_DISCORD_URL, external: true },
+                { title: "Instagram", detail: "Follow official match posters, clips, and community highlights from Bravo.", href: BRAVO_INSTAGRAM_URL, external: true },
+                { title: "Events", detail: "Browse published and upcoming PUBG event boards.", href: "/events", external: false },
+                { title: "News", detail: "Read announcements, scene updates, and operational posts.", href: "/news", external: false },
+                { title: "Support", detail: "Reach Bravo for community, player, team, or sponsor help.", href: "/contact", external: false },
+              ].map((item) =>
+                item.external ? (
+                  <a
+                    key={item.title}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                  >
+                    <p className="font-display text-sm font-black uppercase text-white">{item.title}</p>
+                    <p className="mt-2 text-sm text-text-muted">{item.detail}</p>
+                  </a>
+                ) : (
+                  <Link
+                    key={item.title}
+                    href={item.href}
+                    className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                  >
+                    <p className="font-display text-sm font-black uppercase text-white">{item.title}</p>
+                    <p className="mt-2 text-sm text-text-muted">{item.detail}</p>
+                  </Link>
+                )
+              )}
+            </div>
+          </DashboardSection>
+
+          <DashboardSection
+            eyebrow="Latest Announcements"
+            title="What the community is hearing now"
+            description="The combined community route keeps current platform communication close to the active team and player pool."
+          >
+            <div className="grid gap-3">
+              {latestAnnouncements.map((article) => (
+                <Link
+                  key={article.slug}
+                  href={`/news/${article.slug}`}
+                  className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{article.category}</p>
+                  <p className="mt-2 font-semibold text-white">{article.title}</p>
+                  <p className="mt-2 text-sm text-text-muted">{article.summary}</p>
+                </Link>
+              ))}
+              {latestAnnouncements.length === 0 ? (
+                <EmptyState title="No announcements yet" description="Announcements will appear here once they are published." />
+              ) : null}
+            </div>
+          </DashboardSection>
+        </section>
+
+        {showTeams ? (
+          <DashboardSection
+            eyebrow="Teams"
+            title={visibleTeams.length > 0 ? `PUBG team community cards` : "No team community cards yet"}
+            description="Team cards pull from the same live PUBG dataset as the dedicated directory, but stay curated for faster community browsing."
+            action={
+              <Link href="/pubg/teams" className="btn-secondary">
+                Full team directory
+              </Link>
+            }
+          >
+            {visibleTeams.length > 0 ? (
+              <div className="grid gap-4 xl:grid-cols-2">
+                {visibleTeams.map((team, index) => (
+                  <HubTeamCard key={team.id} team={team} rank={index + 1} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title={query ? "No teams match this search" : "No published team data yet"}
+                description={
+                  query
+                    ? "Try broadening your search to see more PUBG teams."
+                    : "Team community cards will appear automatically after official match-backed team data is published."
+                }
+              />
+            )}
+          </DashboardSection>
+        ) : null}
+
+        {showPlayers ? (
+          <DashboardSection
+            eyebrow="Players"
+            title={visiblePlayers.length > 0 ? `PUBG player spotlights` : "No player spotlights yet"}
+            description="Player cards stay close to the community lane so fans, teams, and organizers can move quickly from announcements into live talent discovery."
+            action={
+              <Link href="/pubg/players" className="btn-secondary">
+                Full player directory
+              </Link>
+            }
+          >
+            {visiblePlayers.length > 0 ? (
+              <div className="grid gap-4 xl:grid-cols-2">
+                {visiblePlayers.map((player, index) => (
+                  <HubPlayerCard key={player.id} player={player} rank={index + 1} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title={query ? "No players match this search" : "No published player data yet"}
+                description={
+                  query
+                    ? "Try broadening your search to see more PUBG players."
+                    : "Player spotlights will appear automatically after official match-backed player data is published."
+                }
+              />
+            )}
+          </DashboardSection>
+        ) : null}
       </div>
     </main>
   );

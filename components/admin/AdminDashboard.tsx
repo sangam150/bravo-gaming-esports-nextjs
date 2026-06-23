@@ -13,7 +13,9 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import { useAdminAuth } from "./AuthProvider";
 import { adminFetch } from "@/lib/admin-api";
 import type { AuditLogRecord } from "@/lib/audit-logs";
+import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
 import { formatAnnouncementDate, formatDisplayDate, formatDisplayDateTime } from "@/lib/display-format";
+import { formatKathmanduDateTimeInput, isManagedNewsArticlePublic } from "@/lib/news-publishing";
 import type {
   FooterLinkRecord,
   HomepageContentRecord,
@@ -98,12 +100,16 @@ const defaultHomepageForm: HomepageContentRecord = {
       title: "Published matches, rankings, news, and events in one home",
       description:
         "Bravo Gaming Esports brings together real match coverage, verified standings, news, and community updates for Nepal esports.",
+      imageUrl: "",
+      videoUrl: "",
+      sponsorSlug: "",
+      promoText: "",
       primaryLabel: "Watch Live",
       primaryHref: "/live-stream",
       secondaryLabel: "Explore Events",
       secondaryHref: "/events",
       tertiaryLabel: "Join Community",
-      tertiaryHref: "https://kamaucha.me/bravo",
+      tertiaryHref: BRAVO_DISCORD_URL,
     },
     {
       id: "hero-slide-2",
@@ -111,6 +117,10 @@ const defaultHomepageForm: HomepageContentRecord = {
       title: "PUBG PC remains the flagship competitive hub",
       description:
         "Published seasons, events, teams, players, matches, and standings will appear here automatically as results are approved.",
+      imageUrl: "",
+      videoUrl: "",
+      sponsorSlug: "",
+      promoText: "",
       primaryLabel: "Open PUBG",
       primaryHref: "/pubg",
       secondaryLabel: "Leaderboards",
@@ -123,9 +133,13 @@ const defaultHomepageForm: HomepageContentRecord = {
       badge: "Sponsors, Media, and Community",
       title: "Sponsors, media, and community stay connected",
       description:
-        "Sponsor profiles, media coverage, and community touchpoints are managed from the backend and only appear when published.",
-      primaryLabel: "Browse Games",
-      primaryHref: "/games",
+        "Sponsor profiles, media coverage, and community touchpoints stay aligned with official Bravo updates as content goes live.",
+      imageUrl: "",
+      videoUrl: "",
+      sponsorSlug: "",
+      promoText: "",
+      primaryLabel: "Open Community",
+      primaryHref: "/pubg/community",
       secondaryLabel: "Read News",
       secondaryHref: "/news",
       tertiaryLabel: "Sponsor Hub",
@@ -150,29 +164,29 @@ const defaultHomepageForm: HomepageContentRecord = {
   footerPrimaryLabel: "Watch Live",
   footerPrimaryHref: "/live-stream",
   footerSecondaryLabel: "Join Discord",
-  footerSecondaryHref: "https://kamaucha.me/bravo",
+  footerSecondaryHref: BRAVO_DISCORD_URL,
   footerColumns: [
     {
       id: "footer-main",
       title: "Main",
       links: [
         { label: "Home", href: "/" },
-        { label: "News", href: "/news" },
-        { label: "Events", href: "/events" },
         { label: "PUBG", href: "/pubg" },
-        { label: "Rankings", href: "/rankings" },
+        { label: "Events", href: "/events" },
+        { label: "Community", href: "/pubg/community" },
         { label: "Media", href: "/media" },
+        { label: "News", href: "/news" },
       ],
     },
     {
-      id: "footer-competition",
-      title: "Competition",
+      id: "footer-discover",
+      title: "Discover",
       links: [
-        { label: "Games", href: "/games" },
-        { label: "Teams", href: "/teams" },
-        { label: "Players", href: "/players" },
-        { label: "Matches", href: "/matches" },
-        { label: "Calendar", href: "/calendar" },
+        { label: "Leaderboards", href: "/pubg/leaderboards" },
+        { label: "Teams", href: "/pubg/teams" },
+        { label: "Players", href: "/pubg/players" },
+        { label: "Search", href: "/search" },
+        { label: "Watch Live", href: "/live-stream" },
       ],
     },
     {
@@ -180,20 +194,19 @@ const defaultHomepageForm: HomepageContentRecord = {
       title: "Community",
       links: [
         { label: "Sponsors", href: "/sponsors" },
-        { label: "Community", href: "/community" },
         { label: "About", href: "/about" },
         { label: "Contact", href: "/contact" },
-        { label: "Discord", href: "https://kamaucha.me/bravo" },
+        { label: "Instagram", href: BRAVO_INSTAGRAM_URL },
+        { label: "Discord", href: BRAVO_DISCORD_URL },
       ],
     },
     {
-      id: "footer-legal",
-      title: "Legal",
+      id: "footer-platform",
+      title: "Platform",
       links: [
+        { label: "Login", href: "/login" },
         { label: "Privacy", href: "/privacy" },
         { label: "Terms", href: "/terms" },
-        { label: "Admin", href: "/admin" },
-        { label: "Team Login", href: "/team" },
       ],
     },
   ],
@@ -210,6 +223,7 @@ const defaultNewsForm: ManagedNewsFormState = {
   title: "",
   slug: "",
   summary: "",
+  excerpt: "",
   bodyText: "",
   date: new Date().toISOString().slice(0, 10),
   category: "Bravo Gaming",
@@ -222,6 +236,10 @@ const defaultNewsForm: ManagedNewsFormState = {
   imageUrl: "",
   seoTitle: "",
   seoDescription: "",
+  ogImageUrl: "",
+  canonicalUrl: "",
+  publishAt: "",
+  publishedAt: "",
 };
 
 function splitDelimitedValues(value?: string | null) {
@@ -293,10 +311,15 @@ function buildNewsFormState(article?: ManagedNewsArticleRecord | null): ManagedN
   return {
     ...article,
     bodyText: article.body.join("\n\n"),
+    excerpt: article.excerpt ?? "",
     gameSlug: article.gameSlug ?? "",
     imageUrl: article.imageUrl ?? "",
     seoTitle: article.seoTitle ?? "",
     seoDescription: article.seoDescription ?? "",
+    ogImageUrl: article.ogImageUrl ?? "",
+    canonicalUrl: article.canonicalUrl ?? "",
+    publishAt: formatKathmanduDateTimeInput(article.publishAt),
+    publishedAt: article.publishedAt ?? "",
   };
 }
 
@@ -650,6 +673,10 @@ export default function AdminDashboard({
   async function handleNewsSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!newsForm.title || !newsForm.summary) return;
+    if (newsForm.state === "scheduled" && !(newsForm.publishAt ?? "").trim()) {
+      setError("Scheduled articles need a publish date and time in Nepal time.");
+      return;
+    }
 
     setSavingNews(true);
     setError(null);
@@ -659,10 +686,15 @@ export default function AdminDashboard({
         ...newsForm,
         body: newsForm.bodyText,
         tags: newsForm.tags ?? [],
+        excerpt: newsForm.excerpt || undefined,
         gameSlug: newsForm.gameSlug || undefined,
         imageUrl: newsForm.imageUrl || undefined,
         seoTitle: newsForm.seoTitle || undefined,
         seoDescription: newsForm.seoDescription || undefined,
+        ogImageUrl: newsForm.ogImageUrl || undefined,
+        canonicalUrl: newsForm.canonicalUrl || undefined,
+        publishAt: newsForm.publishAt || undefined,
+        publishedAt: newsForm.publishedAt || undefined,
       };
       const response = await adminFetch(editingNewsId ? `/api/admin/news/${editingNewsId}` : "/api/admin/news", {
         method: editingNewsId ? "PUT" : "POST",
@@ -1272,6 +1304,32 @@ export default function AdminDashboard({
                       value={slide.description}
                       onChange={(e) => updateHomepageSlide(index, { description: e.target.value })}
                     />
+                    <FileUpload
+                      type="hero_slide_asset"
+                      entityId={slide.id || `hero-slide-${index + 1}`}
+                      label="Hero image / poster"
+                      currentUrl={slide.imageUrl ?? undefined}
+                      onUploaded={(url) => updateHomepageSlide(index, { imageUrl: url })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Video URL (YouTube, Vimeo, or direct file)"
+                      value={slide.videoUrl ?? ""}
+                      onChange={(e) => updateHomepageSlide(index, { videoUrl: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Sponsor slug (optional)"
+                      value={slide.sponsorSlug ?? ""}
+                      onChange={(e) => updateHomepageSlide(index, { sponsorSlug: e.target.value })}
+                    />
+                    <textarea
+                      className={inputClass}
+                      placeholder="Promo/support text (optional)"
+                      rows={3}
+                      value={slide.promoText ?? ""}
+                      onChange={(e) => updateHomepageSlide(index, { promoText: e.target.value })}
+                    />
                     <input
                       className={inputClass}
                       placeholder="Primary button label"
@@ -1524,6 +1582,8 @@ export default function AdminDashboard({
                     className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
                       newsForm.state === "published"
                         ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
+                        : newsForm.state === "scheduled"
+                          ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue"
                         : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
                     }`}
                   >
@@ -1533,8 +1593,9 @@ export default function AdminDashboard({
                 <input className={inputClass} placeholder="Title" value={newsForm.title ?? ""} onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })} required />
                 <input className={inputClass} placeholder="Slug" value={newsForm.slug ?? ""} onChange={(e) => setNewsForm({ ...newsForm, slug: e.target.value })} />
                 <textarea className={inputClass} placeholder="Summary" rows={3} value={newsForm.summary ?? ""} onChange={(e) => setNewsForm({ ...newsForm, summary: e.target.value })} required />
+                <textarea className={inputClass} placeholder="Excerpt (optional card + SEO fallback)" rows={2} value={newsForm.excerpt ?? ""} onChange={(e) => setNewsForm({ ...newsForm, excerpt: e.target.value })} />
                 <textarea className={inputClass} placeholder="Body paragraphs separated by blank lines" rows={10} value={newsForm.bodyText} onChange={(e) => setNewsForm({ ...newsForm, bodyText: e.target.value })} />
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <input className={inputClass} placeholder="Category" value={newsForm.category ?? ""} onChange={(e) => setNewsForm({ ...newsForm, category: e.target.value })} />
                   <input className={inputClass} placeholder="Tags (comma separated)" value={joinDelimitedValues(newsForm.tags)} onChange={(e) => setNewsForm({ ...newsForm, tags: splitDelimitedValues(e.target.value) })} />
                   <input className={inputClass} placeholder="Author" value={newsForm.authorName ?? ""} onChange={(e) => setNewsForm({ ...newsForm, authorName: e.target.value })} />
@@ -1543,7 +1604,22 @@ export default function AdminDashboard({
                   <select className={inputClass} value={newsForm.state ?? "draft"} onChange={(e) => setNewsForm({ ...newsForm, state: e.target.value as ManagedNewsArticleRecord["state"] })}>
                     <option value="draft">Draft</option>
                     <option value="published">Published</option>
+                    <option value="scheduled">Scheduled</option>
                   </select>
+                  <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+                    <label className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
+                      Publish At (NPT)
+                    </label>
+                    <input
+                      className={inputClass}
+                      type="datetime-local"
+                      value={typeof newsForm.publishAt === "string" ? newsForm.publishAt : ""}
+                      onChange={(e) => setNewsForm({ ...newsForm, publishAt: e.target.value })}
+                    />
+                    <p className="px-1 text-xs text-text-muted">
+                      Use this only for scheduled stories. The saved timestamp is normalized to Nepal time.
+                    </p>
+                  </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="flex items-center gap-3 rounded-card border border-white/10 bg-bg-primary px-4 py-3 text-sm text-white">
@@ -1558,6 +1634,8 @@ export default function AdminDashboard({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <input className={inputClass} placeholder="SEO title" value={newsForm.seoTitle ?? ""} onChange={(e) => setNewsForm({ ...newsForm, seoTitle: e.target.value })} />
                   <input className={inputClass} placeholder="SEO description" value={newsForm.seoDescription ?? ""} onChange={(e) => setNewsForm({ ...newsForm, seoDescription: e.target.value })} />
+                  <input className={inputClass} placeholder="Canonical URL (optional)" value={newsForm.canonicalUrl ?? ""} onChange={(e) => setNewsForm({ ...newsForm, canonicalUrl: e.target.value })} />
+                  <input className={inputClass} placeholder="OG image URL (optional)" value={newsForm.ogImageUrl ?? ""} onChange={(e) => setNewsForm({ ...newsForm, ogImageUrl: e.target.value })} />
                 </div>
                 <FileUpload
                   type="announcement_image"
@@ -1566,6 +1644,18 @@ export default function AdminDashboard({
                   currentUrl={newsForm.imageUrl ?? undefined}
                   onUploaded={(url) => setNewsForm({ ...newsForm, imageUrl: url })}
                 />
+                <FileUpload
+                  type="announcement_image"
+                  entityId={`${editingNewsId ?? newsForm.slug ?? newsForm.title ?? "news-draft"}-og`}
+                  label="Open Graph Image"
+                  currentUrl={newsForm.ogImageUrl ?? undefined}
+                  onUploaded={(url) => setNewsForm({ ...newsForm, ogImageUrl: url })}
+                />
+                {newsForm.publishedAt ? (
+                  <p className="text-xs text-text-muted">
+                    First published {formatDisplayDateTime(newsForm.publishedAt)}
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap gap-3">
                   <button type="submit" disabled={savingNews} className={btnPrimary}>
                     {savingNews ? "Saving..." : editingNewsId ? "Update Article" : "Create Article"}
@@ -1596,6 +1686,8 @@ export default function AdminDashboard({
                             className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
                               article.state === "published"
                                 ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
+                                : article.state === "scheduled"
+                                  ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue"
                                 : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
                             }`}
                           >
@@ -1606,6 +1698,15 @@ export default function AdminDashboard({
                         </div>
                       </div>
                       <p className="mt-3 text-sm text-text-muted">{article.summary}</p>
+                      {article.state === "scheduled" && article.publishAt ? (
+                        <p className="mt-3 text-xs uppercase tracking-[0.16em] text-accent-blue">
+                          Scheduled for {formatDisplayDateTime(article.publishAt)}
+                        </p>
+                      ) : article.publishedAt ? (
+                        <p className="mt-3 text-xs uppercase tracking-[0.16em] text-text-muted">
+                          Published {formatDisplayDateTime(article.publishedAt)}
+                        </p>
+                      ) : null}
                       {article.tags.length > 0 ? (
                         <p className="mt-3 text-xs uppercase tracking-[0.16em] text-text-muted">{article.tags.join(" | ")}</p>
                       ) : null}
@@ -1616,9 +1717,13 @@ export default function AdminDashboard({
                         <button type="button" onClick={() => void handleDeleteNews(article)} className={btnDanger}>
                           Delete
                         </button>
-                        <a href={`/news/${article.slug}`} target="_blank" rel="noreferrer" className="text-sm text-accent-blue hover:underline">
-                          Open Public Story
-                        </a>
+                        {isManagedNewsArticlePublic(article) ? (
+                          <a href={`/news/${article.slug}`} target="_blank" rel="noreferrer" className="text-sm text-accent-blue hover:underline">
+                            Open Public Story
+                          </a>
+                        ) : (
+                          <span className="text-sm text-text-muted">Not public yet</span>
+                        )}
                       </div>
                     </div>
                   ))

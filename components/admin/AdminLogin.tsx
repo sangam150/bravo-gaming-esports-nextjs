@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useAdminAuth } from "./AuthProvider";
 import BravoLogo from "@/components/ui/BravoLogo";
@@ -83,6 +84,13 @@ export default function AdminLogin() {
         <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
           {loading ? "Checking admin access..." : "Sign In"}
         </button>
+
+        <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-4 text-sm">
+          <span className="text-text-muted">Need help with your password?</span>
+          <Link href="/reset-password" className="text-accent-blue transition hover:text-white hover:underline">
+            Password recovery
+          </Link>
+        </div>
       </form>
     </div>
   );

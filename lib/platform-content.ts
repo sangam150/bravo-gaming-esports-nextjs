@@ -12,15 +12,27 @@ import {
   getDocumentByIdOrSlug,
   softDeleteDocumentEntity,
 } from "./document-entities";
+import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "./brand-links";
+import {
+  getManagedNewsSortValue,
+  isManagedNewsArticlePublic,
+  normalizeNewsDateTime,
+  resolveManagedNewsEffectiveState,
+  type ManagedNewsStateValue,
+} from "./news-publishing";
 import { slugify } from "./slug-utils";
 
-export type ManagedNewsState = "draft" | "published";
+export type ManagedNewsState = ManagedNewsStateValue;
 
 export interface HomepageHeroSlideRecord {
   id: string;
   badge: string;
   title: string;
   description: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  sponsorSlug?: string;
+  promoText?: string;
   primaryLabel: string;
   primaryHref: string;
   secondaryLabel?: string;
@@ -79,6 +91,7 @@ export interface ManagedNewsArticleRecord {
   slug: string;
   title: string;
   summary: string;
+  excerpt?: string;
   body: string[];
   date: string;
   category: string;
@@ -91,10 +104,26 @@ export interface ManagedNewsArticleRecord {
   imageUrl?: string;
   seoTitle?: string;
   seoDescription?: string;
+  ogImageUrl?: string;
+  canonicalUrl?: string;
+  publishAt?: string;
+  publishedAt?: string;
   deletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }
+
+const LEGACY_HREF_MAP: Record<string, string> = {
+  "https://kamaucha.me/bravo": BRAVO_DISCORD_URL,
+  "/admin": "/login",
+  "/community": "/pubg/community",
+  "/games": "/pubg",
+  "/partners": "/sponsors",
+  "/players": "/pubg/players",
+  "/team": "/login",
+  "/teams": "/pubg/teams",
+  "/videos": "/media",
+};
 
 const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
   id: "main",
@@ -110,7 +139,7 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
       secondaryLabel: "Explore Events",
       secondaryHref: "/events",
       tertiaryLabel: "Join Community",
-      tertiaryHref: "https://kamaucha.me/bravo",
+      tertiaryHref: BRAVO_DISCORD_URL,
     },
     {
       id: "pubg-flagship",
@@ -130,9 +159,9 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
       badge: "Sponsors, Media, and Community",
       title: "Sponsors, media, and community stay connected",
       description:
-        "Sponsor profiles, media coverage, and community touchpoints are managed from the backend and only appear when published.",
-      primaryLabel: "Browse Games",
-      primaryHref: "/games",
+        "Sponsor profiles, media coverage, and community touchpoints stay aligned with official Bravo updates as content goes live.",
+      primaryLabel: "Open Community",
+      primaryHref: "/pubg/community",
       secondaryLabel: "Read News",
       secondaryHref: "/news",
       tertiaryLabel: "Sponsor Hub",
@@ -156,29 +185,29 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
   footerPrimaryLabel: "Watch Live",
   footerPrimaryHref: "/live-stream",
   footerSecondaryLabel: "Join Discord",
-  footerSecondaryHref: "https://kamaucha.me/bravo",
+  footerSecondaryHref: BRAVO_DISCORD_URL,
   footerColumns: [
     {
       id: "footer-main",
       title: "Main",
       links: [
         { label: "Home", href: "/" },
-        { label: "News", href: "/news" },
-        { label: "Events", href: "/events" },
         { label: "PUBG", href: "/pubg" },
-        { label: "Rankings", href: "/rankings" },
+        { label: "Events", href: "/events" },
+        { label: "Community", href: "/pubg/community" },
         { label: "Media", href: "/media" },
+        { label: "News", href: "/news" },
       ],
     },
     {
-      id: "footer-competition",
-      title: "Competition",
+      id: "footer-discover",
+      title: "Discover",
       links: [
-        { label: "Games", href: "/games" },
-        { label: "Teams", href: "/teams" },
-        { label: "Players", href: "/players" },
-        { label: "Matches", href: "/matches" },
-        { label: "Calendar", href: "/calendar" },
+        { label: "Leaderboards", href: "/pubg/leaderboards" },
+        { label: "Teams", href: "/pubg/teams" },
+        { label: "Players", href: "/pubg/players" },
+        { label: "Search", href: "/search" },
+        { label: "Watch Live", href: "/live-stream" },
       ],
     },
     {
@@ -186,20 +215,19 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
       title: "Community",
       links: [
         { label: "Sponsors", href: "/sponsors" },
-        { label: "Community", href: "/community" },
         { label: "About", href: "/about" },
         { label: "Contact", href: "/contact" },
-        { label: "Discord", href: "https://kamaucha.me/bravo" },
+        { label: "Instagram", href: BRAVO_INSTAGRAM_URL },
+        { label: "Discord", href: BRAVO_DISCORD_URL },
       ],
     },
     {
-      id: "footer-legal",
-      title: "Legal",
+      id: "footer-platform",
+      title: "Platform",
       links: [
+        { label: "Login", href: "/login" },
         { label: "Privacy", href: "/privacy" },
         { label: "Terms", href: "/terms" },
-        { label: "Admin", href: "/admin" },
-        { label: "Team Login", href: "/team" },
       ],
     },
   ],
@@ -212,9 +240,38 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
   footerBottomSecondary: "Daily scrims, major events, rankings, media, sponsors, and community coverage for Nepal esports.",
 };
 
+function normalizeHomepageHref(value?: string | null) {
+  const normalizedValue = value?.trim();
+  if (!normalizedValue) {
+    return undefined;
+  }
+
+  return LEGACY_HREF_MAP[normalizedValue] ?? normalizedValue;
+}
+
+function normalizeHomepageLabel(label: string, href: string) {
+  if (label === "Games" && href === "/pubg") return "PUBG";
+  if (label === "Admin" && href === "/login") return "Login";
+  if (label === "Team Login" && href === "/login") return "Login";
+  return label;
+}
+
 function cleanString(value?: string | null) {
   const normalizedValue = value?.trim();
   return normalizedValue ? normalizedValue : undefined;
+}
+
+function cleanUrlReference(value?: string | null) {
+  const normalizedValue = cleanString(value);
+  if (!normalizedValue) {
+    return undefined;
+  }
+
+  if (normalizedValue.startsWith("/")) {
+    return normalizedValue;
+  }
+
+  return /^https?:\/\//i.test(normalizedValue) ? normalizedValue : undefined;
 }
 
 function cleanStringArray(values?: string[] | string | null) {
@@ -240,24 +297,31 @@ function normalizeHeroSlide(slide: Partial<HomepageHeroSlideRecord>, index: numb
     description:
       cleanString(slide.description) ??
       "Publish hero slides from admin to spotlight live events, flagship coverage, sponsors, or key campaigns.",
+    imageUrl: cleanString(slide.imageUrl),
+    videoUrl: cleanString(slide.videoUrl),
+    sponsorSlug: cleanString(slide.sponsorSlug),
+    promoText: cleanString(slide.promoText),
     primaryLabel: cleanString(slide.primaryLabel) ?? "Explore",
-    primaryHref: cleanString(slide.primaryHref) ?? "/",
+    primaryHref: normalizeHomepageHref(slide.primaryHref) ?? "/",
     secondaryLabel: cleanString(slide.secondaryLabel),
-    secondaryHref: cleanString(slide.secondaryHref),
+    secondaryHref: normalizeHomepageHref(slide.secondaryHref),
     tertiaryLabel: cleanString(slide.tertiaryLabel),
-    tertiaryHref: cleanString(slide.tertiaryHref),
+    tertiaryHref: normalizeHomepageHref(slide.tertiaryHref),
   };
 }
 
 function normalizeFooterLink(link: Partial<FooterLinkRecord>): FooterLinkRecord | null {
   const label = cleanString(link.label);
-  const href = cleanString(link.href);
+  const href = normalizeHomepageHref(link.href);
 
   if (!label || !href) {
     return null;
   }
 
-  return { label, href };
+  return {
+    label: normalizeHomepageLabel(label, href),
+    href,
+  };
 }
 
 function normalizeFooterColumn(column: Partial<FooterColumnRecord>, index: number): FooterColumnRecord {
@@ -312,9 +376,9 @@ function normalizeHomepageContent(data?: Partial<HomepageContentRecord> | null):
     footerTagline: cleanString(data?.footerTagline) ?? DEFAULT_HOMEPAGE_CONTENT.footerTagline,
     footerDescription: cleanString(data?.footerDescription) ?? DEFAULT_HOMEPAGE_CONTENT.footerDescription,
     footerPrimaryLabel: cleanString(data?.footerPrimaryLabel) ?? DEFAULT_HOMEPAGE_CONTENT.footerPrimaryLabel,
-    footerPrimaryHref: cleanString(data?.footerPrimaryHref) ?? DEFAULT_HOMEPAGE_CONTENT.footerPrimaryHref,
+    footerPrimaryHref: normalizeHomepageHref(data?.footerPrimaryHref) ?? DEFAULT_HOMEPAGE_CONTENT.footerPrimaryHref,
     footerSecondaryLabel: cleanString(data?.footerSecondaryLabel) ?? DEFAULT_HOMEPAGE_CONTENT.footerSecondaryLabel,
-    footerSecondaryHref: cleanString(data?.footerSecondaryHref) ?? DEFAULT_HOMEPAGE_CONTENT.footerSecondaryHref,
+    footerSecondaryHref: normalizeHomepageHref(data?.footerSecondaryHref) ?? DEFAULT_HOMEPAGE_CONTENT.footerSecondaryHref,
     footerColumns: footerColumnsInput.slice(0, 4).map((column, index) => normalizeFooterColumn(column, index)),
     footerHighlights: footerHighlightsInput.slice(0, 3).map((highlight, index) => normalizeFooterHighlight(highlight, index)),
     footerBottomPrimary: cleanString(data?.footerBottomPrimary) ?? DEFAULT_HOMEPAGE_CONTENT.footerBottomPrimary,
@@ -328,12 +392,34 @@ function normalizeManagedNewsArticle(
 ): ManagedNewsArticleRecord {
   const now = new Date().toISOString();
   const title = data.title.trim();
+  const publishAt = normalizeNewsDateTime(data.publishAt);
+  const createdAt = cleanString(data.createdAt) ?? now;
+  const updatedAt = cleanString(data.updatedAt) ?? createdAt;
+  const nextState = resolveManagedNewsEffectiveState({ state: data.state, publishAt }, new Date(now));
+  const storedState =
+    data.state === "scheduled" && publishAt
+      ? "scheduled"
+      : data.state === "scheduled"
+        ? "draft"
+      : data.state === "draft"
+        ? "draft"
+        : "published";
+  const publishedAt =
+    normalizeNewsDateTime(data.publishedAt) ??
+    (storedState === "published"
+      ? publishAt && Date.parse(publishAt) <= Date.parse(now)
+        ? publishAt
+        : normalizeNewsDateTime(data.updatedAt) ?? normalizeNewsDateTime(data.date) ?? now
+      : nextState === "published"
+        ? publishAt
+        : undefined);
 
   return {
     id: cleanString(data.id) ?? randomUUID(),
     slug: cleanString(data.slug) ?? slugify(title),
     title,
     summary: data.summary.trim(),
+    excerpt: cleanString(data.excerpt),
     body: normalizeBody(data.body),
     date: cleanString(data.date) ?? now.slice(0, 10),
     category: cleanString(data.category) ?? "Bravo Gaming",
@@ -342,25 +428,29 @@ function normalizeManagedNewsArticle(
     gameSlug: cleanString(data.gameSlug),
     featured: Boolean(data.featured),
     breaking: Boolean(data.breaking),
-    state: data.state === "draft" ? "draft" : "published",
+    state: storedState,
     imageUrl: cleanString(data.imageUrl),
     seoTitle: cleanString(data.seoTitle),
     seoDescription: cleanString(data.seoDescription),
+    ogImageUrl: cleanUrlReference(data.ogImageUrl),
+    canonicalUrl: cleanUrlReference(data.canonicalUrl),
+    publishAt,
+    publishedAt,
     deletedAt: cleanString(data.deletedAt),
-    createdAt: cleanString(data.createdAt) ?? now,
-    updatedAt: now,
+    createdAt,
+    updatedAt,
   };
 }
 
 function compareDateDesc(firstValue: { date?: string; updatedAt?: string }, secondValue: { date?: string; updatedAt?: string }) {
-  const firstTimestamp = Date.parse(firstValue.date ?? firstValue.updatedAt ?? "");
-  const secondTimestamp = Date.parse(secondValue.date ?? secondValue.updatedAt ?? "");
+  const firstTimestamp = Date.parse(getManagedNewsSortValue(firstValue));
+  const secondTimestamp = Date.parse(getManagedNewsSortValue(secondValue));
 
   if (Number.isFinite(firstTimestamp) && Number.isFinite(secondTimestamp) && firstTimestamp !== secondTimestamp) {
     return secondTimestamp - firstTimestamp;
   }
 
-  return (secondValue.date ?? secondValue.updatedAt ?? "").localeCompare(firstValue.date ?? firstValue.updatedAt ?? "");
+  return getManagedNewsSortValue(secondValue).localeCompare(getManagedNewsSortValue(firstValue));
 }
 
 export async function getHomepageContent(): Promise<HomepageContentRecord> {
@@ -398,7 +488,7 @@ export async function getManagedNewsArticles(options: { includeDrafts?: boolean 
     ));
 
     return normalizedArticles
-      .filter((article) => options.includeDrafts || article.state === "published")
+      .filter((article) => options.includeDrafts || isManagedNewsArticlePublic(article))
       .sort(compareDateDesc);
   } catch {
     return [];
@@ -434,7 +524,9 @@ export async function saveManagedNewsArticle(
   data: Omit<Partial<ManagedNewsArticleRecord>, "body"> & { title: string; summary: string; body?: string[] | string },
   id?: string
 ) {
+  const existingArticle = id ? await getManagedNewsArticleById(id) : null;
   const payload = normalizeManagedNewsArticle({
+    ...existingArticle,
     ...data,
     id: id ?? data.id,
     title: data.title,
@@ -447,7 +539,7 @@ export async function saveManagedNewsArticle(
     ...payload,
     slug,
     deletedAt: undefined,
-    createdAt: payload.createdAt ?? now,
+    createdAt: payload.createdAt ?? existingArticle?.createdAt ?? now,
     updatedAt: now,
   };
 
