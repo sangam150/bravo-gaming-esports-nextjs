@@ -120,7 +120,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
   const tabs = ["Overview", "Teams", "Players"];
 
   return (
-    <main className="page-shell pb-12 pt-6">
+    <main className="page-shell pb-10 pt-5">
       <div className="page-stack">
         <section className="page-hero">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
@@ -160,7 +160,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <MatchMetaCard label="Date" value={formatPlayedAt(activeMatch.playedAt)} />
             <MatchMetaCard label="Duration" value={formatSurvivalTime(lobbyDuration)} />
             <MatchMetaCard label="Match ID" value={readText(activeMatch.pubgMatchId)} />
@@ -192,11 +192,11 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                       <table className="data-table min-w-full">
                         <thead>
                           <tr>
-                            <th>Rank</th>
+                            <th>#</th>
                             <th>Team</th>
-                            <th className="text-right">Kills</th>
                             <th className="text-right">Placement</th>
-                            <th className="text-right">Total</th>
+                            <th className="text-right">Kills</th>
+                            <th className="text-right">Points</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -209,8 +209,8 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                                   <span className="font-semibold text-white">{teamResult.teamName}</span>
                                 </div>
                               </td>
-                              <td className="text-right">{readNumber(teamResult.kills)}</td>
                               <td className="text-right">{readNumber(teamResult.placementPoints)}</td>
+                              <td className="text-right">{readNumber(teamResult.kills)}</td>
                               <td className="points-cell text-right">{readNumber(teamResult.totalPoints)}</td>
                             </tr>
                           ))}

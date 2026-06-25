@@ -4,24 +4,24 @@
 
 :root {
   color-scheme: dark;
-  --font-barlow: "Bahnschrift SemiCondensed", "Arial Narrow", "Aptos Narrow", "Segoe UI Semibold", sans-serif;
-  --font-dm-sans: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --font-jetbrains: "Consolas", "Aptos Mono", "SFMono-Regular", "Roboto Mono", Menlo, monospace;
-  --bg-primary: #05070d;
+  --font-barlow: "Poppins", "Segoe UI", sans-serif;
+  --font-dm-sans: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-jetbrains: "JetBrains Mono", "Consolas", monospace;
+  --bg-primary: #05070b;
   --bg-secondary: #0a1020;
-  --bg-card: #10182b;
+  --bg-card: #101827;
   --bg-card-soft: rgba(16, 24, 43, 0.9);
   --bg-card-hover: #121d33;
-  --border: rgba(47, 152, 255, 0.12);
-  --accent-blue: #147ef5;
-  --accent-blue-light: #2f98ff;
-  --accent-blue-dark: #0850b2;
-  --accent-green: #16a34a;
-  --accent-red: #dc2626;
-  --accent-yellow: #eab308;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent-blue: #1e7bff;
+  --accent-blue-light: #0ea5ff;
+  --accent-blue-dark: #0a5cd8;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --accent-yellow: #f59e0b;
   --text-primary: #ffffff;
-  --text-secondary: #c3cbd8;
-  --text-muted: #7a8599;
+  --text-secondary: #a8b3cf;
+  --text-muted: #6b7280;
 }
 
 html {
@@ -32,9 +32,10 @@ html {
 body {
   min-height: 100vh;
   overflow-x: hidden;
+  font-size: 14px;
   background:
-    radial-gradient(circle at top left, rgba(20, 126, 245, 0.16), transparent 40%),
-    linear-gradient(180deg, #05070d 0%, #0a1020 100%);
+    radial-gradient(circle at top left, rgba(30, 123, 255, 0.16), transparent 40%),
+    linear-gradient(180deg, #05070b 0%, #0a1020 100%);
   color: var(--text-primary);
 }
 
@@ -113,11 +114,11 @@ body::after {
   }
 
   .section-title {
-    @apply font-display text-label font-black uppercase text-accent-blue;
+    @apply font-display text-label font-semibold uppercase text-accent-blue;
   }
 
   .section-heading {
-    @apply font-display text-section font-black uppercase tracking-[0.08em] text-white;
+    @apply font-display text-section font-semibold uppercase tracking-[0.02em] text-white;
   }
 
   .section-note {
@@ -125,7 +126,7 @@ body::after {
   }
 
   .page-shell {
-    @apply w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8;
+    @apply w-full px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6;
   }
 
   .page-inner {
@@ -133,11 +134,11 @@ body::after {
   }
 
   .page-stack {
-    @apply mx-auto flex w-full max-w-[1500px] flex-col gap-4 sm:gap-5;
+    @apply mx-auto flex w-full max-w-[1500px] flex-col gap-3 sm:gap-3.5;
   }
 
   .hero-h1 {
-    @apply font-display text-[2.55rem] font-black uppercase leading-[0.9] tracking-[0.01em] text-white sm:text-[3.5rem] lg:text-[4.2rem];
+    @apply font-display text-[2.75rem] font-bold uppercase leading-[0.9] tracking-[0.01em] text-white sm:text-[3.25rem] lg:text-[4rem] xl:text-[4rem];
   }
 
   .tagline-italic {
@@ -145,18 +146,19 @@ body::after {
   }
 
   .esports-card {
-    @apply rounded-card border border-white/[0.06] p-3.5 transition duration-200;
+    @apply rounded-card border border-white/[0.08] p-3.5 transition duration-200;
     background:
-      linear-gradient(180deg, rgba(16, 24, 43, 0.95), rgba(10, 16, 32, 0.95));
+      linear-gradient(180deg, rgba(18, 29, 51, 0.92), rgba(16, 24, 39, 0.95));
     box-shadow:
-      0 0 30px rgba(20, 126, 245, 0.1),
+      0 0 22px rgba(30, 123, 255, 0.22),
       inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(8px);
   }
 
   .esports-card:hover {
     @apply border-accent-blue/30;
     box-shadow:
-      0 0 36px rgba(20, 126, 245, 0.14),
+      0 0 26px rgba(30, 123, 255, 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
@@ -182,12 +184,12 @@ body::after {
 
   .page-hero,
   .hero-banner {
-    @apply relative overflow-hidden rounded-[28px] border border-white/[0.06] p-6 sm:p-8;
+    @apply relative overflow-hidden rounded-[28px] border border-white/[0.06] p-5 sm:p-7;
     background:
-      radial-gradient(circle at top right, rgba(20, 126, 245, 0.16), transparent 28%),
+      radial-gradient(circle at top right, rgba(30, 123, 255, 0.2), transparent 28%),
       linear-gradient(180deg, rgba(16, 24, 43, 0.97), rgba(8, 14, 28, 0.96));
     box-shadow:
-      0 0 40px rgba(20, 126, 245, 0.12),
+      0 0 34px rgba(30, 123, 255, 0.22),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
@@ -213,8 +215,8 @@ body::after {
   }
 
   .btn-watch-live {
-    @apply inline-flex items-center justify-center gap-2 rounded-btn border border-accent-red/35 bg-accent-red/10 px-4 py-2.5 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition;
-    box-shadow: 0 0 24px rgba(220, 38, 38, 0.12);
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-btn border border-accent-red/35 bg-accent-red/10 px-4 py-2.5 font-body text-[14px] font-semibold tracking-[0.01em] text-white transition;
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.16);
   }
 
   .btn-watch-live:hover {
@@ -222,7 +224,7 @@ body::after {
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-btn border border-white/15 bg-white/[0.03] px-4 py-2.5 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-btn border border-white/15 bg-white/[0.03] px-4 py-2.5 font-body text-[14px] font-semibold tracking-[0.01em] text-white transition;
   }
 
   .btn-secondary:hover {
@@ -230,9 +232,9 @@ body::after {
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-btn px-4 py-2.5 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-btn px-4 py-2.5 font-body text-[14px] font-semibold tracking-[0.01em] text-white transition;
     background: linear-gradient(180deg, var(--accent-blue-light), var(--accent-blue));
-    box-shadow: 0 0 28px rgba(20, 126, 245, 0.22);
+    box-shadow: 0 0 24px rgba(30, 123, 255, 0.35);
   }
 
   .btn-primary:hover {
@@ -272,7 +274,7 @@ body::after {
   }
 
   .input-esports {
-    @apply w-full rounded-[16px] border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white outline-none transition placeholder:text-text-muted focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30;
+    @apply w-full rounded-[16px] border border-white/[0.08] bg-bg-primary px-4 py-3 text-[14px] text-white outline-none transition placeholder:text-text-muted focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
 
@@ -283,21 +285,29 @@ body::after {
   }
 
   .data-table thead tr {
-    @apply bg-bg-primary text-label font-black uppercase text-text-muted;
+    @apply bg-bg-primary text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted;
+  }
+
+  .data-table thead {
+    @apply sticky top-[72px] z-20;
   }
 
   .data-table tbody tr {
-    @apply border-b border-white/[0.05] text-sm text-white transition;
-    background: rgba(11, 17, 31, 0.82);
+    @apply border-b border-white/[0.05] text-[13px] text-white transition;
+    background: rgba(11, 17, 31, 0.9);
+  }
+
+  .data-table tbody tr:nth-child(even) {
+    background: rgba(16, 24, 39, 0.9);
   }
 
   .data-table tbody tr:hover {
-    background: rgba(18, 28, 49, 0.92);
+    background: rgba(20, 36, 64, 0.92);
   }
 
   .data-table th,
   .data-table td {
-    @apply px-4 py-3 text-left align-middle;
+    @apply px-4 py-2 text-left align-middle;
   }
 
   .table-scroll {
@@ -323,7 +333,7 @@ body::after {
   }
 
   .tab-item {
-    @apply shrink-0 rounded-[14px] px-4 py-2.5 font-display text-[11px] font-black uppercase tracking-[0.14em] text-text-muted transition;
+    @apply shrink-0 rounded-[14px] px-3.5 py-2 font-body text-[12px] font-semibold uppercase tracking-[0.08em] text-text-muted transition;
   }
 
   .tab-item:hover {

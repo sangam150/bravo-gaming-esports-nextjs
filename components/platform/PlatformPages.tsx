@@ -317,6 +317,9 @@ function EventCard({ event }: { event: PlatformEvent }) {
         </div>
       </div>
       <p className="mt-4 text-sm text-text-muted">{event.summary}</p>
+      <div className="mt-5">
+        <span className="btn-primary">View Details</span>
+      </div>
     </Link>
   );
 }
@@ -404,7 +407,7 @@ function SponsorCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
   const primaryAsset = sponsorPrimaryAsset(sponsor);
 
   return (
-    <Link href={`/sponsors/${sponsor.slug}`} className="block rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+    <article className="rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
       {primaryAsset ? (
         <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
           <img src={primaryAsset} alt={sponsor.name} className="h-40 w-full object-cover" />
@@ -426,7 +429,19 @@ function SponsorCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
       {sponsor.supportedEvents.length > 0 ? (
         <p className="mt-3 text-xs uppercase tracking-[0.14em] text-text-muted">{sponsor.supportedEvents.slice(0, 2).join(" | ")}</p>
       ) : null}
-    </Link>
+      <div className="mt-5 flex flex-wrap gap-2">
+        {sponsor.websiteUrl ? (
+          <a href={sponsor.websiteUrl} target="_blank" rel="noreferrer" className="btn-primary">
+            Website
+          </a>
+        ) : (
+          <span className="btn-secondary">Website TBA</span>
+        )}
+        <Link href={`/sponsors/${sponsor.slug}`} className="btn-secondary">
+          View Profile
+        </Link>
+      </div>
+    </article>
   );
 }
 
@@ -1379,6 +1394,20 @@ export function PlatformEventsPage({
         />
 
         <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
+          <div className="tab-bar mb-3">
+            <Link href="/events" className={`tab-item ${status === "all" ? "tab-item-active" : ""}`}>
+              All
+            </Link>
+            <Link href="/events?status=upcoming" className={`tab-item ${status === "upcoming" ? "tab-item-active" : ""}`}>
+              Upcoming
+            </Link>
+            <Link href="/events?status=live" className={`tab-item ${status === "live" ? "tab-item-active" : ""}`}>
+              Ongoing
+            </Link>
+            <Link href="/events?status=completed" className={`tab-item ${status === "completed" ? "tab-item-active" : ""}`}>
+              Completed
+            </Link>
+          </div>
           <form method="get" className="grid gap-3 xl:grid-cols-[1fr,1fr,auto]">
             <select name="game" defaultValue={game} className="input-esports h-11">
               <option value="all">All games</option>
@@ -2562,7 +2591,7 @@ export function PlatformMediaPage({
           actions={
             <>
               <Link href="/videos" className="btn-secondary">
-                Videos
+                View All Videos
               </Link>
               <Link href="/highlights" className="btn-primary">
                 Highlights
@@ -2628,6 +2657,14 @@ export function PlatformMediaPage({
               </div>
             </div>
           ))}
+          {media.length === 0 ? (
+            <div className="md:col-span-2 xl:col-span-3">
+              <EmptyState
+                title="No videos are currently available"
+                description="Published videos will appear here with View Details actions as soon as they are available."
+              />
+            </div>
+          ) : null}
         </section>
       </div>
     </main>
@@ -2893,7 +2930,10 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
           ))}
           {publicSponsors.length === 0 ? (
             <div className="md:col-span-2 xl:col-span-3">
-              <EmptyState title="No sponsors or partners announced yet" description="Our sponsors and partners will be featured here once officially announced." />
+              <EmptyState
+                title="No sponsors or partners announced yet"
+                description="Sponsor cards will show Website and View Profile actions once official partners are published."
+              />
             </div>
           ) : null}
         </section>

@@ -369,6 +369,11 @@ export default function PubgImportManager({
   const [queueingPending, setQueueingPending] = useState(false);
   const [importing, setImporting] = useState(false);
   const [savingWatcher, setSavingWatcher] = useState(false);
+  const [maintenanceMatchId, setMaintenanceMatchId] = useState("");
+  const [maintenanceRawJson, setMaintenanceRawJson] = useState<string>("");
+  const [maintenanceBusyAction, setMaintenanceBusyAction] = useState<"raw" | "repair" | "reset" | "reimport" | null>(null);
+  const [maintenanceConfirmPublished, setMaintenanceConfirmPublished] = useState(false);
+  const [maintenancePublish, setMaintenancePublish] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewDrafts, setPreviewDrafts] = useState<EditablePreview[]>([]);
@@ -1196,6 +1201,128 @@ export default function PubgImportManager({
     }
   }
 
+  async function handleFetchRawPayload() {
+    if (!maintenanceMatchId.trim()) {
+      setError("Enter a PUBG match ID first.");
+      return;
+    }
+
+    setMaintenanceBusyAction("raw");
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await adminFetch(
+        `/api/admin/pubg/raw?matchId=${encodeURIComponent(maintenanceMatchId.trim())}`
+      );
+      setMaintenanceRawJson(JSON.stringify(response.data?.raw ?? null, null, 2));
+      setMessage("Loaded cached raw JSON payload.");
+    } catch (maintenanceError: unknown) {
+      setMaintenanceRawJson("");
+      setError(toUserFacingErrorMessage(maintenanceError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+    } finally {
+      setMaintenanceBusyAction(null);
+    }
+  }
+
+  async function handleRepairMatch() {
+    if (!maintenanceMatchId.trim()) {
+      setError("Enter a PUBG match ID first.");
+      return;
+    }
+
+    setMaintenanceBusyAction("repair");
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await adminFetch("/api/admin/pubg/import/repair", {
+        method: "POST",
+        body: JSON.stringify({
+          matchId: maintenanceMatchId.trim(),
+          publish: maintenancePublish,
+          forcePublished: maintenanceConfirmPublished,
+        }),
+      });
+      setMessage(response.message ?? "Match repaired successfully.");
+      onImported?.();
+    } catch (maintenanceError: unknown) {
+      setError(toUserFacingErrorMessage(maintenanceError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+    } finally {
+      setMaintenanceBusyAction(null);
+    }
+  }
+
+  async function handleResetMatch() {
+    if (!maintenanceMatchId.trim()) {
+      setError("Enter a PUBG match ID first.");
+      return;
+    }
+
+    setMaintenanceBusyAction("reset");
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await adminFetch("/api/admin/pubg/import/reset", {
+        method: "POST",
+        body: JSON.stringify({
+          matchId: maintenanceMatchId.trim(),
+          confirmPublished: maintenanceConfirmPublished,
+        }),
+      });
+      setMessage(response.message ?? "Imported match reset successfully.");
+      onImported?.();
+    } catch (maintenanceError: unknown) {
+      setError(toUserFacingErrorMessage(maintenanceError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+    } finally {
+      setMaintenanceBusyAction(null);
+    }
+  }
+
+  async function handleReimportMatch() {
+    if (!maintenanceMatchId.trim()) {
+      setError("Enter a PUBG match ID first.");
+      return;
+    }
+
+    if (!selectedSeasonId || selectedDayNumber === "") {
+      setError("Select or prepare a scrim day before reimporting.");
+      return;
+    }
+
+    setMaintenanceBusyAction("reimport");
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await adminFetch("/api/admin/pubg/import/reimport", {
+        method: "POST",
+        body: JSON.stringify({
+          matchId: maintenanceMatchId.trim(),
+          seasonId: selectedSeasonId,
+          seasonDayNumber: Number(selectedDayNumber),
+          tournamentId: selectedTournamentId || undefined,
+          scrimId: selectedScrimId || undefined,
+          duplicateMode,
+          autoCreateDay: true,
+          publish: maintenancePublish,
+          ...getDaySetupPayload(),
+        }),
+      });
+      setMessage(
+        response.data?.failedCount > 0
+          ? `Reimported with ${response.data.failedCount} failure${response.data.failedCount === 1 ? "" : "s"}.`
+          : "Match reimport completed successfully."
+      );
+      onImported?.();
+    } catch (maintenanceError: unknown) {
+      setError(toUserFacingErrorMessage(maintenanceError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+    } finally {
+      setMaintenanceBusyAction(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -1698,6 +1825,88 @@ export default function PubgImportManager({
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="esports-card p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="section-heading !text-sm">Import Repair / Reset</p>
+                <p className="mt-1 text-sm text-text-muted">
+                  Manual results remain the fallback. Use these tools to repair cached imports, fetch raw JSON, reset bad imports, or reimport safely.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <input
+                className={inputClass}
+                placeholder="PUBG match ID"
+                value={maintenanceMatchId}
+                onChange={(event) => setMaintenanceMatchId(event.target.value)}
+              />
+
+              <div className="flex flex-wrap gap-2">
+                <label className="inline-flex items-center gap-2 text-xs text-text-muted">
+                  <input
+                    type="checkbox"
+                    checked={maintenanceConfirmPublished}
+                    onChange={(event) => setMaintenanceConfirmPublished(event.target.checked)}
+                  />
+                  allow published reset/repair
+                </label>
+                <label className="inline-flex items-center gap-2 text-xs text-text-muted">
+                  <input
+                    type="checkbox"
+                    checked={maintenancePublish}
+                    onChange={(event) => setMaintenancePublish(event.target.checked)}
+                  />
+                  publish after repair/reimport
+                </label>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleFetchRawPayload()}
+                  disabled={maintenanceBusyAction !== null}
+                  className="btn-secondary !px-4 !py-2 !text-[11px]"
+                >
+                  {maintenanceBusyAction === "raw" ? "Loading..." : "Get Raw JSON"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleRepairMatch()}
+                  disabled={maintenanceBusyAction !== null}
+                  className="btn-secondary !px-4 !py-2 !text-[11px]"
+                >
+                  {maintenanceBusyAction === "repair" ? "Repairing..." : "Repair From Cache"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleReimportMatch()}
+                  disabled={maintenanceBusyAction !== null}
+                  className="btn-primary !px-4 !py-2 !text-[11px]"
+                >
+                  {maintenanceBusyAction === "reimport" ? "Reimporting..." : "Reimport Match"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleResetMatch()}
+                  disabled={maintenanceBusyAction !== null}
+                  className="btn-watch-live !px-4 !py-2 !text-[11px]"
+                >
+                  {maintenanceBusyAction === "reset" ? "Resetting..." : "Reset Imported Match"}
+                </button>
+              </div>
+
+              {maintenanceRawJson ? (
+                <textarea
+                  className={`${inputClass} min-h-36 font-mono text-xs`}
+                  value={maintenanceRawJson}
+                  readOnly
+                />
+              ) : null}
+            </div>
           </div>
 
           {(previewErrors.length > 0 || importLog.length > 0) && (

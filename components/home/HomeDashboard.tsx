@@ -73,7 +73,7 @@ function PanelHeader({
   hrefLabel?: string;
 }) {
   return (
-    <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="mb-2.5 flex items-center justify-between gap-3">
       <div className="flex items-center gap-2">
         {icon ? <span className="text-accent-blue">{icon}</span> : null}
         <h2 className="font-display text-lg font-black uppercase tracking-[0.08em] text-white">{title}</h2>
@@ -153,7 +153,7 @@ function HeroSection({
 
   return (
     <section className="hero-banner overflow-hidden !p-0">
-      <div className="relative grid gap-6 px-5 py-6 sm:px-7 sm:py-8 xl:grid-cols-[1.05fr,0.95fr]">
+      <div className="relative grid gap-4 px-5 py-5 sm:px-7 sm:py-6 xl:grid-cols-[1.05fr,0.95fr]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_26%,rgba(20,126,245,0.24),transparent_34%),radial-gradient(circle_at_80%_18%,rgba(47,152,255,0.12),transparent_20%)]" />
         <div className="absolute inset-y-0 right-[16%] hidden w-[34rem] opacity-[0.08] lg:block">
           <div className="flex h-full items-center justify-center">
@@ -163,18 +163,18 @@ function HeroSection({
 
         <div className="relative z-10 min-w-0">
           <p className="section-title">01. Homepage</p>
-          <h1 className="hero-h1 mt-5 max-w-[12ch]">
+          <h1 className="hero-h1 mt-4 max-w-[12ch]">
             PUBG PC
             <br />
             Competitive Hub
             <br />
             For <span className="gradient-text">Nepal</span>
           </h1>
-          <p className="mt-5 max-w-2xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
             Daily Scrims • Tournaments • Statistics
           </p>
 
-          <div className="mt-7 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-wrap gap-3">
             <ActionLink href="/pubg/leaderboards">View Leaderboards</ActionLink>
             <ActionLink href="/teams/register" variant="secondary">
               Join Scrims
@@ -184,7 +184,7 @@ function HeroSection({
         </div>
 
         <div className="relative z-10 min-w-0">
-          <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.94),rgba(7,11,21,0.94))] px-5 py-6 shadow-[0_24px_80px_rgba(0,0,0,0.34)] sm:px-6">
+          <div className="relative min-h-[22rem] overflow-hidden rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.94),rgba(7,11,21,0.94))] px-5 py-6 shadow-[0_24px_80px_rgba(0,0,0,0.34)] sm:px-6">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_36%_18%,rgba(47,152,255,0.16),transparent_26%),radial-gradient(circle_at_70%_88%,rgba(20,126,245,0.12),transparent_26%)]" />
             <div className="relative">
               <div className="flex items-start justify-between gap-4">
@@ -226,11 +226,17 @@ function SponsorStrip({
   sponsors: PlatformSponsorProfile[];
 }) {
   if (sponsors.length === 0) {
-    return null;
+    return (
+      <section className="sponsor-strip px-4 py-3.5">
+        <div className="rounded-[18px] border border-dashed border-white/12 bg-black/20 px-4 py-4 text-center text-sm text-text-muted">
+          No sponsors available right now. Verified sponsor partners will appear here once published.
+        </div>
+      </section>
+    );
   }
 
   return (
-    <section className="sponsor-strip px-4 py-4">
+    <section className="sponsor-strip px-4 py-3">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {sponsors.slice(0, 4).map((sponsor) => (
           <a
@@ -238,7 +244,7 @@ function SponsorStrip({
             href={getSponsorHref(sponsor)}
             target={isExternalHref(getSponsorHref(sponsor)) ? "_blank" : undefined}
             rel="noreferrer"
-            className="flex min-h-[74px] items-center justify-center rounded-[18px] border border-white/[0.06] bg-black/15 px-4 py-3 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
+            className="flex min-h-[68px] items-center justify-center rounded-[18px] border border-white/[0.06] bg-black/15 px-4 py-3 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
           >
             {sponsor.logoUrl ? (
               <img
@@ -270,11 +276,11 @@ function LivePulse({ pubg }: { pubg: PubgHubDataset }) {
   ];
 
   return (
-    <section className="esports-card p-4">
+    <section className="esports-card p-3.5">
       <PanelHeader icon={<Radio className="h-4 w-4" />} title="Live Pulse" />
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
-          <div key={card.label} className="stat-pill flex items-start gap-3">
+          <div key={card.label} className="stat-pill flex min-h-[112px] items-start gap-3">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-accent-blue/15 bg-accent-blue/10 text-accent-blue">
               {card.icon}
             </span>
@@ -301,7 +307,7 @@ function TodayScrims({
   const matches = [...pubg.matches].slice(0, 5);
 
   return (
-    <section className="esports-card p-4">
+    <section className="esports-card h-full p-3.5">
       <PanelHeader icon={<ShieldCheck className="h-4 w-4" />} title="Today&apos;s Scrims" href="/pubg/results" />
       <div className="space-y-2">
         {matches.length === 0 ? (
@@ -356,7 +362,7 @@ function TodayScrims({
 
 function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
   return (
-    <section className="esports-card overflow-hidden !p-0">
+    <section className="esports-card h-full overflow-hidden !p-0">
       <div className="px-4 py-4">
         <PanelHeader icon={<Trophy className="h-4 w-4" />} title="Current Standings" href="/pubg/leaderboards" />
       </div>
@@ -425,7 +431,7 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
 
 function UpcomingEvents({ events }: { events: PlatformEvent[] }) {
   return (
-    <section className="esports-card p-4">
+    <section className="esports-card h-full p-3.5">
       <PanelHeader icon={<CalendarDays className="h-4 w-4" />} title="Upcoming Events" href="/events" />
       <div className="grid gap-3">
         {events.length === 0 ? (
@@ -507,7 +513,7 @@ function TeamSpotlightCard({ team, rank }: { team: PubgHubTeam; rank: number }) 
 
 function TopTeams({ teams }: { teams: PubgHubTeam[] }) {
   return (
-    <section className="esports-card p-4">
+    <section className="esports-card h-full p-3.5">
       <PanelHeader icon={<ShieldCheck className="h-4 w-4" />} title="Top Teams" href="/pubg/teams" />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {teams.slice(0, 4).map((team, index) => (
@@ -562,7 +568,7 @@ function TopPlayers({ players }: { players: PubgHubPlayer[] }) {
 
 function NewsCard({ article }: { article: PlatformArticle | null }) {
   return (
-    <section className="esports-card h-full p-4">
+    <section className="esports-card h-full p-3.5">
       <PanelHeader icon={<Newspaper className="h-4 w-4" />} title="Latest News" href="/news" />
       {article ? (
         <Link href={`/news/${article.slug}`} className="block overflow-hidden rounded-[18px] border border-white/[0.06] bg-black/15">
@@ -625,6 +631,8 @@ function FollowBravo() {
     { label: "Discord", href: BRAVO_DISCORD_URL },
     { label: "Instagram", href: BRAVO_INSTAGRAM_URL },
     { label: "YouTube", href: "https://www.youtube.com/@bravogamingnepal7981" },
+    { label: "TikTok", href: "https://www.tiktok.com/@bravogamingesports" },
+    { label: "Facebook", href: "https://www.facebook.com/bravogamingesports" },
     { label: "Contact", href: "/contact" },
   ];
 
@@ -670,7 +678,7 @@ export default function HomeDashboard({
       ).slice(0, 4);
 
   return (
-    <main className="page-shell pb-12">
+    <main className="page-shell pb-10">
       <div className="page-stack">
         <HeroSection
           hub={hub}
@@ -682,19 +690,19 @@ export default function HomeDashboard({
         <SponsorStrip sponsors={homepageSponsors} />
         <LivePulse pubg={pubg} />
 
-        <section className="grid gap-6 xl:grid-cols-[0.88fr,1.12fr]">
+        <section className="grid items-stretch gap-4 xl:grid-cols-[0.88fr,1.12fr]">
           <TodayScrims pubg={pubg} watchLiveHref={hub.home.liveFeature.href} />
           <CurrentStandings teams={pubg.teams} />
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[0.95fr,1.05fr]">
+        <section className="grid items-stretch gap-4 xl:grid-cols-[0.95fr,1.05fr]">
           <UpcomingEvents events={hub.home.upcomingEvents} />
           <TopTeams teams={pubg.teams} />
         </section>
 
         <TopPlayers players={pubg.players} />
 
-        <section className="grid gap-6 xl:grid-cols-3">
+        <section className="grid gap-4 xl:grid-cols-3">
           <NewsCard article={hub.home.featuredNews[0] ?? null} />
           <VideoCard item={hub.home.featuredMedia[0] ?? null} />
           <FollowBravo />

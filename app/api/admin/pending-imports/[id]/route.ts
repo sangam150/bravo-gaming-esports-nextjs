@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { COLLECTIONS, deleteDocument, getDocument, saveDocument } from "@/lib/document-store";
-import { importPubgMatches } from "@/lib/pubg-sync";
+import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { importPubgMatchesRelational } from "@/lib/pubg-import-relational";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
@@ -33,10 +34,18 @@ export async function PATCH(
     }
 
     if (body.action === "reject") {
+      const previous = { ...pendingImport };
       await saveDocument(COLLECTIONS.pubgImportBatches, id, {
         status: "rejected",
         rejectedAt: new Date().toISOString(),
         rejectedReason: body.reason?.trim() || undefined,
+      });
+      await writeAuditLogFromRequest(request, {
+        action: "reject",
+        entityType: "pubg_import_batch",
+        entityId: id,
+        oldValue: previous,
+        newValue: { ...previous, status: "rejected", rejectedReason: body.reason?.trim() || undefined },
       });
       return Response.json({ success: true, message: "Pending import rejected." });
     }
@@ -45,13 +54,12 @@ export async function PATCH(
       return Response.json({ error: "Unsupported action." }, { status: 400 });
     }
 
-    const importResult = await importPubgMatches(pendingImport.matchIds, {
+    const importResult = await importPubgMatchesRelational(pendingImport.matchIds, {
       tournamentId: pendingImport.tournamentId,
       scrimId: pendingImport.scrimId,
       seasonId: pendingImport.seasonId,
       seasonDayNumber: pendingImport.seasonDayNumber,
       autoCreateDay: true,
-      screenshotUrl: pendingImport.screenshotUrl,
       duplicateMode: pendingImport.duplicateMode,
       matchEdits: pendingImport.matchEdits,
       dayTitle: pendingImport.dayTitle,
@@ -59,19 +67,29 @@ export async function PATCH(
       dayMap: pendingImport.dayMap,
       dayLobbyTime: pendingImport.dayLobbyTime,
       dayMapRotation: pendingImport.dayMapRotation,
+      // Keep explicit publish action separate from import approval.
+      publish: false,
     });
 
+    const previous = { ...pendingImport };
     await saveDocument(COLLECTIONS.pubgImportBatches, id, {
       status: "approved",
       approvedAt: new Date().toISOString(),
       importResult,
+    });
+    await writeAuditLogFromRequest(request, {
+      action: "approve",
+      entityType: "pubg_import_batch",
+      entityId: id,
+      oldValue: previous,
+      newValue: { ...previous, status: "approved", importResult },
     });
     revalidateCompetitionPaths();
 
     return Response.json({
       success: true,
       data: importResult,
-      message: `Approved and published ${importResult.importedCount} match${importResult.importedCount === 1 ? "" : "es"}.`,
+      message: `Approved and imported ${importResult.importedCount} match${importResult.importedCount === 1 ? "" : "es"} to draft. Publish when ready.`,
     });
   } catch (error: unknown) {
     await logServerError("admin.pending-imports.action", error, request);

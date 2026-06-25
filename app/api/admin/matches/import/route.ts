@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import { importPubgMatch, importPubgMatches } from "@/lib/pubg-sync";
+import { importPubgMatchesRelational } from "@/lib/pubg-import-relational";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
@@ -182,21 +182,19 @@ export async function POST(request: Request) {
       ...daySetup,
     };
 
-    if (matchIds.length === 1 && !Array.isArray(body.matchIds)) {
-      const result = await importPubgMatch(matchIds[0], options);
-      revalidateCompetitionPaths(result.matchRecord?.id ?? matchIds[0]);
-      return Response.json({ success: true, data: result });
-    }
-
-    const result = await importPubgMatches(matchIds, options);
+    const result = await importPubgMatchesRelational(matchIds, {
+      ...options,
+      // Import keeps matches in draft; publishing remains a separate explicit admin action.
+      publish: false,
+    });
     revalidateCompetitionPaths();
     return Response.json({
       success: result.failedCount === 0,
       data: result,
       message:
         result.failedCount > 0
-          ? `Imported ${result.importedCount} match${result.importedCount === 1 ? "" : "es"} with ${result.failedCount} failure${result.failedCount === 1 ? "" : "s"}.`
-          : `Imported ${result.importedCount} match${result.importedCount === 1 ? "" : "es"} successfully.`,
+          ? `Imported ${result.importedCount} match${result.importedCount === 1 ? "" : "es"} to draft with ${result.failedCount} failure${result.failedCount === 1 ? "" : "s"}.`
+          : `Imported ${result.importedCount} match${result.importedCount === 1 ? "" : "es"} to draft successfully.`,
     });
   } catch (error: unknown) {
     await logServerError("admin.matches.import", error, request);

@@ -1,6 +1,15 @@
 import { requireAdmin } from "@/lib/admin-auth";
+import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import {
+  cachePendingImportPreview,
+  getLatestRawImportPayload,
+  importPubgMatchesRelational,
+  repairImportedPubgMatchFromCache,
+  resetImportedPubgMatch,
+} from "@/lib/pubg-import-relational";
 import { previewPubgMatch, previewPubgMatches } from "@/lib/pubg-sync";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
 
 function normalizeMatchIds(body: Record<string, unknown>) {
@@ -78,10 +87,29 @@ export async function POST(request: Request) {
 
     if (matchIds.length === 1 && !Array.isArray(body.matchIds)) {
       const result = await previewPubgMatch(matchIds[0], options);
+      await cachePendingImportPreview({
+        context: {
+          seasonId: result.seasonId,
+          seasonDayNumber: result.seasonDayNumber,
+          tournamentId: result.tournamentId,
+          tournamentTitle: result.tournamentTitle,
+          scrimId: result.scrimId,
+          scrimTitle: result.scrimTitle,
+        },
+        preview: result,
+        sourceMatchId: result.matchId,
+      });
       return Response.json({ success: true, data: result });
     }
 
     const result = await previewPubgMatches(matchIds, options);
+    for (const preview of result.previews) {
+      await cachePendingImportPreview({
+        context: result.context,
+        preview,
+        sourceMatchId: preview.matchId,
+      });
+    }
     return Response.json({
       success: result.errors.length === 0,
       data: result,
@@ -92,6 +120,107 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     await logServerError("admin.pubg.match", error, request);
+    const message = error instanceof Error ? error.message : String(error);
+    return Response.json({ error: message }, { status: getErrorStatus(message) });
+  }
+}
+
+export async function GET(request: Request) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
+  const { searchParams } = new URL(request.url);
+  const matchId = searchParams.get("matchId")?.trim();
+  if (!matchId) {
+    return Response.json({ error: "matchId is required." }, { status: 400 });
+  }
+
+  try {
+    const raw = await getLatestRawImportPayload(matchId);
+    if (!raw) {
+      return Response.json({ error: "No cached raw payload found for this match." }, { status: 404 });
+    }
+
+    return Response.json({ success: true, data: { matchId, raw } });
+  } catch (error: unknown) {
+    await logServerError("admin.pubg.match.raw", error, request);
+    const message = error instanceof Error ? error.message : String(error);
+    return Response.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
+  const limited = enforceRateLimit(request, { key: "admin-pubg-match-actions", maxRequests: 20, windowMs: 60_000 });
+  if (limited) return limited;
+
+  try {
+    const body = (await request.json()) as Record<string, unknown>;
+    const action = typeof body.action === "string" ? body.action : "";
+    const matchId = typeof body.matchId === "string" ? body.matchId.trim() : "";
+    if (!matchId) {
+      return Response.json({ error: "matchId is required." }, { status: 400 });
+    }
+
+    if (action === "repair") {
+      const repaired = await repairImportedPubgMatchFromCache(matchId, {
+        publish: body.publish === true,
+        forcePublished: body.forcePublished === true,
+      });
+      await writeAuditLogFromRequest(request, {
+        action: "repair",
+        entityType: "match",
+        entityId: repaired.id,
+        newValue: repaired,
+      });
+      revalidateCompetitionPaths(repaired.id);
+      return Response.json({ success: true, data: repaired, message: "Match repaired from cached import payload." });
+    }
+
+    if (action === "reset") {
+      const resetResult = await resetImportedPubgMatch(matchId, {
+        confirmPublished: body.confirmPublished === true,
+      });
+      await writeAuditLogFromRequest(request, {
+        action: "reset",
+        entityType: "match",
+        entityId: resetResult.id,
+        oldValue: resetResult.before,
+      });
+      revalidateCompetitionPaths(resetResult.id);
+      return Response.json({ success: true, data: { id: resetResult.id }, message: "Imported match reset successfully." });
+    }
+
+    if (action === "reimport") {
+      const importResult = await importPubgMatchesRelational([matchId], {
+        tournamentId: typeof body.tournamentId === "string" ? body.tournamentId : undefined,
+        scrimId: typeof body.scrimId === "string" ? body.scrimId : undefined,
+        seasonId: typeof body.seasonId === "string" ? body.seasonId : undefined,
+        seasonDayNumber:
+          typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber)
+            ? body.seasonDayNumber
+            : undefined,
+        autoCreateDay: body.autoCreateDay !== false,
+        duplicateMode: body.duplicateMode === "skip" || body.duplicateMode === "error" || body.duplicateMode === "overwrite"
+          ? body.duplicateMode
+          : "overwrite",
+        publish: body.publish === true,
+      });
+      await writeAuditLogFromRequest(request, {
+        action: "reimport",
+        entityType: "match",
+        entityId: matchId,
+        newValue: importResult,
+      });
+      revalidateCompetitionPaths();
+      return Response.json({ success: importResult.failedCount === 0, data: importResult });
+    }
+
+    return Response.json({ error: "Unsupported action." }, { status: 400 });
+  } catch (error: unknown) {
+    await logServerError("admin.pubg.match.patch", error, request);
     const message = error instanceof Error ? error.message : String(error);
     return Response.json({ error: message }, { status: getErrorStatus(message) });
   }

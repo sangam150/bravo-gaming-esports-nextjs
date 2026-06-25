@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { COLLECTIONS, createDocument, fetchDocumentCollection } from "@/lib/document-store";
+import { cachePendingImportPreview } from "@/lib/pubg-import-relational";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import {
@@ -277,6 +278,37 @@ export async function POST(request: Request) {
     } satisfies Omit<PubgImportBatch, "id" | "createdAt" | "updatedAt" | "approvedAt" | "rejectedAt" | "importResult" | "rejectedReason">;
 
     const result = await createDocument(COLLECTIONS.pubgImportBatches, payload as Record<string, unknown>);
+
+    for (const preview of previews) {
+      await cachePendingImportPreview({
+        context: {
+          seasonId: payload.seasonId,
+          seasonTitle: payload.seasonTitle,
+          seasonDayNumber: payload.seasonDayNumber,
+          tournamentId: payload.tournamentId,
+          tournamentTitle: payload.tournamentTitle,
+          scrimId: payload.scrimId,
+          scrimTitle: payload.scrimTitle,
+        },
+        preview: {
+          matchId: preview.matchId,
+          matchNumber: preview.matchNumber,
+          alreadyImported: preview.alreadyImported ?? false,
+          summary: preview.summary,
+          tournamentTitle: preview.tournamentTitle,
+          scrimTitle: preview.scrimTitle,
+          seasonId: payload.seasonId,
+          seasonDayNumber: payload.seasonDayNumber,
+          detectedTeams: preview.teamResults.length,
+          detectedPlayers: preview.playerResults.length,
+          teamResults: preview.teamResults,
+          playerResults: preview.playerResults,
+          conflicts: preview.conflicts,
+        },
+        sourceMatchId: preview.sourceMatchId,
+      });
+    }
+
     return Response.json({
       success: true,
       data: { id: result.id, ...payload },

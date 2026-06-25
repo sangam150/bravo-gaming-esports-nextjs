@@ -855,7 +855,7 @@ export default function AdminDashboard({
       });
       setMessage(
         response.message ??
-          (action === "approve" ? "Pending import approved and published." : "Pending import rejected.")
+          (action === "approve" ? "Pending import approved and imported to draft." : "Pending import rejected.")
       );
       await loadData();
     } catch (err: unknown) {
@@ -2526,7 +2526,7 @@ export default function AdminDashboard({
                         disabled={processingImportBatchId === batch.id}
                         className={btnPrimary}
                       >
-                        {processingImportBatchId === batch.id ? "Publishing..." : "Approve & Publish"}
+                        {processingImportBatchId === batch.id ? "Importing..." : "Approve & Import Draft"}
                       </button>
                       <button
                         type="button"
@@ -2569,7 +2569,7 @@ export default function AdminDashboard({
             <div>
               <h2 className="text-2xl font-black text-white">Approved Imports</h2>
               <p className="mt-1 text-sm text-text-muted">
-                Published and rejected PUBG import batches stay here as the admin audit trail.
+                Approved and rejected PUBG import batches stay here as the admin audit trail.
               </p>
             </div>
             {processedImportBatches.length === 0 ? (

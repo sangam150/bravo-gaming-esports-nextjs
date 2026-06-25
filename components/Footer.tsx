@@ -49,6 +49,7 @@ function FooterAction({
 
 export default async function Footer() {
   const content = await getHomepageContent();
+  const preferredTitles = ["Quick Links", "Community", "Support", "Follow Us"];
 
   return (
     <footer className="px-4 pb-10 pt-4 sm:px-6 lg:px-8">
@@ -101,10 +102,10 @@ export default async function Footer() {
             </div>
 
             <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-              {content.footerColumns.map((column) => (
+              {content.footerColumns.map((column, index) => (
                 <div key={column.id}>
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
-                    {column.title}
+                    {preferredTitles[index] ?? column.title}
                   </p>
                   <ul className="mt-4 space-y-2.5">
                     {column.links.map((link) => (

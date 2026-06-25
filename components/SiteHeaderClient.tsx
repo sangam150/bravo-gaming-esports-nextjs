@@ -77,6 +77,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -92,6 +93,19 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
       document.body.style.overflow = "";
     };
   }, [mobileOpen]);
+
+  useEffect(() => {
+    const updateScrollState = () => setIsScrolled(window.scrollY > 8);
+    updateScrollState();
+    window.addEventListener("scroll", updateScrollState, { passive: true });
+    window.addEventListener("resize", updateScrollState);
+    const intervalId = window.setInterval(updateScrollState, 240);
+    return () => {
+      window.removeEventListener("scroll", updateScrollState);
+      window.removeEventListener("resize", updateScrollState);
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const currentSection = useMemo(
     () => NAV_ITEMS.find((item) => isActive(pathname, item.prefixes))?.label ?? "Bravo Gaming",
@@ -184,9 +198,15 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
 
   return (
     <>
-      <header className="sticky top-0 z-[80] border-b border-white/[0.06] bg-[linear-gradient(180deg,rgba(6,10,20,0.92),rgba(6,10,20,0.82))] backdrop-blur-xl">
+      <header
+        className={`sticky top-0 z-[80] border-b transition duration-200 ${
+          isScrolled
+            ? "border-white/[0.08] bg-bg-secondary/85 shadow-[0_12px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+            : "border-transparent bg-transparent"
+        }`}
+      >
         <div className="page-inner px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 rounded-[22px] border border-white/[0.06] bg-white/[0.03] px-3 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+          <div className="flex h-[72px] items-center gap-3 rounded-[22px] border border-white/[0.06] bg-white/[0.03] px-3 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
             <Link href="/" className="flex min-w-0 items-center gap-3">
               <BravoLogo size={44} />
               <div className="hidden min-w-0 md:block">

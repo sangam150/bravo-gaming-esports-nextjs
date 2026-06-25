@@ -1,8 +1,27 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Inter, JetBrains_Mono, Poppins } from "next/font/google";
 import Footer from "@/components/Footer";
 import SiteHeader from "@/components/SiteHeader";
 import { getSiteUrl } from "@/lib/site";
+
+const displayFont = Poppins({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-barlow",
+});
+
+const bodyFont = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+});
+
+const monoFont = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-jetbrains",
+});
 
 const siteUrl = getSiteUrl();
 const structuredData = {
@@ -93,7 +112,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="flex min-h-screen flex-col overflow-x-hidden bg-bg-primary font-body text-white antialiased">
+      <body
+        className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} flex min-h-screen flex-col overflow-x-hidden bg-bg-primary font-body text-white antialiased`}
+      >
         <script
           type="application/ld+json"
           suppressHydrationWarning

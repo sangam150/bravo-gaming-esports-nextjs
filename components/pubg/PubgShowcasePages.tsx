@@ -232,8 +232,8 @@ function FilterBar({
   action?: React.ReactNode;
 }) {
   return (
-    <section className="esports-card p-4">
-      <form method="get" className="grid gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+    <section className="esports-card p-3.5">
+      <form method="get" className="grid gap-2.5 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
         {children}
         <div className="flex items-end gap-2">
           <button type="submit" className="btn-primary h-11">
@@ -312,7 +312,7 @@ export function PubgLeaderboardsShowcasePage({
         : [...playerBoard].sort((firstValue, secondValue) => secondValue.avgKills - firstValue.avgKills || secondValue.kills - firstValue.kills);
 
   return (
-    <main className="page-shell pb-12 pt-6">
+    <main className="page-shell pb-10 pt-4">
       <div className="page-stack">
         <PageHero
           badge="02. Leaderboards Page"
@@ -339,10 +339,10 @@ export function PubgLeaderboardsShowcasePage({
             { label: "Maps", value: mapName === "all" ? mapOptions.length : 1, tone: "red" },
           ]}
           aside={
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <p className="section-title">Board Tabs</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Overall, kills, placement, damage</h2>
+                <h2 className="mt-2 font-display text-xl font-black uppercase text-white">Overall, kills, placement, damage</h2>
               </div>
               <div className="tab-bar">
                 {["overall", "kills", "placement", "damage"].map((item) => (
@@ -381,14 +381,14 @@ export function PubgLeaderboardsShowcasePage({
 
         <FilterBar
           action={
-            <Link href={buildHref("/pubg/leaderboards", { view })} className="btn-secondary h-11">
+            <Link href={buildHref("/pubg/leaderboards", { view })} className="btn-secondary h-10">
               Reset
             </Link>
           }
         >
           <input type="hidden" name="view" value={view} />
           <input type="hidden" name="tab" value={tab} />
-          <select name="season" defaultValue={season} className="input-esports h-11">
+          <select name="season" defaultValue={season} className="input-esports h-10">
             <option value="all">Season / Tournament</option>
             {dataset.events.map((event) => (
               <option key={event.id} value={event.slug}>
@@ -396,13 +396,13 @@ export function PubgLeaderboardsShowcasePage({
               </option>
             ))}
           </select>
-          <select name="mode" defaultValue={mode} className="input-esports h-11">
+          <select name="mode" defaultValue={mode} className="input-esports h-10">
             <option value="all">All modes</option>
             <option value="tpp">TPP</option>
             <option value="fpp">FPP</option>
             <option value="squad">Squad</option>
           </select>
-          <select name="map" defaultValue={mapName} className="input-esports h-11">
+          <select name="map" defaultValue={mapName} className="input-esports h-10">
             <option value="all">All maps</option>
             {mapOptions.map((map) => (
               <option key={map} value={map}>
@@ -414,7 +414,7 @@ export function PubgLeaderboardsShowcasePage({
 
         {view === "teams" ? (
           <section className="esports-card overflow-hidden !p-0">
-            <div className="border-b border-white/[0.06] px-5 py-4">
+            <div className="border-b border-white/[0.06] px-4 py-3.5">
               <SectionHeader
                 eyebrow="Team Board"
                 title="Compact standings table"
@@ -468,7 +468,7 @@ export function PubgLeaderboardsShowcasePage({
           </section>
         ) : (
           <section className="esports-card overflow-hidden !p-0">
-            <div className="border-b border-white/[0.06] px-5 py-4">
+            <div className="border-b border-white/[0.06] px-4 py-3.5">
               <SectionHeader
                 eyebrow="Player Board"
                 title="Fraggers, damage, and recent form"
