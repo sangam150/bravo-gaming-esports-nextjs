@@ -43,3 +43,9 @@ Production notes:
 - Set `NEXT_PUBLIC_SITE_URL` (or `SITE_URL`) to your live domain for metadata, sitemap, and robots output
 - Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SECRET_KEY` in Vercel
 - Run the SQL in [supabase/schema.sql](./supabase/schema.sql) before using the admin data tools
+
+QA-only visual data tools:
+- `npm run qa:visual:seed` creates temporary public QA records for visual checks on PUBG match, team, and player detail routes.
+- `npm run qa:visual:cleanup` removes those temporary QA records.
+- All QA records are labeled with `QA VISUAL TEST - DO NOT USE`.
+- These scripts are manual QA tools only. They are never executed automatically by app runtime, build, or production startup.

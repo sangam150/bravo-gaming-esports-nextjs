@@ -11,7 +11,9 @@
     "start": "next start",
     "supabase:db:push": "npx supabase db push",
     "supabase:readiness": "node qa/supabase-readiness.mjs",
-    "supabase:types": "node scripts/generate-supabase-types.mjs"
+    "supabase:types": "node scripts/generate-supabase-types.mjs",
+    "qa:visual:seed": "node scripts/qa-visual-seed.mjs",
+    "qa:visual:cleanup": "node scripts/qa-visual-cleanup.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
