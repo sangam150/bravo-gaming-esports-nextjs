@@ -283,6 +283,16 @@ function normalizePreviewResults(teamResults: TeamMatchResult[], playerResults: 
   };
 }
 
+function isUnmappedTeamName(value?: string) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  return normalized.includes("pending") || normalized.includes("unknown") || normalized.length === 0;
+}
+
+function isUnmappedPlayerName(value?: string) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  return normalized.includes("pending") || normalized.includes("unknown") || normalized.length === 0;
+}
+
 function createEditablePreview(preview: PubgImportPreview): EditablePreview {
   const matchDate = formatKathmanduDateInput(preview.summary.createdAt);
   const matchTime = formatKathmanduTimeInput(preview.summary.createdAt);
@@ -1985,7 +1995,38 @@ export default function PubgImportManager({
                     disabled={importing || hasEditedMatchIds}
                     className={btnPrimary}
                   >
-                    {importing ? "Publishing..." : "Approve & Publish Now"}
+                    {importing ? "Saving..." : "Publish"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDrafts([])}
+                    className="btn-watch-live"
+                  >
+                    Delete Draft
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const firstMatchId = previewDrafts[0]?.matchId;
+                      if (firstMatchId) {
+                        setMaintenanceMatchId(firstMatchId);
+                      }
+                    }}
+                    className="btn-secondary"
+                  >
+                    Repair
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const firstMatchId = previewDrafts[0]?.matchId;
+                      if (firstMatchId) {
+                        setMaintenanceMatchId(firstMatchId);
+                      }
+                    }}
+                    className="btn-secondary"
+                  >
+                    Reset
                   </button>
                   <button
                     type="button"
@@ -2139,6 +2180,32 @@ export default function PubgImportManager({
                       <div className="rounded-card border border-white/10 px-3 py-2">
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Scrim</p>
                         <p className="mt-1 text-sm text-white">{preview.scrimTitle ?? "Not linked"}</p>
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Unmapped Teams</p>
+                        <p className="mt-1 font-mono-stat text-white">
+                          {preview.teamResults.filter((teamResult) => isUnmappedTeamName(teamResult.teamName)).length}
+                        </p>
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Unmapped Players</p>
+                        <p className="mt-1 font-mono-stat text-white">
+                          {
+                            preview.playerResults.filter(
+                              (playerResult) =>
+                                isUnmappedPlayerName(playerResult.playerName) || !playerResult.pubgPlayerId
+                            ).length
+                          }
+                        </p>
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Points Preview</p>
+                        <p className="mt-1 font-mono-stat text-white">
+                          {preview.teamResults.reduce(
+                            (sum, teamResult) => sum + (Number.isFinite(teamResult.totalPoints) ? teamResult.totalPoints : 0),
+                            0
+                          )}
+                        </p>
                       </div>
                     </div>
 
