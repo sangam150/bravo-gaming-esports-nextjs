@@ -207,6 +207,7 @@ export async function PATCH(request: Request) {
           ? body.duplicateMode
           : "overwrite",
         publish: body.publish === true,
+        forceRefetch: body.forceRefetch === true,
       });
       await writeAuditLogFromRequest(request, {
         action: "reimport",

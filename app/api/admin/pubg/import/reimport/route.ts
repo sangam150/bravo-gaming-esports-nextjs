@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         : undefined,
       duplicateMode,
       publish: body.publish === true,
+      forceRefetch: body.forceRefetch === true,
     });
 
     await writeAuditLogFromRequest(request, {

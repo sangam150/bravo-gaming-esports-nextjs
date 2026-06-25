@@ -52,9 +52,34 @@ export async function writeAuditLogFromRequest(
   payload: Omit<AuditPayload, "actorId">
 ) {
   try {
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip")?.trim() ??
+      null;
+    const userAgent = request.headers.get("user-agent") ?? null;
+    const metadata = {
+      timestamp: new Date().toISOString(),
+      ip,
+      userAgent,
+    };
+
     const session = await getRequestSession(request);
     return await writeAuditLog({
       ...payload,
+      oldValue:
+        payload.oldValue === undefined
+          ? undefined
+          : {
+              value: payload.oldValue,
+              request: metadata,
+            },
+      newValue:
+        payload.newValue === undefined
+          ? undefined
+          : {
+              value: payload.newValue,
+              request: metadata,
+            },
       actorId: session?.profileId ?? null,
     });
   } catch {

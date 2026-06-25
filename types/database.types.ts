@@ -626,47 +626,74 @@ export type Database = {
       };
       pending_imports: {
         Row: {
+          approved_at: string | null;
+          approved_by: string | null;
           created_at: string;
           created_by: string | null;
           day_id: string | null;
+          error_message: string | null;
+          external_match_id: string | null;
           id: string;
           map: string | null;
           match_date: string | null;
           match_id: string;
           match_number: number | null;
           normalized_json: Json | null;
+          normalized_at: string | null;
+          published_at: string | null;
           raw_json: Json | null;
+          raw_json_id: string | null;
+          retry_count: number;
           season_id: string | null;
+          source: string | null;
           status: Database["public"]["Enums"]["import_status"];
           updated_at: string;
         };
         Insert: {
+          approved_at?: string | null;
+          approved_by?: string | null;
           created_at?: string;
           created_by?: string | null;
           day_id?: string | null;
+          error_message?: string | null;
+          external_match_id?: string | null;
           id?: string;
           map?: string | null;
           match_date?: string | null;
           match_id: string;
           match_number?: number | null;
           normalized_json?: Json | null;
+          normalized_at?: string | null;
+          published_at?: string | null;
           raw_json?: Json | null;
+          raw_json_id?: string | null;
+          retry_count?: number;
           season_id?: string | null;
+          source?: string | null;
           status?: Database["public"]["Enums"]["import_status"];
           updated_at?: string;
         };
         Update: {
+          approved_at?: string | null;
+          approved_by?: string | null;
           created_at?: string;
           created_by?: string | null;
           day_id?: string | null;
+          error_message?: string | null;
+          external_match_id?: string | null;
           id?: string;
           map?: string | null;
           match_date?: string | null;
           match_id?: string;
           match_number?: number | null;
           normalized_json?: Json | null;
+          normalized_at?: string | null;
+          published_at?: string | null;
           raw_json?: Json | null;
+          raw_json_id?: string | null;
+          retry_count?: number;
           season_id?: string | null;
+          source?: string | null;
           status?: Database["public"]["Enums"]["import_status"];
           updated_at?: string;
         };
@@ -1304,7 +1331,19 @@ export type Database = {
     Enums: {
       day_status: "scheduled" | "active" | "completed" | "waiting_for_data" | "cancelled";
       event_status: "draft" | "active" | "completed" | "archived";
-      import_status: "pending" | "approved" | "published" | "rejected" | "failed";
+      import_status:
+        | "pending"
+        | "approved"
+        | "published"
+        | "rejected"
+        | "failed"
+        | "queued"
+        | "fetching"
+        | "fetched"
+        | "normalized"
+        | "draft"
+        | "repaired"
+        | "reset";
       match_status: "pending" | "approved" | "published" | "rejected" | "failed";
       publish_status: "draft" | "published" | "archived";
       request_status: "pending" | "approved" | "rejected" | "review_later";
