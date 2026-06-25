@@ -282,11 +282,13 @@ export function PubgLeaderboardsShowcasePage({
   const view = readSearchParam(searchParams.view, "teams");
   const tab = readSearchParam(searchParams.tab, "overall");
   const eventSlug = readSearchParam(searchParams.event, "all");
+  const season = readSearchParam(searchParams.season, eventSlug);
+  const mode = readSearchParam(searchParams.mode, "all");
   const mapName = readSearchParam(searchParams.map, "all");
   const teamLookup = buildTeamLookup(dataset);
   const playerLookup = buildPlayerLookup(dataset);
   const filteredMatches = filterMatches(dataset, {
-    eventSlug: eventSlug === "all" ? undefined : eventSlug,
+    eventSlug: season === "all" ? undefined : season,
     mapName,
   });
   const teamBoard = summarizeTeamsFromMatches(filteredMatches, teamLookup);
@@ -317,11 +319,9 @@ export function PubgLeaderboardsShowcasePage({
           title={
             <>
               Leaderboards
-              <br />
-              built from published PUBG results
             </>
           }
-          description="Compact Bravo standings with event and map filters, plus board tabs for overall points, kills, placement efficiency, and damage pressure."
+          description="Season-based PUBG standings with compact filters and tabbed ranking views."
           actions={
             <>
               <Link href="/pubg/results" className="btn-secondary">
@@ -333,10 +333,10 @@ export function PubgLeaderboardsShowcasePage({
             </>
           }
           stats={[
-            { label: "Filtered Matches", value: filteredMatches.length, tone: "blue" },
-            { label: "Team Rows", value: teamBoard.length, tone: "green" },
-            { label: "Player Rows", value: playerBoard.length, tone: "yellow" },
-            { label: "Maps In Lens", value: mapName === "all" ? mapOptions.length : 1, tone: "red" },
+            { label: "Matches", value: filteredMatches.length, tone: "blue" },
+            { label: "Teams", value: teamBoard.length, tone: "green" },
+            { label: "Players", value: playerBoard.length, tone: "yellow" },
+            { label: "Maps", value: mapName === "all" ? mapOptions.length : 1, tone: "red" },
           ]}
           aside={
             <div className="space-y-4">
@@ -351,7 +351,8 @@ export function PubgLeaderboardsShowcasePage({
                     href={buildHref("/pubg/leaderboards", {
                       view,
                       tab: item === "overall" ? undefined : item,
-                      event: eventSlug === "all" ? undefined : eventSlug,
+                      season: season === "all" ? undefined : season,
+                      mode: mode === "all" ? undefined : mode,
                       map: mapName === "all" ? undefined : mapName,
                     })}
                     className={`tab-item ${tab === item ? "tab-item-active" : ""}`}
@@ -362,13 +363,13 @@ export function PubgLeaderboardsShowcasePage({
               </div>
               <div className="flex gap-2">
                 <Link
-                  href={buildHref("/pubg/leaderboards", { view: "teams", tab, event: eventSlug === "all" ? undefined : eventSlug, map: mapName === "all" ? undefined : mapName })}
+                  href={buildHref("/pubg/leaderboards", { view: "teams", tab, season: season === "all" ? undefined : season, mode: mode === "all" ? undefined : mode, map: mapName === "all" ? undefined : mapName })}
                   className={`tab-item ${view === "teams" ? "tab-item-active" : "rounded-[14px] border border-white/10 bg-black/10"}`}
                 >
                   Team board
                 </Link>
                 <Link
-                  href={buildHref("/pubg/leaderboards", { view: "players", tab, event: eventSlug === "all" ? undefined : eventSlug, map: mapName === "all" ? undefined : mapName })}
+                  href={buildHref("/pubg/leaderboards", { view: "players", tab, season: season === "all" ? undefined : season, mode: mode === "all" ? undefined : mode, map: mapName === "all" ? undefined : mapName })}
                   className={`tab-item ${view === "players" ? "tab-item-active" : "rounded-[14px] border border-white/10 bg-black/10"}`}
                 >
                   Player board
@@ -387,13 +388,19 @@ export function PubgLeaderboardsShowcasePage({
         >
           <input type="hidden" name="view" value={view} />
           <input type="hidden" name="tab" value={tab} />
-          <select name="event" defaultValue={eventSlug} className="input-esports h-11">
-            <option value="all">All events</option>
+          <select name="season" defaultValue={season} className="input-esports h-11">
+            <option value="all">Season / Tournament</option>
             {dataset.events.map((event) => (
               <option key={event.id} value={event.slug}>
                 {event.name}
               </option>
             ))}
+          </select>
+          <select name="mode" defaultValue={mode} className="input-esports h-11">
+            <option value="all">All modes</option>
+            <option value="tpp">TPP</option>
+            <option value="fpp">FPP</option>
+            <option value="squad">Squad</option>
           </select>
           <select name="map" defaultValue={mapName} className="input-esports h-11">
             <option value="all">All maps</option>
@@ -403,12 +410,6 @@ export function PubgLeaderboardsShowcasePage({
               </option>
             ))}
           </select>
-          <div className="rounded-[16px] border border-white/[0.06] bg-black/15 px-4 py-3 text-sm text-text-muted">
-            Leaderboards always stay tied to the same filtered match rows the public site is showing.
-          </div>
-          <div className="rounded-[16px] border border-white/[0.06] bg-black/15 px-4 py-3 text-sm text-text-muted">
-            Team and player pages remain one click away from every board row.
-          </div>
         </FilterBar>
 
         {view === "teams" ? (

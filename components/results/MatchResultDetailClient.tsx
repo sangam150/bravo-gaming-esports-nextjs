@@ -145,7 +145,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                 </span>
               </div>
               <p className="mt-3 text-sm leading-7 text-text-muted">
-                Full standings, lobby statistics, player output, and stored result assets stay connected to this published match route.
+                Full standings, lobby statistics, and player performance for this completed match.
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link href="/pubg/results" className="btn-secondary">

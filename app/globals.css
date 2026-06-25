@@ -133,7 +133,7 @@ body::after {
   }
 
   .page-stack {
-    @apply mx-auto flex w-full max-w-[1500px] flex-col gap-6 sm:gap-7;
+    @apply mx-auto flex w-full max-w-[1500px] flex-col gap-4 sm:gap-5;
   }
 
   .hero-h1 {
@@ -145,7 +145,7 @@ body::after {
   }
 
   .esports-card {
-    @apply rounded-card border border-white/[0.06] p-4 transition duration-200;
+    @apply rounded-card border border-white/[0.06] p-3.5 transition duration-200;
     background:
       linear-gradient(180deg, rgba(16, 24, 43, 0.95), rgba(10, 16, 32, 0.95));
     box-shadow:
@@ -161,7 +161,7 @@ body::after {
   }
 
   .stat-pill {
-    @apply rounded-card border border-white/[0.06] p-4;
+    @apply rounded-card border border-white/[0.06] p-3.5;
     background:
       linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(11, 18, 34, 0.96));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);

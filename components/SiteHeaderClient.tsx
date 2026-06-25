@@ -6,13 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ChevronRight,
-  LogIn,
   Menu,
   Radio,
   Search,
-  Shield,
-  UserRound,
-  Users,
   X,
 } from "lucide-react";
 import BravoLogo from "@/components/ui/BravoLogo";
@@ -43,12 +39,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Sponsors", href: "/sponsors", prefixes: ["/sponsors", "/partners"] },
   { label: "About", href: "/about", prefixes: ["/about", "/contact", "/privacy", "/terms"] },
 ];
-
-const COMMUNITY_LINKS = [
-  { label: "Teams", href: "/pubg/teams", icon: Users, detail: "Active roster profiles and standings context." },
-  { label: "Players", href: "/pubg/players", icon: UserRound, detail: "Player output, damage trends, and match history." },
-  { label: "Access", href: "/pubg/access", icon: Shield, detail: "Login routes for admins, teams, and players." },
-] as const;
 
 function isActive(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => {
@@ -126,10 +116,10 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                       Bravo Navigation
                     </p>
                     <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">
-                      Home, community, and live access
+                      Quick Navigation
                     </h2>
                     <p className="mt-3 text-sm leading-7 text-text-muted">
-                      The public routes stay compact on mobile, while Teams and Players live inside Community instead of crowding the top bar.
+                      Home, PUBG, events, and content routes with direct quick actions for search, live, and login.
                     </p>
                   </div>
                   <button
@@ -163,43 +153,6 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                       </Link>
                     );
                   })}
-                </section>
-
-                <section className="esports-card p-4">
-                  <div className="mb-4 flex items-center gap-3">
-                    <p className="font-display text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue">
-                      Community
-                    </p>
-                    <div className="h-px flex-1 bg-white/10" />
-                  </div>
-                  <div className="grid gap-3">
-                    {COMMUNITY_LINKS.map((item) => {
-                      const Icon = item.icon;
-                      const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-                      return (
-                        <Link
-                          key={item.label}
-                          href={item.href}
-                          className={`flex items-start gap-3 rounded-[20px] border px-4 py-4 transition ${
-                            active
-                              ? "border-accent-blue/30 bg-accent-blue/10"
-                              : "border-white/[0.06] bg-white/[0.03] hover:border-white/10"
-                          }`}
-                        >
-                          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/10 bg-black/20 text-accent-blue">
-                            <Icon className="h-4 w-4" />
-                          </span>
-                          <span>
-                            <span className="font-display text-[11px] font-black uppercase tracking-[0.14em] text-white">
-                              {item.label}
-                            </span>
-                            <span className="mt-1 block text-sm leading-6 text-text-muted">{item.detail}</span>
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
                 </section>
 
                 <section className="esports-card p-4">
@@ -291,7 +244,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
           </div>
 
           <div className="mt-2 hidden items-center justify-between px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted sm:flex xl:hidden">
-            <span>Current lane: {currentSection}</span>
+            <span>Current section: {currentSection}</span>
             <div className="flex items-center gap-3">
               <Link href="/search" className="transition hover:text-white">
                 Search

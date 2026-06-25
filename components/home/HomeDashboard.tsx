@@ -172,8 +172,6 @@ function HeroSection({
           </h1>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
             Daily Scrims • Tournaments • Statistics
-            <br />
-            Bringing Nepal&apos;s PUBG community together with verified Bravo data, current standings, and live event context.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3">
@@ -183,27 +181,6 @@ function HeroSection({
             </ActionLink>
           </div>
 
-          <div className="mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
-            <div className="stat-pill">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">Featured Event</p>
-              <p className="mt-2 font-display text-lg font-black uppercase text-white">
-                {featuredEvent?.name ?? "Awaiting next window"}
-              </p>
-              <p className="mt-2 text-xs leading-6 text-text-muted">
-                {featuredEvent ? formatDateRange(featuredEvent.startDate, featuredEvent.endDate) : "As soon as an event is published, it surfaces here."}
-              </p>
-            </div>
-            <div className="stat-pill">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">Tracked Teams</p>
-              <p className="mt-2 font-mono-stat text-2xl text-accent-blue-light">{formatNumber(pubg.teams.length)}</p>
-              <p className="mt-2 text-xs leading-6 text-text-muted">Real roster-backed team profiles in the current PUBG hub.</p>
-            </div>
-            <div className="stat-pill">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">Published Matches</p>
-              <p className="mt-2 font-mono-stat text-2xl text-accent-blue-light">{formatNumber(pubg.matches.length)}</p>
-              <p className="mt-2 text-xs leading-6 text-text-muted">Leaderboards and player output derive from the same public results.</p>
-            </div>
-          </div>
         </div>
 
         <div className="relative z-10 min-w-0">
@@ -213,7 +190,7 @@ function HeroSection({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-accent-red">{liveCard.eyebrow}</p>
-                  <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">{liveCard.title}</h2>
+                  <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">PUBG Match Center</h2>
                   <p className="mt-2 text-sm text-text-muted">{liveCard.detail}</p>
                   <p className="mt-1 text-sm text-text-muted">{liveCard.subdetail}</p>
                 </div>
@@ -228,41 +205,14 @@ function HeroSection({
               <div className="mt-5 max-w-[16rem] rounded-[20px] border border-white/[0.08] bg-black/20 p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">Daily Scrims</p>
                 <p className="mt-2 font-display text-lg font-black uppercase text-white">
-                  {liveMatch ? `Match ${liveMatch.matchNumber}` : featuredEvent?.gameName ?? "PUBG PC"}
+                  {liveMatch ? `Match ${liveMatch.matchNumber}/${Math.max(liveMatch.matchNumber, liveEvent?.matchCount ?? liveMatch.matchNumber)}` : "Match 0/0"}
                 </p>
-                <p className="mt-1 text-sm text-text-muted">{liveCard.detail}</p>
+                <p className="mt-1 text-sm text-text-muted">{liveMatch ? liveMatch.eventName : "No live lobby right now"}</p>
                 <ActionLink href={liveCard.href} variant="watch" className="mt-4 w-full justify-center">
                   {liveCard.actionLabel}
                 </ActionLink>
               </div>
             </div>
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <Link
-              href={heroEventHref}
-              className="esports-card block p-4 transition hover:border-accent-blue/30"
-            >
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">Event Promotion</p>
-              <h3 className="mt-2 font-display text-lg font-black uppercase text-white">
-                {featuredEvent?.name ?? "Upcoming Bravo event"}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-text-muted">
-                {featuredEvent?.summary ?? "The next published event surfaces here automatically."}
-              </p>
-            </Link>
-            <Link
-              href={sponsorHref}
-              className="esports-card block p-4 transition hover:border-accent-blue/30"
-            >
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">Sponsor Promotion</p>
-              <h3 className="mt-2 font-display text-lg font-black uppercase text-white">
-                {heroSponsor?.name ?? "Published sponsors"}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-text-muted">
-                {heroSponsor?.description ?? "Real partners, real assets, and direct sponsor profile links only."}
-              </p>
-            </Link>
           </div>
         </div>
       </div>
@@ -314,9 +264,9 @@ function LivePulse({ pubg }: { pubg: PubgHubDataset }) {
 
   const cards = [
     { label: "Live Matches", value: liveMatches, detail: "Matches live", icon: <Radio className="h-4 w-4" /> },
-    { label: "Players", value: pubg.players.length, detail: "Tracked players", icon: <Users className="h-4 w-4" /> },
-    { label: "Teams", value: pubg.teams.length, detail: "Competing teams", icon: <ShieldCheck className="h-4 w-4" /> },
-    { label: "Total Kills", value: totalKills, detail: "Across tracked lobbies", icon: <Crosshair className="h-4 w-4" /> },
+    { label: "Players Online", value: pubg.players.length, detail: "Players online", icon: <Users className="h-4 w-4" /> },
+    { label: "Teams Competing", value: pubg.teams.length, detail: "Competing teams", icon: <ShieldCheck className="h-4 w-4" /> },
+    { label: "Total Kills", value: totalKills, detail: "Today", icon: <Crosshair className="h-4 w-4" /> },
   ];
 
   return (
@@ -348,12 +298,12 @@ function TodayScrims({
   watchLiveHref: string;
 }) {
   const eventById = new Map(pubg.events.map((event) => [event.id, event] as const));
-  const matches = [...pubg.matches].slice(0, 3);
+  const matches = [...pubg.matches].slice(0, 5);
 
   return (
     <section className="esports-card p-4">
       <PanelHeader icon={<ShieldCheck className="h-4 w-4" />} title="Today&apos;s Scrims" href="/pubg/results" />
-      <div className="space-y-3">
+      <div className="space-y-2">
         {matches.length === 0 ? (
           <div className="rounded-[18px] border border-dashed border-white/10 bg-black/15 px-4 py-5 text-sm text-text-muted">
             Upcoming or recent scrim rows will surface here once match data is published.
@@ -371,18 +321,17 @@ function TodayScrims({
             return (
               <div
                 key={match.id}
-                className="rounded-[18px] border border-white/[0.06] bg-black/15 px-4 py-3"
+                className="rounded-[16px] border border-white/[0.06] bg-black/20 px-3 py-3"
               >
-                <div className="flex items-center justify-between gap-3">
+                <div className="grid grid-cols-[1.6fr,0.8fr,0.8fr,0.8fr,auto] items-center gap-2 text-xs sm:gap-3 sm:text-sm">
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-white">{match.eventName}</p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-text-muted">
-                      {match.mapName} | Match {match.matchNumber}
-                    </p>
                   </div>
+                  <p className="truncate text-text-muted">{match.mapName}</p>
+                  <p className="text-text-muted">Match {match.matchNumber}</p>
                   <span
                     className={joinClasses(
-                      "rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em]",
+                      "justify-self-start rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em]",
                       match.eventStatus === "ongoing"
                         ? "border-accent-red/30 bg-accent-red/10 text-white"
                         : match.eventStatus === "upcoming"
@@ -392,13 +341,6 @@ function TodayScrims({
                   >
                     {match.eventStatus === "ongoing" ? "Live" : match.eventStatus === "upcoming" ? "Upcoming" : "Completed"}
                   </span>
-                </div>
-                <div className="mt-4 flex items-center justify-between gap-4">
-                  <div className="grid flex-1 grid-cols-2 gap-3 text-xs text-text-muted sm:grid-cols-3">
-                    <span>{formatDate(match.startTime)}</span>
-                    <span>{formatNumber(match.totalKills)} kills</span>
-                    <span>{formatNumber(match.teamResults.length)} teams</span>
-                  </div>
                   <ActionLink href={action.href} variant={action.variant} className="!h-9 !px-3">
                     {action.label}
                   </ActionLink>
@@ -714,10 +656,18 @@ export default function HomeDashboard({
   pubg: PubgHubDataset;
 }) {
   const featuredEvent = hub.home.featuredEvents[0] ?? hub.home.upcomingEvents[0] ?? hub.events[0] ?? null;
+  const preferredSponsorOrder = ["sap", "kento", "hukut", "gorkhali roleplay"];
+  const orderedPreferredSponsors = preferredSponsorOrder
+    .map((name) => hub.sponsors.find((sponsor) => sponsor.name.toLowerCase().includes(name)) ?? null)
+    .filter((sponsor): sponsor is PlatformSponsorProfile => Boolean(sponsor));
   const homepageSponsors =
+    orderedPreferredSponsors.length > 0
+      ? orderedPreferredSponsors
+      : (
     hub.home.featuredSponsors.length > 0
       ? hub.home.featuredSponsors
-      : hub.sponsors.filter((sponsor) => sponsor.showOnHomepage).slice(0, 4);
+      : hub.sponsors.filter((sponsor) => sponsor.showOnHomepage)
+      ).slice(0, 4);
 
   return (
     <main className="page-shell pb-12">

@@ -678,7 +678,7 @@ export function PlatformHomePage({
 
         <section className="grid gap-6 xl:grid-cols-[1.15fr,0.85fr]">
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Live Now" title="Match center spotlight" description="Live streams, upcoming series, and recent results should feel like the front page of a real esports destination." action={<a href={hub.home.liveFeature.href} target={hub.home.liveFeature.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="btn-watch-live">Watch Broadcast</a>} />
+            <SectionHeader eyebrow="Live Now" title="Match center spotlight" description="Live streams, upcoming series, and recent results from across Bravo competitions." action={<a href={hub.home.liveFeature.href} target={hub.home.liveFeature.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="btn-watch-live">Watch Broadcast</a>} />
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               <MetricCard label="Viewer Count" value={hub.home.liveFeature.viewers} compact />
               <MetricCard label="Live Matches" value={hub.home.liveMatches.length} compact tone="red" />
@@ -769,7 +769,7 @@ export function PlatformHomePage({
         </section>
 
         <section className="esports-card p-6">
-          <SectionHeader eyebrow="Featured Events" title="Ongoing, upcoming, and recently finished competitions" description="The platform event layer is multi-game by design, while PUBG remains the most data-rich experience." />
+          <SectionHeader eyebrow="Featured Events" title="Ongoing, upcoming, and recently finished competitions" description="Featured events across Bravo competitions, with PUBG as the flagship section." />
           <div className="mt-6 grid gap-4 xl:grid-cols-2">
             {hub.home.featuredEvents.map((event) => (
               <EventCard key={event.id} event={event} />
@@ -859,7 +859,7 @@ export function PlatformHomePage({
           </div>
 
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Game Hubs" title="One platform, many esports lanes" description="PUBG is the strongest section today, with additional game hubs ready for broader Bravo coverage." />
+            <SectionHeader eyebrow="Game Hubs" title="One platform, many esports titles" description="PUBG leads today, with additional game hubs expanding over time." />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {hub.home.featuredGames.slice(0, 4).map((game) => (
                 <GameCard key={game.slug} game={game} />
@@ -909,8 +909,8 @@ export function PlatformHomePage({
                 { title: "Discord", detail: "Join Bravo's official community hub for scrims, event updates, and ecosystem chatter.", href: BRAVO_DISCORD_URL },
                 { title: "Instagram", detail: "Follow official Bravo posters, clips, and platform updates.", href: BRAVO_INSTAGRAM_URL },
                 { title: "Rules", detail: "Unified competition, conduct, and event rule references as the platform expands.", href: "/pubg/community" },
-                { title: "Support", detail: "Support lanes for players, teams, organizers, and sponsors.", href: "/contact" },
-                { title: "Announcements", detail: "Editorial and operational updates from the platform desk.", href: "/news" },
+                { title: "Support", detail: "Help for players, teams, organizers, and sponsors.", href: "/contact" },
+                { title: "Announcements", detail: "Official Bravo updates and announcements.", href: "/news" },
               ].map((item) => (
                 <Link
                   key={item.title}
@@ -959,7 +959,7 @@ export function PlatformNewsPage({
               and platform updates
             </>
           }
-          description="The news lane now supports categories, article detail routes, featured stories, and platform-wide framing instead of isolated announcements."
+          description="Browse categories, featured stories, and full article coverage in one news hub."
           actions={
             <>
               <Link href="/events" className="btn-secondary">
@@ -1100,7 +1100,7 @@ export function PlatformNewsDetailPage({
         </section>
 
         <section className="esports-card p-6">
-          <SectionHeader eyebrow="Related Articles" title="Keep reading" description="Editorial routes now connect into the wider platform instead of leaving readers at a dead end." />
+          <SectionHeader eyebrow="Related Articles" title="Keep reading" description="More published stories and updates from Bravo." />
           <div className="mt-6 grid gap-4 xl:grid-cols-3">
             {relatedArticles.map((relatedArticle) => (
               <NewsCard key={relatedArticle.id} article={relatedArticle} />
@@ -1353,15 +1353,13 @@ export function PlatformEventsPage({
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="Events System"
+          badge="06. Events Page"
           title={
             <>
-              Universal event pages
-              <br />
-              for every game lane
+              Events
             </>
           }
-          description="The public event system now works as a platform module instead of a tournament-only lane: scrims, tournaments, leagues, seasons, and invitationals all fit here."
+          description="All upcoming, ongoing, and completed competitions in one compact event board."
           actions={
             <>
               <Link href="/calendar" className="btn-secondary">
@@ -1374,9 +1372,9 @@ export function PlatformEventsPage({
           }
           stats={[
             { label: "Events", value: hub.events.length, tone: "blue" },
-            { label: "Live", value: hub.events.filter((event) => event.status === "live").length, tone: "green" },
+            { label: "Ongoing", value: hub.events.filter((event) => event.status === "live").length, tone: "green" },
             { label: "Upcoming", value: hub.events.filter((event) => event.status === "upcoming").length, tone: "yellow" },
-            { label: "Planned", value: hub.events.filter((event) => event.status === "planned").length, tone: "red" },
+            { label: "Completed", value: hub.events.filter((event) => event.status === "completed").length, tone: "red" },
           ]}
         />
 
@@ -2554,15 +2552,13 @@ export function PlatformMediaPage({
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="Media Center"
+          badge="08. Media Page"
           title={
             <>
-              Videos, highlights,
-              <br />
-              posters, and VODs
+              Videos
             </>
           }
-          description="The media center gives the Bravo ecosystem one public place for long-form videos, short clips, interviews, posters, and featured broadcasts."
+          description="Highlights, broadcasts, and featured Bravo video coverage in one media grid."
           actions={
             <>
               <Link href="/videos" className="btn-secondary">
@@ -2866,15 +2862,13 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="Sponsor Hub"
+          badge="09. Sponsors Page"
           title={
             <>
-              Sponsor, partner,
-              <br />
-              and design profiles
+              Our Sponsors
             </>
           }
-          description="Sponsor, partner, and design profiles are now first-class public pages with event association, asset support, and route-level visibility."
+          description="Official partners supporting Bravo Gaming Esports and Nepal PUBG competition coverage."
           actions={
             <>
               <Link href="/about/sponsor-us" className="btn-primary">

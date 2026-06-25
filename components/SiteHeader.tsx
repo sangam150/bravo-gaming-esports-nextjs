@@ -60,7 +60,7 @@ export default async function SiteHeader() {
       "The next flagship PUBG event will appear here automatically as soon as it is published.",
     meta: featuredEvent
       ? `${toTitleCase(featuredEvent.status)} | ${formatShortDate(featuredEvent.startDate)}`
-      : "PUBG event lane",
+      : "PUBG event coverage",
     href: featuredEvent?.analyticsHref ?? (featuredEvent ? `/events/${featuredEvent.slug}` : "/events"),
     actionLabel: featuredEvent ? "Open Event" : "Browse Events",
     tone: "red",
