@@ -1,12 +1,22 @@
+import type { Metadata } from "next";
 import ContactFormClient from "@/components/forms/ContactFormClient";
 import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
+import { buildContentMetadata } from "@/lib/metadata";
 
 const contactChannels = [
-  { label: "Email", value: "hello@bravogamingesports.com", href: "mailto:hello@bravogamingesports.com" },
+  { label: "Tournament & Community Inquiries", value: "bravoxgaming473@gmail.com", href: "mailto:bravoxgaming473@gmail.com" },
   { label: "Discord", value: "discord.gg/kHRZXbMwK5", href: BRAVO_DISCORD_URL },
   { label: "Instagram", value: "@bravo_esport", href: BRAVO_INSTAGRAM_URL },
-  { label: "Location", value: "Kathmandu, Nepal", href: "" },
+  { label: "Sponsorship", value: "Partnerships and brand collaboration inquiries welcome", href: "" },
 ] as const;
+
+export const metadata: Metadata = buildContentMetadata({
+  title: "Contact Bravo Gaming Esports",
+  description:
+    "Have questions about tournaments, scrims, sponsorship opportunities, or partnerships? Contact Bravo Gaming Esports and join Nepal's competitive PUBG PC community.",
+  path: "/contact",
+  type: "website",
+});
 
 export default function ContactPage() {
   return (
@@ -17,10 +27,13 @@ export default function ContactPage() {
             <div className="rounded-[24px] border border-white/[0.06] bg-[radial-gradient(circle_at_top_right,rgba(20,126,245,0.16),transparent_28%),linear-gradient(180deg,rgba(16,24,43,0.95),rgba(9,15,29,0.95))] p-5">
               <p className="section-title">10. Contact Page</p>
               <h1 className="mt-3 font-display text-[2rem] font-black uppercase leading-[0.92] text-white sm:text-[2.5rem]">
-                Contact Us
+                Contact Bravo
+                <br />
+                Gaming Esports
               </h1>
               <p className="mt-4 max-w-md text-sm leading-7 text-text-secondary">
-                Have questions, partnership ideas, or registration issues? Reach the Bravo team through the official channels below or send a message directly.
+                Have questions about tournaments, scrims, sponsorship opportunities, or partnerships? Get in touch
+                with Bravo Gaming Esports.
               </p>
 
               <div className="mt-6 grid gap-3">
@@ -52,7 +65,7 @@ export default function ContactPage() {
             <ContactFormClient
               kind="contact"
               title="Send Message"
-              description="Use the form for partnerships, registration support, event questions, or general Bravo platform contact."
+              description="Use the form for tournament support, scrim participation, sponsorship opportunities, community concerns, or general platform inquiries."
               submitLabel="Send Message"
             />
           </div>

@@ -163,15 +163,10 @@ function HeroSection({
 
         <div className="relative z-10 min-w-0">
           <p className="section-title">01. Homepage</p>
-          <h1 className="hero-h1 mt-4 max-w-[12ch]">
-            PUBG PC
-            <br />
-            Competitive Hub
-            <br />
-            For <span className="gradient-text">Nepal</span>
-          </h1>
+          <h1 className="hero-h1 mt-4 max-w-[18ch]">Nepal&apos;s Home of Competitive PUBG PC Esports</h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
-            Daily Scrims • Tournaments • Statistics
+            Compete in daily PUBG PC scrims, participate in tournaments, track live standings, analyze player statistics,
+            and become part of Nepal&apos;s growing competitive esports community.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -642,7 +637,9 @@ function FollowBravo() {
       <div className="rounded-[18px] border border-white/[0.06] bg-black/15 p-4">
         <p className="font-display text-lg font-black uppercase text-white">Official public channels</p>
         <p className="mt-2 text-sm leading-7 text-text-muted">
-          Follow Bravo for scrim calls, event posters, highlights, sponsor drops, and community updates.
+          Bravo Gaming Esports is a Nepal-based competitive gaming organization dedicated to organizing PUBG PC scrims,
+          tournaments, and community events. Our platform provides teams and players with live leaderboards, match
+          analytics, rankings, statistics, and professional tournament management to help grow the esports ecosystem in Nepal.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {socials.map((item) => (
