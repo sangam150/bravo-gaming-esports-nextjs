@@ -1,140 +1,145 @@
 import Link from "next/link";
-import BravoLogo from "@/components/ui/BravoLogo";
-import { BRAVO_SOCIAL_LINKS } from "@/lib/brand-links";
-import { getHomepageContent } from "@/lib/platform-content";
+import { Facebook, Instagram, MessageCircle, Music2, Youtube } from "lucide-react";
 
-function FooterLink({ href, label }: { href: string; label: string }) {
-  const className = "text-sm text-text-muted transition hover:text-white";
+const platformLinks = [
+  { label: "PUBG Hub", href: "/pubg" },
+  { label: "Leaderboards", href: "/pubg/leaderboards" },
+  { label: "Events", href: "/events" },
+  { label: "Teams", href: "/teams" },
+  { label: "Players", href: "/players" },
+  { label: "Match Center", href: "/matches" },
+] as const;
 
-  if (href.startsWith("http")) {
-    return (
-      <a href={href} target="_blank" rel="noreferrer" className={className}>
-        {label}
-      </a>
-    );
-  }
+const communityLinks = [
+  { label: "News & Media", href: "/news-media" },
+  { label: "Sponsors", href: "/sponsors" },
+  { label: "Contact", href: "/contact" },
+  { label: "About Us", href: "/about" },
+] as const;
 
+const supportLinks = [
+  { label: "Rules", href: "/terms" },
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Terms of Service", href: "/terms" },
+] as const;
+
+const socialLinks = [
+  {
+    label: "Instagram",
+    href: "https://www.instagram.com/bravo_esport/",
+    icon: <Instagram className="h-5 w-5" />,
+  },
+  {
+    label: "Discord",
+    href: "https://discord.gg/kHRZXbMwK5",
+    icon: <MessageCircle className="h-5 w-5" />,
+  },
+  {
+    label: "YouTube",
+    href: "https://www.youtube.com/@bravogamingnepal7981",
+    icon: <Youtube className="h-5 w-5" />,
+  },
+  {
+    label: "Facebook",
+    href: "https://facebook.com/",
+    icon: <Facebook className="h-5 w-5" />,
+  },
+  {
+    label: "TikTok",
+    href: "https://tiktok.com/",
+    icon: <Music2 className="h-5 w-5" />,
+  },
+] as const;
+
+function FooterNavLink({ href, label }: { href: string; label: string }) {
   return (
-    <Link href={href} className={className}>
+    <Link href={href} className="text-sm text-text-muted transition hover:text-white">
       {label}
     </Link>
   );
 }
 
-function FooterAction({
-  href,
-  label,
-  variant,
-}: {
-  href: string;
-  label: string;
-  variant: "primary" | "secondary";
-}) {
-  const className = variant === "primary" ? "btn-primary" : "btn-secondary";
-
-  if (href.startsWith("http")) {
-    return (
-      <a href={href} target="_blank" rel="noreferrer" className={className}>
-        {label}
-      </a>
-    );
-  }
-
+export default function Footer() {
   return (
-    <Link href={href} className={className}>
-      {label}
-    </Link>
-  );
-}
-
-export default async function Footer() {
-  const content = await getHomepageContent();
-  const preferredTitles = ["Quick Links", "Community", "Support", "Follow Us"];
-
-  return (
-    <footer className="px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+    <footer className="px-4 pb-8 pt-4 sm:px-6 lg:px-8">
       <div className="page-inner">
-        <div className="rounded-[30px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(8,14,28,0.98),rgba(6,10,20,0.98))] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.32)] sm:p-8">
-          <div className="grid gap-8 xl:grid-cols-[1.1fr,0.9fr]">
-            <div className="max-w-2xl">
-              <div className="flex items-center gap-3">
-                <BravoLogo size={42} />
-                <div>
-                  <p className="font-display text-sm font-black uppercase tracking-[0.16em] text-white">
-                    Bravo Gaming
-                  </p>
-                  <p className="font-display text-[10px] font-black uppercase tracking-[0.22em] text-accent-blue">
-                    {content.footerTagline}
-                  </p>
+        <div className="light-card rounded-[30px] p-6 sm:p-8">
+          <div className="grid gap-8 xl:grid-cols-[1.15fr,1fr,0.85fr]">
+            <section>
+              <img
+                src="/images/bravo-logo.svg"
+                alt="Bravo Gaming Esports"
+                className="h-16 w-auto brightness-0 invert"
+              />
+              <p className="mt-5 max-w-xl text-sm leading-7 text-text-muted">
+                Bravo Gaming Esports is Nepal&apos;s competitive PUBG PC platform, delivering daily scrims,
+                tournaments, leaderboards, statistics, and community events.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/live-stream" className="btn-primary">
+                  Watch Live
+                </Link>
+                <a href="https://discord.gg/kHRZXbMwK5" target="_blank" rel="noreferrer" className="btn-secondary">
+                  Join Discord
+                </a>
+              </div>
+            </section>
+
+            <section className="grid gap-6 sm:grid-cols-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Platform</p>
+                <div className="mt-4 grid gap-2.5">
+                  {platformLinks.map((item) => (
+                    <FooterNavLink key={item.label} href={item.href} label={item.label} />
+                  ))}
                 </div>
               </div>
 
-              <p className="mt-5 max-w-xl text-sm leading-7 text-text-muted">{content.footerDescription}</p>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Community</p>
+                <div className="mt-4 grid gap-2.5">
+                  {communityLinks.map((item) => (
+                    <FooterNavLink key={item.label} href={item.href} label={item.label} />
+                  ))}
+                </div>
+              </div>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                {content.footerHighlights.map((highlight) => (
-                  <div
-                    key={highlight.id}
-                    className="rounded-[18px] border border-white/[0.06] bg-black/20 px-4 py-3"
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Support</p>
+                <div className="mt-4 grid gap-2.5">
+                  {supportLinks.map((item) => (
+                    <FooterNavLink key={item.label} href={item.href} label={item.label} />
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Follow Bravo</p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {socialLinks.map((item) => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={item.label}
+                    className="group relative inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-[#0f172a] text-white transition duration-200 hover:scale-[1.04] hover:border-accent-blue/55 hover:shadow-[0_0_20px_rgba(59,130,246,0.45)]"
                   >
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
-                      {highlight.label}
-                    </p>
-                    <p className="mt-2 font-display text-lg font-black uppercase text-white">
-                      {highlight.value}
-                    </p>
-                  </div>
+                    {item.icon}
+                    <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 rounded-md border border-white/10 bg-black/80 px-2 py-1 text-[10px] font-semibold text-white opacity-0 transition group-hover:opacity-100">
+                      {item.label}
+                    </span>
+                  </a>
                 ))}
               </div>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <FooterAction
-                  href={content.footerPrimaryHref}
-                  label={content.footerPrimaryLabel}
-                  variant="primary"
-                />
-                <FooterAction
-                  href={content.footerSecondaryHref}
-                  label={content.footerSecondaryLabel}
-                  variant="secondary"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-              {content.footerColumns.map((column, index) => (
-                <div key={column.id}>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
-                    {preferredTitles[index] ?? column.title}
-                  </p>
-                  <ul className="mt-4 space-y-2.5">
-                    {column.links.map((link) => (
-                      <li key={`${column.id}-${link.href}`}>
-                        <FooterLink href={link.href} label={link.label} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+            </section>
           </div>
 
-          <div className="mt-8 flex flex-col gap-4 border-t border-white/[0.06] pt-6 text-xs text-text-muted sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              {BRAVO_SOCIAL_LINKS.map((item) => (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 font-display text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:border-accent-blue/30 hover:bg-accent-blue/10"
-                >
-                  {item.label}
-                </a>
-              ))}
-            </div>
-            <p>{content.footerBottomPrimary}</p>
-            <p>{content.footerBottomSecondary}</p>
+          <div className="mt-8 grid gap-3 border-t border-white/[0.08] pt-5 text-xs text-text-muted md:grid-cols-3 md:items-center">
+            <p className="md:text-left">Copyright © 2026 Bravo Gaming Esports Nepal</p>
+            <p className="md:text-center">PUBG PC • Scrims • Tournaments • Rankings • Community</p>
+            <p className="md:text-right">Made for Nepal Esports 🇳🇵</p>
           </div>
         </div>
       </div>

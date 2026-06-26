@@ -221,17 +221,11 @@ function SponsorStrip({
   sponsors: PlatformSponsorProfile[];
 }) {
   if (sponsors.length === 0) {
-    return (
-      <section className="sponsor-strip px-4 py-3.5">
-        <div className="rounded-[18px] border border-dashed border-white/12 bg-black/20 px-4 py-4 text-center text-sm text-text-muted">
-          No sponsors available right now. Verified sponsor partners will appear here once published.
-        </div>
-      </section>
-    );
+    return null;
   }
 
   return (
-    <section className="sponsor-strip px-4 py-3">
+    <section className="standard-card px-4 py-3">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {sponsors.slice(0, 4).map((sponsor) => (
           <a
@@ -271,7 +265,7 @@ function LivePulse({ pubg }: { pubg: PubgHubDataset }) {
   ];
 
   return (
-    <section className="esports-card p-3.5">
+    <section className="standard-card p-3.5">
       <PanelHeader icon={<Radio className="h-4 w-4" />} title="Live Pulse" />
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
@@ -280,8 +274,8 @@ function LivePulse({ pubg }: { pubg: PubgHubDataset }) {
               {card.icon}
             </span>
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">{card.label}</p>
-              <p className="mt-2 font-mono-stat text-2xl text-white">{formatNumber(card.value)}</p>
+              <p className="text-[14px] font-medium text-[#c7d2fe]">{card.label}</p>
+              <p className="mt-3 font-mono-stat text-2xl text-white">{formatNumber(card.value)}</p>
               <p className="mt-1 text-xs text-text-muted">{card.detail}</p>
             </div>
           </div>
@@ -302,7 +296,7 @@ function TodayScrims({
   const matches = [...pubg.matches].slice(0, 5);
 
   return (
-    <section className="esports-card h-full p-3.5">
+    <section className="priority-card h-full p-3.5">
       <PanelHeader icon={<ShieldCheck className="h-4 w-4" />} title="Today&apos;s Scrims" href="/pubg/results" />
       <div className="space-y-2">
         {matches.length === 0 ? (
@@ -357,7 +351,7 @@ function TodayScrims({
 
 function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
   return (
-    <section className="esports-card h-full overflow-hidden !p-0">
+    <section className="priority-card h-full overflow-hidden !p-0">
       <div className="px-4 py-4">
         <PanelHeader icon={<Trophy className="h-4 w-4" />} title="Current Standings" href="/pubg/leaderboards" />
       </div>
@@ -426,7 +420,7 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
 
 function UpcomingEvents({ events }: { events: PlatformEvent[] }) {
   return (
-    <section className="esports-card h-full p-3.5">
+    <section className="standard-card h-full p-3.5">
       <PanelHeader icon={<CalendarDays className="h-4 w-4" />} title="Upcoming Events" href="/events" />
       <div className="grid gap-3">
         {events.length === 0 ? (
@@ -476,7 +470,7 @@ function TeamSpotlightCard({ team, rank }: { team: PubgHubTeam; rank: number }) 
   return (
     <Link
       href={`/pubg/teams/${team.slug}`}
-      className="rounded-[20px] border border-white/[0.06] bg-black/15 p-4 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
+      className="standard-card p-4"
     >
       <div className="flex items-center gap-3">
         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] font-mono-stat text-xs text-accent-blue-light">
@@ -508,7 +502,7 @@ function TeamSpotlightCard({ team, rank }: { team: PubgHubTeam; rank: number }) 
 
 function TopTeams({ teams }: { teams: PubgHubTeam[] }) {
   return (
-    <section className="esports-card h-full p-3.5">
+    <section className="standard-card h-full p-3.5">
       <PanelHeader icon={<ShieldCheck className="h-4 w-4" />} title="Top Teams" href="/pubg/teams" />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {teams.slice(0, 4).map((team, index) => (
@@ -523,7 +517,7 @@ function PlayerSpotlightCard({ player }: { player: PubgHubPlayer }) {
   return (
     <Link
       href={`/pubg/players/${player.slug}`}
-      className="rounded-[20px] border border-white/[0.06] bg-black/15 p-4 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
+      className="standard-card p-4"
     >
       <div className="flex items-center gap-3">
         <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="lg" />
@@ -550,7 +544,7 @@ function PlayerSpotlightCard({ player }: { player: PubgHubPlayer }) {
 
 function TopPlayers({ players }: { players: PubgHubPlayer[] }) {
   return (
-    <section className="esports-card p-4">
+    <section className="standard-card p-4">
       <PanelHeader icon={<Users className="h-4 w-4" />} title="Top Players" href="/pubg/players" />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {players.slice(0, 4).map((player) => (
@@ -563,8 +557,8 @@ function TopPlayers({ players }: { players: PubgHubPlayer[] }) {
 
 function NewsCard({ article }: { article: PlatformArticle | null }) {
   return (
-    <section className="esports-card h-full p-3.5">
-      <PanelHeader icon={<Newspaper className="h-4 w-4" />} title="Latest News" href="/news" />
+    <section className="light-card h-full p-3.5">
+      <PanelHeader icon={<Newspaper className="h-4 w-4" />} title="Latest News" href="/news-media" />
       {article ? (
         <Link href={`/news/${article.slug}`} className="block overflow-hidden rounded-[18px] border border-white/[0.06] bg-black/15">
           {article.imageUrl ? (
@@ -587,8 +581,8 @@ function NewsCard({ article }: { article: PlatformArticle | null }) {
 
 function VideoCard({ item }: { item: PlatformMediaItem | null }) {
   return (
-    <section className="esports-card h-full p-4">
-      <PanelHeader icon={<Clapperboard className="h-4 w-4" />} title="Latest Videos" href="/media" />
+    <section className="light-card h-full p-4">
+      <PanelHeader icon={<Clapperboard className="h-4 w-4" />} title="Latest Videos" href="/news-media?tab=videos" />
       {item ? (
         <a
           href={getMediaHref(item)}
@@ -632,7 +626,7 @@ function FollowBravo() {
   ];
 
   return (
-    <section className="esports-card h-full p-4">
+    <section className="light-card h-full p-4">
       <PanelHeader icon={<Users className="h-4 w-4" />} title="Follow Bravo" />
       <div className="rounded-[18px] border border-white/[0.06] bg-black/15 p-4">
         <p className="font-display text-lg font-black uppercase text-white">Official public channels</p>
@@ -683,8 +677,6 @@ export default function HomeDashboard({
           featuredEvent={featuredEvent}
           heroSponsor={homepageSponsors[0] ?? null}
         />
-
-        <SponsorStrip sponsors={homepageSponsors} />
         <LivePulse pubg={pubg} />
 
         <section className="grid items-stretch gap-4 xl:grid-cols-[0.88fr,1.12fr]">
@@ -704,6 +696,8 @@ export default function HomeDashboard({
           <VideoCard item={hub.home.featuredMedia[0] ?? null} />
           <FollowBravo />
         </section>
+
+        <SponsorStrip sponsors={homepageSponsors} />
       </div>
     </main>
   );

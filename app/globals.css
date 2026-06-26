@@ -153,13 +153,61 @@ body::after {
       0 0 22px rgba(30, 123, 255, 0.22),
       inset 0 1px 0 rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(8px);
+    transform: translateY(0);
   }
 
   .esports-card:hover {
     @apply border-accent-blue/30;
+    transform: translateY(-2px);
     box-shadow:
       0 0 26px rgba(30, 123, 255, 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .priority-card {
+    @apply rounded-card border border-white/[0.08] p-3.5 transition duration-200;
+    background: #1a2238;
+    box-shadow:
+      0 0 26px rgba(30, 123, 255, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    transform: translateY(0);
+  }
+
+  .priority-card:hover {
+    @apply border-accent-blue/35;
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 32px rgba(30, 123, 255, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .standard-card {
+    @apply rounded-card border p-3.5 transition duration-200;
+    background: #111827;
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    transform: translateY(0);
+  }
+
+  .standard-card:hover {
+    @apply border-accent-blue/30;
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 22px rgba(30, 123, 255, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .light-card {
+    @apply rounded-card border p-3.5 transition duration-200;
+    background: #0f172a;
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    transform: translateY(0);
+  }
+
+  .light-card:hover {
+    @apply border-accent-blue/25;
+    transform: translateY(-2px);
   }
 
   .stat-pill {
@@ -224,21 +272,31 @@ body::after {
   }
 
   .btn-secondary {
-    @apply inline-flex h-10 items-center justify-center gap-2 rounded-btn border border-white/15 bg-white/[0.03] px-4 py-2.5 font-body text-[14px] font-semibold tracking-[0.01em] text-white transition;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-btn border px-4 py-2.5 font-body text-[14px] font-semibold tracking-[0.01em] text-white transition duration-200;
+    background: #0f172a;
+    border-color: rgba(59, 130, 246, 0.45);
+    transform: translateY(0);
   }
 
   .btn-secondary:hover {
-    @apply border-accent-blue/30 bg-accent-blue/10;
+    @apply border-accent-blue/50;
+    background: #14203a;
+    box-shadow: 0 0 18px rgba(59, 130, 246, 0.26);
+    transform: translateY(-2px);
   }
 
   .btn-primary {
-    @apply inline-flex h-10 items-center justify-center gap-2 rounded-btn px-4 py-2.5 font-body text-[14px] font-semibold tracking-[0.01em] text-white transition;
-    background: linear-gradient(180deg, var(--accent-blue-light), var(--accent-blue));
-    box-shadow: 0 0 24px rgba(30, 123, 255, 0.35);
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-btn border px-4 py-2.5 font-body text-[14px] font-semibold tracking-[0.01em] text-white transition duration-200;
+    background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+    border-color: rgba(59, 130, 246, 0.45);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    transform: translateY(0);
   }
 
   .btn-primary:hover {
-    background: linear-gradient(180deg, #49a5ff, var(--accent-blue));
+    background: linear-gradient(180deg, #5b96ff, #2563eb);
+    box-shadow: 0 0 26px rgba(59, 130, 246, 0.38);
+    transform: translateY(-2px);
   }
 
   .btn-discord {
