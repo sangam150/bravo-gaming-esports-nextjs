@@ -19,6 +19,7 @@ import {
   getUserFacingTeamLabel,
   USER_FACING_LABELS,
 } from "@/lib/user-facing-errors";
+import type { Json } from "@/types/database.types";
 import type { MatchPlayerResult, TeamMatchResult, TournamentMatch } from "@/lib/types";
 
 function normalizeTeamResults(value: unknown) {
@@ -152,8 +153,13 @@ async function getLatestRollbackSnapshot(matchId: string) {
 
   for (const row of data ?? []) {
     const oldValue = readJsonObject(row.old_data);
-    if (oldValue && typeof oldValue === "object" && typeof oldValue.id === "string") {
-      return oldValue as unknown as TournamentMatch;
+    const snapshot =
+      oldValue && typeof oldValue === "object" && "value" in oldValue
+        ? readJsonObject(((oldValue as { value?: Json | null }).value ?? null) as Json | null)
+        : oldValue;
+
+    if (snapshot && typeof snapshot === "object" && typeof snapshot.id === "string") {
+      return snapshot as unknown as TournamentMatch;
     }
   }
 
