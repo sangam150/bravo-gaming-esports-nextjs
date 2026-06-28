@@ -121,5 +121,5 @@ export async function adminUpload(
   const token = await getIdToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  return sendUploadRequest("/api/admin/upload", formData, headers, options.onProgress);
+  return sendUploadRequest("/api/admin/uploads/r2", formData, headers, options.onProgress);
 }

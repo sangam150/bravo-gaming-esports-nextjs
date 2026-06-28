@@ -5,6 +5,7 @@ export type PlatformRole =
   | "admin"
   | "moderator"
   | "organizer"
+  | "coach"
   | "team_manager"
   | "team_igl"
   | "player"
@@ -328,8 +329,13 @@ export interface TeamRegistration {
   captainEmail?: string;
   playerNames: string[];
   tournamentId?: string;
+  logoUrl?: string;
+  logoPath?: string;
+  logoUploadId?: string;
+  approvedTeamId?: string;
   status: RegistrationStatus;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface SiteStats {
@@ -648,16 +654,41 @@ export interface PubgImportConflict {
   importedTeamName: string;
 }
 
+export type PubgImportWarningType =
+  | "duplicate_match"
+  | "duplicate_player"
+  | "missing_field"
+  | "roster_mismatch"
+  | "team_assignment_conflict"
+  | "unknown_player"
+  | "unknown_team";
+
+export type PubgImportPreviewSource = "pubg_api" | "db_cache";
+
+export interface PubgImportWarning {
+  type: PubgImportWarningType;
+  message: string;
+  field?: string;
+  matchId?: string;
+  playerName?: string;
+  pubgPlayerId?: string;
+  teamName?: string;
+  rosterId?: string;
+}
+
 export interface PubgImportPreview {
   matchId: string;
   matchNumber?: number;
   alreadyImported: boolean;
+  source: PubgImportPreviewSource;
   summary: {
     id?: string;
     mapName?: string;
     gameMode?: string;
     createdAt?: string;
     duration?: number;
+    platform?: string;
+    shard?: string;
     telemetryUrl?: string | null;
   };
   tournamentId?: string;
@@ -671,6 +702,7 @@ export interface PubgImportPreview {
   teamResults: TeamMatchResult[];
   playerResults: MatchPlayerResult[];
   conflicts: PubgImportConflict[];
+  warnings: PubgImportWarning[];
 }
 
 export interface PubgImportEdit {
@@ -744,12 +776,14 @@ export interface PubgImportBatchPreviewMatch {
   matchDate?: string;
   matchTime?: string;
   alreadyImported?: boolean;
+  source: PubgImportPreviewSource;
   summary: PubgImportPreview["summary"];
   tournamentTitle?: string;
   scrimTitle?: string;
   teamResults: TeamMatchResult[];
   playerResults: MatchPlayerResult[];
   conflicts: PubgImportConflict[];
+  warnings: PubgImportWarning[];
 }
 
 export interface PubgImportBatch {

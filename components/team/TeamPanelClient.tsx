@@ -9,7 +9,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { formatDisplayDateTime } from "@/lib/display-format";
 import type { AuthenticatedUserProfile, TeamWorkspaceData } from "@/lib/types";
-import { MOSS_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
+import { IMAGE_FILE_INPUT_ACCEPT, MOSS_FILE_INPUT_ACCEPT, TEAM_LOGO_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
 import {
   getResponseErrorMessage,
   toUserFacingErrorMessage,
@@ -80,6 +80,7 @@ export default function TeamPanelClient() {
   const [mossSubmitting, setMossSubmitting] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [mossUploading, setMossUploading] = useState(false);
+  const [avatarUploadingPlayerId, setAvatarUploadingPlayerId] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const profileLinkPending = !profile?.profileId;
 
@@ -364,6 +365,55 @@ export default function TeamPanelClient() {
     }
   }
 
+  async function handleRosterAvatarSelected(
+    playerId: string,
+    previousUrl: string | undefined,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setAvatarUploadingPlayerId(playerId);
+    setAuthError(null);
+    setNotice(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (previousUrl) {
+        formData.append("previousUrl", previousUrl);
+      }
+
+      const token = await getAccessToken();
+      const headers = new Headers();
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+
+      const response = await fetch(`/api/team/players/${encodeURIComponent(playerId)}/avatar`, {
+        method: "POST",
+        body: formData,
+        headers,
+        credentials: "include",
+      });
+      await readJsonResponse<{ success: true; url: string }>(response);
+      await loadWorkspace();
+      setNotice("Player image updated. Public cards will refresh shortly.");
+    } catch (error: unknown) {
+      setAuthError(
+        toUserFacingErrorMessage(error, {
+          fallback: "We couldn't upload that player image right now. Please try again shortly.",
+        })
+      );
+    } finally {
+      setAvatarUploadingPlayerId(null);
+    }
+  }
+
   async function handleMossSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMossSubmitting(true);
@@ -464,7 +514,7 @@ export default function TeamPanelClient() {
             <p className="section-title mt-4">Team Access</p>
             <h2 className="mt-2 font-display text-3xl font-black uppercase text-white">Team Login</h2>
             <p className="mt-2 text-sm text-text-muted">
-              Sign in with your Supabase team manager or team IGL account. Admins can also use this panel for testing.
+              Sign in with your Supabase coach, team manager, or team IGL account. Admins can also use this panel for testing.
             </p>
           </div>
 
@@ -539,7 +589,7 @@ export default function TeamPanelClient() {
           <input
             ref={logoInputRef}
             type="file"
-            accept=".jpg,.jpeg,.png,.webp,.gif,.avif"
+            accept={TEAM_LOGO_FILE_INPUT_ACCEPT}
             className="hidden"
             onChange={(event) => void handleLogoSelected(event)}
           />
@@ -615,10 +665,45 @@ export default function TeamPanelClient() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {workspace.roster.map((player) => (
                   <div key={player.id} className="rounded-3xl border border-white/10 bg-bg-primary/70 p-4">
-                    <p className="font-semibold text-white">{player.pubgName}</p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.14em] text-text-muted">
-                      {player.isActive === false ? "Inactive" : "Active"}
-                    </p>
+                    <div className="flex items-start gap-3">
+                      {player.avatarUrl ? (
+                        <img
+                          src={player.avatarUrl}
+                          alt={`${player.pubgName} avatar`}
+                          className="h-16 w-16 rounded-2xl border border-white/10 object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-dashed border-white/15 bg-black/20 text-[10px] uppercase tracking-[0.14em] text-text-muted">
+                          No Img
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-white">{player.pubgName}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.14em] text-text-muted">
+                          {player.isActive === false ? "Inactive" : "Active"}
+                        </p>
+                        <p className="mt-2 text-xs text-slate-300">
+                          Team staff can manage this player's public image.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="btn-secondary inline-flex cursor-pointer !text-[11px]">
+                        {avatarUploadingPlayerId === player.id
+                          ? "Uploading Avatar..."
+                          : player.avatarUrl
+                            ? "Replace Player Image"
+                            : "Upload Player Image"}
+                        <input
+                          type="file"
+                          accept={IMAGE_FILE_INPUT_ACCEPT}
+                          className="hidden"
+                          onChange={(event) =>
+                            void handleRosterAvatarSelected(player.id, player.avatarUrl ?? undefined, event)
+                          }
+                        />
+                      </label>
+                    </div>
                   </div>
                 ))}
               </div>

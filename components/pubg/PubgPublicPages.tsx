@@ -3366,7 +3366,7 @@ export function PubgAccessPage() {
               for Bravo operators
             </>
           }
-          description="Bravo keeps operational access simple and real: admin accounts handle publishing and approval work, team managers handle rosters and uploads, and player accounts stay scoped to their own dashboard."
+          description="Bravo keeps operational access simple and real: admin accounts handle publishing and approval work, while team staff manage their own roster and upload tasks."
           actions={
             <>
               <Link href="/admin/login" className="btn-primary">
@@ -3375,14 +3375,11 @@ export function PubgAccessPage() {
               <Link href="/team/login" className="btn-secondary">
                 Team login
               </Link>
-              <Link href="/player/login" className="btn-secondary">
-                Player login
-              </Link>
             </>
           }
           stats={[
-            { label: "Live Roles", value: 3, tone: "green" },
-            { label: "Team Access", value: "Manager / IGL", tone: "yellow" },
+            { label: "Live Roles", value: 2, tone: "green" },
+            { label: "Team Access", value: "Coach / Manager / IGL", tone: "yellow" },
             { label: "Auth Layer", value: "Supabase", tone: "blue" },
             { label: "Scope", value: "PUBG Ops", tone: "red" },
           ]}
@@ -3396,10 +3393,7 @@ export function PubgAccessPage() {
                 Admin handles publish and approval operations.
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-white">
-                Team managers and team IGLs handle roster, optional MOSS, and team asset operations.
-              </div>
-              <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-white">
-                Player accounts use a separate Supabase login route when profile access is enabled.
+                Coaches, team managers, and team IGLs handle roster, optional MOSS, and team asset operations.
               </div>
             </div>
           }
@@ -3417,10 +3411,6 @@ export function PubgAccessPage() {
                 <p className="font-display text-lg font-black uppercase text-white">Team Login</p>
                 <p className="mt-2 text-sm text-text-muted">Roster management, MOSS workflow, result evidence, and operational requests for a team.</p>
               </Link>
-              <Link href="/player/login" className="rounded-card border border-white/[0.08] bg-bg-primary p-5 transition hover:border-accent-yellow/30 hover:bg-bg-hover">
-                <p className="font-display text-lg font-black uppercase text-white">Player Login</p>
-                <p className="mt-2 text-sm text-text-muted">Profile access, personal stats, and player dashboard entry for approved accounts.</p>
-              </Link>
             </div>
           </div>
 
@@ -3429,8 +3419,7 @@ export function PubgAccessPage() {
             <div className="mt-5 grid gap-3">
               {[
                 "Admins publish homepage sections, news, events, matches, rankings, sponsors, media, and approvals.",
-                "Team managers and team IGLs manage roster requests, logo updates, optional MOSS submissions, and team-side match evidence.",
-                "Players access their own profile and dashboard lanes without gaining team or admin permissions.",
+                "Coaches, team managers, and team IGLs manage roster requests, player images, logo updates, optional MOSS submissions, and team-side match evidence.",
               ].map((item) => (
                 <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary p-5 text-sm text-white">
                   {item}

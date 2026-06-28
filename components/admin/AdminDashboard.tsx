@@ -418,6 +418,7 @@ export default function AdminDashboard({
   const [editingScrim, setEditingScrim] = useState<string | null>(null);
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [registrationActionId, setRegistrationActionId] = useState<string | null>(null);
 
   const [matchId, setMatchId] = useState("");
   const [importTournamentId, setImportTournamentId] = useState("");
@@ -967,6 +968,27 @@ export default function AdminDashboard({
       loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function handleRegistrationStatusChange(registrationId: string, status: RegistrationStatus) {
+    setRegistrationActionId(registrationId);
+    setError(null);
+
+    try {
+      const response = await adminFetch("/api/registrations", {
+        method: "PATCH",
+        body: JSON.stringify({ id: registrationId, status }),
+      });
+      setMessage(
+        response.message ??
+          (status === "approved" ? "Registration approved and team published." : "Registration updated.")
+      );
+      await loadData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRegistrationActionId(null);
     }
   }
 
@@ -1562,7 +1584,7 @@ export default function AdminDashboard({
               <div>
                 <h2 className="text-2xl font-black text-white">News CMS</h2>
                 <p className="mt-1 text-sm text-text-muted">
-                  Publish full articles with categories, tags, featured and breaking state, SEO fields, and Supabase Storage images.
+                  Publish full articles with categories, tags, featured and breaking state, SEO fields, and Cloudflare R2 images.
                 </p>
               </div>
               {editingNewsId ? (
@@ -2726,18 +2748,73 @@ export default function AdminDashboard({
             ) : (
               <div className="space-y-4">
                 {registrations.map((r) => (
-                  <div key={r.id} className="esports-card flex flex-wrap items-center justify-between gap-4 p-5">
-                    <div>
-                      <p className="font-semibold text-white">{r.teamName}</p>
-                      <p className="text-sm text-slate-400">Captain: {r.captainName}</p>
-                      <span className={`mt-2 inline-block rounded-full px-3 py-1 text-xs uppercase ${r.status === "pending" ? "bg-amber-500/20 text-amber-300" : r.status === "approved" ? "bg-bravoGreen/20 text-bravoGreen" : "bg-bravoRed/20 text-bravoRed"}`}>{r.status}</span>
-                    </div>
-                    {r.status === "pending" && (
-                      <div className="flex gap-2">
-                        <button type="button" onClick={async () => { await adminFetch("/api/registrations", { method: "PATCH", body: JSON.stringify({ id: r.id, status: "approved" }) }); loadData(); }} className={btnPrimary}>Approve</button>
-                        <button type="button" onClick={async () => { await adminFetch("/api/registrations", { method: "PATCH", body: JSON.stringify({ id: r.id, status: "rejected" }) }); loadData(); }} className={btnDanger}>Reject</button>
+                  <div key={r.id} className="esports-card p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-start gap-4">
+                        {r.logoUrl ? (
+                          <img
+                            src={r.logoUrl}
+                            alt={`${r.teamName} logo`}
+                            className="h-16 w-16 rounded-2xl border border-white/10 object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-dashed border-white/15 text-[10px] uppercase tracking-[0.14em] text-text-muted">
+                            No Logo
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-white">{r.teamName}</p>
+                          <p className="mt-1 text-sm text-slate-400">Captain: {r.captainName}</p>
+                          <p className="text-sm text-slate-400">Discord: {r.captainDiscord}</p>
+                          <p className="mt-2 text-xs uppercase tracking-[0.14em] text-text-muted">
+                            Submitted {formatDisplayDateTime(r.createdAt)}
+                          </p>
+                          {r.playerNames.length > 0 ? (
+                            <p className="mt-2 text-sm text-slate-300">
+                              Roster: {r.playerNames.join(", ")}
+                            </p>
+                          ) : null}
+                          {r.tournamentId ? (
+                            <p className="mt-1 text-sm text-slate-300">Tournament: {r.tournamentId}</p>
+                          ) : null}
+                          {r.approvedTeamId ? (
+                            <p className="mt-1 text-sm text-accent-green">Published team: {r.approvedTeamId}</p>
+                          ) : null}
+                          <span
+                            className={`mt-3 inline-block rounded-full px-3 py-1 text-xs uppercase ${
+                              r.status === "pending"
+                                ? "bg-amber-500/20 text-amber-300"
+                                : r.status === "approved"
+                                  ? "bg-bravoGreen/20 text-bravoGreen"
+                                  : "bg-bravoRed/20 text-bravoRed"
+                            }`}
+                          >
+                            {r.status}
+                          </span>
+                        </div>
                       </div>
-                    )}
+
+                      {r.status === "pending" && (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleRegistrationStatusChange(r.id, "approved")}
+                            disabled={registrationActionId === r.id}
+                            className={btnPrimary}
+                          >
+                            {registrationActionId === r.id ? "Processing..." : "Approve"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleRegistrationStatusChange(r.id, "rejected")}
+                            disabled={registrationActionId === r.id}
+                            className={btnDanger}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2843,5 +2920,3 @@ export default function AdminDashboard({
     </div>
   );
 }
-
-

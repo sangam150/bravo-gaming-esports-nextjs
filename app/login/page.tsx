@@ -2,15 +2,12 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import LoginHubClient from "@/components/auth/LoginHubClient";
-import {
-  hasPlayerDashboardAccess,
-  hasTeamWorkspaceAccess,
-} from "@/lib/authz";
+import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { getServerAuthenticatedSession } from "@/lib/admin-auth";
 
 export const metadata: Metadata = {
   title: "Login",
-  description: "Bravo Gaming Esports Supabase login hub for admin, team, and player access.",
+  description: "Bravo Gaming Esports Supabase login hub for admin and team access.",
 };
 
 export const revalidate = 300;
@@ -24,10 +21,6 @@ export default async function LoginPage() {
 
   if (session && hasTeamWorkspaceAccess(session.role, session.isAdmin)) {
     redirect("/team");
-  }
-
-  if (session && hasPlayerDashboardAccess(session.role, session.isAdmin)) {
-    redirect("/dashboard/player");
   }
 
   return (

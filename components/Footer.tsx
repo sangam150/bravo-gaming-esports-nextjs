@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Facebook, Instagram, MessageCircle, Music2, Youtube } from "lucide-react";
+import { Camera, MessageCircle, Music2, Play, Users } from "lucide-react";
 
 const platformLinks = [
   { label: "PUBG Hub", href: "/pubg" },
@@ -27,7 +27,7 @@ const socialLinks = [
   {
     label: "Instagram",
     href: "https://www.instagram.com/bravo_esport/",
-    icon: <Instagram className="h-5 w-5" />,
+    icon: <Camera className="h-5 w-5" />,
   },
   {
     label: "Discord",
@@ -37,12 +37,12 @@ const socialLinks = [
   {
     label: "YouTube",
     href: "https://www.youtube.com/@bravogamingnepal7981",
-    icon: <Youtube className="h-5 w-5" />,
+    icon: <Play className="h-5 w-5" />,
   },
   {
     label: "Facebook",
     href: "https://facebook.com/",
-    icon: <Facebook className="h-5 w-5" />,
+    icon: <Users className="h-5 w-5" />,
   },
   {
     label: "TikTok",

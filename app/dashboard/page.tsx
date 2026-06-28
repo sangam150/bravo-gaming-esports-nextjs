@@ -3,7 +3,7 @@ import { PlatformDashboardIndexPage } from "@/components/platform/PlatformPages"
 
 export const metadata: Metadata = {
   title: "Dashboard",
-  description: "Bravo Gaming Esports dashboard index for Supabase admin, team, and player access.",
+  description: "Bravo Gaming Esports dashboard index for Supabase admin and team access.",
 };
 
 export const revalidate = 300;

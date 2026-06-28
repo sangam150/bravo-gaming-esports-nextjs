@@ -45,7 +45,7 @@ function buildProfile(session: VerifiedSession): AuthenticatedUserProfile {
 
 function ensureTeamWorkspaceSession(session: VerifiedSession) {
   if (!hasTeamWorkspaceAccess(session.role, session.isAdmin)) {
-    throw new Error("Only admins and team managers can access the team workspace.");
+    throw new Error("Only admins, coaches, team managers, and team IGLs can access the team workspace.");
   }
 
   if (!session.teamId) {

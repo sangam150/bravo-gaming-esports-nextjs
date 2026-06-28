@@ -14,7 +14,7 @@ const sections = [
   {
     title: "Accounts And Access",
     detail:
-      "Super admin, admin, team manager / IGL, and player accounts are controlled through Supabase Auth with role-based access checks. Unauthorized access attempts may be blocked.",
+      "Super admin, admin, coach, team manager, and team IGL accounts are controlled through Supabase Auth with role-based access checks. Unauthorized access attempts may be blocked.",
   },
   {
     title: "Content And Media",

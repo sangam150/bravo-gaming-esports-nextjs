@@ -1,6 +1,5 @@
 import "server-only";
 import {
-  hasPlayerDashboardAccess,
   hasTeamWorkspaceAccess,
 } from "./authz";
 import {
@@ -106,14 +105,10 @@ export async function requirePlayerDashboardUser(request: Request) {
     return auth;
   }
 
-  if (!hasPlayerDashboardAccess(auth.session.role, auth.session.isAdmin)) {
-    return {
-      response: permissionDeniedResponse("Access denied. Player dashboard access required."),
-      session: null,
-    };
-  }
-
-  return auth;
+  return {
+    response: permissionDeniedResponse("Player login is disabled. Use admin or team access instead."),
+    session: null,
+  };
 }
 
 export async function getServerAdminSession() {

@@ -1,9 +1,12 @@
+import { randomUUID } from "crypto";
 import { requireTeamWorkspaceUser } from "@/lib/admin-auth";
+import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { buildPrivateUploadUrl, deleteFromStorageByUrl, uploadPrivateFile, uploadPublicFile } from "@/lib/r2/storage";
 import { logServerError } from "@/lib/server-monitoring";
-import { buildStoragePath, deleteFromStorageByUrl, uploadToStorage } from "@/lib/supabase-storage";
 import { createUploadRecord } from "@/lib/upload-records";
-import { normalizeUploadType, resolveUploadContentType, validateUpload } from "@/lib/upload-config";
+import { normalizeUploadType, type UploadType } from "@/lib/upload-config";
+import { resolveUploadContentType, validateUpload } from "@/lib/upload-validation";
 import {
   jsonErrorResponse,
   USER_FACING_ERROR_MESSAGES,
@@ -11,7 +14,7 @@ import {
 
 export const runtime = "nodejs";
 
-const TEAM_UPLOAD_TYPES = new Set(["team_logo", "moss_file"]);
+const TEAM_UPLOAD_TYPES = new Set<UploadType>(["team_logo", "moss_file"]);
 
 export async function POST(request: Request) {
   const limited = enforceRateLimit(request, { key: "team-upload", maxRequests: 12, windowMs: 60_000 });
@@ -38,25 +41,33 @@ export async function POST(request: Request) {
     }
 
     const validationError = validateUpload({
-      type,
-      fileName: file.name,
+      audience: "team",
       contentType: file.type,
+      fileName: file.name,
       size: file.size,
+      type,
     });
 
     if (validationError) {
       return Response.json({ error: validationError }, { status: 400 });
     }
 
+    const contentType =
+      resolveUploadContentType(type, file.name, file.type, { audience: "team" }) || "application/octet-stream";
     const buffer = Buffer.from(await file.arrayBuffer());
-    const contentType = resolveUploadContentType(type, file.name, file.type) || "application/octet-stream";
-    const { bucket, path } = buildStoragePath(type, auth.session.teamId, file.name);
-    const url = await uploadToStorage(bucket, path, buffer, contentType);
+    const uploadRecordId = randomUUID();
+    const uploadResult =
+      type === "moss_file"
+        ? await uploadPrivateFile(type, auth.session.teamId, file.name, buffer, contentType)
+        : await uploadPublicFile(type, auth.session.teamId, file.name, buffer, contentType);
+    const url =
+      uploadResult.visibility === "private" ? buildPrivateUploadUrl(uploadRecordId) : uploadResult.url;
 
     const record = await createUploadRecord({
       fileUrl: url,
-      filePath: path,
+      filePath: uploadResult.path,
       fileType: type,
+      id: uploadRecordId,
       relatedType: type === "moss_file" ? "moss_submission" : "team_asset",
       relatedId: auth.session.teamId,
       uploadedBy: auth.session.profileId,
@@ -69,7 +80,20 @@ export async function POST(request: Request) {
       await deleteFromStorageByUrl(previousUrl).catch(() => undefined);
     }
 
-    return Response.json({ success: true, url, path, id: record.id });
+    await writeAuditLogFromRequest(request, {
+      action: "upload",
+      entityId: record.id,
+      entityType: "team_upload",
+      newValue: {
+        fileType: type,
+        fileUrl: url,
+        path: uploadResult.path,
+        teamId: auth.session.teamId,
+        visibility: uploadResult.visibility,
+      },
+    });
+
+    return Response.json({ success: true, url, path: uploadResult.path, id: record.id });
   } catch (error: unknown) {
     await logServerError("team.upload", error, request);
     return jsonErrorResponse(error, {

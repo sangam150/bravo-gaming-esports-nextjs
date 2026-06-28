@@ -1636,9 +1636,21 @@ export async function deleteSponsor(id: string) {
 export async function getRegistrations(): Promise<TeamRegistration[]> {
   if (!isDocumentStoreConfigured()) return [];
   try {
-    return await fetchDocumentCollection<TeamRegistration>(COLLECTIONS.registrations);
+    const registrations = await fetchDocumentCollection<TeamRegistration>(COLLECTIONS.registrations);
+    return registrations.sort((firstRegistration, secondRegistration) =>
+      compareIsoDateDesc(firstRegistration.createdAt, secondRegistration.createdAt)
+    );
   } catch {
     return [];
+  }
+}
+
+export async function getRegistration(id: string): Promise<TeamRegistration | null> {
+  if (!isDocumentStoreConfigured()) return null;
+  try {
+    return await getDocument<TeamRegistration>(COLLECTIONS.registrations, id);
+  } catch {
+    return null;
   }
 }
 
@@ -1651,6 +1663,10 @@ export async function createRegistration(data: Omit<TeamRegistration, "id" | "cr
     captainEmail: cleanString(data.captainEmail),
     playerNames: cleanStringArray(data.playerNames) ?? [],
     tournamentId: cleanString(data.tournamentId),
+    logoUrl: cleanString(data.logoUrl),
+    logoPath: cleanString(data.logoPath),
+    logoUploadId: cleanString(data.logoUploadId),
+    approvedTeamId: cleanString(data.approvedTeamId),
     status: "pending" as const,
     createdAt: new Date().toISOString(),
   };
@@ -1661,11 +1677,25 @@ export async function createRegistration(data: Omit<TeamRegistration, "id" | "cr
   return { id: `reg-${Date.now()}`, ...payload };
 }
 
-export async function updateRegistrationStatus(id: string, status: TeamRegistration["status"]) {
+export async function updateRegistrationStatus(
+  id: string,
+  status: TeamRegistration["status"],
+  updates: Partial<Omit<TeamRegistration, "id" | "status" | "createdAt">> = {}
+) {
+  const payload = {
+    status,
+    updatedAt: new Date().toISOString(),
+    approvedTeamId: cleanString(updates.approvedTeamId),
+    logoPath: cleanString(updates.logoPath),
+    logoUploadId: cleanString(updates.logoUploadId),
+    logoUrl: cleanString(updates.logoUrl),
+    tournamentId: cleanString(updates.tournamentId),
+  } satisfies Partial<TeamRegistration>;
+
   if (isDocumentStoreConfigured()) {
-    await saveDocument(COLLECTIONS.registrations, id, { status });
+    await saveDocument(COLLECTIONS.registrations, id, payload as Record<string, unknown>);
   }
-  return { id, status };
+  return { id, ...payload };
 }
 
 export async function registerTeamForTournament(tournamentId: string, teamId: string) {

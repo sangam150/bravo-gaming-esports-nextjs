@@ -7,7 +7,7 @@ import { getServerAuthenticatedSession } from "@/lib/admin-auth";
 
 export const metadata: Metadata = {
   title: "Team Login",
-  description: "Supabase team login for Bravo Gaming Esports team managers and team IGLs.",
+  description: "Supabase team login for Bravo Gaming Esports coaches, team managers, and team IGLs.",
   robots: {
     index: false,
     follow: false,

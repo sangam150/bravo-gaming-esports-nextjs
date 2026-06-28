@@ -265,7 +265,7 @@ function canProvisionProfile(session: VerifiedSession) {
   return Boolean(
     !session.profileId &&
       session.email &&
-      (session.isAdmin || session.role === "team_igl")
+      (session.isAdmin || session.role === "coach" || session.role === "team_igl" || session.role === "team_manager")
   );
 }
 

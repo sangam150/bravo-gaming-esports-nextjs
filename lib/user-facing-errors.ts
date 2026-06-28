@@ -12,6 +12,7 @@ export const USER_FACING_ERROR_MESSAGES = {
   contact: "We couldn't send your message right now. Please try again shortly.",
   registration: "We couldn't submit your registration right now. Please review your details and try again.",
   admin: "We couldn't complete that action right now. Please try again shortly.",
+  playerProfile: "We couldn't update your player profile right now. Please try again shortly.",
   teamWorkspace: "We couldn't load the team workspace right now. Please refresh the page or try again shortly.",
 } as const;
 

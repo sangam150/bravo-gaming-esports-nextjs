@@ -15,8 +15,30 @@ import type {
   PubgImportBatchPreviewMatch,
   PubgImportConflict,
   PubgImportEdit,
+  PubgImportWarning,
+  PubgImportWarningType,
   TeamMatchResult,
 } from "@/lib/types";
+
+const PUB_G_IMPORT_WARNING_TYPES = new Set<PubgImportWarningType>([
+  "duplicate_match",
+  "duplicate_player",
+  "missing_field",
+  "roster_mismatch",
+  "team_assignment_conflict",
+  "unknown_player",
+  "unknown_team",
+]);
+
+function normalizeWarningType(value: unknown): PubgImportWarningType {
+  if (typeof value !== "string") {
+    return "missing_field";
+  }
+
+  return PUB_G_IMPORT_WARNING_TYPES.has(value as PubgImportWarningType)
+    ? (value as PubgImportWarningType)
+    : "missing_field";
+}
 
 function normalizeMatchIds(body: Record<string, unknown>) {
   const rawMatchIds = Array.isArray(body.matchIds)
@@ -138,6 +160,32 @@ function normalizeConflicts(value: unknown) {
     );
 }
 
+function normalizeWarnings(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    .map(
+      (item) =>
+        ({
+          type: normalizeWarningType(item.type),
+          message: typeof item.message === "string" ? item.message : "Import warning",
+          field: typeof item.field === "string" ? item.field : undefined,
+          matchId: typeof item.matchId === "string" ? item.matchId : undefined,
+          playerName: getUserFacingPlayerLabel(
+            typeof item.playerName === "string" ? item.playerName : undefined,
+            USER_FACING_LABELS.playerPendingMapping
+          ),
+          pubgPlayerId: typeof item.pubgPlayerId === "string" ? item.pubgPlayerId : undefined,
+          teamName: getUserFacingTeamLabel(
+            typeof item.teamName === "string" ? item.teamName : undefined,
+            USER_FACING_LABELS.teamPendingMapping
+          ),
+          rosterId: typeof item.rosterId === "string" ? item.rosterId : undefined,
+        }) satisfies PubgImportWarning
+    );
+}
+
 function normalizeMatchEdits(body: Record<string, unknown>) {
   if (!Array.isArray(body.matchEdits)) {
     return [];
@@ -181,6 +229,7 @@ function normalizePreviews(body: Record<string, unknown>) {
           matchDate: typeof item.matchDate === "string" ? item.matchDate : undefined,
           matchTime: typeof item.matchTime === "string" ? item.matchTime : undefined,
           alreadyImported: item.alreadyImported === true,
+          source: item.source === "db_cache" ? "db_cache" : "pubg_api",
           summary: summary
             ? {
                 id: typeof summary.id === "string" ? summary.id : undefined,
@@ -191,6 +240,8 @@ function normalizePreviews(body: Record<string, unknown>) {
                   typeof summary.duration === "number" && Number.isFinite(summary.duration)
                     ? summary.duration
                     : undefined,
+                platform: typeof summary.platform === "string" ? summary.platform : undefined,
+                shard: typeof summary.shard === "string" ? summary.shard : undefined,
                 telemetryUrl: typeof summary.telemetryUrl === "string" ? summary.telemetryUrl : undefined,
               }
             : {},
@@ -199,6 +250,7 @@ function normalizePreviews(body: Record<string, unknown>) {
           teamResults: normalizeTeamResults(item.teamResults),
           playerResults: normalizePlayerResults(item.playerResults),
           conflicts: normalizeConflicts(item.conflicts),
+          warnings: normalizeWarnings(item.warnings),
         } satisfies PubgImportBatchPreviewMatch;
     })
     .filter((item) => Boolean(item.sourceMatchId && item.matchId));
@@ -294,6 +346,7 @@ export async function POST(request: Request) {
           matchId: preview.matchId,
           matchNumber: preview.matchNumber,
           alreadyImported: preview.alreadyImported ?? false,
+          source: preview.source,
           summary: preview.summary,
           tournamentTitle: preview.tournamentTitle,
           scrimTitle: preview.scrimTitle,
@@ -304,6 +357,7 @@ export async function POST(request: Request) {
           teamResults: preview.teamResults,
           playerResults: preview.playerResults,
           conflicts: preview.conflicts,
+          warnings: preview.warnings,
         },
         sourceMatchId: preview.sourceMatchId,
       });
@@ -319,4 +373,3 @@ export async function POST(request: Request) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
-

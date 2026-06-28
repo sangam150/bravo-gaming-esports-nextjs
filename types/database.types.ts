@@ -1348,7 +1348,17 @@ export type Database = {
       publish_status: "draft" | "published" | "archived";
       request_status: "pending" | "approved" | "rejected" | "review_later";
       season_status: "planned" | "active" | "completed" | "archived";
-      user_role: "super_admin" | "admin" | "moderator" | "team_igl" | "caster" | "viewer";
+      user_role:
+        | "super_admin"
+        | "admin"
+        | "moderator"
+        | "organizer"
+        | "coach"
+        | "team_manager"
+        | "team_igl"
+        | "player"
+        | "caster"
+        | "viewer";
     };
     CompositeTypes: {
       [_ in never]: never;

@@ -3091,11 +3091,11 @@ export function PlatformDashboardIndexPage() {
               for the Bravo ecosystem
             </>
           }
-          description="Bravo uses Supabase-backed dashboards for admins, team managers, team IGLs, and players instead of one generic panel."
+          description="Bravo uses Supabase-backed dashboards for admins and team staff instead of one generic panel."
           actions={
             <>
-              <Link href="/player/login" className="btn-primary">
-                Player Login
+              <Link href="/admin/login" className="btn-primary">
+                Admin Login
               </Link>
               <Link href="/team/login" className="btn-secondary">
                 Team Login
@@ -3103,18 +3103,17 @@ export function PlatformDashboardIndexPage() {
             </>
           }
           stats={[
-            { label: "Live Roles", value: 3, tone: "green" },
-            { label: "Team Roles", value: 2, tone: "yellow" },
+            { label: "Live Roles", value: 2, tone: "green" },
+            { label: "Team Roles", value: 3, tone: "yellow" },
             { label: "Auth", value: "Supabase", tone: "blue" },
             { label: "Scope", value: "Platform", tone: "red" },
           ]}
         />
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[
-            { title: "Player Login", detail: "Access player profile, stats, and dashboard features through Supabase Auth.", href: "/player/login" },
-            { title: "Team Login", detail: "Manage roster, uploads, MOSS, and team operations.", href: "/team/login" },
-            { title: "Admin Login", detail: "Run platform operations, content, matches, and event publishing.", href: "/admin/login" },
+            { title: "Admin Login", detail: "Run platform operations, content, matches, audits, and event publishing.", href: "/admin/login" },
+            { title: "Team Login", detail: "Manage roster, uploads, MOSS, and team operations for your own team.", href: "/team/login" },
             { title: "Login Hub", detail: "Choose the right Bravo role before you enter the platform.", href: "/login" },
           ].map((item) => (
             <Link key={item.href} href={item.href} className="rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
@@ -3143,11 +3142,11 @@ export function PlatformPlayerDashboardPage({ pubg }: { pubg: PubgHubDataset }) 
               stats, and fantasy
             </>
           }
-          description="The player dashboard is reserved for approved Supabase player accounts and personal data only."
+          description="Bravo keeps player profile media and public stats in admin and team workflows rather than a separate player-login product lane."
           actions={
             <>
-              <Link href="/player/login" className="btn-primary">
-                Login to Continue
+              <Link href="/team/login" className="btn-primary">
+                Team Login
               </Link>
               <Link href="/pubg/players" className="btn-secondary">
                 Browse players
@@ -3164,13 +3163,13 @@ export function PlatformPlayerDashboardPage({ pubg }: { pubg: PubgHubDataset }) 
 
         <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Player Features" title="What players will unlock here" description="This dashboard is reserved for personal stats, match history, profile claims, and fantasy access once player accounts are enabled." />
+            <SectionHeader eyebrow="Player Profiles" title="How player data is managed today" description="Player images and profile updates flow through team staff and admin review instead of a separate player-login workspace." />
             <div className="mt-5 grid gap-3">
               {[
-                "Claim public player profile",
-                "View personal stats and form",
-                "Track match and event history",
-                "Join future fantasy systems",
+                "Team staff can upload player profile images for their own roster",
+                "Admins can approve, replace, or remove player media",
+                "Published player cards still power standings, MVP blocks, and feature rails",
+                "Future player self-service can be added later without changing public routes",
               ].map((item) => (
                 <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white">
                   {item}
@@ -3218,8 +3217,8 @@ export function PlatformFantasyPage({ hub }: { hub: PlatformHubData }) {
               <Link href="/pubg/fantasy" className="btn-primary">
                 Open PUBG Fantasy
               </Link>
-              <Link href="/dashboard/player" className="btn-secondary">
-                Player Dashboard
+              <Link href="/team/login" className="btn-secondary">
+                Team Login
               </Link>
             </>
           }

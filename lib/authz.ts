@@ -1,11 +1,12 @@
 export const ADMIN_ROLES = new Set(["super_admin", "admin", "moderator", "organizer"]);
-export const TEAM_WORKSPACE_ROLES = new Set(["team_igl", "team_manager"]);
-export const PLAYER_DASHBOARD_ROLES = new Set(["player"]);
+export const TEAM_WORKSPACE_ROLES = new Set(["coach", "team_igl", "team_manager"]);
+export const PLAYER_DASHBOARD_ROLES = new Set<string>();
 export const PLATFORM_ROLES = new Set([
   "super_admin",
   "admin",
   "moderator",
   "organizer",
+  "coach",
   "team_manager",
   "team_igl",
   "player",

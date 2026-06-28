@@ -4,10 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { adminFetch, adminUpload } from "@/lib/admin-api";
 import {
   formatUploadSize,
+  getUploadMaxBytes,
   IMAGE_FILE_INPUT_ACCEPT,
-  IMAGE_UPLOAD_MAX_BYTES,
-  validateImageUpload,
 } from "@/lib/upload-config";
+import { validateImageUpload } from "@/lib/upload-validation";
 import type { Team } from "@/lib/types";
 
 type UploadStatus = "queued" | "uploading" | "uploaded" | "unmatched" | "error";
@@ -176,7 +176,7 @@ export default function BulkTeamLogoUpload({
       setActiveUploadCount(index + 1);
       updateResult(preparedUpload.resultId, {
         status: "uploading",
-        message: "Uploading to Supabase Storage",
+        message: "Uploading to Cloudflare R2...",
       });
 
       try {
@@ -233,6 +233,7 @@ export default function BulkTeamLogoUpload({
   const queuedCount = results.filter(
     (result) => result.status === "queued" || result.status === "uploading"
   ).length;
+  const teamLogoMaxUploadSize = formatUploadSize(getUploadMaxBytes("team_logo"));
 
   return (
     <div className="esports-card p-6">
@@ -243,7 +244,7 @@ export default function BulkTeamLogoUpload({
             Drop multiple logo files at once. Filenames should match the team `id`, team name, or tag.
           </p>
           <p className="mt-2 text-xs text-text-muted">
-            Supported files: JPG, PNG, WEBP, GIF, AVIF up to {formatUploadSize(IMAGE_UPLOAD_MAX_BYTES)}
+            Supported files: JPG, PNG, WEBP up to {teamLogoMaxUploadSize}
           </p>
           <p className="mt-1 text-xs text-text-muted">
             Example: `dead-eyes.png`, `DeadEyes Guys.png`, or `DE.png`
@@ -307,7 +308,7 @@ export default function BulkTeamLogoUpload({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
             <p className="text-sm font-semibold text-white">
-              {uploading ? "Uploading directly to Supabase Storage" : "Drag and drop logo files here"}
+              {uploading ? "Uploading directly to Cloudflare R2" : "Drag and drop logo files here"}
             </p>
             <p className="text-xs text-text-muted">
               {uploading

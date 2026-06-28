@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import {
-  hasPlayerDashboardAccess,
-  hasTeamWorkspaceAccess,
-} from "@/lib/authz";
+import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
@@ -23,7 +20,7 @@ type SessionResponse = {
   error?: string;
 };
 
-type LoginVariant = "hub" | "team" | "player";
+type LoginVariant = "hub" | "team";
 
 type LoginHubClientProps = {
   variant?: LoginVariant;
@@ -36,23 +33,15 @@ function getVariantContent(variant: LoginVariant) {
         badge: "Team Login",
         title: "Open the Bravo team workspace",
         description:
-          "Use your Supabase team manager or team IGL account to manage roster requests, uploads, and team operations.",
+          "Use your Supabase coach, team manager, or team IGL account to manage roster requests, uploads, and team operations.",
         buttonLabel: "Open Team Workspace",
-      };
-    case "player":
-      return {
-        badge: "Player Login",
-        title: "Open the Bravo player dashboard",
-        description:
-          "Use your Supabase player account to access your profile, stats, and player dashboard once your account is approved.",
-        buttonLabel: "Open Player Dashboard",
       };
     default:
       return {
         badge: "Platform Login",
         title: "Sign in to the Bravo platform",
         description:
-          "Use your Supabase account and Bravo will route you to the right workspace for admin, team, or player access.",
+          "Use your Supabase account and Bravo will route you to the correct admin or team workspace.",
         buttonLabel: "Sign In",
       };
   }
@@ -107,7 +96,6 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
       }
 
       const isTeamUser = hasTeamWorkspaceAccess(sessionData.user?.role, sessionData.user?.isAdmin);
-      const isPlayerUser = hasPlayerDashboardAccess(sessionData.user?.role, sessionData.user?.isAdmin);
 
       if (variant === "team" && !isTeamUser) {
         await fetch("/api/auth/session", { method: "DELETE", credentials: "include" }).catch(() => undefined);
@@ -115,25 +103,21 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
         throw new Error("This account does not have team workspace access.");
       }
 
-      if (variant === "player" && !isPlayerUser) {
+      if (!sessionData.user?.isAdmin && !isTeamUser) {
         await fetch("/api/auth/session", { method: "DELETE", credentials: "include" }).catch(() => undefined);
         await supabase.auth.signOut().catch(() => undefined);
-        throw new Error("This account does not have player dashboard access.");
+        throw new Error("This account does not have Bravo admin or team access.");
       }
 
       const redirectTarget =
         searchParams.get("redirect") ||
         (variant === "team"
           ? "/team"
-          : variant === "player"
-            ? "/dashboard/player"
-            : sessionData.user?.isAdmin
-              ? "/admin"
-              : isTeamUser
-                ? "/team"
-                : isPlayerUser
-                  ? "/dashboard/player"
-                  : "/dashboard");
+          : sessionData.user?.isAdmin
+            ? "/admin"
+            : isTeamUser
+              ? "/team"
+              : "/login");
 
       router.push(redirectTarget);
       router.refresh();
@@ -188,9 +172,6 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                     <Link href="/team/login" className="btn-secondary">
                       Team Login
                     </Link>
-                    <Link href="/player/login" className="btn-secondary">
-                      Player Login
-                    </Link>
                   </>
                 ) : (
                   <>
@@ -200,11 +181,6 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                     {variant !== "team" ? (
                       <Link href="/team/login" className="btn-secondary">
                         Team Login
-                      </Link>
-                    ) : null}
-                    {variant !== "player" ? (
-                      <Link href="/player/login" className="btn-secondary">
-                        Player Login
                       </Link>
                     ) : null}
                   </>

@@ -5,11 +5,11 @@ import { adminUpload } from "@/lib/admin-api";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import {
   formatUploadSize,
+  getUploadMaxBytes,
   IMAGE_FILE_INPUT_ACCEPT,
-  IMAGE_UPLOAD_MAX_BYTES,
   type UploadType,
-  validateImageUpload,
 } from "@/lib/upload-config";
+import { validateImageUpload } from "@/lib/upload-validation";
 
 export default function FileUpload({
   type,
@@ -30,6 +30,7 @@ export default function FileUpload({
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
@@ -60,10 +61,12 @@ export default function FileUpload({
 
     if (validationError) {
       setError(validationError);
+      setNotice(null);
       return;
     }
 
     setError(null);
+    setNotice("Uploading to Cloudflare R2...");
     resetPreviewObjectUrl();
     const objectUrl = URL.createObjectURL(file);
     previewUrlRef.current = objectUrl;
@@ -79,8 +82,10 @@ export default function FileUpload({
       resetPreviewObjectUrl();
       setPreview(res.url);
       onUploaded(res.url);
+      setNotice("Upload complete.");
     } catch (err: unknown) {
       setError(toUserFacingErrorMessage(err, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setNotice(null);
       resetPreviewObjectUrl();
       setPreview(currentUrl ?? null);
     } finally {
@@ -88,10 +93,38 @@ export default function FileUpload({
     }
   }
 
+  async function handleCopyUrl() {
+    const persistedUrl =
+      currentUrl?.trim() || (preview && !preview.startsWith("blob:") ? preview : "");
+
+    if (!persistedUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(persistedUrl);
+      setError(null);
+      setNotice("URL copied.");
+    } catch {
+      setError("We couldn't copy that URL right now. Please try again manually.");
+    }
+  }
+
+  function handleClearImage() {
+    if (uploading) return;
+    resetPreviewObjectUrl();
+    setPreview(null);
+    setError(null);
+    setNotice("Image cleared. Save the form to keep this change.");
+    onUploaded("");
+  }
+
   function openFilePicker() {
     if (uploading) return;
     inputRef.current?.click();
   }
+
+  const persistedUrl =
+    currentUrl?.trim() || (preview && !preview.startsWith("blob:") ? preview : "");
+  const maxUploadSizeLabel = formatUploadSize(getUploadMaxBytes(type));
 
   return (
     <div className="space-y-3">
@@ -160,22 +193,50 @@ export default function FileUpload({
               {preview ? "Replace image" : "Upload image"}
             </p>
             <p className="text-xs text-text-muted">
-              Drag and drop or click to choose a JPG, PNG, WEBP, GIF, or AVIF file.
+              Drag and drop or click to choose a JPG, PNG, or WEBP file.
             </p>
             <p className="text-xs text-text-muted">
-              Max size: {formatUploadSize(IMAGE_UPLOAD_MAX_BYTES)}
+              Max size: {maxUploadSizeLabel}
             </p>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                openFilePicker();
-              }}
-              disabled={uploading}
-              className="btn-secondary !text-[11px] disabled:opacity-60"
-            >
-              {uploading ? `Uploading ${progress}%` : preview ? "Replace file" : "Choose file"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openFilePicker();
+                }}
+                disabled={uploading}
+                className="btn-secondary !text-[11px] disabled:opacity-60"
+              >
+                {uploading ? `Uploading ${progress}%` : preview ? "Replace file" : "Choose file"}
+              </button>
+              {persistedUrl ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void handleCopyUrl();
+                  }}
+                  disabled={uploading}
+                  className="btn-secondary !text-[11px] disabled:opacity-60"
+                >
+                  Copy URL
+                </button>
+              ) : null}
+              {preview ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleClearImage();
+                  }}
+                  disabled={uploading}
+                  className="btn-watch-live !text-[11px] disabled:opacity-60"
+                >
+                  Delete image
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
@@ -188,10 +249,11 @@ export default function FileUpload({
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-text-muted">{progress}% uploaded</p>
+          <p className="text-xs text-text-muted">Uploading to Cloudflare R2... {progress}%</p>
         </div>
       )}
 
+      {notice && <p className="text-xs text-green-300">{notice}</p>}
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );

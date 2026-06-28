@@ -23,6 +23,7 @@ export async function createUploadRecord(input: {
   fileUrl: string;
   filePath: string;
   fileType: UploadType;
+  id?: string;
   relatedType: string;
   relatedId?: string | null;
   uploadedBy?: string | null;
@@ -34,6 +35,7 @@ export async function createUploadRecord(input: {
   const { data, error } = await client
     .from("uploads")
     .insert({
+      id: input.id,
       file_url: input.fileUrl,
       file_path: input.filePath,
       file_type: input.fileType,

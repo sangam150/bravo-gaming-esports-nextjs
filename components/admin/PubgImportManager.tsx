@@ -283,16 +283,6 @@ function normalizePreviewResults(teamResults: TeamMatchResult[], playerResults: 
   };
 }
 
-function isUnmappedTeamName(value?: string) {
-  const normalized = (value ?? "").trim().toLowerCase();
-  return normalized.includes("pending") || normalized.includes("unknown") || normalized.length === 0;
-}
-
-function isUnmappedPlayerName(value?: string) {
-  const normalized = (value ?? "").trim().toLowerCase();
-  return normalized.includes("pending") || normalized.includes("unknown") || normalized.length === 0;
-}
-
 function createEditablePreview(preview: PubgImportPreview): EditablePreview {
   const matchDate = formatKathmanduDateInput(preview.summary.createdAt);
   const matchTime = formatKathmanduTimeInput(preview.summary.createdAt);
@@ -383,6 +373,7 @@ export default function PubgImportManager({
   const [maintenanceRawJson, setMaintenanceRawJson] = useState<string>("");
   const [maintenanceBusyAction, setMaintenanceBusyAction] = useState<"raw" | "repair" | "reset" | "reimport" | null>(null);
   const [maintenanceConfirmPublished, setMaintenanceConfirmPublished] = useState(false);
+  const [maintenanceForceRefetch, setMaintenanceForceRefetch] = useState(false);
   const [maintenancePublish, setMaintenancePublish] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -800,12 +791,14 @@ export default function PubgImportManager({
         matchDate: draft.matchDate || undefined,
         matchTime: draft.matchTime || undefined,
         alreadyImported: draft.alreadyImported,
+        source: draft.source,
         summary: draft.summary,
         tournamentTitle: draft.tournamentTitle,
         scrimTitle: draft.scrimTitle,
         teamResults: normalizedResults.teamResults,
         playerResults: normalizedResults.playerResults,
         conflicts: draft.conflicts,
+        warnings: draft.warnings,
       };
     });
   }
@@ -1317,6 +1310,7 @@ export default function PubgImportManager({
           duplicateMode,
           autoCreateDay: true,
           publish: maintenancePublish,
+          forceRefetch: maintenanceForceRefetch,
           ...getDaySetupPayload(),
         }),
       });
@@ -1872,6 +1866,14 @@ export default function PubgImportManager({
                   />
                   publish after repair/reimport
                 </label>
+                <label className="inline-flex items-center gap-2 text-xs text-text-muted">
+                  <input
+                    type="checkbox"
+                    checked={maintenanceForceRefetch}
+                    onChange={(event) => setMaintenanceForceRefetch(event.target.checked)}
+                  />
+                  force refetch raw from PUBG API
+                </label>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -1889,7 +1891,7 @@ export default function PubgImportManager({
                   disabled={maintenanceBusyAction !== null}
                   className="btn-secondary !px-4 !py-2 !text-[11px]"
                 >
-                  {maintenanceBusyAction === "repair" ? "Repairing..." : "Repair From Cache"}
+                  {maintenanceBusyAction === "repair" ? "Repairing..." : "Repair From Raw"}
                 </button>
                 <button
                   type="button"
@@ -2057,7 +2059,7 @@ export default function PubgImportManager({
                         </p>
                         <p className="mt-2 font-mono-stat text-sm text-white">{preview.sourceMatchId}</p>
                         <p className="mt-1 text-xs uppercase text-text-muted">
-                          Fetched from PUBG API: {preview.summary.mapName ?? "Unknown map"} |{" "}
+                          Source: {preview.source === "db_cache" ? "DB cache" : "PUBG API"} | {preview.summary.mapName ?? "Unknown map"} |{" "}
                           {preview.summary.gameMode ?? "Unknown mode"}
                         </p>
                         <p className="mt-1 text-xs text-text-muted">
@@ -2174,6 +2176,10 @@ export default function PubgImportManager({
                         <p className="mt-1 font-mono-stat text-white">{preview.playerResults.length}</p>
                       </div>
                       <div className="rounded-card border border-white/10 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Source</p>
+                        <p className="mt-1 text-sm text-white">{preview.source === "db_cache" ? "DB cache" : "PUBG API"}</p>
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-2">
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Tournament</p>
                         <p className="mt-1 text-sm text-white">{preview.tournamentTitle ?? "Not linked"}</p>
                       </div>
@@ -2184,19 +2190,18 @@ export default function PubgImportManager({
                       <div className="rounded-card border border-white/10 px-3 py-2">
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Unmapped Teams</p>
                         <p className="mt-1 font-mono-stat text-white">
-                          {preview.teamResults.filter((teamResult) => isUnmappedTeamName(teamResult.teamName)).length}
+                          {preview.warnings.filter((warning) => warning.type === "unknown_team").length}
                         </p>
                       </div>
                       <div className="rounded-card border border-white/10 px-3 py-2">
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Unmapped Players</p>
                         <p className="mt-1 font-mono-stat text-white">
-                          {
-                            preview.playerResults.filter(
-                              (playerResult) =>
-                                isUnmappedPlayerName(playerResult.playerName) || !playerResult.pubgPlayerId
-                            ).length
-                          }
+                          {preview.warnings.filter((warning) => warning.type === "unknown_player").length}
                         </p>
+                      </div>
+                      <div className="rounded-card border border-white/10 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Warnings</p>
+                        <p className="mt-1 font-mono-stat text-white">{preview.warnings.length}</p>
                       </div>
                       <div className="rounded-card border border-white/10 px-3 py-2">
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Points Preview</p>
@@ -2224,6 +2229,26 @@ export default function PubgImportManager({
                         <p className="mt-3 text-xs text-text-muted">
                           Historical match stats stay on the imported team. Current team is recalculated after import.
                         </p>
+                      </div>
+                    )}
+
+                    {preview.warnings.length > 0 && (
+                      <div className="mt-4 rounded-card border border-accent-blue/25 bg-accent-blue/10 p-4">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-blue">
+                          Import Warnings
+                        </p>
+                        <div className="mt-3 space-y-2 text-sm text-white">
+                          {preview.warnings.slice(0, 12).map((warning, warningIndex) => (
+                            <p key={`${preview.matchId}-${warning.type}-${warningIndex}`}>
+                              [{warning.type.replaceAll("_", " ")}] {warning.message}
+                            </p>
+                          ))}
+                        </div>
+                        {preview.warnings.length > 12 ? (
+                          <p className="mt-3 text-xs text-text-muted">
+                            Showing the first 12 warnings. Refresh with a narrower preview if you need to inspect fewer rows at once.
+                          </p>
+                        ) : null}
                       </div>
                     )}
 

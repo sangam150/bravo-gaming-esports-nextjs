@@ -49,6 +49,7 @@ export const SUPABASE_ROLES = [
   "admin",
   "moderator",
   "organizer",
+  "coach",
   "team_manager",
   "team_igl",
   "player",

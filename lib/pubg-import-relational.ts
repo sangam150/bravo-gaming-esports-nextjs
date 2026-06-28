@@ -3,6 +3,7 @@ import "server-only";
 import { getCompetitionMatch, saveCompetitionMatch } from "./competition-relational";
 import { readJsonObject, sanitizeJsonValue } from "./json-utils";
 import { previewPubgMatches } from "./pubg-sync";
+import { getRawPubgMatch } from "./pubg/raw-match-cache";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import type {
   MatchPlayerResult,
@@ -273,7 +274,7 @@ export async function cachePendingImportPreview(payload: PendingImportCachePaylo
     context: payload.context,
     sourceMatchId: payload.sourceMatchId,
     preview: payload.preview,
-    raw: payload.raw ?? payload.preview.summary,
+    raw: payload.raw,
   });
 }
 
@@ -320,8 +321,7 @@ export function parseCachedPreview(cacheRow: Tables<"pending_imports"> | null) {
 }
 
 export async function getLatestRawImportPayload(matchId: string) {
-  const cacheRow = await getLatestPendingImportCache(matchId);
-  return cacheRow?.raw_json ?? null;
+  return getRawPubgMatch(matchId);
 }
 
 export async function importPubgMatchesRelational(

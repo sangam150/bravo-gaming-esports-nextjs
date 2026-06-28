@@ -1,32 +1,39 @@
+import type { ManagedUploadFolder, StorageTarget } from "./r2/types";
+
 export const STORAGE_TARGET_BY_TYPE = {
-  team_logo: { bucket: "team-logos", directory: "logos" },
-  player_avatar: { bucket: "player-avatars", directory: "avatars" },
-  player_photo: { bucket: "player-photos", directory: "photos" },
-  tournament_banner: { bucket: "event-banners", directory: "banners" },
-  scoreboard_image: { bucket: "scoreboard-images", directory: "scoreboards" },
-  result_screenshot: { bucket: "result-screenshots", directory: "results" },
-  match_screenshot: { bucket: "match-media", directory: "screenshots" },
-  match_media: { bucket: "match-media", directory: "assets" },
-  stream_thumbnail: { bucket: "stream-assets", directory: "thumbnails" },
-  sponsor_asset: { bucket: "sponsor-assets", directory: "assets" },
-  sponsor_logo: { bucket: "sponsor-logos", directory: "logos" },
-  announcement_image: { bucket: "news-images", directory: "articles" },
-  media_asset: { bucket: "media-assets", directory: "library" },
-  hero_slide_asset: { bucket: "hero-slides", directory: "slides" },
-  moss_file: { bucket: "moss-files", directory: "submissions" },
-} as const;
+  announcement_image: { folder: "news", visibility: "public" },
+  coach_avatar: { folder: "players", visibility: "public" },
+  evidence_file: { folder: "evidence", visibility: "private" },
+  hero_slide_asset: { folder: "hero", visibility: "public" },
+  investigation_file: { folder: "evidence", visibility: "private" },
+  match_media: { folder: "media", visibility: "public" },
+  match_screenshot: { folder: "media", visibility: "public" },
+  media_asset: { folder: "media", visibility: "public" },
+  moss_file: { folder: "moss", visibility: "private" },
+  player_avatar: { folder: "players", visibility: "public" },
+  player_photo: { folder: "players", visibility: "public" },
+  report_attachment: { folder: "evidence", visibility: "private" },
+  result_screenshot: { folder: "media", visibility: "public" },
+  scoreboard_image: { folder: "media", visibility: "public" },
+  sponsor_asset: { folder: "sponsors", visibility: "public" },
+  sponsor_logo: { folder: "sponsors", visibility: "public" },
+  stream_thumbnail: { folder: "media", visibility: "public" },
+  team_logo: { folder: "teams", visibility: "public" },
+  team_logo_pending: { folder: "teams", visibility: "private" },
+  tournament_banner: { folder: "events", visibility: "public" },
+} as const satisfies Record<string, StorageTarget>;
 
 export type UploadType = keyof typeof STORAGE_TARGET_BY_TYPE;
+export type UploadFolder = ManagedUploadFolder;
 
-export const IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+export const SMALL_PUBLIC_IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+export const LARGE_PUBLIC_IMAGE_UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
 export const MOSS_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
 
 export const ALLOWED_IMAGE_CONTENT_TYPES = [
-  "image/jpeg",
   "image/png",
+  "image/jpeg",
   "image/webp",
-  "image/gif",
-  "image/avif",
 ] as const;
 
 export const ALLOWED_IMAGE_EXTENSIONS = [
@@ -34,8 +41,19 @@ export const ALLOWED_IMAGE_EXTENSIONS = [
   ".jpeg",
   ".png",
   ".webp",
-  ".gif",
-  ".avif",
+] as const;
+
+export const TEAM_LOGO_CONTENT_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+] as const;
+
+export const TEAM_LOGO_EXTENSIONS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
 ] as const;
 
 export const ALLOWED_MOSS_CONTENT_TYPES = [
@@ -55,57 +73,31 @@ export const ALLOWED_MOSS_EXTENSIONS = [
   ".txt",
 ] as const;
 
-const CONTENT_TYPE_BY_EXTENSION = {
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-  ".avif": "image/avif",
-  ".zip": "application/zip",
-  ".rar": "application/x-rar-compressed",
-  ".7z": "application/x-7z-compressed",
-  ".pdf": "application/pdf",
-  ".txt": "text/plain",
-} as const;
-
-const MOSS_UPLOAD_TYPES = new Set<UploadType>(["moss_file"]);
-
-function getFileExtension(fileName: string) {
-  const normalized = fileName.trim().toLowerCase();
-  const lastDotIndex = normalized.lastIndexOf(".");
-  if (lastDotIndex < 0) return "";
-  return normalized.slice(lastDotIndex);
-}
-
-function getAllowedExtensions(type: UploadType) {
-  return MOSS_UPLOAD_TYPES.has(type) ? ALLOWED_MOSS_EXTENSIONS : ALLOWED_IMAGE_EXTENSIONS;
-}
-
-function getAllowedContentTypes(type: UploadType) {
-  return MOSS_UPLOAD_TYPES.has(type) ? ALLOWED_MOSS_CONTENT_TYPES : ALLOWED_IMAGE_CONTENT_TYPES;
-}
-
-function getMaxUploadBytes(type: UploadType) {
-  return MOSS_UPLOAD_TYPES.has(type) ? MOSS_UPLOAD_MAX_BYTES : IMAGE_UPLOAD_MAX_BYTES;
-}
-
-function isAllowedUploadExtension(type: UploadType, fileName: string) {
-  const extension = getFileExtension(fileName);
-  return (getAllowedExtensions(type) as readonly string[]).includes(extension);
-}
-
-function isAllowedUploadContentType(type: UploadType, contentType: string | null | undefined) {
-  const normalizedContentType = contentType?.trim().toLowerCase();
-  if (!normalizedContentType) {
-    return false;
-  }
-
-  return (getAllowedContentTypes(type) as readonly string[]).includes(normalizedContentType);
-}
-
 export const IMAGE_FILE_INPUT_ACCEPT = ALLOWED_IMAGE_EXTENSIONS.join(",");
+export const TEAM_LOGO_FILE_INPUT_ACCEPT = TEAM_LOGO_EXTENSIONS.join(",");
 export const MOSS_FILE_INPUT_ACCEPT = ALLOWED_MOSS_EXTENSIONS.join(",");
+
+const SMALL_PUBLIC_IMAGE_UPLOAD_TYPES = new Set<UploadType>([
+  "coach_avatar",
+  "player_avatar",
+  "player_photo",
+  "sponsor_logo",
+  "team_logo",
+  "team_logo_pending",
+]);
+
+const PRIVATE_FILE_UPLOAD_TYPES = new Set<UploadType>([
+  "evidence_file",
+  "investigation_file",
+  "moss_file",
+  "report_attachment",
+]);
+
+const IMAGE_UPLOAD_TYPES = new Set<UploadType>(
+  Object.keys(STORAGE_TARGET_BY_TYPE).filter(
+    (value): value is UploadType => value in STORAGE_TARGET_BY_TYPE && !PRIVATE_FILE_UPLOAD_TYPES.has(value as UploadType)
+  )
+);
 
 export function isUploadType(value: string): value is UploadType {
   return value in STORAGE_TARGET_BY_TYPE;
@@ -127,17 +119,20 @@ export function sanitizeStorageSegment(value: string) {
 }
 
 export function sanitizeUploadFileName(type: UploadType, fileName: string) {
-  const extension = getFileExtension(fileName);
-  const baseName = extension ? fileName.slice(0, -extension.length) : fileName;
-  const allowedExtensions = getAllowedExtensions(type) as readonly string[];
+  const normalizedFileName = fileName.trim();
+  const lastDotIndex = normalizedFileName.toLowerCase().lastIndexOf(".");
+  const extension = lastDotIndex >= 0 ? normalizedFileName.slice(lastDotIndex).toLowerCase() : "";
+  const baseName = extension ? normalizedFileName.slice(0, -extension.length) : normalizedFileName;
+  const allowedExtensions = (
+    PRIVATE_FILE_UPLOAD_TYPES.has(type) ? ALLOWED_MOSS_EXTENSIONS : ALLOWED_IMAGE_EXTENSIONS
+  ) as readonly string[];
+  const safeExtension = allowedExtensions.includes(extension) ? extension : "";
   const safeBaseName = baseName
     .trim()
     .replace(/\s+/g, "-")
     .replace(/[^a-zA-Z0-9_-]/g, "_")
     .replace(/_+/g, "_")
     .replace(/^_+|_+$/g, "");
-
-  const safeExtension = allowedExtensions.includes(extension) ? extension : "";
 
   return `${safeBaseName || "upload"}${safeExtension}`;
 }
@@ -154,75 +149,45 @@ export function formatUploadSize(bytes: number) {
   return `${bytes} B`;
 }
 
-export function resolveUploadContentType(
-  type: UploadType,
-  fileName: string,
-  contentType: string | null | undefined
-) {
-  const normalizedContentType = contentType?.trim().toLowerCase();
-  const extension = getFileExtension(fileName);
-  const extensionContentType = CONTENT_TYPE_BY_EXTENSION[extension as keyof typeof CONTENT_TYPE_BY_EXTENSION] ?? null;
-
-  if (normalizedContentType && isAllowedUploadContentType(type, normalizedContentType) && isAllowedUploadExtension(type, fileName)) {
-    return normalizedContentType;
-  }
-
-  if (extensionContentType && isAllowedUploadExtension(type, fileName)) {
-    return extensionContentType;
-  }
-
-  return null;
+export function getUploadFolder(type: UploadType) {
+  return STORAGE_TARGET_BY_TYPE[type].folder;
 }
 
-export function resolveImageContentType(fileName: string, contentType: string | null | undefined) {
-  return resolveUploadContentType("team_logo", fileName, contentType);
+export function getUploadVisibility(type: UploadType) {
+  return STORAGE_TARGET_BY_TYPE[type].visibility;
 }
 
-export function validateUpload(input: {
-  type: string | null | undefined;
-  fileName: string;
-  contentType: string | null | undefined;
-  size: number;
-}) {
-  const normalizedType = normalizeUploadType(input.type);
-
-  if (!normalizedType) {
-    return "Unsupported upload type.";
-  }
-
-  if (!input.fileName.trim()) {
-    return "A file name is required.";
-  }
-
-  if (!Number.isFinite(input.size) || input.size <= 0) {
-    return "The selected file is empty.";
-  }
-
-  const maxBytes = getMaxUploadBytes(normalizedType);
-  if (input.size > maxBytes) {
-    return `Files must be ${formatUploadSize(maxBytes)} or smaller.`;
-  }
-
-  if (!isAllowedUploadExtension(normalizedType, input.fileName)) {
-    return normalizedType === "moss_file"
-      ? "Upload a ZIP, RAR, 7Z, PDF, or TXT file."
-      : "Upload a JPG, PNG, WEBP, GIF, or AVIF image.";
-  }
-
-  if (!isAllowedUploadContentType(normalizedType, input.contentType)) {
-    return normalizedType === "moss_file"
-      ? "Upload a ZIP, RAR, 7Z, PDF, or TXT file."
-      : "Upload a JPG, PNG, WEBP, GIF, or AVIF image.";
-  }
-
-  return null;
+export function isPrivateUploadType(type: UploadType) {
+  return STORAGE_TARGET_BY_TYPE[type].visibility === "private";
 }
 
-export function validateImageUpload(input: {
-  type: string | null | undefined;
-  fileName: string;
-  contentType: string | null | undefined;
-  size: number;
-}) {
-  return validateUpload(input);
+export function isImageUploadType(type: UploadType) {
+  return IMAGE_UPLOAD_TYPES.has(type);
+}
+
+export function isTeamLogoUploadType(type: UploadType) {
+  return type === "team_logo" || type === "team_logo_pending";
+}
+
+export function isSmallPublicImageUploadType(type: UploadType) {
+  return SMALL_PUBLIC_IMAGE_UPLOAD_TYPES.has(type);
+}
+
+export function getUploadMaxBytes(type: UploadType) {
+  if (PRIVATE_FILE_UPLOAD_TYPES.has(type)) {
+    return MOSS_UPLOAD_MAX_BYTES;
+  }
+
+  return SMALL_PUBLIC_IMAGE_UPLOAD_TYPES.has(type)
+    ? SMALL_PUBLIC_IMAGE_UPLOAD_MAX_BYTES
+    : LARGE_PUBLIC_IMAGE_UPLOAD_MAX_BYTES;
+}
+
+export function isUploadFolder(value: string): value is UploadFolder {
+  return (Object.values(STORAGE_TARGET_BY_TYPE) as StorageTarget[]).some((target) => target.folder === value);
+}
+
+export function normalizeUploadFolder(value: string | null | undefined): UploadFolder | null {
+  if (!value) return null;
+  return isUploadFolder(value) ? value : null;
 }
