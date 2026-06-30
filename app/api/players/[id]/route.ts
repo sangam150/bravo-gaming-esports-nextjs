@@ -1,4 +1,4 @@
-import { deletePlayer, getPlayer, savePlayer } from "@/lib/data";
+import { deletePlayer, getPlayer, getPublicPlayer, savePlayer } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { revalidatePlayerPaths } from "@/lib/revalidate-public";
@@ -7,7 +7,7 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const player = await getPlayer(id);
+  const player = await getPublicPlayer(id);
   if (!player) return Response.json({ error: "Player not found" }, { status: 404 });
   return Response.json({ success: true, data: player });
 }

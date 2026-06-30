@@ -8,8 +8,8 @@ import { createUploadRecord } from "@/lib/upload-records";
 import { normalizeUploadType, type UploadType } from "@/lib/upload-config";
 import { resolveUploadContentType, validateUpload } from "@/lib/upload-validation";
 import {
-  jsonErrorResponse,
   USER_FACING_ERROR_MESSAGES,
+  toUserFacingErrorMessage,
 } from "@/lib/user-facing-errors";
 
 export const runtime = "nodejs";
@@ -33,11 +33,11 @@ export async function POST(request: Request) {
     const previousUrl = (formData.get("previousUrl") as string | null) ?? undefined;
 
     if (!file || !type) {
-      return Response.json({ error: "Please choose a file and upload type before continuing." }, { status: 400 });
+      return Response.json({ success: false, error: "Please choose a file and upload type before continuing." }, { status: 400 });
     }
 
     if (!TEAM_UPLOAD_TYPES.has(type)) {
-      return Response.json({ error: "Unsupported team upload type." }, { status: 400 });
+      return Response.json({ success: false, error: "Unsupported team upload type." }, { status: 400 });
     }
 
     const validationError = validateUpload({
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     });
 
     if (validationError) {
-      return Response.json({ error: validationError }, { status: 400 });
+      return Response.json({ success: false, error: validationError }, { status: 400 });
     }
 
     const contentType =
@@ -93,12 +93,24 @@ export async function POST(request: Request) {
       },
     });
 
-    return Response.json({ success: true, url, path: uploadResult.path, id: record.id });
+    return Response.json({
+      success: true,
+      id: record.id,
+      key: uploadResult.path,
+      path: uploadResult.path,
+      url,
+    });
   } catch (error: unknown) {
     await logServerError("team.upload", error, request);
-    return jsonErrorResponse(error, {
-      status: 500,
-      fallback: "We couldn't upload that team file right now. Please try again shortly.",
-    });
+    return Response.json(
+      {
+        success: false,
+        error: toUserFacingErrorMessage(error, {
+          status: 500,
+          fallback: "We couldn't upload that team file right now. Please try again shortly.",
+        }),
+      },
+      { status: 500 }
+    );
   }
 }

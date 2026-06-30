@@ -1,6 +1,9 @@
-import { fetchPubgPlayerRecentMatches } from "@/lib/pubg";
+import { writeAuditLog } from "@/lib/audit-logs";
 import { COLLECTIONS, fetchDocumentCollection, getDocument, saveDocument } from "@/lib/document-store";
-import { importPubgMatches } from "@/lib/pubg-sync";
+import { processAutoDetectedPubgCandidate } from "@/lib/pubg-import-candidates";
+import { cachePendingImportPreview } from "@/lib/pubg-import-relational";
+import { fetchPubgPlayerRecentMatches, fetchPubgPlayerRecentMatchesById } from "@/lib/pubg";
+import { importPubgMatches, previewPubgMatches } from "@/lib/pubg-sync";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import type { PubgImportWatcher, Scrim } from "@/lib/types";
@@ -24,7 +27,14 @@ export async function GET(request: Request) {
       (s) => (s.pubgMatchId || (s.pubgMatchIds?.length ?? 0) > 0) && (s.status === "live" || s.status === "waiting_for_data")
     );
 
-    const results: Array<{ source: "scrim" | "watcher"; id: string; matchId: string; ok: boolean; error?: string }> = [];
+    const results: Array<{
+      source: "scrim" | "watcher";
+      id: string;
+      matchId: string;
+      ok: boolean;
+      status?: string;
+      error?: string;
+    }> = [];
 
     for (const scrim of pending) {
       const matchIds = Array.from(
@@ -62,9 +72,38 @@ export async function GET(request: Request) {
 
     for (const watcher of enabledWatchers) {
       try {
-        const lookup = await fetchPubgPlayerRecentMatches(watcher.playerName, 10);
-        const knownMatchIds = new Set(watcher.importedMatchIds ?? []);
-        const importedThisRun: string[] = [];
+        await writeAuditLog({
+          action: "auto_detect_started",
+          entityType: "pubg_import_candidate",
+          entityId: watcher.id,
+          newValue: {
+            watcherId: watcher.id,
+            eventId: watcher.tournamentId ?? watcher.scrimId ?? null,
+            matchId: null,
+            confidenceScore: null,
+            reason: "Auto-detect sweep started.",
+            actor: "system",
+            timestamp: new Date().toISOString(),
+          },
+        }).catch(() => null);
+
+        if (!watcher.scrimId && !watcher.tournamentId) {
+          results.push({
+            source: "watcher",
+            id: watcher.id,
+            matchId: "configuration",
+            ok: false,
+            error: "Watcher must be scoped to a scrim or tournament before candidate discovery can run.",
+          });
+          continue;
+        }
+
+        const lookup = watcher.playerId
+          ? await fetchPubgPlayerRecentMatchesById(watcher.playerId, 10).catch(() =>
+              fetchPubgPlayerRecentMatches(watcher.playerName, 10)
+            )
+          : await fetchPubgPlayerRecentMatches(watcher.playerName, 10);
+        const knownMatchIds = new Set(watcher.processedMatchIds ?? watcher.importedMatchIds ?? []);
         const pendingMatchIds: string[] = [];
 
         for (const match of lookup.recentMatches) {
@@ -82,26 +121,37 @@ export async function GET(request: Request) {
 
         if (pendingMatchIds.length > 0) {
           try {
-            const importResult = await importPubgMatches(pendingMatchIds, {
+            const previewResult = await previewPubgMatches(pendingMatchIds, {
               tournamentId: watcher.tournamentId,
               scrimId: watcher.scrimId,
-              duplicateMode: "overwrite",
+              autoCreateDay: false,
             });
 
-            for (const result of importResult.results) {
-              if (result.success) {
-                knownMatchIds.add(result.matchId);
-                if (!result.skipped) {
-                  importedThisRun.push(result.matchId);
-                }
-              }
+            for (const preview of previewResult.previews) {
+              await cachePendingImportPreview({
+                context: previewResult.context,
+                preview,
+                sourceMatchId: preview.matchId,
+              });
+              knownMatchIds.add(preview.matchId);
+              const candidate = await processAutoDetectedPubgCandidate(watcher, preview);
+              results.push({
+                source: "watcher",
+                id: watcher.id,
+                matchId: preview.matchId,
+                ok: candidate.status !== "failed",
+                status: candidate.status,
+                error: candidate.error,
+              });
+            }
 
+            for (const result of previewResult.errors) {
               results.push({
                 source: "watcher",
                 id: watcher.id,
                 matchId: result.matchId,
-                ok: result.success,
-                error: result.success ? undefined : result.error,
+                ok: false,
+                error: result.error,
               });
             }
           } catch (error: unknown) {
@@ -117,12 +167,18 @@ export async function GET(request: Request) {
           }
         }
 
+        const latestWatcher = await getDocument<PubgImportWatcher>(COLLECTIONS.pubgImportWatchers, watcher.id).catch(
+          () => null
+        );
         await saveDocument(COLLECTIONS.pubgImportWatchers, watcher.id, {
           playerId: watcher.playerId ?? lookup.playerId,
           shardId: watcher.shardId ?? lookup.shardId,
-          importedMatchIds: Array.from(knownMatchIds).slice(-50),
+          importedMatchIds: latestWatcher?.importedMatchIds ?? watcher.importedMatchIds,
+          processedMatchIds: Array.from(new Set(latestWatcher?.processedMatchIds ?? Array.from(knownMatchIds))).slice(-100),
           lastCheckedAt: new Date().toISOString(),
-          lastImportedAt: importedThisRun.length > 0 ? new Date().toISOString() : watcher.lastImportedAt,
+          lastImportedAt: latestWatcher?.lastImportedAt ?? watcher.lastImportedAt,
+          lastDetectedAt: latestWatcher?.lastDetectedAt ?? watcher.lastDetectedAt,
+          lastCandidateStatus: latestWatcher?.lastCandidateStatus ?? watcher.lastCandidateStatus,
         });
       } catch (error: unknown) {
         results.push({

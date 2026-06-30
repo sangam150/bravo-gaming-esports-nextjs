@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-23T14:25:26.250Z",
+  "generatedAt": "2026-06-28T21:16:37.305Z",
   "routeQa": [
     {
       "name": "Homepage",
@@ -8,8 +8,8 @@
     },
     {
       "name": "Stats",
-      "status": "pass",
-      "details": "HTTP 200"
+      "status": "fail",
+      "details": "/stats returned HTTP 307"
     },
     {
       "name": "PUBG",
@@ -68,13 +68,13 @@
     },
     {
       "name": "PUBG Team Detail",
-      "status": "pass",
-      "details": "HTTP 200"
+      "status": "fail",
+      "details": "/pubg/teams/qa-hotfix-alpha-20260628211637 returned HTTP 404"
     },
     {
       "name": "PUBG Player Detail",
-      "status": "pass",
-      "details": "HTTP 200"
+      "status": "fail",
+      "details": "/pubg/players/qa-player-20260628211637 returned HTTP 404"
     },
     {
       "name": "PUBG Season Detail",
@@ -105,8 +105,8 @@
     },
     {
       "name": "Player login dashboard access",
-      "status": "pass",
-      "details": "HTTP 200"
+      "status": "fail",
+      "details": "HTTP 307"
     },
     {
       "name": "Session persistence",
@@ -202,23 +202,23 @@
     },
     {
       "name": "Audit logs recorded",
-      "status": "pass",
-      "details": "preview=true; actions=rollback, unpublish, recalculate, publish, create"
+      "status": "fail",
+      "details": "preview=false; actions=rollback, unpublish, recalculate, publish, create"
     },
     {
       "name": "Delete QA match",
-      "status": "pass",
-      "details": "HTTP 200"
+      "status": "fail",
+      "details": "HTTP 409"
     },
     {
       "name": "Cleanup QA event",
       "status": "pass",
-      "details": "1f2a855d-0121-4910-9033-bc47c77e7abd"
+      "details": "6095789d-be12-49a3-847e-252f970c9f9e"
     },
     {
       "name": "Cleanup QA season",
       "status": "pass",
-      "details": "cec20bca-d1d2-425d-aa25-e45561e7bd36"
+      "details": "a3af3ded-a1e7-4a68-b3d9-4d88e26363dc"
     },
     {
       "name": "Cleanup QA players",
@@ -282,12 +282,12 @@
     {
       "name": "Profiles RLS query (admin)",
       "status": "pass",
-      "details": "1 rows"
+      "details": "0 rows"
     },
     {
       "name": "Profiles RLS query (team)",
       "status": "pass",
-      "details": "1 rows"
+      "details": "0 rows"
     },
     {
       "name": "Profiles RLS query (player)",
@@ -345,23 +345,23 @@
   ],
   "created": {
     "season": {
-      "id": "cec20bca-d1d2-425d-aa25-e45561e7bd36",
-      "slug": "qa-hotfix-season-20260623142526",
-      "title": "QA HOTFIX Season 20260623142526"
+      "id": "a3af3ded-a1e7-4a68-b3d9-4d88e26363dc",
+      "slug": "qa-hotfix-season-20260628211637",
+      "title": "QA HOTFIX Season 20260628211637"
     },
     "event": {
-      "id": "1f2a855d-0121-4910-9033-bc47c77e7abd",
-      "slug": "qa-hotfix-event-20260623142526",
-      "name": "QA HOTFIX Event 20260623142526"
+      "id": "6095789d-be12-49a3-847e-252f970c9f9e",
+      "slug": "qa-hotfix-event-20260628211637",
+      "name": "QA HOTFIX Event 20260628211637"
     },
     "teams": [
-      "QA Hotfix Alpha 20260623142526",
-      "QA Hotfix Bravo 20260623142526",
-      "QA Trap Slot 20260623142526"
+      "QA Hotfix Alpha 20260628211637",
+      "QA Hotfix Bravo 20260628211637",
+      "QA Trap Slot 20260628211637"
     ],
-    "player": "QA Player 20260623142526",
+    "player": "QA Player 20260628211637",
     "publishedNewsSlug": null
   },
   "cleanup": [],
-  "overallFailures": 0
+  "overallFailures": 6
 }

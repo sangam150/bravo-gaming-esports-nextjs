@@ -440,6 +440,16 @@ export default function AdminMatchManager({
       return;
     }
 
+    const existingEditingMatch = editingId ? matches.find((match) => match.id === editingId) ?? null : null;
+    if (
+      existingEditingMatch?.pubgMatchId?.trim() &&
+      form.pubgMatchId.trim() &&
+      existingEditingMatch.pubgMatchId.trim() !== form.pubgMatchId.trim() &&
+      !window.confirm("Replace the existing PUBG Match ID for this slot?")
+    ) {
+      return;
+    }
+
     const setBusyState = status === "published" ? setPublishing : setSaving;
     setBusyState(true);
     setMessage(null);
@@ -1051,7 +1061,12 @@ export default function AdminMatchManager({
                         Open Public
                       </Link>
                     ) : null}
-                    <button type="button" onClick={() => void handleDelete(match.id)} className="text-bravoRed hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(match.id)}
+                      disabled={match.status !== "draft"}
+                      className="text-bravoRed hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                    >
                       Delete
                     </button>
                   </div>

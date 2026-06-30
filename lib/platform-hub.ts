@@ -3,6 +3,12 @@ import { getAnnouncements, getLiveStreamFeed, getSponsors, getVideos } from "./d
 import { getHomepageContent, getPublishedManagedNewsArticles, type HomepageHeroSlideRecord } from "./platform-content";
 import { getManagedPlatformEvents, getManagedPlatformGames } from "./platform-cms";
 import { getPubgHubDataset } from "./pubg-hub";
+import {
+  hasPublicDemoMarker,
+  isInternalOnlyCategory,
+  sanitizePublicAssetUrl,
+  sanitizePublicCopy,
+} from "./public-content";
 import type { SponsorKind } from "./types";
 
 export type PlatformGameStatus = "flagship" | "active" | "building" | "planned";
@@ -450,6 +456,114 @@ function dedupeArticlesBySlug(articles: PlatformArticle[]) {
   return Array.from(articleBySlug.values());
 }
 
+function sanitizeArticleForPublicDisplay(article: PlatformArticle): PlatformArticle | null {
+  if (
+    isInternalOnlyCategory(article.category) ||
+    hasPublicDemoMarker(
+      article.title,
+      article.slug,
+      article.summary,
+      article.excerpt,
+      article.category,
+      article.imageUrl,
+      article.ogImageUrl,
+      ...article.tags,
+      ...article.body
+    )
+  ) {
+    return null;
+  }
+
+  const summary =
+    sanitizePublicCopy(article.summary) ??
+    sanitizePublicCopy(article.excerpt) ??
+    "Official Bravo coverage will appear here once the story is published.";
+  const excerpt = sanitizePublicCopy(article.excerpt ?? article.summary, summary) ?? summary;
+  const body = article.body
+    .map((paragraph) => sanitizePublicCopy(paragraph))
+    .filter((paragraph): paragraph is string => Boolean(paragraph));
+
+  return {
+    ...article,
+    summary,
+    excerpt,
+    imageUrl: sanitizePublicAssetUrl(article.imageUrl),
+    ogImageUrl: sanitizePublicAssetUrl(article.ogImageUrl),
+    body: body.length > 0 ? body : [excerpt],
+  };
+}
+
+function sanitizeEventForPublicDisplay(event: PlatformEvent): PlatformEvent | null {
+  if (
+    hasPublicDemoMarker(
+      event.name,
+      event.slug,
+      event.type,
+      event.region,
+      event.organizerName,
+      event.sponsorName ?? undefined
+    )
+  ) {
+    return null;
+  }
+
+  return {
+    ...event,
+    bannerUrl: sanitizePublicAssetUrl(event.bannerUrl ?? undefined) ?? null,
+    summary:
+      sanitizePublicCopy(
+        event.summary,
+        event.status === "completed"
+          ? "Official event results and standings will appear here after publication."
+          : "Official event details will appear here after publication."
+      ) ??
+      (event.status === "completed"
+        ? "Official event results and standings will appear here after publication."
+        : "Official event details will appear here after publication."),
+  };
+}
+
+function sanitizeSponsorProfileForPublicDisplay(sponsor: PlatformSponsorProfile): PlatformSponsorProfile | null {
+  if (
+    hasPublicDemoMarker(
+      sponsor.name,
+      sponsor.slug,
+      sponsor.description,
+      sponsor.logoUrl ?? undefined,
+      sponsor.bannerUrl ?? undefined,
+      sponsor.designAssetUrl ?? undefined,
+      ...sponsor.supportedEvents,
+      ...sponsor.partnershipHistory
+    )
+  ) {
+    return null;
+  }
+
+  return {
+    ...sponsor,
+    description: sanitizePublicCopy(sponsor.description, DEFAULT_PARTNER_DESCRIPTION) ?? DEFAULT_PARTNER_DESCRIPTION,
+    logoUrl: sanitizePublicAssetUrl(sponsor.logoUrl ?? undefined) ?? null,
+    bannerUrl: sanitizePublicAssetUrl(sponsor.bannerUrl ?? undefined) ?? null,
+    designAssetUrl: sanitizePublicAssetUrl(sponsor.designAssetUrl ?? undefined) ?? null,
+    supportedEvents: sponsor.supportedEvents.filter((eventName) => !hasPublicDemoMarker(eventName)),
+    partnershipHistory: sponsor.partnershipHistory.filter((item) => !hasPublicDemoMarker(item)),
+  };
+}
+
+function sanitizeMediaItemForPublicDisplay(item: PlatformMediaItem): PlatformMediaItem | null {
+  if (hasPublicDemoMarker(item.title, item.slug, item.kind, item.category, item.summary, item.imageUrl, item.url)) {
+    return null;
+  }
+
+  return {
+    ...item,
+    summary:
+      sanitizePublicCopy(item.summary, "Published Bravo media coverage will appear here soon.") ??
+      "Published Bravo media coverage will appear here soon.",
+    imageUrl: sanitizePublicAssetUrl(item.imageUrl),
+  };
+}
+
 function buildSponsorProfiles(
   sponsorRows: Awaited<ReturnType<typeof getSponsors>>,
   eventRows: PlatformEvent[]
@@ -603,6 +717,8 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
   }));
 
   const news = dedupeArticlesBySlug([...managedNews, ...newsFromAnnouncements, ...seededArticles])
+    .map((article) => sanitizeArticleForPublicDisplay(article))
+    .filter((article): article is PlatformArticle => Boolean(article))
     .sort(compareByDateDesc)
     .map((article, _, allArticles) => ({
       ...article,
@@ -672,8 +788,13 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     updatedAt: event.updatedAt ?? event.startDate,
   }));
 
-  const events = [...pubgEvents, ...(managedEvents.length > 0 ? managedEvents : PLANNED_EVENTS)].sort(compareEventsForPublicDisplay);
-  const sponsorProfiles = buildSponsorProfiles(sponsors, events);
+  const events = [...pubgEvents, ...(managedEvents.length > 0 ? managedEvents : PLANNED_EVENTS)]
+    .map((event) => sanitizeEventForPublicDisplay(event))
+    .filter((event): event is PlatformEvent => Boolean(event))
+    .sort(compareEventsForPublicDisplay);
+  const sponsorProfiles = buildSponsorProfiles(sponsors, events)
+    .map((sponsor) => sanitizeSponsorProfileForPublicDisplay(sponsor))
+    .filter((sponsor): sponsor is PlatformSponsorProfile => Boolean(sponsor));
 
   const pubgMatches: PlatformMatch[] = pubg.matches.map((match) => {
     const orderedTeams = [...match.teamResults].sort(
@@ -816,7 +937,9 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       updatedAt: video.updatedAt ?? video.publishedAt ?? video.createdAt,
     }));
 
-  const media: PlatformMediaItem[] = managedMedia.length > 0 ? managedMedia : MEDIA_SEEDS;
+  const media: PlatformMediaItem[] = (managedMedia.length > 0 ? managedMedia : MEDIA_SEEDS)
+    .map((item) => sanitizeMediaItemForPublicDisplay(item))
+    .filter((item): item is PlatformMediaItem => Boolean(item));
 
   const curatedFeaturedNews =
     selectOrderedItems(news, homepageContent.featuredNewsSlugs, (article) => article.slug) ??

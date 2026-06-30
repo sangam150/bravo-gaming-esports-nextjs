@@ -4,6 +4,7 @@ import {
   SESSION_COOKIE,
   verifyAccessToken,
 } from "@/lib/supabase-auth-server";
+import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import {
@@ -35,6 +36,11 @@ export async function POST(request: Request) {
     const sessionCookie = await createSessionCookie(accessToken, sessionCookieMaxAge * 1000);
     const response = Response.json({
       success: true,
+      authenticated: true,
+      role: decoded.role,
+      teamId: decoded.teamId,
+      playerId: decoded.playerId,
+      isAdmin: decoded.isAdmin,
       user: {
         profileId: decoded.profileId,
         uid: decoded.uid,
@@ -51,6 +57,16 @@ export async function POST(request: Request) {
       "Set-Cookie",
       `${SESSION_COOKIE}=${sessionCookie}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${sessionCookieMaxAge}${secure}`
     );
+    await writeAuditLogFromRequest(request, {
+      action: "login",
+      entityType: "session",
+      entityId: decoded.uid,
+      newValue: {
+        email: decoded.email,
+        role: decoded.role,
+        teamId: decoded.teamId,
+      },
+    });
     return response;
   } catch (error: unknown) {
     await logServerError("auth.session.create", error, request);

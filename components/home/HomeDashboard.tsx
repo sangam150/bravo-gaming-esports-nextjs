@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import BravoLogo from "@/components/ui/BravoLogo";
 import TeamAvatar from "@/components/ui/TeamAvatar";
-import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
+import { BRAVO_SOCIAL_LINKS } from "@/lib/brand-links";
 import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
 import type {
   PlatformArticle,
@@ -65,7 +65,7 @@ function PanelHeader({
   icon,
   title,
   href,
-  hrefLabel = "View All",
+  hrefLabel = "Browse",
 }: {
   icon?: React.ReactNode;
   title: string;
@@ -138,18 +138,14 @@ function HeroSection({
   hub,
   pubg,
   featuredEvent,
-  heroSponsor,
 }: {
   hub: PlatformHubData;
   pubg: PubgHubDataset;
   featuredEvent: PlatformEvent | null;
-  heroSponsor: PlatformSponsorProfile | null;
 }) {
   const liveMatch = pubg.matches.find((match) => match.eventStatus === "ongoing") ?? null;
   const liveEvent = liveMatch ? pubg.events.find((event) => event.id === liveMatch.eventId) ?? null : null;
   const liveCard = getHeroLiveCard(featuredEvent, liveMatch, liveEvent?.matchCount ?? 0, hub.home.liveFeature.href);
-  const heroEventHref = featuredEvent ? getEventHref(featuredEvent) : "/pubg/leaderboards";
-  const sponsorHref = heroSponsor ? getSponsorHref(heroSponsor) : "/sponsors";
 
   return (
     <section className="hero-banner overflow-hidden !p-0">
@@ -162,7 +158,7 @@ function HeroSection({
         </div>
 
         <div className="relative z-10 min-w-0">
-          <p className="section-title">01. Homepage</p>
+          <p className="section-title">Bravo Gaming Esports</p>
           <h1 className="hero-h1 mt-4 max-w-[18ch]">Nepal&apos;s Home of Competitive PUBG PC Esports</h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
             Compete in daily PUBG PC scrims, participate in tournaments, track live standings, analyze player statistics,
@@ -225,7 +221,8 @@ function SponsorStrip({
   }
 
   return (
-    <section className="standard-card px-4 py-3">
+    <section className="standard-card p-3.5">
+      <PanelHeader title="Sponsors" href="/sponsors" hrefLabel="Partners" />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {sponsors.slice(0, 4).map((sponsor) => (
           <a
@@ -293,7 +290,7 @@ function TodayScrims({
   watchLiveHref: string;
 }) {
   const eventById = new Map(pubg.events.map((event) => [event.id, event] as const));
-  const matches = [...pubg.matches].slice(0, 5);
+  const matches = [...pubg.matches].slice(0, 4);
 
   return (
     <section className="priority-card h-full p-3.5">
@@ -314,31 +311,32 @@ function TodayScrims({
                   : { label: "View", href: getMatchHref(match), variant: "secondary" as const };
 
             return (
-              <div
-                key={match.id}
-                className="rounded-[16px] border border-white/[0.06] bg-black/20 px-3 py-3"
-              >
-                <div className="grid grid-cols-[1.6fr,0.8fr,0.8fr,0.8fr,auto] items-center gap-2 text-xs sm:gap-3 sm:text-sm">
+              <div key={match.id} className="rounded-[16px] border border-white/[0.06] bg-black/20 px-3 py-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-white">{match.eventName}</p>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-text-muted sm:text-sm">
+                      <span>{match.mapName}</span>
+                      <span>Match {match.matchNumber}</span>
+                    </div>
                   </div>
-                  <p className="truncate text-text-muted">{match.mapName}</p>
-                  <p className="text-text-muted">Match {match.matchNumber}</p>
-                  <span
-                    className={joinClasses(
-                      "justify-self-start rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em]",
-                      match.eventStatus === "ongoing"
-                        ? "border-accent-red/30 bg-accent-red/10 text-white"
-                        : match.eventStatus === "upcoming"
-                          ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue-light"
-                          : "border-accent-green/30 bg-accent-green/10 text-accent-green"
-                    )}
-                  >
-                    {match.eventStatus === "ongoing" ? "Live" : match.eventStatus === "upcoming" ? "Upcoming" : "Completed"}
-                  </span>
-                  <ActionLink href={action.href} variant={action.variant} className="!h-9 !px-3">
-                    {action.label}
-                  </ActionLink>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={joinClasses(
+                        "rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em]",
+                        match.eventStatus === "ongoing"
+                          ? "border-accent-red/30 bg-accent-red/10 text-white"
+                          : match.eventStatus === "upcoming"
+                            ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue-light"
+                            : "border-accent-green/30 bg-accent-green/10 text-accent-green"
+                      )}
+                    >
+                      {match.eventStatus === "ongoing" ? "Live" : match.eventStatus === "upcoming" ? "Upcoming" : "Completed"}
+                    </span>
+                    <ActionLink href={action.href} variant={action.variant} className="!h-9 !px-3">
+                      {action.label}
+                    </ActionLink>
+                  </div>
                 </div>
               </div>
             );
@@ -432,30 +430,36 @@ function UpcomingEvents({ events }: { events: PlatformEvent[] }) {
             <Link
               key={event.id}
               href={getEventHref(event)}
-            className="overflow-hidden rounded-[20px] border border-white/[0.06] bg-black/15 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
+              className="overflow-hidden rounded-[20px] border border-white/[0.06] bg-black/15 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
             >
-              {event.bannerUrl ? (
-                <img src={event.bannerUrl} alt={event.name} className="h-32 w-full object-cover" />
-              ) : (
-                <div className="h-32 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.22),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))]" />
-              )}
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">{event.type}</p>
-                    <h3 className="mt-2 font-display text-xl font-black uppercase text-white">{event.name}</h3>
+              <div className="grid gap-0 sm:grid-cols-[176px,minmax(0,1fr)]">
+                {event.bannerUrl ? (
+                  <img src={event.bannerUrl} alt={event.name} className="h-28 w-full object-cover sm:h-full" />
+                ) : (
+                  <div className="h-28 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.22),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] sm:h-full" />
+                )}
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">{event.type}</p>
+                      <h3 className="mt-2 font-display text-lg font-black uppercase text-white">{event.name}</h3>
+                    </div>
+                    {event.prizePool && event.prizePool !== "TBD" ? (
+                      <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue-light">
+                        {event.prizePool}
+                      </span>
+                    ) : null}
                   </div>
-                  <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue-light">
-                    {event.prizePool}
-                  </span>
-                </div>
-                <p className="mt-3 text-sm text-text-muted">{formatDateRange(event.startDate, event.endDate)}</p>
-                <p className="mt-1 text-sm text-text-muted">{event.region}</p>
-                <div className="mt-4">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue">
-                    View Details
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </span>
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
+                    <span>{formatDateRange(event.startDate, event.endDate)}</span>
+                    <span>{event.region}</span>
+                  </div>
+                  <div className="mt-4">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue">
+                      View Details
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
                 </div>
               </div>
             </Link>
@@ -470,13 +474,13 @@ function TeamSpotlightCard({ team, rank }: { team: PubgHubTeam; rank: number }) 
   return (
     <Link
       href={`/pubg/teams/${team.slug}`}
-      className="standard-card p-4"
+      className="standard-card h-full p-4"
     >
       <div className="flex items-center gap-3">
         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] font-mono-stat text-xs text-accent-blue-light">
           #{rank}
         </span>
-        <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
+        <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="md" />
         <div className="min-w-0">
           <p className="truncate font-display text-lg font-black uppercase text-white">{team.name}</p>
           <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{team.formLabel}</p>
@@ -485,15 +489,15 @@ function TeamSpotlightCard({ team, rank }: { team: PubgHubTeam; rank: number }) 
       <div className="mt-4 grid grid-cols-3 gap-3">
         <div className="stat-pill !p-3">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Points</p>
-          <p className="mt-2 font-mono-stat text-lg text-accent-blue-light">{formatNumber(team.totalPoints)}</p>
+          <p className="mt-2 font-mono-stat text-base text-accent-blue-light">{formatNumber(team.totalPoints)}</p>
         </div>
         <div className="stat-pill !p-3">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Wins</p>
-          <p className="mt-2 font-mono-stat text-lg text-white">{formatNumber(team.wins)}</p>
+          <p className="mt-2 font-mono-stat text-base text-white">{formatNumber(team.wins)}</p>
         </div>
         <div className="stat-pill !p-3">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Kills</p>
-          <p className="mt-2 font-mono-stat text-lg text-white">{formatNumber(team.kills)}</p>
+          <p className="mt-2 font-mono-stat text-base text-white">{formatNumber(team.kills)}</p>
         </div>
       </div>
     </Link>
@@ -517,10 +521,10 @@ function PlayerSpotlightCard({ player }: { player: PubgHubPlayer }) {
   return (
     <Link
       href={`/pubg/players/${player.slug}`}
-      className="standard-card p-4"
+      className="standard-card h-full p-4"
     >
       <div className="flex items-center gap-3">
-        <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="lg" />
+        <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="md" />
         <div className="min-w-0">
           <p className="truncate font-display text-lg font-black uppercase text-white">{player.pubgName}</p>
           <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">
@@ -531,11 +535,11 @@ function PlayerSpotlightCard({ player }: { player: PubgHubPlayer }) {
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="stat-pill !p-3">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Kills</p>
-          <p className="mt-2 font-mono-stat text-lg text-accent-blue-light">{formatNumber(player.kills)}</p>
+          <p className="mt-2 font-mono-stat text-base text-accent-blue-light">{formatNumber(player.kills)}</p>
         </div>
         <div className="stat-pill !p-3">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Damage</p>
-          <p className="mt-2 font-mono-stat text-lg text-white">{formatNumber(player.damage)}</p>
+          <p className="mt-2 font-mono-stat text-base text-white">{formatNumber(player.damage)}</p>
         </div>
       </div>
     </Link>
@@ -558,7 +562,7 @@ function TopPlayers({ players }: { players: PubgHubPlayer[] }) {
 function NewsCard({ article }: { article: PlatformArticle | null }) {
   return (
     <section className="light-card h-full p-3.5">
-      <PanelHeader icon={<Newspaper className="h-4 w-4" />} title="Latest News" href="/news-media" />
+      <PanelHeader icon={<Newspaper className="h-4 w-4" />} title="Latest News" href="/news" />
       {article ? (
         <Link href={`/news/${article.slug}`} className="block overflow-hidden rounded-[18px] border border-white/[0.06] bg-black/15">
           {article.imageUrl ? (
@@ -568,6 +572,7 @@ function NewsCard({ article }: { article: PlatformArticle | null }) {
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">{article.category}</p>
             <h3 className="mt-3 font-display text-lg font-black uppercase text-white">{article.title}</h3>
             <p className="mt-2 text-sm text-text-muted">{formatDate(article.date)}</p>
+            <p className="mt-2 text-sm leading-6 text-text-muted">{article.summary}</p>
           </div>
         </Link>
       ) : (
@@ -582,7 +587,7 @@ function NewsCard({ article }: { article: PlatformArticle | null }) {
 function VideoCard({ item }: { item: PlatformMediaItem | null }) {
   return (
     <section className="light-card h-full p-4">
-      <PanelHeader icon={<Clapperboard className="h-4 w-4" />} title="Latest Videos" href="/news-media?tab=videos" />
+      <PanelHeader icon={<Clapperboard className="h-4 w-4" />} title="Latest Videos" href="/media" />
       {item ? (
         <a
           href={getMediaHref(item)}
@@ -604,6 +609,7 @@ function VideoCard({ item }: { item: PlatformMediaItem | null }) {
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">{item.category}</p>
             <h3 className="mt-3 font-display text-lg font-black uppercase text-white">{item.title}</h3>
             <p className="mt-2 text-sm text-text-muted">{item.duration ?? "Duration TBA"}</p>
+            <p className="mt-2 text-sm leading-6 text-text-muted">{item.summary}</p>
           </div>
         </a>
       ) : (
@@ -617,11 +623,7 @@ function VideoCard({ item }: { item: PlatformMediaItem | null }) {
 
 function FollowBravo() {
   const socials = [
-    { label: "Discord", href: BRAVO_DISCORD_URL },
-    { label: "Instagram", href: BRAVO_INSTAGRAM_URL },
-    { label: "YouTube", href: "https://www.youtube.com/@bravogamingnepal7981" },
-    { label: "TikTok", href: "https://www.tiktok.com/@bravogamingesports" },
-    { label: "Facebook", href: "https://www.facebook.com/bravogamingesports" },
+    ...BRAVO_SOCIAL_LINKS.filter((item) => ["Discord", "Instagram", "YouTube", "Facebook"].includes(item.label)),
     { label: "Contact", href: "/contact" },
   ];
 
@@ -630,12 +632,10 @@ function FollowBravo() {
       <PanelHeader icon={<Users className="h-4 w-4" />} title="Follow Bravo" />
       <div className="rounded-[18px] border border-white/[0.06] bg-black/15 p-4">
         <p className="font-display text-lg font-black uppercase text-white">Official public channels</p>
-        <p className="mt-2 text-sm leading-7 text-text-muted">
-          Bravo Gaming Esports is a Nepal-based competitive gaming organization dedicated to organizing PUBG PC scrims,
-          tournaments, and community events. Our platform provides teams and players with live leaderboards, match
-          analytics, rankings, statistics, and professional tournament management to help grow the esports ecosystem in Nepal.
+        <p className="mt-2 max-w-3xl text-sm leading-7 text-text-muted">
+          Follow Bravo for scrim updates, tournament posters, published results, and community announcements.
         </p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
           {socials.map((item) => (
             <ActionLink key={item.label} href={item.href} variant="secondary" className="justify-center">
               {item.label}
@@ -675,7 +675,6 @@ export default function HomeDashboard({
           hub={hub}
           pubg={pubg}
           featuredEvent={featuredEvent}
-          heroSponsor={homepageSponsors[0] ?? null}
         />
         <LivePulse pubg={pubg} />
 
@@ -691,13 +690,14 @@ export default function HomeDashboard({
 
         <TopPlayers players={pubg.players} />
 
-        <section className="grid gap-4 xl:grid-cols-3">
+        <section className="grid gap-4 xl:grid-cols-2">
           <NewsCard article={hub.home.featuredNews[0] ?? null} />
           <VideoCard item={hub.home.featuredMedia[0] ?? null} />
-          <FollowBravo />
         </section>
 
         <SponsorStrip sponsors={homepageSponsors} />
+
+        <FollowBravo />
       </div>
     </main>
   );

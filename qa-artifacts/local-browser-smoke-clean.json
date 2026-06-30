@@ -1,0 +1,186 @@
+{
+  "generatedAt": "2026-06-29T13:12:11.112Z",
+  "hydration": {
+    "noJs": "Current section: Home",
+    "js": "Current section: Home",
+    "ok": true
+  },
+  "routes": [
+    {
+      "route": "/",
+      "status": 200,
+      "title": "Bravo Gaming Esports | PUBG PC Scrims & Tournaments in Nepal",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/pubg",
+      "status": 200,
+      "title": "Bravo Gaming PUBG PC | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/leaderboard",
+      "status": 200,
+      "title": "PUBG Leaderboards | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/pubg/teams",
+      "status": 200,
+      "title": "PUBG Teams | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/pubg/players",
+      "status": 200,
+      "title": "PUBG Players | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/pubg/events",
+      "status": 200,
+      "title": "PUBG Events | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/news",
+      "status": 200,
+      "title": "News | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/media",
+      "status": 200,
+      "title": "Media | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/sponsors",
+      "status": 200,
+      "title": "Sponsors | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/team/login",
+      "status": 200,
+      "title": "Team Login | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/admin/login",
+      "status": 200,
+      "title": "Admin | Bravo Gaming Esports | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/pubg/teams/qa-goclose-team-3",
+      "status": 200,
+      "title": "QA GoClose Team 3 Team Profile | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/pubg/players/fable-69-esports-prime",
+      "status": 200,
+      "title": "Fable Player Profile | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/pubg/events/pubg-mahasangram-2-0",
+      "status": 200,
+      "title": "PUBG Mahasangram 2.0 Event | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    },
+    {
+      "route": "/pubg/matches/16000000-0000-4000-8000-000000000010",
+      "status": 200,
+      "title": "PUBG Match 4 | Bravo Gaming Esports",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "notFound": [],
+      "brokenImages": [],
+      "badTokens": []
+    }
+  ],
+  "mobile": {
+    "/": {
+      "overflow": false,
+      "scrollWidth": 390,
+      "clientWidth": 390
+    },
+    "/pubg": {
+      "overflow": false,
+      "scrollWidth": 390,
+      "clientWidth": 390
+    },
+    "/pubg/teams/qa-goclose-team-3": {
+      "overflow": false,
+      "scrollWidth": 390,
+      "clientWidth": 390
+    },
+    "/pubg/events/pubg-mahasangram-2-0": {
+      "overflow": false,
+      "scrollWidth": 390,
+      "clientWidth": 390
+    }
+  },
+  "loginVisibility": {
+    "teamDiscordButtons": 0
+  },
+  "issues": []
+}

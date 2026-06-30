@@ -10,8 +10,8 @@ import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client
 import { createUploadRecord } from "@/lib/upload-records";
 import { resolveUploadContentType, validateUpload } from "@/lib/upload-validation";
 import {
-  jsonErrorResponse,
   USER_FACING_ERROR_MESSAGES,
+  toUserFacingErrorMessage,
 } from "@/lib/user-facing-errors";
 
 type RouteContext = {
@@ -33,7 +33,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     const { playerId } = await params;
     const normalizedPlayerId = playerId.trim();
     if (!normalizedPlayerId) {
-      return Response.json({ error: "Player ID is required." }, { status: 400 });
+      return Response.json({ success: false, error: "Player ID is required." }, { status: 400 });
     }
 
     const formData = await request.formData();
@@ -41,7 +41,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     const previousUrl = (formData.get("previousUrl") as string | null) ?? undefined;
 
     if (!file) {
-      return Response.json({ error: "Choose a player image before uploading." }, { status: 400 });
+      return Response.json({ success: false, error: "Choose a player image before uploading." }, { status: 400 });
     }
 
     const validationError = validateUpload({
@@ -53,7 +53,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     });
 
     if (validationError) {
-      return Response.json({ error: validationError }, { status: 400 });
+      return Response.json({ success: false, error: validationError }, { status: 400 });
     }
 
     const client = getSupabaseServiceRoleClient();
@@ -70,7 +70,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     }
 
     if (!playerRow) {
-      return Response.json({ error: "You can only update player images for your own roster." }, { status: 403 });
+      return Response.json({ success: false, error: "You can only update player images for your own roster." }, { status: 403 });
     }
 
     const contentType =
@@ -148,14 +148,21 @@ export async function POST(request: Request, { params }: RouteContext) {
     return Response.json({
       success: true,
       id: record.id,
+      key: uploadResult.path,
       path: uploadResult.path,
       url: uploadResult.url,
     });
   } catch (error: unknown) {
     await logServerError("team.players.avatar.upload", error, request);
-    return jsonErrorResponse(error, {
-      status: 500,
-      fallback: "We couldn't upload that player image right now. Please try again shortly.",
-    });
+    return Response.json(
+      {
+        success: false,
+        error: toUserFacingErrorMessage(error, {
+          status: 500,
+          fallback: "We couldn't upload that player image right now. Please try again shortly.",
+        }),
+      },
+      { status: 500 }
+    );
   }
 }

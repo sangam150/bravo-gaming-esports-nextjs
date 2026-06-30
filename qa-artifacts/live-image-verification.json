@@ -1,0 +1,1225 @@
+{
+  "generatedAt": "2026-06-30T17:34:14.805Z",
+  "baseUrl": "https://bravo-gaming-esports-nextjs.vercel.app",
+  "routes": [
+    {
+      "route": "/",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/",
+      "proxyImageCount": 19,
+      "loadedProxyImages": [
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "Shikhar Ice",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "Shikhar Ice",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=events%2Flaunch-event-banner.svg",
+          "alt": "PUBG Mahasangram 2.0",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Fable",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Vanta",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Xyro",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Crux",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        }
+      ],
+      "brokenProxyImages": []
+    },
+    {
+      "route": "/pubg",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/pubg",
+      "proxyImageCount": 16,
+      "loadedProxyImages": [
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "Shikhar Ice",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Muji Verse",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Fable",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Vanta",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Xyro",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        }
+      ],
+      "brokenProxyImages": []
+    },
+    {
+      "route": "/pubg/teams",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/pubg/teams",
+      "proxyImageCount": 20,
+      "loadedProxyImages": [
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "Shikhar Ice",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Muji Verse",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg",
+          "alt": "Sons of Nepal Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "69 Esports Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg",
+          "alt": "KDS Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg",
+          "alt": "FYB Esports",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "NPL Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "ZENO",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Lost MC Esports",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "M8 Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg",
+          "alt": "Two Wheel Enjoyers",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": false
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "Mandem Boys",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg",
+          "alt": "Revive Me Bro",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": false
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "Omega Tactix",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "N3P Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "LTG Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        }
+      ],
+      "brokenProxyImages": []
+    },
+    {
+      "route": "/pubg/teams/m8-prime",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/pubg/teams/m8-prime",
+      "proxyImageCount": 5,
+      "loadedProxyImages": [
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "M8 Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Aero",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Blitz",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Cipher",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Drift",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        }
+      ],
+      "brokenProxyImages": []
+    },
+    {
+      "route": "/pubg/players",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/pubg/players",
+      "proxyImageCount": 80,
+      "loadedProxyImages": [
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Fable",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Vanta",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Xyro",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Crux",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Yami",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Karma",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Nyte",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Wrath",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Quest",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Onyx",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Frost",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Ghost",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Wraith",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Aero",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Inferno",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Phantom",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Brisk",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Saber",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Pyro",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Knox",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Jinx",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Mamba",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Havoc",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Vex",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Zed",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Torque",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Blitz",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Glitch",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Hex",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Tracer",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Rogue",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Ember",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Nero",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Riven",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Echo",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Jade",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Flux",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Cross",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Viral",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Grimm",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Banshee",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Elix",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Astra",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Yoru",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Lynx",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Dagger",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Ashen",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Enzo",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Axiom",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Iris",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Riot",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Cipher",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Zen",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Warden",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Umbra",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Omen",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Locus",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Nova",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Cinder",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Talon",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Ulric",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Dune",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Shade",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Xeno",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Briar",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Orion",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Ledger",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Mako",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Zephyr",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Stryke",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Proxy",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Falcon",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg",
+          "alt": "Dusk",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Kairo",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Jolt",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Quake",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Drift",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Volt",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg",
+          "alt": "Halo",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg",
+          "alt": "Myth",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        }
+      ],
+      "brokenProxyImages": []
+    },
+    {
+      "route": "/pubg/players/aero-m8-prime",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/pubg/players/aero-m8-prime",
+      "proxyImageCount": 1,
+      "loadedProxyImages": [
+        {
+          "src": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg",
+          "alt": "Aero",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        }
+      ],
+      "brokenProxyImages": []
+    },
+    {
+      "route": "/pubg/events/pubg-mahasangram-2-0",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/pubg/events/pubg-mahasangram-2-0",
+      "proxyImageCount": 20,
+      "loadedProxyImages": [
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "M8 Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "N3P Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg",
+          "alt": "FYB Esports",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "NPL Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "Omega Tactix",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg",
+          "alt": "KDS Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "Mandem Boys",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Muji Verse",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "LTG Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg",
+          "alt": "Sons of Nepal Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Lost MC Esports",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "69 Esports Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "Shikhar Ice",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg",
+          "alt": "Revive Me Bro",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "ZENO",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg",
+          "alt": "Two Wheel Enjoyers",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        }
+      ],
+      "brokenProxyImages": []
+    },
+    {
+      "route": "/events/pubg-mahasangram-2-0",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/events/pubg-mahasangram-2-0",
+      "proxyImageCount": 1,
+      "loadedProxyImages": [
+        {
+          "src": "/api/uploads/r2?key=events%2Flaunch-event-banner.svg",
+          "alt": "PUBG Mahasangram 2.0",
+          "naturalWidth": 1280,
+          "naturalHeight": 720,
+          "complete": true
+        }
+      ],
+      "brokenProxyImages": []
+    },
+    {
+      "route": "/news",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/news",
+      "proxyImageCount": 0,
+      "loadedProxyImages": [],
+      "brokenProxyImages": []
+    },
+    {
+      "route": "/media",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/media",
+      "proxyImageCount": 0,
+      "loadedProxyImages": [],
+      "brokenProxyImages": []
+    },
+    {
+      "route": "/sponsors",
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/sponsors",
+      "proxyImageCount": 0,
+      "loadedProxyImages": [],
+      "brokenProxyImages": []
+    }
+  ]
+}

@@ -1316,18 +1316,38 @@ function normalizeStoredMatchForDisplay(match: TournamentMatch): TournamentMatch
 async function getMatchSequenceNumbers(tournamentId: string, matchIds: string[]) {
   const existingMatches = await getTournamentMatches(tournamentId, { includeDrafts: true });
   const sequenceNumberByMatchId = new Map<string, number>();
+  const availableDraftShellNumbers: number[] = [];
 
   for (const existingMatch of existingMatches) {
-    if (typeof existingMatch.sequenceNumber === "number" && Number.isFinite(existingMatch.sequenceNumber)) {
-      sequenceNumberByMatchId.set(existingMatch.pubgMatchId, existingMatch.sequenceNumber);
+    const sequenceNumber = existingMatch.matchNumber ?? existingMatch.sequenceNumber;
+    if (!Number.isFinite(sequenceNumber)) {
+      continue;
+    }
+
+    if (existingMatch.pubgMatchId) {
+      sequenceNumberByMatchId.set(existingMatch.pubgMatchId, sequenceNumber);
+    }
+
+    const isEmptyDraftShell =
+      existingMatch.status === "draft" &&
+      (existingMatch.teamResults?.length ?? 0) === 0 &&
+      (existingMatch.playerResults?.length ?? 0) === 0;
+
+    if (isEmptyDraftShell) {
+      availableDraftShellNumbers.push(sequenceNumber);
     }
   }
 
   let nextSequenceNumber = Math.max(0, ...Array.from(sequenceNumberByMatchId.values()));
   for (const matchId of matchIds) {
     if (!sequenceNumberByMatchId.has(matchId)) {
-      nextSequenceNumber += 1;
-      sequenceNumberByMatchId.set(matchId, nextSequenceNumber);
+      const nextDraftShellNumber = availableDraftShellNumbers.shift();
+      if (typeof nextDraftShellNumber === "number" && Number.isFinite(nextDraftShellNumber)) {
+        sequenceNumberByMatchId.set(matchId, nextDraftShellNumber);
+      } else {
+        nextSequenceNumber += 1;
+        sequenceNumberByMatchId.set(matchId, nextSequenceNumber);
+      }
     }
   }
 

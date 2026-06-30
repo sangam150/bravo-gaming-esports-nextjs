@@ -12,12 +12,19 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import {
   normalizeUploadType,
+  normalizeUploadFolder,
   sanitizeStorageSegment,
   sanitizeUploadFileName,
   STORAGE_TARGET_BY_TYPE,
   type UploadType,
 } from "@/lib/upload-config";
-import { getR2Client, getR2PrivateBucketName, getR2PublicBaseUrl, getR2PublicBucketName } from "./client";
+import {
+  getR2Client,
+  getR2PrivateBucketName,
+  getR2PublicBaseUrl,
+  getR2PublicBucketName,
+  getR2PublicDeliveryMode,
+} from "./client";
 import type { BuildStoragePathResult, ManagedUploadRecord, PresignedUploadResult, StorageVisibility } from "./types";
 
 function trimSlashes(value: string) {
@@ -149,7 +156,13 @@ async function deleteLegacySupabaseObject(bucketName: string, filePath: string) 
 }
 
 export function buildPublicFileUrl(objectKey: string) {
-  return `${getR2PublicBaseUrl()}/${normalizeObjectKey(objectKey)}`;
+  const normalizedObjectKey = normalizeObjectKey(objectKey);
+
+  if (getR2PublicDeliveryMode() === "proxy") {
+    return `/api/uploads/r2?key=${encodeURIComponent(normalizedObjectKey)}`;
+  }
+
+  return `${getR2PublicBaseUrl()}/${normalizedObjectKey}`;
 }
 
 export function buildPrivateUploadUrl(uploadId: string) {
@@ -333,6 +346,71 @@ export async function getPrivateObject(filePath: string): Promise<GetObjectComma
       Bucket: getR2PrivateBucketName(),
       Key: normalizeObjectKey(filePath),
     })
+  );
+}
+
+export async function getPublicObject(filePath: string): Promise<GetObjectCommandOutput> {
+  return getR2Client().send(
+    new GetObjectCommand({
+      Bucket: getR2PublicBucketName(),
+      Key: normalizeObjectKey(filePath),
+    })
+  );
+}
+
+export function normalizeManagedPublicObjectKey(filePath: string) {
+  const normalizedKey = normalizeObjectKey(filePath);
+  const segments = normalizedKey.split("/").filter(Boolean);
+  const [folder, demoSeedTag, demoFolder] = segments;
+
+  if (!folder || normalizedKey.includes("..")) {
+    return null;
+  }
+
+  if (normalizeUploadFolder(folder)) {
+    return normalizedKey;
+  }
+
+  // Demo preview assets live under demo/<seed-tag>/<managed-folder>/... so they can be cleaned up safely.
+  if (
+    folder === "demo" &&
+    segments.length >= 4 &&
+    demoSeedTag &&
+    /^[a-z0-9_-]+$/i.test(demoSeedTag) &&
+    demoFolder &&
+    normalizeUploadFolder(demoFolder)
+  ) {
+    return normalizedKey;
+  }
+
+  if (!normalizeUploadFolder(folder)) {
+    return null;
+  }
+
+  return normalizedKey;
+}
+
+export function isR2ObjectMissingError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as {
+    Code?: string;
+    code?: string;
+    name?: string;
+    message?: string;
+    $metadata?: { httpStatusCode?: number };
+  };
+
+  return (
+    candidate.$metadata?.httpStatusCode === 404 ||
+    candidate.Code === "NoSuchKey" ||
+    candidate.code === "NoSuchKey" ||
+    candidate.name === "NoSuchKey" ||
+    candidate.name === "NotFound" ||
+    candidate.message?.includes("NoSuchKey") === true ||
+    candidate.message?.includes("not found") === true
   );
 }
 

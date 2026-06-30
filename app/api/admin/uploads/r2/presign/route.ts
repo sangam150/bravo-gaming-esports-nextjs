@@ -33,16 +33,16 @@ export async function POST(request: Request) {
     const size = typeof body.size === "number" ? body.size : Number(body.size);
 
     if (!type || !fileName || !contentType || !Number.isFinite(size)) {
-      return Response.json({ error: "type, fileName, contentType, and size are required" }, { status: 400 });
+      return Response.json({ success: false, error: "type, fileName, contentType, and size are required" }, { status: 400 });
     }
 
     if (isPrivateUploadType(type)) {
-      return Response.json({ error: "Private uploads must go through the authenticated server upload route." }, { status: 400 });
+      return Response.json({ success: false, error: "Private uploads must go through the authenticated server upload route." }, { status: 400 });
     }
 
     const expectedFolder = getUploadFolder(type);
     if (folder && folder !== expectedFolder) {
-      return Response.json({ error: "Upload folder does not match the selected upload type." }, { status: 400 });
+      return Response.json({ success: false, error: "Upload folder does not match the selected upload type." }, { status: 400 });
     }
 
     const validationError = validateUpload({
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     });
 
     if (validationError) {
-      return Response.json({ error: validationError }, { status: 400 });
+      return Response.json({ success: false, error: validationError }, { status: 400 });
     }
 
     const resolvedContentType =
@@ -74,10 +74,10 @@ export async function POST(request: Request) {
       },
     });
 
-    return Response.json({ success: true, ...presignedUpload, folder: expectedFolder });
+    return Response.json({ success: true, ...presignedUpload, key: presignedUpload.path, folder: expectedFolder });
   } catch (error: unknown) {
     await logServerError("admin.upload.r2.presign", error, request);
     const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ success: false, error: message }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import TeamAvatar from "@/components/ui/TeamAvatar";
-import type { PlatformHubData, PlatformMediaItem, PlatformSponsorProfile } from "@/lib/platform-hub";
+import type { PlatformHubData, PlatformSponsorProfile } from "@/lib/platform-hub";
 import type {
   PubgHubDataset,
   PubgHubEvent,
@@ -492,9 +492,9 @@ function HubTeamCard({
   rank: number;
 }) {
   return (
-    <div className="rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-4">
+    <div className="h-full rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-4">
       <div className="flex items-start gap-3">
-        <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
+        <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <RankBadge rank={rank} />
@@ -534,9 +534,9 @@ function HubPlayerCard({
   rank: number;
 }) {
   return (
-    <div className="rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-4">
+    <div className="h-full rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-4">
       <div className="flex items-start gap-3">
-        <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="md" />
+        <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <RankBadge rank={rank} />
@@ -560,9 +560,68 @@ function HubPlayerCard({
   );
 }
 
+function SidebarTeamRow({
+  team,
+  rank,
+}: {
+  team: PubgHubTeam;
+  rank: number;
+}) {
+  return (
+    <Link
+      href={`/pubg/teams/${team.slug || team.id}`}
+      className="flex items-center justify-between gap-3 rounded-[20px] border border-white/[0.08] bg-[#0b1521] px-4 py-3 transition hover:border-accent-blue/30 hover:bg-[#101a28]"
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <RankBadge rank={rank} />
+        <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="sm" />
+        <div className="min-w-0">
+          <p className="truncate font-semibold uppercase text-white">{team.name}</p>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">{team.kills} kills | {team.wins} WWCD</p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="font-mono-stat text-sm text-accent-blue-light">{formatNumber(team.totalPoints)}</p>
+        <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Points</p>
+      </div>
+    </Link>
+  );
+}
+
+function SidebarPlayerRow({
+  player,
+  rank,
+}: {
+  player: PubgHubPlayer;
+  rank: number;
+}) {
+  return (
+    <Link
+      href={`/pubg/players/${player.slug || player.id}`}
+      className="flex items-center justify-between gap-3 rounded-[20px] border border-white/[0.08] bg-[#0b1521] px-4 py-3 transition hover:border-accent-blue/30 hover:bg-[#101a28]"
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <RankBadge rank={rank} />
+        <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="sm" />
+        <div className="min-w-0">
+          <p className="truncate font-semibold uppercase text-white">{player.pubgName}</p>
+          <p className="truncate text-[10px] uppercase tracking-[0.16em] text-text-muted">
+            {player.currentTeamName ?? "Team TBD"}
+          </p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="font-mono-stat text-sm text-accent-blue-light">{formatNumber(player.kills)}</p>
+        <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Kills</p>
+      </div>
+    </Link>
+  );
+}
+
 function PartnerRailCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
   const visualAsset = sponsor.logoUrl ?? sponsor.bannerUrl ?? sponsor.designAssetUrl ?? null;
-  const description = sponsor.description?.trim() || "Partner details will be updated soon.";
+  const rawDescription = sponsor.description?.trim() || "Partner details will be updated soon.";
+  const description = rawDescription.length > 120 ? `${rawDescription.slice(0, 117).trim()}...` : rawDescription;
 
   return (
     <div className="rounded-[22px] border border-white/[0.08] bg-[#0b1521] p-4">
@@ -603,31 +662,6 @@ function PartnerRailCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
   );
 }
 
-function MediaRailCard({ item }: { item: PlatformMediaItem }) {
-  return (
-    <div className="overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#0b1521]">
-      {item.imageUrl ? <img src={item.imageUrl} alt={item.title} className="h-36 w-full object-cover" /> : null}
-      <div className="p-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">
-          {item.kind} | {item.category}
-        </p>
-        <h3 className="mt-2 font-display text-base font-black uppercase text-white">{item.title}</h3>
-        <p className="mt-2 text-sm text-text-muted">{item.summary}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link href={`/media/${item.slug}`} className="btn-secondary">
-            Open Media
-          </Link>
-          {item.url ? (
-            <a href={item.url} target="_blank" rel="noreferrer" className="btn-primary">
-              Watch
-            </a>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function PubgDashboardPage({
   dataset,
   activeSeason,
@@ -638,7 +672,6 @@ export function PubgDashboardPage({
   activeEvents,
   mapPulse,
   partners,
-  latestMedia,
 }: {
   dataset: Awaited<ReturnType<typeof import("@/lib/pubg-hub").getPubgDashboardData>>;
   activeSeason: PubgDashboardSeasonSummary | null;
@@ -649,20 +682,20 @@ export function PubgDashboardPage({
   activeEvents: PubgHubEvent[];
   mapPulse: PubgHubTeam["mapStats"];
   partners: PlatformSponsorProfile[];
-  latestMedia: PlatformMediaItem[];
 }) {
   const playerLookup = buildPlayerLookup(dataset);
   const hasVerifiedCompetitionData = dataset.source === "supabase";
   const publishedMatches = hasVerifiedCompetitionData ? recentMatches.filter((match) => match.status === "published").slice(0, 4) : [];
-  const leaderboardTeams = hasVerifiedCompetitionData ? dataset.teams.slice(0, 8) : [];
-  const leaderboardPlayers = hasVerifiedCompetitionData ? dataset.players.slice(0, 8) : [];
-  const featuredEvents = hasVerifiedCompetitionData ? recentEvents.slice(0, 4) : [];
+  const leaderboardTeams = hasVerifiedCompetitionData ? dataset.teams.slice(0, 6) : [];
+  const leaderboardPlayers = hasVerifiedCompetitionData ? dataset.players.slice(0, 6) : [];
+  const featuredEvents = hasVerifiedCompetitionData ? recentEvents.slice(0, 3) : [];
   const scrimEvents = hasVerifiedCompetitionData
-    ? dataset.events.filter((event) => event.status !== "finished" && /scrim/i.test(event.type)).slice(0, 5)
+    ? dataset.events.filter((event) => event.status !== "finished" && /scrim/i.test(event.type)).slice(0, 3)
     : [];
-  const upcomingScrims = scrimEvents.length > 0 ? scrimEvents : featuredEvents.filter((event) => event.status !== "finished").slice(0, 5);
-  const sidebarTeams = hasVerifiedCompetitionData ? topTeams.slice(0, 4) : [];
-  const sidebarPlayers = hasVerifiedCompetitionData ? topPlayers.slice(0, 4) : [];
+  const upcomingScrims = scrimEvents.length > 0 ? scrimEvents : featuredEvents.filter((event) => event.status !== "finished").slice(0, 3);
+  const featuredTeams = hasVerifiedCompetitionData ? topTeams.slice(0, 4) : [];
+  const sidebarTeams = hasVerifiedCompetitionData ? topTeams.slice(0, 3) : [];
+  const sidebarPlayers = hasVerifiedCompetitionData ? topPlayers.slice(0, 3) : [];
   const spotlightEvent = hasVerifiedCompetitionData ? activeEvents[0] ?? recentEvents[0] ?? null : null;
   const latestWinner = publishedMatches[0]?.winnerTeamName ?? null;
   const mostWinsTeam = leaderboardTeams.length > 0 ? [...leaderboardTeams].sort((a, b) => b.wins - a.wins || b.totalPoints - a.totalPoints)[0] : null;
@@ -680,8 +713,8 @@ export function PubgDashboardPage({
   const latestMatchLabel = publishedMatches[0] ? `Match ${publishedMatches[0].matchNumber}` : "Awaiting result";
 
   return (
-    <main className="page-shell pb-12 pt-6">
-      <div className="page-stack">
+    <main className="page-shell overflow-x-hidden pb-12 pt-6">
+      <div className="page-stack overflow-x-hidden">
         <section className="relative overflow-hidden rounded-[36px] border border-white/[0.08] bg-[#050910] px-6 py-7 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:px-8">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_14%,rgba(29,155,240,0.16),transparent_28%),radial-gradient(circle_at_86%_18%,rgba(255,180,0,0.12),transparent_26%),linear-gradient(140deg,rgba(4,8,14,0.98),rgba(8,15,24,0.94))]" />
           <div className="relative z-10 space-y-6">
@@ -725,7 +758,7 @@ export function PubgDashboardPage({
 
         <DashboardSubnav />
 
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_360px]">
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.66fr)_320px]">
           <div className="space-y-6">
             <DashboardSection
               id="overview"
@@ -933,7 +966,7 @@ export function PubgDashboardPage({
               id="tournaments"
               eyebrow="Tournaments"
               title="Event and tournament cards"
-              description="Status, dates, teams, matches, prize pool, and winners stay readable at a glance."
+              description="Status, dates, teams, matches, and winners stay readable at a glance."
             >
               {featuredEvents.length > 0 ? (
                 <div className="grid gap-4 xl:grid-cols-2">
@@ -951,9 +984,9 @@ export function PubgDashboardPage({
               title="Top team cards"
               description="Logo-first cards keep rank, points, kills, WWCD, and recent form in one compact surface."
             >
-              {sidebarTeams.length > 0 ? (
+              {featuredTeams.length > 0 ? (
                 <div className="grid gap-4 xl:grid-cols-2">
-                  {sidebarTeams.map((team, index) => (
+                  {featuredTeams.map((team, index) => (
                     <HubTeamCard key={team.id} team={team} rank={index + 1} />
                   ))}
                 </div>
@@ -1029,7 +1062,7 @@ export function PubgDashboardPage({
               {sidebarTeams.length > 0 ? (
                 <div className="space-y-3">
                   {sidebarTeams.map((team, index) => (
-                    <HubTeamCard key={team.id} team={team} rank={index + 1} />
+                    <SidebarTeamRow key={team.id} team={team} rank={index + 1} />
                   ))}
                 </div>
               ) : (
@@ -1041,7 +1074,7 @@ export function PubgDashboardPage({
               {sidebarPlayers.length > 0 ? (
                 <div className="space-y-3">
                   {sidebarPlayers.map((player, index) => (
-                    <HubPlayerCard key={player.id} player={player} rank={index + 1} />
+                    <SidebarPlayerRow key={player.id} player={player} rank={index + 1} />
                   ))}
                 </div>
               ) : (
@@ -1061,17 +1094,6 @@ export function PubgDashboardPage({
               )}
             </DashboardSection>
 
-            <DashboardSection eyebrow="Latest Media" title="Video and media rail" description="Published PUBG media stays close to the standings and result flow.">
-              {latestMedia.length > 0 ? (
-                <div className="space-y-3">
-                  {latestMedia.map((item) => (
-                    <MediaRailCard key={item.id} item={item} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState title="No videos are currently available" description="Check back later for new content and broadcasts." />
-              )}
-            </DashboardSection>
           </aside>
         </section>
       </div>
@@ -1403,7 +1425,7 @@ export function PubgCommunityPage({
             description="Team cards pull from the same live PUBG dataset as the dedicated directory, but stay curated for faster community browsing."
             action={
               <Link href="/pubg/teams" className="btn-secondary">
-                Full team directory
+                View Full Directory
               </Link>
             }
           >
@@ -1433,7 +1455,7 @@ export function PubgCommunityPage({
             description="Player cards stay close to the community lane so fans, teams, and organizers can move quickly from announcements into live talent discovery."
             action={
               <Link href="/pubg/players" className="btn-secondary">
-                Full player directory
+                View Full Directory
               </Link>
             }
           >

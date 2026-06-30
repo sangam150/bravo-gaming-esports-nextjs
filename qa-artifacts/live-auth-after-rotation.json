@@ -1,0 +1,35 @@
+{
+  "ok": false,
+  "baseUrl": "https://bravo-gaming-esports-nextjs.vercel.app",
+  "adminEmail": "qa-rotate-admin-1782847594557@example.com",
+  "teamEmail": "qa-rotate-team-1782847594557@example.com",
+  "checks": {
+    "admin": {
+      "meStatus": 200,
+      "meAuthenticated": true,
+      "role": "admin",
+      "isAdmin": true,
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/admin",
+      "status": 200,
+      "matchedTexts": [],
+      "hasExpectedText": false,
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    "team": {
+      "meStatus": 200,
+      "meAuthenticated": true,
+      "role": "team_igl",
+      "teamId": "14000000-0000-4000-8000-000000000001",
+      "isAdmin": false,
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/team",
+      "status": 200,
+      "matchedTexts": [
+        "TEAM WORKSPACE"
+      ],
+      "hasExpectedText": false,
+      "consoleErrors": [],
+      "pageErrors": []
+    }
+  }
+}

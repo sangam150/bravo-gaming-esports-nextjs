@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import AdminDiscordLinkManager from "./AdminDiscordLinkManager";
 import AdminMatchManager from "./AdminMatchManager";
 import AdminTeamRequestsManager from "./AdminTeamRequestsManager";
 import AdminSidebar, { type AdminSection } from "./AdminSidebar";
@@ -361,6 +362,8 @@ export default function AdminDashboard({
   initialSection?: AdminSection;
   focusImportBatchId?: string | null;
 }) {
+  const demoSeedTag = "bravo_demo_seed_2026";
+  const discordAuthEnabled = process.env.NEXT_PUBLIC_DISCORD_AUTH_ENABLED === "true";
   const { user, logout } = useAdminAuth();
   const [section, setSection] = useState<AdminSection>(initialSection);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -506,6 +509,14 @@ export default function AdminDashboard({
       pendingRegistrations,
     };
   }, [liveMatches.length, messages, newsArticles, pendingImportBatches.length, players.length, recentUploads.length, registrations, scrims.length, stats?.totalPlayers, stats?.totalTeams, teams.length, tournaments.length]);
+
+  const hasDemoSeededData = useMemo(
+    () =>
+      Boolean(activeSeason?.notes?.includes(demoSeedTag)) ||
+      tournaments.some((tournament) => tournament.description?.includes(demoSeedTag)) ||
+      scrims.some((scrim) => scrim.announcement?.includes(demoSeedTag)),
+    [activeSeason?.notes, demoSeedTag, scrims, tournaments]
+  );
 
   useEffect(() => {
     setSection(initialSection);
@@ -1124,6 +1135,15 @@ export default function AdminDashboard({
           <div className={`rounded-2xl border px-4 py-3 text-sm ${error ? "border-bravoRed/30 bg-bravoRed/10 text-red-300" : "border-bravoGreen/30 bg-bravoGreen/10 text-bravoGreen"}`}>
             {error ?? message}
             <button type="button" onClick={() => { setMessage(null); setError(null); }} className="ml-4 text-xs underline">Dismiss</button>
+          </div>
+        )}
+
+        {hasDemoSeededData && (
+          <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+            <span className="mr-3 inline-flex rounded-full border border-amber-300/40 bg-amber-300/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">
+              Demo
+            </span>
+            Launch preview data is currently seeded. Run <code>npm run clear:demo</code> before final production launch.
           </div>
         )}
 
@@ -1759,7 +1779,18 @@ export default function AdminDashboard({
 
         {section === "sponsors" && <AdminSponsorsManager />}
 
-        {section === "teamRequests" && <AdminTeamRequestsManager />}
+        {section === "teamRequests" && (
+          <div className="space-y-10">
+            {discordAuthEnabled ? (
+              <AdminDiscordLinkManager />
+            ) : (
+              <div className="esports-card border border-white/10 bg-white/[0.03] p-6 text-sm text-text-muted">
+                Discord OAuth is disabled for first launch. Team login stays on email/password until provider credentials are configured.
+              </div>
+            )}
+            <AdminTeamRequestsManager />
+          </div>
+        )}
 
         {section === "inbox" && (
           <div className="space-y-6">

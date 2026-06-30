@@ -7,6 +7,14 @@ export async function GET(request: Request) {
   }
   return Response.json({
     authenticated: true,
+    profileId: session.profileId,
+    uid: session.uid,
+    email: session.email,
+    role: session.role,
+    teamId: session.teamId,
+    playerId: session.playerId,
+    displayName: session.displayName,
+    isAdmin: session.isAdmin,
     user: {
       profileId: session.profileId,
       uid: session.uid,

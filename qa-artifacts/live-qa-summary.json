@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T20:05:08.278Z",
+  "generatedAt": "2026-06-30T15:05:58.823Z",
   "passed": [
     {
       "label": "Homepage",
@@ -74,14 +74,6 @@
       "route": "/team"
     },
     {
-      "label": "Event detail",
-      "route": "/events/daily-scrims-day-7"
-    },
-    {
-      "label": "Match detail",
-      "route": "/matches/cs2-himalayan-masters-showmatch"
-    },
-    {
       "label": "Sponsor detail",
       "route": "/sponsors/hukut"
     },
@@ -92,50 +84,38 @@
     {
       "label": "Admin login screen renders",
       "route": "/admin"
-    },
-    {
-      "label": "Team login screen renders",
-      "route": "/team"
-    },
-    {
-      "label": "Captured mobile-homepage",
-      "route": "/"
-    },
-    {
-      "label": "Captured mobile-pubg",
-      "route": "/pubg"
-    },
-    {
-      "label": "Captured mobile-rankings",
-      "route": "/rankings"
-    },
-    {
-      "label": "Captured mobile-admin",
-      "route": "/admin"
-    },
-    {
-      "label": "Captured mobile-team",
-      "route": "/team"
-    },
-    {
-      "label": "Captured mobile event detail",
-      "route": "/events/daily-scrims-day-7"
-    },
-    {
-      "label": "Captured mobile match detail",
-      "route": "/matches/cs2-himalayan-masters-showmatch"
     }
   ],
-  "failed": [
-    {
-      "label": "admin-login-attempt",
-      "details": [
-        "Admin login did not complete: Email not confirmed"
-      ],
-      "screenshot": "E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\qa-artifacts\\issues\\admin-login-attempt.png"
-    }
-  ],
+  "failed": [],
   "skipped": [
+    {
+      "label": "Header nav Games",
+      "reason": "Link not found"
+    },
+    {
+      "label": "Header nav Calendar",
+      "reason": "Link not found"
+    },
+    {
+      "label": "Header nav Matches",
+      "reason": "Link not found"
+    },
+    {
+      "label": "Header nav Rankings",
+      "reason": "Link not found"
+    },
+    {
+      "label": "Homepage CTA Explore Events",
+      "reason": "CTA not visible in current data state"
+    },
+    {
+      "label": "Homepage CTA Join Community",
+      "reason": "CTA not visible in current data state"
+    },
+    {
+      "label": "Event detail",
+      "reason": "No detail links found for prefix /events/"
+    },
     {
       "label": "Team detail",
       "reason": "No detail links found for prefix /teams/"
@@ -143,24 +123,25 @@
     {
       "label": "Player detail",
       "reason": "No detail links found for prefix /players/"
+    },
+    {
+      "label": "Match detail",
+      "reason": "No detail links found for prefix /matches/"
+    },
+    {
+      "label": "Admin login role test",
+      "reason": "Could not determine auth result from UI"
     }
   ],
   "notes": [
     "Clicked header nav item News.",
-    "Clicked header nav item Games.",
     "Clicked header nav item Events.",
-    "Clicked header nav item Calendar.",
-    "Clicked header nav item Matches.",
     "Clicked header nav item Teams.",
     "Clicked header nav item Players.",
-    "Clicked header nav item Rankings.",
     "Clicked header nav item Media.",
     "Clicked header nav item Sponsors.",
     "Clicked header nav item Community.",
     "Opened homepage CTA Watch Live.",
-    "Opened homepage CTA Explore Events.",
-    "Opened homepage CTA Join Community.",
-    "Submitted search/filter form on News.",
     "Submitted search/filter form on Events.",
     "Submitted search/filter form on Teams.",
     "Submitted search/filter form on Players.",
@@ -170,11 +151,7 @@
     "Submitted search/filter form on PUBG Teams.",
     "Submitted search/filter form on PUBG Players.",
     "Submitted the public contact form.",
-    "Opened detail route /events/daily-scrims-day-7 for Event detail.",
-    "Opened detail route /matches/cs2-himalayan-masters-showmatch for Match detail.",
     "Opened detail route /sponsors/hukut for Sponsor detail.",
-    "Opened detail route /games/valorant for Game detail.",
-    "Opened detail route /events/daily-scrims-day-7 for Mobile event detail.",
-    "Opened detail route /matches/cs2-himalayan-masters-showmatch for Mobile match detail."
+    "Opened detail route /games/valorant for Game detail."
   ]
 }

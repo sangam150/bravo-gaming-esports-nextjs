@@ -2,13 +2,14 @@ import "server-only";
 import { cookies } from "next/headers";
 import type { User } from "@supabase/supabase-js";
 import { isAdminRole as isAdminRoleHelper, isPlatformRole } from "./authz";
+import { extractDiscordUserId } from "./discord-auth";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import type { Tables } from "@/types/database.types";
 
 export const SESSION_COOKIE = "bravo_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 5; // 5 days
 
-type ProfileRecord = Pick<Tables<"profiles">, "id" | "role" | "team_id" | "display_name">;
+type ProfileRecord = Pick<Tables<"profiles">, "id" | "role" | "team_id" | "display_name" | "discord_user_id">;
 type LegacyUserRecord = Pick<Tables<"users">, "id" | "role" | "team_id" | "name">;
 type KnownProfileRecord = ProfileRecord | LegacyUserRecord;
 type ResolvedIdentityOverride = {
@@ -43,22 +44,6 @@ export type VerifiedSession = {
 
 export function isAdminRole(role: string | null | undefined) {
   return isAdminRoleHelper(role);
-}
-
-export function getAdminEmails(): string[] {
-  return (process.env.ADMIN_EMAIL || "")
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function isConfiguredAdminEmail(email: string) {
-  const normalizedEmail = email.trim().toLowerCase();
-  if (!normalizedEmail) {
-    return false;
-  }
-
-  return getAdminEmails().includes(normalizedEmail);
 }
 
 function isProfileRecord(record: KnownProfileRecord | null): record is ProfileRecord {
@@ -187,8 +172,23 @@ async function getProfileFromProfiles(authUserId: string): Promise<ProfileRecord
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client
     .from("profiles")
-    .select("id,role,team_id,display_name")
+    .select("id,role,team_id,display_name,discord_user_id")
     .eq("auth_user_id", authUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as ProfileRecord | null;
+}
+
+async function getProfileFromDiscordUserId(discordUserId: string): Promise<ProfileRecord | null> {
+  const client = getSupabaseServiceRoleClient();
+  const { data, error } = await client
+    .from("profiles")
+    .select("id,role,team_id,display_name,discord_user_id")
+    .eq("discord_user_id", discordUserId)
     .maybeSingle();
 
   if (error) {
@@ -213,9 +213,18 @@ async function getProfileFromUsers(authUserId: string): Promise<LegacyUserRecord
   return (data ?? null) as LegacyUserRecord | null;
 }
 
-async function getUserProfileRecord(authUserId: string) {
+async function getUserProfileRecord(authUserId: string, discordUserId?: string | null) {
   try {
-    return await getProfileFromProfiles(authUserId);
+    const profileRecord = await getProfileFromProfiles(authUserId);
+    if (profileRecord) {
+      return profileRecord;
+    }
+
+    if (discordUserId) {
+      return await getProfileFromDiscordUserId(discordUserId);
+    }
+
+    return null;
   } catch (error: unknown) {
     const message = getErrorMessage(error);
     if (!/profiles/i.test(message)) {
@@ -226,12 +235,12 @@ async function getUserProfileRecord(authUserId: string) {
   return getProfileFromUsers(authUserId).catch(() => null);
 }
 
-function normalizeRole(role: string | null | undefined, email: string) {
+function normalizeRole(role: string | null | undefined) {
   if (isPlatformRole(role)) {
     return role;
   }
 
-  return isConfiguredAdminEmail(email) ? "admin" : "viewer";
+  return "viewer";
 }
 
 function resolveVerifiedSession(input: {
@@ -240,37 +249,37 @@ function resolveVerifiedSession(input: {
 }) {
   const metadataOverride = getAuthMetadataOverride(input.user);
   const configuredOverride = getConfiguredIdentityOverride(input.user.id, input.user.email ?? "");
-  const role = normalizeRole(
-    input.profileRecord?.role ?? metadataOverride.role ?? configuredOverride.role,
-    input.user.email ?? ""
-  );
+  const role = normalizeRole(metadataOverride.role ?? input.profileRecord?.role ?? null);
 
   return {
     profileId: input.profileRecord?.id ?? null,
     uid: input.user.id,
     email: input.user.email ?? "",
     role,
-    teamId: input.profileRecord?.team_id ?? metadataOverride.teamId ?? configuredOverride.teamId ?? null,
+    teamId: metadataOverride.teamId ?? input.profileRecord?.team_id ?? configuredOverride.teamId ?? null,
     playerId: metadataOverride.playerId ?? configuredOverride.playerId ?? null,
-    displayName: isProfileRecord(input.profileRecord)
-      ? input.profileRecord.display_name ?? null
-      : isLegacyUserRecord(input.profileRecord)
-      ? input.profileRecord.name ?? null
-      : metadataOverride.displayName ?? configuredOverride.displayName ?? null,
+    displayName:
+      metadataOverride.displayName ??
+      (isProfileRecord(input.profileRecord)
+        ? input.profileRecord.display_name ?? null
+        : isLegacyUserRecord(input.profileRecord)
+        ? input.profileRecord.name ?? null
+        : configuredOverride.displayName ?? null),
     isAdmin: isAdminRole(role),
   } satisfies VerifiedSession;
 }
 
-function canProvisionProfile(session: VerifiedSession) {
+function canProvisionProfile(user: User, session: VerifiedSession) {
   return Boolean(
     !session.profileId &&
+      !extractDiscordUserId(user) &&
       session.email &&
       (session.isAdmin || session.role === "coach" || session.role === "team_igl" || session.role === "team_manager")
   );
 }
 
 async function maybeProvisionProfile(user: User, session: VerifiedSession) {
-  if (!canProvisionProfile(session) || !user.email) {
+  if (!canProvisionProfile(user, session) || !user.email) {
     return null;
   }
 
@@ -291,7 +300,7 @@ async function maybeProvisionProfile(user: User, session: VerifiedSession) {
         profilePayload,
         { onConflict: "auth_user_id" }
       )
-      .select("id,role,team_id,display_name")
+      .select("id,role,team_id,display_name,discord_user_id")
       .maybeSingle();
 
     if (error) {
@@ -315,7 +324,7 @@ async function maybeProvisionProfile(user: User, session: VerifiedSession) {
           },
           { onConflict: "auth_user_id" }
         )
-        .select("id,role,team_id,display_name")
+        .select("id,role,team_id,display_name,discord_user_id")
         .maybeSingle();
 
       if (retryError) {
@@ -376,7 +385,7 @@ export async function verifyAccessToken(accessToken: string) {
     throw new Error("Unauthorized: invalid session");
   }
 
-  const profileRecord = await getUserProfileRecord(user.id);
+  const profileRecord = await getUserProfileRecord(user.id, extractDiscordUserId(user));
   const resolvedSession = resolveVerifiedSession({
     user,
     profileRecord,

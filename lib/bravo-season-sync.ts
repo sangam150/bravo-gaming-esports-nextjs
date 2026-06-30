@@ -159,7 +159,7 @@ export async function syncBravoDailyScrimSeason(options?: {
   const currentDay = Math.max(1, options?.currentDay ?? existingSeason?.currentDay ?? DEFAULT_CURRENT_DAY);
   const now = new Date().toISOString();
 
-  const tournaments = await getTournaments();
+  const tournaments = await getTournaments(undefined, { includeInternal: true });
   const deprecatedFeedTournaments = tournaments.filter(
     (tournament) =>
       tournament.sourceProvider === "bravo_feed" &&
@@ -171,7 +171,8 @@ export async function syncBravoDailyScrimSeason(options?: {
     await Promise.all(deprecatedFeedTournaments.map((tournament) => purgeTournamentScope(tournament.id)));
   }
 
-  const refreshedTournaments = deprecatedFeedTournaments.length > 0 ? await getTournaments() : tournaments;
+  const refreshedTournaments =
+    deprecatedFeedTournaments.length > 0 ? await getTournaments(undefined, { includeInternal: true }) : tournaments;
   const existingSeasonTournaments = refreshedTournaments.filter((tournament) => tournament.seasonId === BRAVO_SEASON_SLUG);
   const importedBravoTournaments = refreshedTournaments
     .filter(

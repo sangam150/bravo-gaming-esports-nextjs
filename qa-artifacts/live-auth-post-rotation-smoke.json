@@ -1,0 +1,49 @@
+{
+  "ok": true,
+  "baseUrl": "https://bravo-gaming-esports-nextjs.vercel.app",
+  "liveTeamId": "3eb01646-5ac4-4af0-b5a1-f4b581a33240",
+  "adminEmail": "qa-final-admin-1782848068649@example.com",
+  "teamEmail": "qa-final-team-1782848068649@example.com",
+  "checks": {
+    "admin": {
+      "sessionStatus": 200,
+      "meStatus": 200,
+      "meAuthenticated": true,
+      "role": "admin",
+      "isAdmin": true,
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/admin",
+      "matchedTexts": [
+        "admin"
+      ],
+      "headingTexts": [
+        "ADMIN LOGIN",
+        "Nepal's PUBG PC home base"
+      ],
+      "hasExpectedText": true,
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    "team": {
+      "sessionStatus": 200,
+      "meStatus": 200,
+      "meAuthenticated": true,
+      "role": "team_igl",
+      "teamId": "3eb01646-5ac4-4af0-b5a1-f4b581a33240",
+      "isAdmin": false,
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/team",
+      "matchedTexts": [
+        "team workspace"
+      ],
+      "headingTexts": [
+        "TEAM WORKSPACE",
+        "TEAM LOGIN",
+        "NEPAL'S PUBG PC HOME BASE"
+      ],
+      "hasExpectedText": true,
+      "consoleErrors": [],
+      "pageErrors": []
+    }
+  }
+}

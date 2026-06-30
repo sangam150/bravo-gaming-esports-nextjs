@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-06-29T23:58:10.665Z",
+  "admin": {
+    "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/admin",
+    "title": "Admin | Bravo Gaming Esports | Bravo Gaming Esports",
+    "hasDashboardText": true
+  },
+  "team": {
+    "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/team/login",
+    "title": "Team Login | Bravo Gaming Esports",
+    "discordButtons": 0,
+    "hasWorkspaceText": true,
+    "hasTeamName": false
+  },
+  "failures": [
+    "Remote team login did not reach workspace."
+  ],
+  "cleanup": {
+    "deletedUsers": [
+      {
+        "userId": "ac87ccf8-1e43-4e54-adda-ba347ee56cbc",
+        "ok": true,
+        "error": null
+      },
+      {
+        "userId": "2946c71b-ca1a-4f40-8047-c1dddfab1715",
+        "ok": true,
+        "error": null
+      }
+    ]
+  }
+}

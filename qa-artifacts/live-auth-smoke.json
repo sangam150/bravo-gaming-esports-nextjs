@@ -1,0 +1,81 @@
+{
+  "ok": false,
+  "baseUrl": "https://bravo-gaming-esports-nextjs.vercel.app",
+  "adminEmail": "qa-live-admin-20260630162706@example.com",
+  "teamEmail": "qa-live-team-20260630162706@example.com",
+  "teamId": "ce657b14-c10f-4fc1-87ea-7f66605da54e",
+  "checks": {
+    "adminApiBootstrap": {
+      "status": 200,
+      "hasCookie": true,
+      "bodySnippet": "{\"success\":true,\"authenticated\":true,\"role\":\"admin\",\"teamId\":null,\"playerId\":null,\"isAdmin\":true,\"user\":{\"profileId\":\"dfac9bf6-fd32-4c6b-a430-dd76943c3aeb\",\"uid\":\"dfac9bf6-fd32-4c6b-a430-dd76943c3aeb\",\"email\":\"qa-live-admin-20260630162706@example.com\",\"role\":\"admin\",\"teamId\":null,\"playerId\":null,\"di"
+    },
+    "adminApiSession": {
+      "meStatus": 200,
+      "meJson": {
+        "authenticated": true,
+        "profileId": "dfac9bf6-fd32-4c6b-a430-dd76943c3aeb",
+        "uid": "dfac9bf6-fd32-4c6b-a430-dd76943c3aeb",
+        "email": "qa-live-admin-20260630162706@example.com",
+        "role": "admin",
+        "teamId": null,
+        "playerId": null,
+        "displayName": "QA Live Admin 20260630162706",
+        "isAdmin": true,
+        "user": {
+          "profileId": "dfac9bf6-fd32-4c6b-a430-dd76943c3aeb",
+          "uid": "dfac9bf6-fd32-4c6b-a430-dd76943c3aeb",
+          "email": "qa-live-admin-20260630162706@example.com",
+          "role": "admin",
+          "teamId": null,
+          "playerId": null,
+          "displayName": "QA Live Admin 20260630162706",
+          "isAdmin": true
+        }
+      },
+      "teamStatus": 403,
+      "adminStatus": 200
+    },
+    "teamApiBootstrap": {
+      "status": 200,
+      "hasCookie": true,
+      "bodySnippet": "{\"success\":true,\"authenticated\":true,\"role\":\"team_igl\",\"teamId\":\"ce657b14-c10f-4fc1-87ea-7f66605da54e\",\"playerId\":null,\"isAdmin\":false,\"user\":{\"profileId\":\"26ef898e-45fb-478f-b110-0d4cf6b55f82\",\"uid\":\"26ef898e-45fb-478f-b110-0d4cf6b55f82\",\"email\":\"qa-live-team-20260630162706@example.com\",\"role\":\"tea"
+    },
+    "teamApiSession": {
+      "meStatus": 200,
+      "meJson": {
+        "authenticated": true,
+        "profileId": "26ef898e-45fb-478f-b110-0d4cf6b55f82",
+        "uid": "26ef898e-45fb-478f-b110-0d4cf6b55f82",
+        "email": "qa-live-team-20260630162706@example.com",
+        "role": "team_igl",
+        "teamId": "ce657b14-c10f-4fc1-87ea-7f66605da54e",
+        "playerId": null,
+        "displayName": "QA Live Team 20260630162706",
+        "isAdmin": false,
+        "user": {
+          "profileId": "26ef898e-45fb-478f-b110-0d4cf6b55f82",
+          "uid": "26ef898e-45fb-478f-b110-0d4cf6b55f82",
+          "email": "qa-live-team-20260630162706@example.com",
+          "role": "team_igl",
+          "teamId": "ce657b14-c10f-4fc1-87ea-7f66605da54e",
+          "playerId": null,
+          "displayName": "QA Live Team 20260630162706",
+          "isAdmin": false
+        }
+      },
+      "teamStatus": 200,
+      "adminStatus": 403
+    }
+  },
+  "error": {
+    "message": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[placeholder=\"Email address\"]')\u001b[22m\n",
+    "stack": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[placeholder=\"Email address\"]')\u001b[22m\n\n    at verifyLogin (E:\\Bravo Gaming Esports\\bravo-gaming-esports-nextjs\\[eval1]:98:62)\n    at async file:///E:/Bravo%20Gaming%20Esports/bravo-gaming-esports-nextjs/[eval1]:174:3",
+    "json": {
+      "log": [
+        "  - waiting for locator('input[placeholder=\"Email address\"]')"
+      ],
+      "name": "TimeoutError"
+    }
+  }
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
+import { buildDiscordAuthCallbackUrl } from "@/lib/discord-auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
@@ -49,11 +50,13 @@ function getVariantContent(variant: LoginVariant) {
 
 export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps) {
   const configured = isSupabaseConfigured();
+  const discordAuthEnabled = variant === "team" && process.env.NEXT_PUBLIC_DISCORD_AUTH_ENABLED === "true";
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [discordLoading, setDiscordLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const content = getVariantContent(variant);
 
@@ -129,6 +132,39 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDiscordLogin() {
+    if (!configured || !discordAuthEnabled) {
+      return;
+    }
+
+    setDiscordLoading(true);
+    setError(null);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const redirectTarget = searchParams.get("redirect") || "/team";
+      const redirectTo = buildDiscordAuthCallbackUrl(window.location.origin, redirectTarget);
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "discord",
+        options: {
+          redirectTo,
+          scopes: "identify email",
+        },
+      });
+
+      if (oauthError) {
+        throw oauthError;
+      }
+    } catch (submissionError: unknown) {
+      setError(
+        toUserFacingErrorMessage(submissionError, {
+          fallback: USER_FACING_ERROR_MESSAGES.login,
+        })
+      );
+      setDiscordLoading(false);
     }
   }
 
@@ -224,6 +260,23 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                   {loading ? "Checking access..." : content.buttonLabel}
                 </button>
               </div>
+
+              {discordAuthEnabled ? (
+                <div className="mt-5 border-t border-white/10 pt-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Discord Team Login</p>
+                  <p className="mt-2 text-sm text-text-muted">
+                    Use Discord only after a Bravo admin links your Discord user ID to your team-access profile.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleDiscordLogin()}
+                    disabled={discordLoading}
+                    className="btn-discord mt-4 w-full justify-center disabled:opacity-60"
+                  >
+                    {discordLoading ? "Redirecting to Discord..." : "Continue with Discord"}
+                  </button>
+                </div>
+              ) : null}
 
               <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 text-sm">
                 <span className="text-text-muted">Need help with your password?</span>

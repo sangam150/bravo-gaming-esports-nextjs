@@ -19,6 +19,7 @@ import {
 import type {
   MatchPlayerResult,
   PubgBulkImportResult,
+  PubgImportCandidate,
   PubgImportBatchPreviewMatch,
   PubgBulkPreviewResult,
   PubgDuplicateMode,
@@ -110,7 +111,7 @@ function normalizeMatchIds(value?: string) {
 }
 
 function normalizeMapRotation(value?: string) {
-  return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
+  return (value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean);
 }
 
 function slugify(value: string) {
@@ -357,11 +358,14 @@ export default function PubgImportManager({
   const [dayMap, setDayMap] = useState("");
   const [dayLobbyTime, setDayLobbyTime] = useState("8:00 PM NPT");
   const [dayMapRotation, setDayMapRotation] = useState(defaultMapRotation);
+  const [dayMatchCount, setDayMatchCount] = useState(4);
   const [duplicateMode, setDuplicateMode] = useState<PubgDuplicateMode>("overwrite");
   const [screenshotUrl, setScreenshotUrl] = useState("");
   const [watchers, setWatchers] = useState<PubgImportWatcher[]>([]);
+  const [candidates, setCandidates] = useState<PubgImportCandidate[]>([]);
   const [loadingLookup, setLoadingLookup] = useState(false);
   const [loadingWatchers, setLoadingWatchers] = useState(false);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [preparingDay, setPreparingDay] = useState(false);
   const [creatingSeason, setCreatingSeason] = useState(false);
   const [showSeasonForm, setShowSeasonForm] = useState(false);
@@ -369,6 +373,8 @@ export default function PubgImportManager({
   const [queueingPending, setQueueingPending] = useState(false);
   const [importing, setImporting] = useState(false);
   const [savingWatcher, setSavingWatcher] = useState(false);
+  const [autoPublishWatcher, setAutoPublishWatcher] = useState(false);
+  const [processingCandidateId, setProcessingCandidateId] = useState<string | null>(null);
   const [maintenanceMatchId, setMaintenanceMatchId] = useState("");
   const [maintenanceRawJson, setMaintenanceRawJson] = useState<string>("");
   const [maintenanceBusyAction, setMaintenanceBusyAction] = useState<"raw" | "repair" | "reset" | "reimport" | null>(null);
@@ -543,6 +549,7 @@ export default function PubgImportManager({
       setDayMap(selectedScrim.map ?? "");
       setDayLobbyTime(selectedScrim.lobbyTime ?? "8:00 PM NPT");
       setDayMapRotation((selectedScrim.mapRotation ?? []).join(", ") || defaultMapRotation);
+      setDayMatchCount(Math.max(1, selectedScrim.mapRotation?.length ?? 4));
       return;
     }
 
@@ -552,6 +559,7 @@ export default function PubgImportManager({
       setDayMap((selectedTournament.mapRotation ?? [])[0] ?? "");
       setDayLobbyTime("8:00 PM NPT");
       setDayMapRotation((selectedTournament.mapRotation ?? []).join(", ") || defaultMapRotation);
+      setDayMatchCount(Math.max(1, selectedTournament.mapRotation?.length ?? 4));
       return;
     }
 
@@ -561,6 +569,7 @@ export default function PubgImportManager({
       setDayMap("Rondo");
       setDayLobbyTime("8:00 PM NPT");
       setDayMapRotation(defaultMapRotation);
+      setDayMatchCount(4);
     }
   }, [selectedDayNumber, selectedScrim, selectedSeason, selectedTournament]);
 
@@ -576,8 +585,21 @@ export default function PubgImportManager({
     }
   }
 
+  async function loadCandidates() {
+    setLoadingCandidates(true);
+    try {
+      const response = await adminFetch("/api/admin/pubg/candidates");
+      setCandidates(response.data ?? []);
+    } catch (candidateError: unknown) {
+      setError(toUserFacingErrorMessage(candidateError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+    } finally {
+      setLoadingCandidates(false);
+    }
+  }
+
   useEffect(() => {
     void loadWatchers();
+    void loadCandidates();
   }, []);
 
   function applyResolvedDayContext(context?: {
@@ -610,6 +632,7 @@ export default function PubgImportManager({
       dayMap: dayMap.trim() || undefined,
       dayLobbyTime: dayLobbyTime.trim() || undefined,
       dayMapRotation: normalizedRotation.length > 0 ? normalizedRotation : undefined,
+      dayMatchCount: Math.max(1, Number(dayMatchCount) || 1),
     };
   }
 
@@ -887,6 +910,7 @@ export default function PubgImportManager({
       setDayMap("Rondo");
       setDayLobbyTime("8:00 PM NPT");
       setDayMapRotation(defaultMapRotation);
+      setDayMatchCount(4);
 
       if (options?.prepareDayOne) {
         const preparedDayResponse = await adminFetch("/api/admin/seasons/create-next-day", {
@@ -899,6 +923,7 @@ export default function PubgImportManager({
             dayMap: "Rondo",
             dayLobbyTime: "8:00 PM NPT",
             dayMapRotation: normalizeMapRotation(defaultMapRotation),
+            dayMatchCount: 4,
           }),
         });
 
@@ -1167,13 +1192,22 @@ export default function PubgImportManager({
           scrimId: selectedScrimId || undefined,
           enabled: true,
           autoImportNewMatches: true,
+          autoPublishCandidates: autoPublishWatcher,
           importedMatchIds: lookup.recentMatches
+            .filter((match) => match.alreadyImported)
+            .map((match) => match.matchId),
+          processedMatchIds: lookup.recentMatches
             .filter((match) => match.alreadyImported)
             .map((match) => match.matchId),
         }),
       });
-      setMessage(`Auto-import is enabled for ${lookup.playerName}.`);
+      setMessage(
+        autoPublishWatcher
+          ? `Auto-detect and auto-publish are enabled for ${lookup.playerName}.`
+          : `Auto-detect is enabled for ${lookup.playerName}.`
+      );
       await loadWatchers();
+      await loadCandidates();
     } catch (watcherError: unknown) {
       setError(toUserFacingErrorMessage(watcherError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
     } finally {
@@ -1201,6 +1235,57 @@ export default function PubgImportManager({
       await loadWatchers();
     } catch (watcherError: unknown) {
       setError(toUserFacingErrorMessage(watcherError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+    }
+  }
+
+  function previewCandidate(candidate: PubgImportCandidate) {
+    const preview = {
+      ...candidate.preview,
+      matchNumber: candidate.targetMatchNumber ?? candidate.preview.matchNumber,
+    };
+    applyResolvedDayContext({
+      seasonId: candidate.seasonId,
+      seasonDayNumber: candidate.seasonDayNumber,
+      tournamentId: candidate.tournamentId,
+      scrimId: candidate.scrimId,
+    });
+    setDirectMatchIds(candidate.matchId);
+    setSelectedMatchIds([candidate.matchId]);
+    setPreviewDrafts([createEditablePreview(preview)]);
+    setPreviewErrors([]);
+    setMessage(`Loaded auto-detect preview for ${candidate.matchId}.`);
+    setError(null);
+  }
+
+  async function handleCandidateAction(
+    candidateId: string,
+    action: "approve_publish" | "reject" | "force_import_draft"
+  ) {
+    setProcessingCandidateId(candidateId);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await adminFetch("/api/admin/pubg/candidates", {
+        method: "PATCH",
+        body: JSON.stringify({ id: candidateId, action }),
+      });
+      setMessage(
+        action === "approve_publish"
+          ? "Candidate published successfully."
+          : action === "force_import_draft"
+            ? "Candidate imported to draft."
+            : "Candidate rejected."
+      );
+      await loadCandidates();
+      await loadWatchers();
+      onImported?.();
+      return response.data as PubgImportCandidate;
+    } catch (candidateError: unknown) {
+      setError(toUserFacingErrorMessage(candidateError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      return null;
+    } finally {
+      setProcessingCandidateId(null);
     }
   }
 
@@ -1606,6 +1691,15 @@ export default function PubgImportManager({
 
         <input
           className={inputClass}
+          type="number"
+          min={1}
+          placeholder="Match count"
+          value={dayMatchCount}
+          onChange={(event) => setDayMatchCount(Math.max(1, Number(event.target.value) || 1))}
+        />
+
+        <input
+          className={inputClass}
           placeholder="Map rotation (comma separated)"
           value={dayMapRotation}
           onChange={(event) => setDayMapRotation(event.target.value)}
@@ -1631,11 +1725,19 @@ export default function PubgImportManager({
         />
 
         <div className="flex flex-wrap gap-3 sm:items-end">
+          <label className="inline-flex items-center gap-2 text-xs text-text-muted">
+            <input
+              type="checkbox"
+              checked={autoPublishWatcher}
+              onChange={(event) => setAutoPublishWatcher(event.target.checked)}
+            />
+            auto-publish 80+ confidence matches
+          </label>
           <button type="button" onClick={() => void handleSaveWatcher()} disabled={savingWatcher || !lookup} className={btnPrimary}>
             {savingWatcher ? "Saving..." : "Enable Auto-Import"}
           </button>
           <p className="text-xs text-text-muted">
-            Auto-import uses the currently selected day context when new matches are found for this player.
+            Auto-detect uses the currently selected day context when new matches are found for this player.
           </p>
         </div>
       </div>
@@ -1767,6 +1869,125 @@ export default function PubgImportManager({
           <div className="esports-card p-6">
             <div className="flex items-center justify-between gap-3">
               <div>
+                <p className="section-heading !text-sm">Auto-Detect Candidates</p>
+                <p className="mt-1 text-sm text-text-muted">
+                  Watcher-discovered PUBG matches are scored here before they can touch public data.
+                </p>
+              </div>
+              {loadingCandidates && <span className="text-xs text-text-muted">Refreshing...</span>}
+            </div>
+
+            {candidates.length === 0 ? (
+              <div className="mt-5 rounded-card border border-dashed border-white/10 px-4 py-8 text-center text-sm text-text-muted">
+                No auto-detect candidates yet.
+              </div>
+            ) : (
+              <div className="mt-5 table-scroll">
+                <table className="data-table min-w-[1200px]">
+                  <thead>
+                    <tr>
+                      <th>Match ID</th>
+                      <th>Detected From</th>
+                      <th>Map</th>
+                      <th>Time</th>
+                      <th>Known Teams</th>
+                      <th>Known Players</th>
+                      <th>Unknown Teams</th>
+                      <th>Unknown Players</th>
+                      <th>Confidence</th>
+                      <th>Reason</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {candidates.map((candidate) => (
+                      <tr key={candidate.id}>
+                        <td className="font-mono text-xs text-white">{candidate.matchId}</td>
+                        <td>
+                          <div className="text-sm text-white">{candidate.detectedFromPlayer}</div>
+                          <div className="text-[11px] text-text-muted">
+                            {candidate.tournamentTitle ?? candidate.scrimTitle ?? "Event pending"}
+                          </div>
+                        </td>
+                        <td>{candidate.map ?? candidate.preview.summary.mapName ?? "Unknown"}</td>
+                        <td className="text-xs text-text-muted">
+                          {candidate.matchTime ? formatDisplayDateTime(candidate.matchTime) : "Time pending"}
+                        </td>
+                        <td>
+                          {candidate.knownTeams}/{candidate.actualTeamCount}
+                        </td>
+                        <td>
+                          {candidate.knownPlayers}/{candidate.actualParticipantCount}
+                        </td>
+                        <td>{candidate.unknownTeams}</td>
+                        <td>{candidate.unknownPlayers}</td>
+                        <td className="font-mono-stat text-white">{candidate.confidenceScore}</td>
+                        <td className="max-w-[280px] text-xs text-text-muted">{candidate.confidenceReason}</td>
+                        <td>
+                          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-white">
+                            {candidate.status.replaceAll("_", " ")}
+                          </div>
+                          {candidate.publishedAt ? (
+                            <div className="mt-1 text-[11px] text-accent-green">Published</div>
+                          ) : candidate.importedDraftAt ? (
+                            <div className="mt-1 text-[11px] text-accent-blue">Draft created</div>
+                          ) : candidate.rejectedAt ? (
+                            <div className="mt-1 text-[11px] text-accent-red">Rejected</div>
+                          ) : candidate.reviewPending ? (
+                            <div className="mt-1 text-[11px] text-accent-yellow">Review pending</div>
+                          ) : null}
+                        </td>
+                        <td>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => previewCandidate(candidate)}
+                              className="btn-secondary !px-3 !py-2 !text-[11px]"
+                            >
+                              Preview
+                            </button>
+                            {candidate.reviewPending ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleCandidateAction(candidate.id, "approve_publish")}
+                                  disabled={processingCandidateId === candidate.id}
+                                  className="btn-primary !px-3 !py-2 !text-[11px]"
+                                >
+                                  {processingCandidateId === candidate.id ? "Working..." : "Approve & Publish"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleCandidateAction(candidate.id, "force_import_draft")}
+                                  disabled={processingCandidateId === candidate.id}
+                                  className="btn-secondary !px-3 !py-2 !text-[11px]"
+                                >
+                                  Force Import Draft
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleCandidateAction(candidate.id, "reject")}
+                                  disabled={processingCandidateId === candidate.id}
+                                  className="btn-watch-live !px-3 !py-2 !text-[11px]"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="esports-card p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
                 <p className="section-heading !text-sm">Auto-Import Watchers</p>
                 <p className="mt-1 text-sm text-text-muted">Saved player names checked by the cron sync job.</p>
               </div>
@@ -1804,9 +2025,12 @@ export default function PubgImportManager({
                     </div>
 
                     <div className="mt-3 space-y-1 text-xs text-text-muted">
+                      <p>Processed IDs tracked: {watcher.processedMatchIds?.length ?? watcher.importedMatchIds?.length ?? 0}</p>
                       <p>Imported IDs tracked: {watcher.importedMatchIds?.length ?? 0}</p>
                       <p>Last checked: {watcher.lastCheckedAt ? formatDisplayDateTime(watcher.lastCheckedAt) : "Never"}</p>
+                      <p>Last detected: {watcher.lastDetectedAt ? formatDisplayDateTime(watcher.lastDetectedAt) : "Not yet"}</p>
                       <p>Last imported: {watcher.lastImportedAt ? formatDisplayDateTime(watcher.lastImportedAt) : "Not yet"}</p>
+                      <p>Auto-publish: {watcher.autoPublishCandidates ? "On" : "Off"}</p>
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">

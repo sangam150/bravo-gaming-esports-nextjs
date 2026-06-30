@@ -637,11 +637,72 @@ export interface PubgImportWatcher {
   scrimId?: string;
   enabled: boolean;
   autoImportNewMatches: boolean;
+  autoPublishCandidates?: boolean;
   importedMatchIds?: string[];
+  processedMatchIds?: string[];
   lastCheckedAt?: string;
   lastImportedAt?: string;
+  lastDetectedAt?: string;
+  lastCandidateStatus?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type PubgImportCandidateStatus =
+  | "ignored"
+  | "candidate"
+  | "draft"
+  | "needs_review"
+  | "auto_published"
+  | "failed";
+
+export interface PubgImportCandidateSignal {
+  label: string;
+  score: number;
+  detail?: string;
+}
+
+export interface PubgImportCandidate {
+  id: string;
+  watcherId: string;
+  detectedFromPlayer: string;
+  detectedFromPlayerId?: string;
+  seasonId?: string;
+  seasonDayNumber?: number;
+  tournamentId?: string;
+  tournamentTitle?: string;
+  scrimId?: string;
+  scrimTitle?: string;
+  matchId: string;
+  sourceMatchId: string;
+  matchNumber?: number;
+  targetMatchNumber?: number;
+  map?: string;
+  matchTime?: string;
+  knownTeams: number;
+  knownPlayers: number;
+  unknownTeams: number;
+  unknownPlayers: number;
+  expectedTeamCount: number;
+  expectedParticipantCount: number;
+  actualTeamCount: number;
+  actualParticipantCount: number;
+  confidenceScore: number;
+  confidenceReason: string;
+  confidenceSignals: PubgImportCandidateSignal[];
+  status: PubgImportCandidateStatus;
+  autoPublishEnabled: boolean;
+  canAutoPublish: boolean;
+  duplicateImportedMatch: boolean;
+  seriousRosterConflict: boolean;
+  reviewPending?: boolean;
+  preview: PubgImportPreview;
+  error?: string;
+  publishedAt?: string;
+  importedDraftAt?: string;
+  rejectedAt?: string;
+  updatedAt?: string;
+  createdAt?: string;
 }
 
 export interface PubgImportConflict {

@@ -18,7 +18,6 @@ export default async function PubgPage() {
     getCurrentSeasonOverview().catch(() => null),
   ]);
   const partners = hub.sponsors.filter((sponsor) => sponsor.showOnPubgPage);
-  const latestMedia = hub.media.filter((item) => item.gameSlug === "pubg-pc").slice(0, 3);
   const activeSeason = seasonOverview
     ? {
         title: seasonOverview.season.seriesTitle || seasonOverview.season.title,
@@ -42,7 +41,6 @@ export default async function PubgPage() {
       activeEvents={dashboard.activeEvents}
       mapPulse={dashboard.mapPulse}
       partners={partners}
-      latestMedia={latestMedia}
     />
   );
 }

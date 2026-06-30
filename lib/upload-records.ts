@@ -5,6 +5,17 @@ import type { Tables } from "@/types/database.types";
 
 type UploadRow = Tables<"uploads">;
 
+function toNullableUuid(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedValue = value.trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedValue)
+    ? normalizedValue
+    : null;
+}
+
 function toUploadRecord(row: UploadRow): UploadRecord {
   return {
     id: row.id,
@@ -40,8 +51,8 @@ export async function createUploadRecord(input: {
       file_path: input.filePath,
       file_type: input.fileType,
       related_type: input.relatedType,
-      related_id: input.relatedId ?? null,
-      uploaded_by: input.uploadedBy ?? null,
+      related_id: toNullableUuid(input.relatedId),
+      uploaded_by: toNullableUuid(input.uploadedBy),
       file_name: input.fileName ?? null,
       content_type: input.contentType ?? null,
       size_bytes: input.sizeBytes ?? null,

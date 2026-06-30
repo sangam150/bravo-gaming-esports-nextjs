@@ -13,6 +13,17 @@ type RawPubgMatchResult = {
   source: PubgImportPreviewSource;
 };
 
+function toNullableUuid(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedValue = value.trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedValue)
+    ? normalizedValue
+    : null;
+}
+
 export async function getRawPubgMatch(matchId: string) {
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client
@@ -52,7 +63,7 @@ export async function saveRawPubgMatch(matchId: string, shard: string, rawJson: 
     approved_by: existing?.approved_by ?? null,
     created_at: existing?.created_at ?? now,
     created_by: existing?.created_by ?? null,
-    day_id: existing?.day_id ?? null,
+    day_id: toNullableUuid(existing?.day_id),
     error_message: existing?.error_message ?? null,
     external_match_id: existing?.external_match_id ?? matchId,
     map: existing?.map ?? null,
@@ -65,7 +76,7 @@ export async function saveRawPubgMatch(matchId: string, shard: string, rawJson: 
     raw_json: (sanitizeJsonValue(rawJson) ?? null) as Json | null,
     raw_json_id: matchId,
     retry_count: existing?.retry_count ?? 0,
-    season_id: existing?.season_id ?? null,
+    season_id: toNullableUuid(existing?.season_id),
     source: `pubg_api:${shard}`,
     status: existing?.status ?? "fetched",
     updated_at: now,

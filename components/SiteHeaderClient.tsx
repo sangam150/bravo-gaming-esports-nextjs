@@ -75,6 +75,7 @@ type SiteHeaderClientProps = {
 
 export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProps) {
   const pathname = usePathname();
+  const resolvedPathname = pathname || "/";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -108,8 +109,8 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
   }, []);
 
   const currentSection = useMemo(
-    () => NAV_ITEMS.find((item) => isActive(pathname, item.prefixes))?.label ?? "Bravo Gaming",
-    [pathname]
+    () => NAV_ITEMS.find((item) => isActive(resolvedPathname, item.prefixes))?.label ?? "Bravo Gaming",
+    [resolvedPathname]
   );
 
   const mobileDrawer =
@@ -150,7 +151,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
               <div className="mt-4 grid gap-3">
                 <section className="esports-card p-3">
                   {NAV_ITEMS.map((item) => {
-                    const active = isActive(pathname, item.prefixes);
+                    const active = isActive(resolvedPathname, item.prefixes);
 
                     return (
                       <Link
@@ -221,7 +222,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
 
             <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 xl:flex">
               {NAV_ITEMS.map((item) => {
-                const active = isActive(pathname, item.prefixes);
+                const active = isActive(resolvedPathname, item.prefixes);
 
                 return (
                   <Link

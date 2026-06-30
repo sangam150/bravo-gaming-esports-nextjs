@@ -11,9 +11,11 @@ import type {
   PlatformOrganization,
   PlatformSponsorProfile,
 } from "@/lib/platform-hub";
+import { buildInitials } from "@/lib/public-content";
 import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
 import { getSiteUrl } from "@/lib/site";
 import {
+  buildHref,
   EmptyState,
   formatDate,
   formatDateRange,
@@ -247,6 +249,18 @@ function CategoryPill({ label }: { label: string }) {
   return <span className="rounded-full border border-white/10 bg-bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted">{label}</span>;
 }
 
+function formatGameSlugLabel(value: string) {
+  if (value === "pubg-pc") {
+    return "PUBG PC";
+  }
+
+  return value
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function NewsCard({ article }: { article: PlatformArticle }) {
   return (
     <Link href={`/news/${article.slug}`} className="block rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
@@ -273,35 +287,36 @@ function NewsCard({ article }: { article: PlatformArticle }) {
 }
 
 function EventCard({ event }: { event: PlatformEvent }) {
+  const showPrize = Boolean(event.prizePool && event.prizePool !== "TBD");
+  const eventTypeClass = /tournament|cup|championship|league|final/i.test(event.type)
+    ? "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
+    : "border-accent-blue/30 bg-accent-blue/10 text-accent-blue-light";
+
   return (
-    <Link href={`/events/${event.slug}`} className="block rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
-      {event.bannerUrl ? (
-        <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08]">
-          <img src={event.bannerUrl} alt={event.name} className="h-44 w-full object-cover" />
-        </div>
-      ) : null}
+    <Link href={`/events/${event.slug}`} className="flex h-full flex-col rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+      <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
+        {event.bannerUrl ? (
+          <img src={event.bannerUrl} alt={event.name} className="h-36 w-full object-cover" />
+        ) : (
+          <div className="h-36 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.2),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))]" />
+        )}
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{event.gameName}</p>
           <h3 className="mt-2 font-display text-lg font-black uppercase text-white">{event.name}</h3>
         </div>
         <div className="flex flex-wrap gap-2">
+          <span className={joinClasses("inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", eventTypeClass)}>
+            {event.type}
+          </span>
           <PlatformStatusPill status={event.status} />
-          <ContentStatePill state={event.state} />
         </div>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Type</p>
-          <p className="mt-1 text-sm text-white">{event.type}</p>
-        </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div>
           <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Date</p>
           <p className="mt-1 text-sm text-white">{formatDateRange(event.startDate, event.endDate)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Prize</p>
-          <p className="mt-1 text-sm text-white">{event.prizePool}</p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Teams</p>
@@ -311,13 +326,14 @@ function EventCard({ event }: { event: PlatformEvent }) {
           <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Matches</p>
           <p className="mt-1 font-mono-stat text-white">{formatNumber(event.matchesCount)}</p>
         </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Region</p>
-          <p className="mt-1 text-sm text-white">{event.region}</p>
-        </div>
+        {showPrize ? (
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Prize Pool</p>
+            <p className="mt-1 text-sm text-white">{event.prizePool}</p>
+          </div>
+        ) : null}
       </div>
-      <p className="mt-4 text-sm text-text-muted">{event.summary}</p>
-      <div className="mt-5">
+      <div className="mt-auto flex flex-wrap gap-2 pt-5">
         <span className="btn-primary">View Details</span>
       </div>
     </Link>
@@ -405,18 +421,27 @@ function sponsorPrimaryAsset(sponsor: PlatformSponsorProfile) {
 
 function SponsorCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
   const primaryAsset = sponsorPrimaryAsset(sponsor);
+  const initials = buildInitials(sponsor.name);
 
   return (
-    <article className="rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
-      {primaryAsset ? (
-        <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
+    <article className="flex h-full flex-col rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+      <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
+        {primaryAsset ? (
           <img src={primaryAsset} alt={sponsor.name} className="h-40 w-full object-cover" />
-        </div>
-      ) : null}
+        ) : (
+          <div className="flex h-40 items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.18),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] font-display text-4xl font-black uppercase tracking-[0.14em] text-white">
+            {initials}
+          </div>
+        )}
+      </div>
       <div className="flex items-center gap-4">
         {sponsor.logoUrl ? (
           <img src={sponsor.logoUrl} alt={sponsor.name} className="h-16 w-16 rounded-card border border-white/10 bg-bg-primary object-contain p-2" />
-        ) : null}
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded-card border border-white/10 bg-bg-primary font-display text-lg font-black uppercase text-white">
+            {initials}
+          </div>
+        )}
         <div>
           <div className="flex flex-wrap gap-2">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{sponsor.tier}</p>
@@ -427,16 +452,18 @@ function SponsorCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
       </div>
       <p className="mt-4 text-sm text-text-muted">{sponsor.description}</p>
       {sponsor.supportedEvents.length > 0 ? (
-        <p className="mt-3 text-xs uppercase tracking-[0.14em] text-text-muted">{sponsor.supportedEvents.slice(0, 2).join(" | ")}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {sponsor.supportedEvents.slice(0, 2).map((eventName) => (
+            <CategoryPill key={eventName} label={eventName} />
+          ))}
+        </div>
       ) : null}
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-auto flex flex-wrap gap-2 pt-5">
         {sponsor.websiteUrl ? (
           <a href={sponsor.websiteUrl} target="_blank" rel="noreferrer" className="btn-primary">
             Website
           </a>
-        ) : (
-          <span className="btn-secondary">Website TBA</span>
-        )}
+        ) : null}
         <Link href={`/sponsors/${sponsor.slug}`} className="btn-secondary">
           View Profile
         </Link>
@@ -1358,23 +1385,34 @@ export function PlatformEventsPage({
 }) {
   const game = readSearchParam(searchParams.game, "all");
   const status = readSearchParam(searchParams.status, "all");
-  const events = hub.events.filter((event) => {
+  const pageParam = Number.parseInt(readSearchParam(searchParams.page, "1"), 10);
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const pageSize = 12;
+  const filteredEvents = hub.events.filter((event) => {
     if (game !== "all" && event.gameSlug !== game) return false;
     if (status !== "all" && event.status !== status) return false;
     return true;
   });
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedEvents = filteredEvents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const groupedEvents = [
+    { key: "live", title: "Live", items: paginatedEvents.filter((event) => event.status === "live") },
+    { key: "upcoming", title: "Upcoming", items: paginatedEvents.filter((event) => event.status === "upcoming" || event.status === "planned") },
+    { key: "completed", title: "Recently Completed", items: paginatedEvents.filter((event) => event.status === "completed") },
+  ].filter((group) => group.items.length > 0);
 
   return (
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="06. Events Page"
+          badge="Events"
           title={
             <>
               Events
             </>
           }
-          description="All upcoming, ongoing, and completed competitions in one compact event board."
+          description="Live, upcoming, and recently completed competitions from the Bravo public schedule."
           actions={
             <>
               <Link href="/calendar" className="btn-secondary">
@@ -1435,16 +1473,64 @@ export function PlatformEventsPage({
           </form>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-2">
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-          {events.length === 0 ? (
+        {paginatedEvents.length === 0 ? (
+          <section className="grid gap-4 xl:grid-cols-2">
             <div className="xl:col-span-2">
-              <EmptyState title="No results found" description="Try adjusting your search or browse available categories." />
+              <EmptyState title="No events match this view" description="Try adjusting the game or status filters to browse the public event board." />
             </div>
-          ) : null}
-        </section>
+          </section>
+        ) : (
+          groupedEvents.map((group) => (
+            <section key={group.key} className="space-y-4">
+              <SectionHeader
+                eyebrow="Event Board"
+                title={group.title}
+                description={`${group.items.length} public event${group.items.length === 1 ? "" : "s"} on this page.`}
+              />
+              <div className="grid gap-4 xl:grid-cols-2">
+                {group.items.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            </section>
+          ))
+        )}
+
+        {filteredEvents.length > pageSize ? (
+          <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-text-muted">
+                Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredEvents.length)} of {filteredEvents.length} events.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {currentPage > 1 ? (
+                  <Link
+                    href={buildHref("/events", {
+                      game: game === "all" ? undefined : game,
+                      status: status === "all" ? undefined : status,
+                      page: String(currentPage - 1),
+                    })}
+                    className="btn-secondary"
+                  >
+                    Previous
+                  </Link>
+                ) : null}
+                {currentPage < totalPages ? (
+                  <Link
+                    href={buildHref("/events", {
+                      game: game === "all" ? undefined : game,
+                      status: status === "all" ? undefined : status,
+                      page: String(currentPage + 1),
+                    })}
+                    className="btn-primary"
+                  >
+                    Load More
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );
@@ -1475,8 +1561,6 @@ export function PlatformEventDetailPage({
           title={
             <>
               {event.name}
-              <br />
-              event overview
             </>
           }
           description={event.summary}
@@ -1506,15 +1590,14 @@ export function PlatformEventDetailPage({
                 </div>
               ) : null}
               <div>
-                <p className="section-title">Event State</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Tabs and public structure ready</h2>
+                <p className="section-title">Event Status</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Public event board</h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 <PlatformStatusPill status={event.status} />
-                <ContentStatePill state={event.state} />
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Tabs</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Available sections</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {event.tabs.map((tab) => (
                     <CategoryPill key={tab} label={tab} />
@@ -1538,7 +1621,7 @@ export function PlatformEventDetailPage({
 
         <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Overview" title="Event summary and schedule" description="The universal detail route gives every event a complete public shell, even before a game has its own full analytics surface." />
+            <SectionHeader eyebrow="Overview" title="Event summary and schedule" description="Schedule, status, and public event context stay visible in one place." />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <MetricCard label="Start" value={formatDate(event.startDate)} compact tone="blue" />
               <MetricCard label="End" value={event.endDate ? formatDate(event.endDate) : "TBD"} compact tone="green" />
@@ -2574,27 +2657,33 @@ export function PlatformMediaPage({
   searchParams: SearchParamDictionary;
 }) {
   const category = readSearchParam(searchParams.category, "all");
-  const media = hub.media.filter((item) => category === "all" || item.category === category || item.kind === category);
+  const pageParam = Number.parseInt(readSearchParam(searchParams.page, "1"), 10);
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const pageSize = 9;
+  const filteredMedia = hub.media.filter((item) => category === "all" || item.category === category || item.kind === category);
   const categories = Array.from(new Set(hub.media.map((item) => item.category))).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
+  const totalPages = Math.max(1, Math.ceil(filteredMedia.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const media = filteredMedia.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="08. Media Page"
+          badge="Media"
           title={
             <>
-              Videos
+              Media Center
             </>
           }
-          description="Highlights, broadcasts, and featured Bravo video coverage in one media grid."
+          description="Published highlights, broadcasts, and video coverage from the Bravo public media library."
           actions={
             <>
-              <Link href="/videos" className="btn-secondary">
-                View All Videos
+              <Link href="/news" className="btn-secondary">
+                Latest News
               </Link>
-              <Link href="/highlights" className="btn-primary">
-                Highlights
+              <Link href="/live-stream" className="btn-primary">
+                Watch Live
               </Link>
             </>
           }
@@ -2629,12 +2718,14 @@ export function PlatformMediaPage({
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {media.map((item) => (
-            <div key={item.id} className="esports-card p-5">
-              {item.imageUrl ? (
-                <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08]">
+            <div key={item.id} className="esports-card flex h-full flex-col p-5">
+              <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08]">
+                {item.imageUrl ? (
                   <img src={item.imageUrl} alt={item.title} loading="lazy" className="h-44 w-full object-cover" />
-                </div>
-              ) : null}
+                ) : (
+                  <div className="h-44 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.2),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))]" />
+                )}
+              </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <CategoryPill label={item.kind} />
                 {item.duration ? <p className="font-mono-stat text-text-muted">{item.duration}</p> : null}
@@ -2643,9 +2734,9 @@ export function PlatformMediaPage({
               <p className="mt-3 text-sm text-text-muted">{item.summary}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <CategoryPill label={item.category} />
-                <CategoryPill label={item.gameSlug} />
+                <CategoryPill label={formatGameSlugLabel(item.gameSlug)} />
               </div>
-              <div className="mt-5 flex flex-wrap gap-2">
+              <div className="mt-auto flex flex-wrap gap-2 pt-5">
                 <Link href={`/media/${item.slug}`} className="btn-primary">
                   View Details
                 </Link>
@@ -2660,12 +2751,46 @@ export function PlatformMediaPage({
           {media.length === 0 ? (
             <div className="md:col-span-2 xl:col-span-3">
               <EmptyState
-                title="No videos are currently available"
-                description="Published videos will appear here with View Details actions as soon as they are available."
+                title="No published media yet"
+                description="New highlights, broadcasts, and community videos will appear here after they are published."
               />
             </div>
           ) : null}
         </section>
+
+        {filteredMedia.length > pageSize ? (
+          <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-text-muted">
+                Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredMedia.length)} of {filteredMedia.length} media items.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {currentPage > 1 ? (
+                  <Link
+                    href={buildHref("/media", {
+                      category: category === "all" ? undefined : category,
+                      page: String(currentPage - 1),
+                    })}
+                    className="btn-secondary"
+                  >
+                    Previous
+                  </Link>
+                ) : null}
+                {currentPage < totalPages ? (
+                  <Link
+                    href={buildHref("/media", {
+                      category: category === "all" ? undefined : category,
+                      page: String(currentPage + 1),
+                    })}
+                    className="btn-primary"
+                  >
+                    Load More
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );
@@ -2690,8 +2815,6 @@ export function PlatformMediaDetailPage({
           title={
             <>
               {item.title}
-              <br />
-              media detail
             </>
           }
           description={item.summary}
@@ -2899,10 +3022,10 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="09. Sponsors Page"
+          badge="Sponsors"
           title={
             <>
-              Our Sponsors
+              Sponsors & Partners
             </>
           }
           description="Official partners supporting Bravo Gaming Esports and Nepal PUBG competition coverage."
@@ -3006,7 +3129,7 @@ export function PlatformSponsorDetailPage({
 
         <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Assets and Placement" title="Managed logo, banner, and design support" description="These assets now come from editable admin records instead of hardcoded sponsor blocks." />
+            <SectionHeader eyebrow="Assets and Placement" title="Brand assets and placement" description="Official logos, banners, and design visuals used across Bravo public coverage." />
             <div className="mt-5 space-y-4">
               {sponsor.bannerUrl ? (
                 <div className="overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
@@ -3033,7 +3156,7 @@ export function PlatformSponsorDetailPage({
           </div>
 
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Supported Events" title="Where this profile shows up" description="Event association gives partners real public surface area across the ecosystem." />
+            <SectionHeader eyebrow="Supported Events" title="Where this profile shows up" description="Published event connections and public placements for this partner." />
             <div className="mt-5 grid gap-3">
               {relatedEvents.map((event) => (
                 <Link key={event.id} href={`/events/${event.slug}`} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white transition hover:border-accent-blue/30 hover:bg-bg-hover">
@@ -3058,7 +3181,7 @@ export function PlatformSponsorDetailPage({
         </section>
 
         <section className="esports-card p-6">
-          <SectionHeader eyebrow="Partnership History" title="Relationship timeline" description="A better sponsor page than a logo wall helps sell the platform as serious infrastructure." />
+          <SectionHeader eyebrow="Partnership History" title="Relationship timeline" description="Key milestones and public partnership highlights for this partner." />
           {sponsor.partnershipHistory.length > 0 ? (
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               {sponsor.partnershipHistory.map((item) => (

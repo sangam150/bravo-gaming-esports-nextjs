@@ -1,6 +1,6 @@
 import { requireAuthenticatedUser } from "@/lib/admin-auth";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
-import { getManagedUploadRecord, getPrivateObject, toReadableStream } from "@/lib/r2/storage";
+import { getManagedUploadRecord, getPrivateObject, isR2ObjectMissingError, toReadableStream } from "@/lib/r2/storage";
 import { logServerError } from "@/lib/server-monitoring";
 import { getUploadVisibility, normalizeUploadType } from "@/lib/upload-config";
 import { jsonErrorResponse } from "@/lib/user-facing-errors";
@@ -65,6 +65,10 @@ export async function GET(request: Request, { params }: RouteContext) {
 
     return new Response(stream as unknown as BodyInit, { headers });
   } catch (error: unknown) {
+    if (isR2ObjectMissingError(error)) {
+      return Response.json({ error: "Upload not found." }, { status: 404 });
+    }
+
     await logServerError("uploads.private.get", error, request);
     return jsonErrorResponse(error, {
       fallback: "We couldn't open that private upload right now. Please try again shortly.",

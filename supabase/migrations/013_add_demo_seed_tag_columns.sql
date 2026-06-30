@@ -1,0 +1,11 @@
+alter table public.seasons add column if not exists demo_seed_tag text;
+alter table public.days add column if not exists demo_seed_tag text;
+alter table public.events add column if not exists demo_seed_tag text;
+alter table public.teams add column if not exists demo_seed_tag text;
+alter table public.players add column if not exists demo_seed_tag text;
+alter table public.team_roster_history add column if not exists demo_seed_tag text;
+alter table public.event_teams add column if not exists demo_seed_tag text;
+alter table public.matches add column if not exists demo_seed_tag text;
+alter table public.match_team_results add column if not exists demo_seed_tag text;
+alter table public.match_player_results add column if not exists demo_seed_tag text;
+alter table public.uploads add column if not exists demo_seed_tag text;

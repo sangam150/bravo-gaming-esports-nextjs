@@ -4,6 +4,31 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { revalidateTournamentPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
 
+function getRouteErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const message = "message" in error && typeof error.message === "string" ? error.message.trim() : "";
+    const code = "code" in error && typeof error.code === "string" ? error.code.trim() : "";
+    const details = "details" in error && typeof error.details === "string" ? error.details.trim() : "";
+    const hint = "hint" in error && typeof error.hint === "string" ? error.hint.trim() : "";
+    const parts = [message, code ? `code=${code}` : "", details, hint].filter(Boolean);
+    if (parts.length > 0) {
+      return parts.join(" | ");
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+
+  return String(error);
+}
+
 function normalizeDaySetup(body: Record<string, unknown>) {
   const mapRotation =
     Array.isArray(body.dayMapRotation)
@@ -18,6 +43,10 @@ function normalizeDaySetup(body: Record<string, unknown>) {
     dayMap: typeof body.dayMap === "string" ? body.dayMap : undefined,
     dayLobbyTime: typeof body.dayLobbyTime === "string" ? body.dayLobbyTime : undefined,
     dayMapRotation: mapRotation && mapRotation.length > 0 ? mapRotation : undefined,
+    dayMatchCount:
+      typeof body.dayMatchCount === "number" && Number.isFinite(body.dayMatchCount)
+        ? Math.max(1, Math.round(body.dayMatchCount))
+        : undefined,
   };
 }
 
@@ -43,26 +72,30 @@ export async function POST(request: Request) {
     if (targetDayNumber) {
       const result = await ensureSeasonDay(seasonId, targetDayNumber, { overrides: daySetup });
       revalidateTournamentPaths(result.tournament?.id);
+      const createdMatchCount = result.createdMatches?.length ?? 0;
       return Response.json({
         success: true,
         data: result,
         message: result.created
-          ? `Prepared Day ${targetDayNumber} and linked it for imports.`
-          : `Day ${targetDayNumber} is ready for imports.`,
+          ? `Prepared Day ${targetDayNumber} and ${createdMatchCount} draft match slot${createdMatchCount === 1 ? "" : "s"}.`
+          : createdMatchCount > 0
+            ? `Day ${targetDayNumber} is ready and ${createdMatchCount} missing draft match slot${createdMatchCount === 1 ? "" : "s"} were added.`
+            : `Day ${targetDayNumber} is ready for imports.`,
       });
     }
 
     const result = await createNextSeasonDay(seasonId, daySetup);
     revalidateTournamentPaths(result.tournament.id);
+    const createdMatchCount = result.createdMatches?.length ?? 0;
 
     return Response.json({
       success: true,
       data: result,
-      message: `Created Day ${result.nextDayNumber} and set it as the active scrim day.`,
+      message: `Created Day ${result.nextDayNumber}, set it active, and prepared ${createdMatchCount} draft match slot${createdMatchCount === 1 ? "" : "s"}.`,
     });
   } catch (error: unknown) {
     await logServerError("admin.seasons.create-next-day", error, request);
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getRouteErrorMessage(error);
     return Response.json({ error: message }, { status: 500 });
   }
 }

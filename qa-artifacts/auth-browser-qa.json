@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-06-29T13:17:41.560Z",
+  "admin": {
+    "loginUrl": "http://127.0.0.1:3201/admin",
+    "title": "Admin | Bravo Gaming Esports | Bravo Gaming Esports",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "missing": [],
+    "teamRequestsHasDiscordDisabledNotice": false,
+    "teamRequestsShowsLinkManager": false
+  },
+  "team": {},
+  "cleanup": {
+    "deletedUsers": [
+      {
+        "userId": "91970296-beae-4d6c-b770-3b3a79f70977",
+        "ok": true,
+        "error": null
+      },
+      {
+        "userId": "97972e87-4de3-4af0-8923-5ba663ca2f58",
+        "ok": true,
+        "error": null
+      }
+    ]
+  },
+  "failures": [
+    "page.waitForURL: Timeout 30000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/team\" until \"load\"\n============================================================"
+  ]
+}

@@ -20,6 +20,7 @@ export const COLLECTIONS = {
   pubgPlayers: "pubgPlayers",
   pubgImportBatches: "pubgImportBatches",
   pubgImportWatchers: "pubgImportWatchers",
+  pubgImportCandidates: "pubgImportCandidates",
   errorLogs: "errorLogs",
   homepageContent: "homepageContent",
   newsArticles: "newsArticles",

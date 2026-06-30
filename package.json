@@ -6,12 +6,14 @@
     "dev": "next dev --webpack",
     "dev:turbopack": "next dev --turbo",
     "dev:webpack": "next dev --webpack",
-    "lint": "tsc --noEmit",
+    "lint": "next typegen && tsc --noEmit",
     "build": "next build --webpack",
     "start": "next start",
     "supabase:db:push": "npx supabase db push",
     "supabase:readiness": "node qa/supabase-readiness.mjs",
     "supabase:types": "node scripts/generate-supabase-types.mjs",
+    "seed:demo": "tsx scripts/seed-demo-data.ts",
+    "clear:demo": "tsx scripts/clear-demo-data.ts",
     "qa:visual:seed": "node scripts/qa-visual-seed.mjs",
     "qa:visual:cleanup": "node scripts/qa-visual-cleanup.mjs"
   },
@@ -32,6 +34,7 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.4",
+    "tsx": "^4.20.6",
     "typescript": "latest"
   }
 }

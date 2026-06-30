@@ -46,6 +46,27 @@ type PendingImportCachePayload = {
   raw?: unknown;
 };
 
+type ExistingDuplicateMatchRow = Pick<
+  Tables<"matches">,
+  "id" | "event_id" | "external_match_id" | "match_id" | "match_number" | "status"
+>;
+
+type DuplicateMatchResolution =
+  | {
+      kind: "none";
+      alreadyImported: false;
+    }
+  | {
+      kind: "draft_slot" | "exact_match";
+      alreadyImported: boolean;
+      targetId: string;
+    }
+  | {
+      kind: "unsafe_conflict";
+      alreadyImported: boolean;
+      message: string;
+    };
+
 type ImportLifecycleState =
   | "queued"
   | "fetching"
@@ -61,6 +82,44 @@ function normalizePendingImportStatus(
   state: ImportLifecycleState
 ): TablesInsert<"pending_imports">["status"] {
   return state;
+}
+
+function toNullableUuid(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedValue = value.trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedValue)
+    ? normalizedValue
+    : null;
+}
+
+async function resolvePendingImportDayId(input: {
+  seasonId?: string;
+  seasonDayNumber?: number;
+  existingDayId?: string | null;
+}) {
+  const seasonId = toNullableUuid(input.seasonId);
+  const seasonDayNumber = typeof input.seasonDayNumber === "number" ? input.seasonDayNumber : null;
+
+  if (!seasonId || !seasonDayNumber || seasonDayNumber < 1) {
+    return toNullableUuid(input.existingDayId) ?? null;
+  }
+
+  const client = getSupabaseServiceRoleClient();
+  const { data, error } = await client
+    .from("days")
+    .select("id")
+    .eq("season_id", seasonId)
+    .eq("day_number", seasonDayNumber)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.id ?? toNullableUuid(input.existingDayId) ?? null;
 }
 
 function buildLifecycleEntry(state: ImportLifecycleState, details?: Record<string, unknown>) {
@@ -85,9 +144,28 @@ async function appendPendingImportLifecycle(
   const client = getSupabaseServiceRoleClient();
   const existing = await getLatestPendingImportCache(matchId);
   const existingNormalized = readJsonObject(existing?.normalized_json) ?? {};
+  const existingContext = readJsonObject((existingNormalized.context as Json | undefined) ?? null);
+  const existingPreview = readJsonObject((existingNormalized.preview as Json | undefined) ?? null);
   const existingLifecycle = Array.isArray(existingNormalized.lifecycle)
     ? [...(existingNormalized.lifecycle as Json[])]
     : [];
+  const resolvedDayId = await resolvePendingImportDayId({
+    seasonId:
+      options?.context?.seasonId ??
+      (typeof existingContext?.seasonId === "string" ? existingContext.seasonId : undefined) ??
+      existing?.season_id ??
+      undefined,
+    seasonDayNumber:
+      options?.context?.seasonDayNumber ??
+      (typeof existingContext?.seasonDayNumber === "number"
+        ? existingContext.seasonDayNumber
+        : typeof options?.preview?.seasonDayNumber === "number"
+          ? options.preview.seasonDayNumber
+          : typeof existingPreview?.seasonDayNumber === "number"
+            ? existingPreview.seasonDayNumber
+            : undefined),
+    existingDayId: existing?.day_id,
+  });
 
   const normalizedJson = (sanitizeJsonValue({
     ...(existingNormalized as Record<string, unknown>),
@@ -106,8 +184,8 @@ async function appendPendingImportLifecycle(
 
   const payload: TablesInsert<"pending_imports"> = {
     id: existing?.id,
-    season_id: options?.context?.seasonId ?? existing?.season_id ?? null,
-    day_id: options?.context?.scrimId ?? existing?.day_id ?? null,
+    season_id: toNullableUuid(options?.context?.seasonId) ?? existing?.season_id ?? null,
+    day_id: resolvedDayId,
     match_id: matchId,
     external_match_id:
       options?.sourceMatchId ??
@@ -146,6 +224,10 @@ async function appendPendingImportLifecycle(
 function cleanString(value?: string | null) {
   const normalizedValue = value?.trim();
   return normalizedValue ? normalizedValue : undefined;
+}
+
+function isPublishedMatchStatus(status: Tables<"matches">["status"] | null | undefined) {
+  return status === "approved" || status === "published";
 }
 
 function toFiniteNumber(value: unknown, fallback = 0) {
@@ -224,49 +306,154 @@ function applyEdit(preview: PubgImportPreview, edit?: PubgImportEdit) {
   };
 }
 
+async function getMatchResultCountByMatchId(matchIds: string[]) {
+  const uniqueMatchIds = Array.from(new Set(matchIds.filter(Boolean)));
+  if (uniqueMatchIds.length === 0) {
+    return new Map<string, number>();
+  }
+
+  const client = getSupabaseServiceRoleClient();
+  const [{ data: teamResults, error: teamResultsError }, { data: playerResults, error: playerResultsError }] =
+    await Promise.all([
+      client.from("match_team_results").select("match_id").in("match_id", uniqueMatchIds),
+      client.from("match_player_results").select("match_id").in("match_id", uniqueMatchIds),
+    ]);
+
+  if (teamResultsError) {
+    throw teamResultsError;
+  }
+
+  if (playerResultsError) {
+    throw playerResultsError;
+  }
+
+  const countByMatchId = new Map<string, number>();
+  for (const row of [...(teamResults ?? []), ...(playerResults ?? [])]) {
+    countByMatchId.set(row.match_id, (countByMatchId.get(row.match_id) ?? 0) + 1);
+  }
+
+  return countByMatchId;
+}
+
+function isSafeDraftSlotMatch(row: ExistingDuplicateMatchRow, resultCountByMatchId: Map<string, number>) {
+  return !isPublishedMatchStatus(row.status) && !row.external_match_id && (resultCountByMatchId.get(row.id) ?? 0) === 0;
+}
+
 async function findExistingDuplicate(
   tournamentId: string | undefined,
   matchId: string,
   matchNumber: number | undefined
 ) {
   const client = getSupabaseServiceRoleClient();
-  const duplicateIds = new Set<string>();
-
   const { data: byMatchId, error: byMatchIdError } = await client
     .from("matches")
-    .select("id")
+    .select("id,event_id,match_number,match_id,external_match_id,status")
     .is("deleted_at", null)
     .or(`match_id.eq.${matchId},external_match_id.eq.${matchId}`)
-    .limit(5);
+    .limit(10);
 
   if (byMatchIdError) {
     throw byMatchIdError;
   }
 
-  for (const row of byMatchId ?? []) {
-    duplicateIds.add(row.id);
-  }
-
-  if (tournamentId && typeof matchNumber === "number") {
-    const { data: bySequence, error: bySequenceError } = await client
-      .from("matches")
-      .select("id")
-      .eq("event_id", tournamentId)
-      .eq("match_number", matchNumber)
-      .is("deleted_at", null)
-      .limit(5);
-
-    if (bySequenceError) {
-      throw bySequenceError;
+  const exactMatchRows = (byMatchId ?? []) as ExistingDuplicateMatchRow[];
+  if (!tournamentId) {
+    if (exactMatchRows.length === 1) {
+      return {
+        kind: "exact_match",
+        alreadyImported: true,
+        targetId: exactMatchRows[0].id,
+      } satisfies DuplicateMatchResolution;
     }
 
-    for (const row of bySequence ?? []) {
-      duplicateIds.add(row.id);
+    if (exactMatchRows.length > 1) {
+      return {
+        kind: "unsafe_conflict",
+        alreadyImported: true,
+        message: `PUBG match ${matchId} is linked to multiple imported rows. Resolve the duplicate records before importing again.`,
+      } satisfies DuplicateMatchResolution;
     }
   }
 
-  const [firstId] = Array.from(duplicateIds);
-  return firstId;
+  if (tournamentId) {
+    const exactMatchRowsInEvent = exactMatchRows.filter((row) => row.event_id === tournamentId);
+    if (exactMatchRowsInEvent.length === 1) {
+      return {
+        kind: "exact_match",
+        alreadyImported: true,
+        targetId: exactMatchRowsInEvent[0].id,
+      } satisfies DuplicateMatchResolution;
+    }
+
+    if (exactMatchRowsInEvent.length > 1) {
+      return {
+        kind: "unsafe_conflict",
+        alreadyImported: true,
+        message: `PUBG match ${matchId} is linked to multiple rows inside this event. Resolve the duplicate records before importing again.`,
+      } satisfies DuplicateMatchResolution;
+    }
+
+    const exactMatchRowsOutsideEvent = exactMatchRows.filter((row) => row.event_id && row.event_id !== tournamentId);
+    if (exactMatchRowsOutsideEvent.length > 0) {
+      return {
+        kind: "unsafe_conflict",
+        alreadyImported: true,
+        message: `PUBG match ${matchId} is already imported into another event. Clear or reset the original record before reusing this match ID.`,
+      } satisfies DuplicateMatchResolution;
+    }
+  }
+
+  if (!tournamentId || typeof matchNumber !== "number") {
+    return {
+      kind: "none",
+      alreadyImported: false,
+    } satisfies DuplicateMatchResolution;
+  }
+
+  const { data: bySequence, error: bySequenceError } = await client
+    .from("matches")
+    .select("id,event_id,match_number,match_id,external_match_id,status")
+    .eq("event_id", tournamentId)
+    .eq("match_number", matchNumber)
+    .is("deleted_at", null)
+    .limit(10);
+
+  if (bySequenceError) {
+    throw bySequenceError;
+  }
+
+  const eventSlotRows = (bySequence ?? []) as ExistingDuplicateMatchRow[];
+  if (eventSlotRows.length === 0) {
+    return {
+      kind: "none",
+      alreadyImported: false,
+    } satisfies DuplicateMatchResolution;
+  }
+
+  const resultCountByMatchId = await getMatchResultCountByMatchId(eventSlotRows.map((row) => row.id));
+  const safeDraftSlots = eventSlotRows.filter((row) => isSafeDraftSlotMatch(row, resultCountByMatchId));
+
+  if (safeDraftSlots.length === 1) {
+    return {
+      kind: "draft_slot",
+      alreadyImported: false,
+      targetId: safeDraftSlots[0].id,
+    } satisfies DuplicateMatchResolution;
+  }
+
+  if (safeDraftSlots.length > 1) {
+    return {
+      kind: "unsafe_conflict",
+      alreadyImported: false,
+      message: `Event slot ${matchNumber} has multiple empty draft targets. Resolve the duplicate slots before importing.`,
+    } satisfies DuplicateMatchResolution;
+  }
+
+  return {
+    kind: "unsafe_conflict",
+    alreadyImported: false,
+    message: `Event slot ${matchNumber} is already populated by a different match. Reset or repair that slot before importing.`,
+  } satisfies DuplicateMatchResolution;
 }
 
 export async function cachePendingImportPreview(payload: PendingImportCachePayload) {
@@ -444,13 +631,24 @@ export async function importPubgMatchesRelational(
     try {
       const edit = matchEdits.get(preview.matchId);
       const normalized = applyEdit(preview, edit);
-      const existingDuplicateId = await findExistingDuplicate(
+      const duplicateResolution = await findExistingDuplicate(
         importContext.tournamentId,
         normalized.matchId,
         normalized.matchNumber
       );
 
-      if (existingDuplicateId && duplicateMode === "skip") {
+      if (duplicateResolution.kind === "unsafe_conflict") {
+        results.push({
+          matchId: normalized.matchId,
+          success: false,
+          alreadyImported: duplicateResolution.alreadyImported,
+          error: duplicateResolution.message,
+          code: "duplicate_match",
+        });
+        continue;
+      }
+
+      if (duplicateResolution.kind === "exact_match" && duplicateMode === "skip") {
         results.push({
           matchId: normalized.matchId,
           success: true,
@@ -460,7 +658,7 @@ export async function importPubgMatchesRelational(
         continue;
       }
 
-      if (existingDuplicateId && duplicateMode === "error") {
+      if (duplicateResolution.kind === "exact_match" && duplicateMode === "error") {
         results.push({
           matchId: normalized.matchId,
           success: false,
@@ -472,7 +670,7 @@ export async function importPubgMatchesRelational(
       }
 
       const matchPayload: Partial<TournamentMatch> & { pubgMatchId: string; map: string } = {
-        id: existingDuplicateId,
+        id: duplicateResolution.kind === "none" ? undefined : duplicateResolution.targetId,
         tournamentId: importContext.tournamentId,
         scrimId: importContext.scrimId,
         pubgMatchId: normalized.matchId,
@@ -495,14 +693,15 @@ export async function importPubgMatchesRelational(
         sourceMatchId: preview.matchId,
         details: {
           duplicateMode,
-          alreadyImported: Boolean(existingDuplicateId),
+          alreadyImported: duplicateResolution.alreadyImported,
+          targetKind: duplicateResolution.kind,
         },
       });
 
       results.push({
         matchId: normalized.matchId,
         success: true,
-        alreadyImported: Boolean(existingDuplicateId),
+        alreadyImported: duplicateResolution.alreadyImported,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);

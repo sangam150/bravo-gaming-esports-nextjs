@@ -65,6 +65,23 @@ function slugify(value: string) {
     .replace(/(^-|-$)/g, "");
 }
 
+function compareCompetitionSeasonOrder(
+  firstSeason: Pick<Season, "createdAt" | "seasonNumber" | "startDate">,
+  secondSeason: Pick<Season, "createdAt" | "seasonNumber" | "startDate">
+) {
+  const dateComparison = (secondSeason.startDate ?? "").localeCompare(firstSeason.startDate ?? "");
+  if (dateComparison !== 0) {
+    return dateComparison;
+  }
+
+  const createdAtComparison = (secondSeason.createdAt ?? "").localeCompare(firstSeason.createdAt ?? "");
+  if (createdAtComparison !== 0) {
+    return createdAtComparison;
+  }
+
+  return (secondSeason.seasonNumber ?? 0) - (firstSeason.seasonNumber ?? 0);
+}
+
 function looksLikeUuid(value?: string | null) {
   return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
 }
@@ -415,7 +432,11 @@ export async function listCompetitionPointSystems() {
 
 export async function listCompetitionSeasons() {
   const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client.from("seasons").select("*").order("start_date", { ascending: false });
+  const { data, error } = await client
+    .from("seasons")
+    .select("*")
+    .order("start_date", { ascending: false })
+    .order("created_at", { ascending: false });
 
   if (error) {
     throw error;
@@ -448,8 +469,40 @@ export async function getCompetitionSeason(idOrSlug: string) {
 }
 
 export async function getCurrentCompetitionSeason() {
-  const seasons = await listCompetitionSeasons();
-  return seasons.find((season) => season.status === "active") ?? seasons.find((season) => season.status === "planned") ?? seasons[0] ?? null;
+  const client = getSupabaseServiceRoleClient();
+
+  for (const status of ["active", "planned"] as const) {
+    const { data, error } = await client
+      .from("seasons")
+      .select("*")
+      .eq("status", status)
+      .order("start_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (data) {
+      return mapSeasonRow(data as Tables<"seasons">);
+    }
+  }
+
+  const { data, error } = await client
+    .from("seasons")
+    .select("*")
+    .order("start_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? mapSeasonRow(data as Tables<"seasons">) : null;
 }
 
 export async function saveCompetitionSeason(data: Partial<Season> & { title: string }, id?: string) {
@@ -1022,6 +1075,30 @@ export async function getCompetitionMatchesForEvent(eventId: string, options: { 
   return hydrateCompetitionMatches((data ?? []) as Tables<"matches">[]);
 }
 
+async function ensureUniqueEventMatchNumber(eventId: string, matchNumber: number, excludeMatchId?: string | null) {
+  const client = getSupabaseServiceRoleClient();
+  let query = client
+    .from("matches")
+    .select("id")
+    .eq("event_id", eventId)
+    .eq("match_number", matchNumber)
+    .is("deleted_at", null)
+    .limit(1);
+
+  if (excludeMatchId) {
+    query = query.neq("id", excludeMatchId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) {
+    throw error;
+  }
+
+  if (data?.id) {
+    throw new Error(`Match ${matchNumber} already exists for this event.`);
+  }
+}
+
 export async function previewCompetitionMatch(input: Partial<TournamentMatch>) {
   const client = getSupabaseServiceRoleClient();
   const normalizedInput = normalizeMatchInput(input);
@@ -1233,6 +1310,9 @@ export async function saveCompetitionMatch(input: Partial<TournamentMatch>, opti
   const matchId = normalizedInput.id ?? randomUUID();
   const publish = options.publish ?? preview.status === "published";
   const existingMatch = normalizedInput.id ? await getCompetitionMatch(normalizedInput.id).catch(() => null) : null;
+
+  await ensureUniqueEventMatchNumber(event.id, preview.matchNumber ?? 1, existingMatch?.id ?? matchId);
+
   const payload: TablesInsert<"matches"> = {
     id: matchId,
     season_id: event.seasonId,
@@ -1357,6 +1437,10 @@ export async function deleteCompetitionMatch(id: string) {
   const match = await getCompetitionMatch(id);
   if (!match) {
     return { id, deleted: true };
+  }
+
+  if (match.status !== "draft") {
+    throw new Error("Published matches cannot be deleted. Unpublish the match first.");
   }
 
   const now = new Date().toISOString();

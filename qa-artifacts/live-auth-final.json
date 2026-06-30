@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "baseUrl": "https://bravo-gaming-esports-nextjs.vercel.app",
+  "adminEmail": "qa-live-admin-20260630163648@example.com",
+  "teamEmail": "qa-live-team-20260630163648@example.com",
+  "teamId": "5ba1c27a-b490-4f07-81bc-e4a0164dacfd",
+  "checks": {
+    "admin": {
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/admin",
+      "exactUrlMatch": true,
+      "hasExpectedText": true,
+      "matchedTexts": [
+        "ADMIN PANEL",
+        "STAFF CONTROL CENTER"
+      ],
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    "team": {
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/team",
+      "exactUrlMatch": true,
+      "hasExpectedText": true,
+      "matchedTexts": [
+        "TEAM WORKSPACE",
+        "REQUEST ROSTER CHANGES",
+        "APPROVAL HISTORY"
+      ],
+      "consoleErrors": [],
+      "pageErrors": []
+    }
+  }
+}

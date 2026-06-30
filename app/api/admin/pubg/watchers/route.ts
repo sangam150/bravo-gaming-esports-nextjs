@@ -52,9 +52,13 @@ export async function POST(request: Request) {
       scrimId: body.scrimId?.trim() || undefined,
       enabled: body.enabled !== false,
       autoImportNewMatches: body.autoImportNewMatches !== false,
+      autoPublishCandidates: body.autoPublishCandidates === true,
       importedMatchIds: Array.from(new Set(body.importedMatchIds ?? [])).slice(0, 50),
+      processedMatchIds: Array.from(new Set(body.processedMatchIds ?? body.importedMatchIds ?? [])).slice(0, 100),
       lastCheckedAt: body.lastCheckedAt,
       lastImportedAt: body.lastImportedAt,
+      lastDetectedAt: body.lastDetectedAt,
+      lastCandidateStatus: body.lastCandidateStatus?.trim() || undefined,
     };
 
     await saveDocument(COLLECTIONS.pubgImportWatchers, watcher.id, watcher as unknown as Record<string, unknown>);

@@ -791,6 +791,7 @@ export type Database = {
           auth_user_id: string;
           created_at: string;
           display_name: string | null;
+          discord_user_id: string | null;
           email: string;
           id: string;
           role: Database["public"]["Enums"]["user_role"];
@@ -801,6 +802,7 @@ export type Database = {
           auth_user_id: string;
           created_at?: string;
           display_name?: string | null;
+          discord_user_id?: string | null;
           email: string;
           id?: string;
           role?: Database["public"]["Enums"]["user_role"];
@@ -811,6 +813,7 @@ export type Database = {
           auth_user_id?: string;
           created_at?: string;
           display_name?: string | null;
+          discord_user_id?: string | null;
           email?: string;
           id?: string;
           role?: Database["public"]["Enums"]["user_role"];

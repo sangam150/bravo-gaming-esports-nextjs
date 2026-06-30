@@ -1,0 +1,890 @@
+{
+  "copiedObjects": [
+    {
+      "sourceKey": "demo/bravo_demo_seed_2026/teams/team-logo-skyline.svg",
+      "targetKey": "teams/launch-team-logo-skyline.svg",
+      "contentType": "image/svg+xml",
+      "size": 1078
+    },
+    {
+      "sourceKey": "demo/bravo_demo_seed_2026/teams/team-logo-afterburn.svg",
+      "targetKey": "teams/launch-team-logo-afterburn.svg",
+      "contentType": "image/svg+xml",
+      "size": 1080
+    },
+    {
+      "sourceKey": "demo/bravo_demo_seed_2026/teams/team-logo-apex.svg",
+      "targetKey": "teams/launch-team-logo-apex.svg",
+      "contentType": "image/svg+xml",
+      "size": 1075
+    },
+    {
+      "sourceKey": "demo/bravo_demo_seed_2026/teams/team-logo-glacier.svg",
+      "targetKey": "teams/launch-team-logo-glacier.svg",
+      "contentType": "image/svg+xml",
+      "size": 1078
+    },
+    {
+      "sourceKey": "demo/bravo_demo_seed_2026/players/player-avatar-anchor.svg",
+      "targetKey": "players/launch-player-avatar-anchor.svg",
+      "contentType": "image/svg+xml",
+      "size": 1078
+    },
+    {
+      "sourceKey": "demo/bravo_demo_seed_2026/players/player-avatar-scout.svg",
+      "targetKey": "players/launch-player-avatar-scout.svg",
+      "contentType": "image/svg+xml",
+      "size": 1077
+    },
+    {
+      "sourceKey": "demo/bravo_demo_seed_2026/players/player-avatar-flex.svg",
+      "targetKey": "players/launch-player-avatar-flex.svg",
+      "contentType": "image/svg+xml",
+      "size": 1076
+    },
+    {
+      "sourceKey": "demo/bravo_demo_seed_2026/players/player-avatar-closer.svg",
+      "targetKey": "players/launch-player-avatar-closer.svg",
+      "contentType": "image/svg+xml",
+      "size": 1078
+    },
+    {
+      "sourceKey": "demo/bravo_demo_seed_2026/events/event-banner.svg",
+      "targetKey": "events/launch-event-banner.svg",
+      "contentType": "image/svg+xml",
+      "size": 1085
+    }
+  ],
+  "teamUpdates": [
+    {
+      "id": "14000000-0000-4000-8000-000000000001",
+      "slug": "m8-prime",
+      "name": "M8 Prime",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-skyline.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000002",
+      "slug": "team-haku-prime",
+      "name": "Team HAKU Prime",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-afterburn.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000003",
+      "slug": "n3p-prime",
+      "name": "N3P Prime",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-apex.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000004",
+      "slug": "fyb-esports",
+      "name": "FYB Esports",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-glacier.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000005",
+      "slug": "npl-prime",
+      "name": "NPL Prime",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-skyline.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000006",
+      "slug": "bir-gorkhali-prime",
+      "name": "Bir Gorkhali Prime",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-afterburn.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000007",
+      "slug": "omega-tactix",
+      "name": "Omega Tactix",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-apex.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000008",
+      "slug": "kds-prime",
+      "name": "KDS Prime",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-glacier.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000009",
+      "slug": "mandem-boys",
+      "name": "Mandem Boys",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-skyline.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-00000000000a",
+      "slug": "muji-verse",
+      "name": "Muji Verse",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-afterburn.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-00000000000b",
+      "slug": "ltg-prime",
+      "name": "LTG Prime",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-apex.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-00000000000c",
+      "slug": "sons-of-nepal-prime",
+      "name": "Sons of Nepal Prime",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-glacier.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-00000000000d",
+      "slug": "the-lost-mc-esports",
+      "name": "The Lost MC Esports",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-skyline.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-00000000000e",
+      "slug": "69-esports-prime",
+      "name": "69 Esports Prime",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-afterburn.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-00000000000f",
+      "slug": "shikhar-ice",
+      "name": "Shikhar Ice",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-apex.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000010",
+      "slug": "revive-me-bro",
+      "name": "Revive Me Bro",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-glacier.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000011",
+      "slug": "the-crew",
+      "name": "The Crew",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-skyline.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000012",
+      "slug": "zeno",
+      "name": "ZENO",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-afterburn.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000013",
+      "slug": "tjr",
+      "name": "TJR",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-apex.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg"
+    },
+    {
+      "id": "14000000-0000-4000-8000-000000000014",
+      "slug": "two-wheel-enjoyers",
+      "name": "Two Wheel Enjoyers",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fteams%2Fteam-logo-glacier.svg",
+      "to": "/api/uploads/r2?key=teams%2Flaunch-team-logo-glacier.svg"
+    }
+  ],
+  "playerUpdates": [
+    {
+      "id": "15000000-0000-4000-8000-000000000001",
+      "slug": "aero-m8-prime",
+      "name": "Aero",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000002",
+      "slug": "blitz-m8-prime",
+      "name": "Blitz",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000003",
+      "slug": "cipher-m8-prime",
+      "name": "Cipher",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000004",
+      "slug": "drift-m8-prime",
+      "name": "Drift",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000000b",
+      "slug": "echo-team-haku-prime",
+      "name": "Echo",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000000c",
+      "slug": "falcon-team-haku-prime",
+      "name": "Falcon",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000000d",
+      "slug": "frost-team-haku-prime",
+      "name": "Frost",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000000e",
+      "slug": "ghost-team-haku-prime",
+      "name": "Ghost",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000015",
+      "slug": "havoc-n3p-prime",
+      "name": "Havoc",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000016",
+      "slug": "jinx-n3p-prime",
+      "name": "Jinx",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000017",
+      "slug": "karma-n3p-prime",
+      "name": "Karma",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000018",
+      "slug": "lynx-n3p-prime",
+      "name": "Lynx",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000001f",
+      "slug": "mamba-fyb-esports",
+      "name": "Mamba",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000020",
+      "slug": "nova-fyb-esports",
+      "name": "Nova",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000021",
+      "slug": "orion-fyb-esports",
+      "name": "Orion",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000022",
+      "slug": "phantom-fyb-esports",
+      "name": "Phantom",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000029",
+      "slug": "quake-npl-prime",
+      "name": "Quake",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000002a",
+      "slug": "rogue-npl-prime",
+      "name": "Rogue",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000002b",
+      "slug": "saber-npl-prime",
+      "name": "Saber",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000002c",
+      "slug": "talon-npl-prime",
+      "name": "Talon",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000033",
+      "slug": "vanta-bir-gorkhali-prime",
+      "name": "Vanta",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000034",
+      "slug": "vex-bir-gorkhali-prime",
+      "name": "Vex",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000035",
+      "slug": "warden-bir-gorkhali-prime",
+      "name": "Warden",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000036",
+      "slug": "zephyr-bir-gorkhali-prime",
+      "name": "Zephyr",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000003d",
+      "slug": "axiom-omega-tactix",
+      "name": "Axiom",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000003e",
+      "slug": "banshee-omega-tactix",
+      "name": "Banshee",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000003f",
+      "slug": "crux-omega-tactix",
+      "name": "Crux",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000040",
+      "slug": "dagger-omega-tactix",
+      "name": "Dagger",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000047",
+      "slug": "ember-kds-prime",
+      "name": "Ember",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000048",
+      "slug": "flux-kds-prime",
+      "name": "Flux",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000049",
+      "slug": "glitch-kds-prime",
+      "name": "Glitch",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000004a",
+      "slug": "halo-kds-prime",
+      "name": "Halo",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000051",
+      "slug": "iris-mandem-boys",
+      "name": "Iris",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000052",
+      "slug": "jolt-mandem-boys",
+      "name": "Jolt",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000053",
+      "slug": "knox-mandem-boys",
+      "name": "Knox",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000054",
+      "slug": "ledger-mandem-boys",
+      "name": "Ledger",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000005b",
+      "slug": "mako-muji-verse",
+      "name": "Mako",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000005c",
+      "slug": "nyte-muji-verse",
+      "name": "Nyte",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000005d",
+      "slug": "onyx-muji-verse",
+      "name": "Onyx",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000005e",
+      "slug": "proxy-muji-verse",
+      "name": "Proxy",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000065",
+      "slug": "riot-ltg-prime",
+      "name": "Riot",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000066",
+      "slug": "shade-ltg-prime",
+      "name": "Shade",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000067",
+      "slug": "torque-ltg-prime",
+      "name": "Torque",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000068",
+      "slug": "umbra-ltg-prime",
+      "name": "Umbra",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000006f",
+      "slug": "volt-sons-of-nepal-prime",
+      "name": "Volt",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000070",
+      "slug": "wrath-sons-of-nepal-prime",
+      "name": "Wrath",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000071",
+      "slug": "xyro-sons-of-nepal-prime",
+      "name": "Xyro",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000072",
+      "slug": "yoru-sons-of-nepal-prime",
+      "name": "Yoru",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000079",
+      "slug": "zen-the-lost-mc-esports",
+      "name": "Zen",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000007a",
+      "slug": "astra-the-lost-mc-esports",
+      "name": "Astra",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000007b",
+      "slug": "briar-the-lost-mc-esports",
+      "name": "Briar",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000007c",
+      "slug": "cinder-the-lost-mc-esports",
+      "name": "Cinder",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000083",
+      "slug": "dune-69-esports-prime",
+      "name": "Dune",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000084",
+      "slug": "enzo-69-esports-prime",
+      "name": "Enzo",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000085",
+      "slug": "fable-69-esports-prime",
+      "name": "Fable",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000086",
+      "slug": "grimm-69-esports-prime",
+      "name": "Grimm",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000008d",
+      "slug": "hex-shikhar-ice",
+      "name": "Hex",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000008e",
+      "slug": "inferno-shikhar-ice",
+      "name": "Inferno",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000008f",
+      "slug": "jade-shikhar-ice",
+      "name": "Jade",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000090",
+      "slug": "kairo-shikhar-ice",
+      "name": "Kairo",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000097",
+      "slug": "locus-revive-me-bro",
+      "name": "Locus",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000098",
+      "slug": "myth-revive-me-bro",
+      "name": "Myth",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-000000000099",
+      "slug": "nero-revive-me-bro",
+      "name": "Nero",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-00000000009a",
+      "slug": "omen-revive-me-bro",
+      "name": "Omen",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000a1",
+      "slug": "pyro-the-crew",
+      "name": "Pyro",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000a2",
+      "slug": "quest-the-crew",
+      "name": "Quest",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000a3",
+      "slug": "riven-the-crew",
+      "name": "Riven",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000a4",
+      "slug": "stryke-the-crew",
+      "name": "Stryke",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000ab",
+      "slug": "tracer-zeno",
+      "name": "Tracer",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000ac",
+      "slug": "ulric-zeno",
+      "name": "Ulric",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000ad",
+      "slug": "viral-zeno",
+      "name": "Viral",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000ae",
+      "slug": "wraith-zeno",
+      "name": "Wraith",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000b5",
+      "slug": "xeno-tjr",
+      "name": "Xeno",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000b6",
+      "slug": "yami-tjr",
+      "name": "Yami",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000b7",
+      "slug": "zed-tjr",
+      "name": "Zed",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000b8",
+      "slug": "ashen-tjr",
+      "name": "Ashen",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000bf",
+      "slug": "brisk-two-wheel-enjoyers",
+      "name": "Brisk",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000c0",
+      "slug": "cross-two-wheel-enjoyers",
+      "name": "Cross",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000c1",
+      "slug": "dusk-two-wheel-enjoyers",
+      "name": "Dusk",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000c2",
+      "slug": "elix-two-wheel-enjoyers",
+      "name": "Elix",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000c9",
+      "slug": "fury-project-mirage",
+      "name": "Fury",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000ca",
+      "slug": "grit-project-mirage",
+      "name": "Grit",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000cb",
+      "slug": "hush-project-mirage",
+      "name": "Hush",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000cc",
+      "slug": "ivory-project-mirage",
+      "name": "Ivory",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000d3",
+      "slug": "jaeger-tundra-syndicate",
+      "name": "Jaeger",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000d4",
+      "slug": "kilo-tundra-syndicate",
+      "name": "Kilo",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000d5",
+      "slug": "lux-tundra-syndicate",
+      "name": "Lux",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000d6",
+      "slug": "mirth-tundra-syndicate",
+      "name": "Mirth",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000dd",
+      "slug": "nexus-velvet-recoil",
+      "name": "Nexus",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-anchor.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-anchor.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000de",
+      "slug": "orbit-velvet-recoil",
+      "name": "Orbit",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-scout.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-scout.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000df",
+      "slug": "pulse-velvet-recoil",
+      "name": "Pulse",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-flex.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-flex.svg"
+    },
+    {
+      "id": "15000000-0000-4000-8000-0000000000e0",
+      "slug": "raze-velvet-recoil",
+      "name": "Raze",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fplayers%2Fplayer-avatar-closer.svg",
+      "to": "/api/uploads/r2?key=players%2Flaunch-player-avatar-closer.svg"
+    }
+  ],
+  "eventUpdates": [
+    {
+      "id": "13000000-0000-4000-8000-000000000001",
+      "slug": "bravo-daily-scrims-day-1",
+      "title": "Bravo Daily Scrims Day 1",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fevents%2Fevent-banner.svg",
+      "to": "/api/uploads/r2?key=events%2Flaunch-event-banner.svg"
+    },
+    {
+      "id": "13000000-0000-4000-8000-000000000002",
+      "slug": "bravo-daily-scrims-day-2",
+      "title": "Bravo Daily Scrims Day 2",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fevents%2Fevent-banner.svg",
+      "to": "/api/uploads/r2?key=events%2Flaunch-event-banner.svg"
+    },
+    {
+      "id": "13000000-0000-4000-8000-000000000003",
+      "slug": "bravo-daily-scrims-day-3",
+      "title": "Bravo Daily Scrims Day 3",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fevents%2Fevent-banner.svg",
+      "to": "/api/uploads/r2?key=events%2Flaunch-event-banner.svg"
+    },
+    {
+      "id": "13000000-0000-4000-8000-000000000004",
+      "slug": "bravo-daily-scrims-day-4",
+      "title": "Bravo Daily Scrims Day 4",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fevents%2Fevent-banner.svg",
+      "to": "/api/uploads/r2?key=events%2Flaunch-event-banner.svg"
+    },
+    {
+      "id": "13000000-0000-4000-8000-000000000005",
+      "slug": "bravo-weekend-showdown",
+      "title": "Bravo Weekend Showdown",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fevents%2Fevent-banner.svg",
+      "to": "/api/uploads/r2?key=events%2Flaunch-event-banner.svg"
+    },
+    {
+      "id": "13000000-0000-4000-8000-000000000063",
+      "slug": "pubg-mahasangram-2-0",
+      "title": "PUBG Mahasangram 2.0",
+      "from": "/api/uploads/r2?key=demo%2Fbravo_demo_seed_2026%2Fevents%2Fevent-banner.svg",
+      "to": "/api/uploads/r2?key=events%2Flaunch-event-banner.svg"
+    }
+  ]
+}

@@ -35,8 +35,53 @@ export async function fetchPubgPlayerByName(playerName: string) {
   };
 }
 
+export async function fetchPubgPlayerById(playerId: string) {
+  const playerData = await pubgFetch(`/shards/${PUBG_SHARD}/players/${encodeURIComponent(playerId)}`);
+  const player = playerData?.data;
+
+  if (!player) {
+    throw new Error(`No PUBG player found for "${playerId}".`);
+  }
+
+  return {
+    id: player.id as string,
+    name: (player.attributes?.name as string | undefined) ?? playerId,
+    shardId: (player.attributes?.shardId as string | undefined) ?? PUBG_SHARD,
+    matchIds:
+      (player.relationships?.matches?.data as Array<{ id: string }> | undefined)?.map((match) => match.id) ?? [],
+    raw: playerData,
+  };
+}
+
 export async function fetchPubgPlayerRecentMatches(playerName: string, limit = 10) {
   const player = await fetchPubgPlayerByName(playerName);
+  const recentMatchIds = player.matchIds.slice(0, Math.max(1, limit));
+  const summaries = await Promise.all(
+    recentMatchIds.map(async (matchId) => {
+      const matchData = await pubgFetch(`/shards/${PUBG_SHARD}/matches/${matchId}`);
+      const summary = summarizeMatch(matchData);
+
+      return {
+        matchId,
+        mapName: summary.mapName ?? "Unknown",
+        gameMode: summary.gameMode ?? "unknown",
+        createdAt: summary.createdAt ?? new Date().toISOString(),
+        duration: summary.duration,
+      };
+    })
+  );
+
+  return {
+    playerId: player.id,
+    playerName: player.name,
+    shardId: player.shardId,
+    recentMatches: summaries,
+    raw: player.raw,
+  };
+}
+
+export async function fetchPubgPlayerRecentMatchesById(playerId: string, limit = 10) {
+  const player = await fetchPubgPlayerById(playerId);
   const recentMatchIds = player.matchIds.slice(0, Math.max(1, limit));
   const summaries = await Promise.all(
     recentMatchIds.map(async (matchId) => {

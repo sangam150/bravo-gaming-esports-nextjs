@@ -12,6 +12,31 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
 
+function getRouteErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const message = "message" in error && typeof error.message === "string" ? error.message.trim() : "";
+    const code = "code" in error && typeof error.code === "string" ? error.code.trim() : "";
+    const details = "details" in error && typeof error.details === "string" ? error.details.trim() : "";
+    const hint = "hint" in error && typeof error.hint === "string" ? error.hint.trim() : "";
+    const parts = [message, code ? `code=${code}` : "", details, hint].filter(Boolean);
+    if (parts.length > 0) {
+      return parts.join(" | ");
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+
+  return String(error);
+}
+
 function normalizeMatchIds(body: Record<string, unknown>) {
   const rawMatchIds = Array.isArray(body.matchIds)
     ? body.matchIds
@@ -120,7 +145,7 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     await logServerError("admin.pubg.match", error, request);
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getRouteErrorMessage(error);
     return Response.json({ error: message }, { status: getErrorStatus(message) });
   }
 }
@@ -144,7 +169,7 @@ export async function GET(request: Request) {
     return Response.json({ success: true, data: { matchId, raw } });
   } catch (error: unknown) {
     await logServerError("admin.pubg.match.raw", error, request);
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getRouteErrorMessage(error);
     return Response.json({ error: message }, { status: 500 });
   }
 }
@@ -222,7 +247,7 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "Unsupported action." }, { status: 400 });
   } catch (error: unknown) {
     await logServerError("admin.pubg.match.patch", error, request);
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getRouteErrorMessage(error);
     return Response.json({ error: message }, { status: getErrorStatus(message) });
   }
 }

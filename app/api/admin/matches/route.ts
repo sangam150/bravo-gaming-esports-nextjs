@@ -137,6 +137,23 @@ function normalizeMatchInput(value: Record<string, unknown>) {
   } satisfies Partial<TournamentMatch> & { pubgMatchId: string; map: string };
 }
 
+function getAdminMatchErrorStatus(message: string) {
+  const normalizedMessage = message.trim().toLowerCase();
+  if (normalizedMessage.includes("already exists") || normalizedMessage.includes("duplicate match")) {
+    return 409;
+  }
+
+  if (normalizedMessage.includes("not found")) {
+    return 404;
+  }
+
+  if (normalizedMessage.includes("required")) {
+    return 400;
+  }
+
+  return 500;
+}
+
 async function getLatestRollbackSnapshot(matchId: string) {
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client
@@ -219,7 +236,7 @@ export async function POST(request: Request) {
     return Response.json({ success: true, data });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ error: message }, { status: getAdminMatchErrorStatus(message) });
   }
 }
 
@@ -299,7 +316,7 @@ export async function PUT(request: Request) {
     return Response.json({ success: true, data });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ error: message }, { status: getAdminMatchErrorStatus(message) });
   }
 }
 
@@ -314,15 +331,20 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "id is required" }, { status: 400 });
   }
 
-  const existingMatch = await getCompetitionMatch(id);
-  const data = await deleteCompetitionMatch(id);
-  await writeAuditLogFromRequest(request, {
-    action: "delete",
-    entityType: "match",
-    entityId: id,
-    oldValue: existingMatch,
-    newValue: existingMatch ? { ...existingMatch, deletedAt: new Date().toISOString() } : { id, deletedAt: new Date().toISOString() },
-  });
-  revalidateCompetitionPaths(id);
-  return Response.json({ success: true, data });
+  try {
+    const existingMatch = await getCompetitionMatch(id);
+    const data = await deleteCompetitionMatch(id);
+    await writeAuditLogFromRequest(request, {
+      action: "delete",
+      entityType: "match",
+      entityId: id,
+      oldValue: existingMatch,
+      newValue: existingMatch ? { ...existingMatch, deletedAt: new Date().toISOString() } : { id, deletedAt: new Date().toISOString() },
+    });
+    revalidateCompetitionPaths(id);
+    return Response.json({ success: true, data });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return Response.json({ error: message }, { status: message.includes("cannot be deleted") ? 409 : 500 });
+  }
 }

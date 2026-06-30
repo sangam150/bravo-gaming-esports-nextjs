@@ -74,13 +74,15 @@ function NewsCard({ article }: { article: PlatformArticle }) {
   return (
     <Link
       href={`/news/${article.slug}`}
-      className="block rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-green/25 hover:bg-bg-hover"
+      className="flex h-full flex-col rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-green/25 hover:bg-bg-hover"
     >
       {article.imageUrl ? (
         <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08]">
           <img src={article.imageUrl} alt={article.title} className="h-48 w-full object-cover" />
         </div>
-      ) : null}
+      ) : (
+        <div className="mb-4 h-48 rounded-card border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.18),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))]" />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <CategoryPill label={article.category} />
@@ -227,7 +229,7 @@ export function NewsIndexPage({
                 Scheduled stories appear automatically after their configured publish time.
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
-                No placeholder stories or synthetic post counts are shown here.
+                Published coverage appears here as soon as it is ready for public release.
               </div>
             </div>
           }

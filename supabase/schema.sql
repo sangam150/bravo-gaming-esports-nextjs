@@ -67,6 +67,7 @@ create table if not exists public.profiles (
   auth_user_id uuid not null unique,
   email text not null unique,
   display_name text,
+  discord_user_id text,
   role public.user_role not null default 'viewer',
   team_id uuid,
   created_at timestamptz not null default timezone('utc', now()),
@@ -85,6 +86,10 @@ where p.auth_user_id is null
 create unique index if not exists profiles_auth_user_id_unique_idx
 on public.profiles (auth_user_id)
 where auth_user_id is not null;
+
+create unique index if not exists profiles_discord_user_id_unique_idx
+on public.profiles (discord_user_id)
+where discord_user_id is not null;
 
 create table if not exists public.seasons (
   id uuid primary key default gen_random_uuid(),
@@ -111,6 +116,7 @@ alter table public.seasons add column if not exists game text not null default '
 alter table public.seasons add column if not exists format text not null default 'Squad';
 alter table public.seasons add column if not exists region text not null default 'Global';
 alter table public.seasons add column if not exists perspective text not null default 'TPP';
+alter table public.seasons add column if not exists demo_seed_tag text;
 create unique index if not exists seasons_slug_unique_idx on public.seasons (slug) where slug is not null;
 
 create table if not exists public.days (
@@ -124,6 +130,8 @@ create table if not exists public.days (
   updated_at timestamptz not null default timezone('utc', now()),
   unique (season_id, day_number)
 );
+
+alter table public.days add column if not exists demo_seed_tag text;
 
 create table if not exists public.events (
   id uuid primary key default gen_random_uuid(),
@@ -164,6 +172,7 @@ alter table public.events add column if not exists published boolean not null de
 alter table public.events add column if not exists published_at timestamptz;
 alter table public.events add column if not exists deleted_at timestamptz;
 alter table public.events add column if not exists point_system_id uuid references public.point_systems(id) on delete set null;
+alter table public.events add column if not exists demo_seed_tag text;
 create unique index if not exists events_slug_unique_idx on public.events (slug);
 create index if not exists events_status_idx on public.events (status);
 create index if not exists events_published_idx on public.events (published);
@@ -190,6 +199,7 @@ alter table public.teams add column if not exists region text;
 alter table public.teams add column if not exists is_active boolean not null default true;
 alter table public.teams add column if not exists slug text;
 alter table public.teams add column if not exists deleted_at timestamptz;
+alter table public.teams add column if not exists demo_seed_tag text;
 
 create unique index if not exists teams_name_lower_unique_idx on public.teams (lower(name));
 create unique index if not exists teams_slug_unique_idx on public.teams (slug) where deleted_at is null;
@@ -211,6 +221,7 @@ alter table public.players add column if not exists avatar_url text;
 alter table public.players add column if not exists is_active boolean not null default true;
 alter table public.players add column if not exists slug text;
 alter table public.players add column if not exists deleted_at timestamptz;
+alter table public.players add column if not exists demo_seed_tag text;
 
 create unique index if not exists players_pubg_name_lower_unique_idx on public.players (lower(pubg_name));
 create unique index if not exists players_slug_unique_idx on public.players (slug) where deleted_at is null;
@@ -246,6 +257,7 @@ alter table public.matches add column if not exists screenshot_urls jsonb;
 alter table public.matches add column if not exists published_at timestamptz;
 alter table public.matches add column if not exists deleted_at timestamptz;
 alter table public.matches add column if not exists point_system_id uuid references public.point_systems(id) on delete set null;
+alter table public.matches add column if not exists demo_seed_tag text;
 create index if not exists matches_status_idx on public.matches (status);
 create index if not exists matches_event_id_idx on public.matches (event_id);
 create index if not exists matches_published_at_idx on public.matches (published_at desc);
@@ -347,6 +359,8 @@ create table if not exists public.team_roster_history (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.team_roster_history add column if not exists demo_seed_tag text;
+
 create table if not exists public.event_teams (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.events(id) on delete cascade,
@@ -357,6 +371,8 @@ create table if not exists public.event_teams (
   updated_at timestamptz not null default timezone('utc', now()),
   unique (event_id, team_id)
 );
+
+alter table public.event_teams add column if not exists demo_seed_tag text;
 
 create table if not exists public.match_team_results (
   id uuid primary key default gen_random_uuid(),
@@ -374,6 +390,8 @@ create table if not exists public.match_team_results (
   updated_at timestamptz not null default timezone('utc', now()),
   unique (match_id, team_id)
 );
+
+alter table public.match_team_results add column if not exists demo_seed_tag text;
 
 create table if not exists public.match_player_results (
   id uuid primary key default gen_random_uuid(),
@@ -396,6 +414,8 @@ create table if not exists public.match_player_results (
   updated_at timestamptz not null default timezone('utc', now()),
   unique (match_id, player_id)
 );
+
+alter table public.match_player_results add column if not exists demo_seed_tag text;
 
 create table if not exists public.moss_submissions (
   id uuid primary key default gen_random_uuid(),
@@ -424,6 +444,8 @@ create table if not exists public.uploads (
   size_bytes bigint,
   created_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.uploads add column if not exists demo_seed_tag text;
 
 create table if not exists public.audit_logs (
   id uuid primary key default gen_random_uuid(),
@@ -689,7 +711,8 @@ begin
 end;
 $$;
 
-create or replace view public.team_leaderboard as
+create or replace view public.team_leaderboard
+with (security_invoker = true) as
 with approved_matches as (
   select id, season_id, day_id, match_date
   from public.matches
@@ -722,7 +745,8 @@ select
   *
 from aggregated;
 
-create or replace view public.player_leaderboard as
+create or replace view public.player_leaderboard
+with (security_invoker = true) as
 with approved_matches as (
   select id, season_id, match_date
   from public.matches
@@ -757,11 +781,13 @@ select
   *
 from aggregated;
 
-create or replace view public.top_fraggers as
+create or replace view public.top_fraggers
+with (security_invoker = true) as
 select *
 from public.player_leaderboard;
 
-create or replace view public.mvp_rankings as
+create or replace view public.mvp_rankings
+with (security_invoker = true) as
 with approved_matches as (
   select id, season_id
   from public.matches

@@ -1,0 +1,40 @@
+{
+  "createdAt": "2026-06-29T13:28:01.134Z",
+  "demoSeedTag": "bravo_demo_seed_2026",
+  "singletonBackups": {
+    "homepageContent": null,
+    "siteStats": {
+      "collectionName": "siteStats",
+      "id": "main",
+      "data": {
+        "currentDay": 0,
+        "youtubeViews": "Channel updates soon",
+        "matchesHosted": 0,
+        "teamsRegistered": 24,
+        "communityMembers": 0,
+        "prizePoolsAwarded": "Season updates soon",
+        "tournamentsCompleted": 0
+      },
+      "createdAt": "2026-06-22T10:16:25.931456+00:00",
+      "updatedAt": "2026-06-29T13:24:50.210077+00:00"
+    }
+  },
+  "uploadedObjectKeys": [
+    "demo/bravo_demo_seed_2026/hero/hero-slide.svg",
+    "demo/bravo_demo_seed_2026/events/event-banner.svg",
+    "demo/bravo_demo_seed_2026/news/news-thumb.svg",
+    "demo/bravo_demo_seed_2026/media/media-thumb.svg",
+    "demo/bravo_demo_seed_2026/teams/team-logo-skyline.svg",
+    "demo/bravo_demo_seed_2026/teams/team-logo-afterburn.svg",
+    "demo/bravo_demo_seed_2026/teams/team-logo-apex.svg",
+    "demo/bravo_demo_seed_2026/teams/team-logo-glacier.svg",
+    "demo/bravo_demo_seed_2026/players/player-avatar-anchor.svg",
+    "demo/bravo_demo_seed_2026/players/player-avatar-scout.svg",
+    "demo/bravo_demo_seed_2026/players/player-avatar-flex.svg",
+    "demo/bravo_demo_seed_2026/players/player-avatar-closer.svg",
+    "demo/bravo_demo_seed_2026/sponsors/gorkhali-roleplay.svg",
+    "demo/bravo_demo_seed_2026/sponsors/hukut.svg",
+    "demo/bravo_demo_seed_2026/sponsors/bravo-community-partner.svg",
+    "demo/bravo_demo_seed_2026/sponsors/local-esports-supporter.svg"
+  ]
+}

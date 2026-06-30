@@ -1,0 +1,172 @@
+{
+  "baseUrl": "https://bravo-gaming-esports-nextjs.vercel.app",
+  "generatedAt": "2026-06-30T19:45:24.630Z",
+  "routes": [
+    {
+      "route": "/",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "proxyImageCount": 19,
+      "brokenProxyImages": [],
+      "loadedProxyImages": [
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "Shikhar Ice",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "Shikhar Ice",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=events%2Flaunch-event-banner.svg",
+          "alt": "PUBG Mahasangram 2.0",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        }
+      ]
+    },
+    {
+      "route": "/pubg",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports-nextjs.vercel.app/pubg",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "proxyImageCount": 16,
+      "brokenProxyImages": [],
+      "loadedProxyImages": [
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "Shikhar Ice",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Muji Verse",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-skyline.svg",
+          "alt": "The Crew",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-apex.svg",
+          "alt": "TJR",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Bir Gorkhali Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        },
+        {
+          "src": "/api/uploads/r2?key=teams%2Flaunch-team-logo-afterburn.svg",
+          "alt": "Team HAKU Prime",
+          "naturalWidth": 1280,
+          "naturalHeight": 720
+        }
+      ]
+    }
+  ]
+}

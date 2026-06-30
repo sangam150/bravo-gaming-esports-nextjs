@@ -51,6 +51,7 @@ import {
   saveCompetitionEvent,
   saveCompetitionSeason,
 } from "./competition-relational";
+import { hasPublicDemoMarker, sanitizePublicAssetUrl, sanitizePublicCopy } from "./public-content";
 import {
   compareMatchSequenceOrder,
   comparePlayerLeaderboardPerformance,
@@ -178,6 +179,219 @@ function isPubliclyVisibleTeam(team: Team) {
 
 function filterPublicTeams(teams: Team[]) {
   return teams.filter((team) => isPubliclyVisibleTeam(team));
+}
+
+function isPubliclyVisibleSeason(season: Season) {
+  return !hasPublicDemoMarker(
+    season.title,
+    season.slug,
+    season.seriesTitle,
+    season.notes,
+    season.description,
+    season.sourceProvider
+  );
+}
+
+function filterPublicSeasons(seasons: Season[]) {
+  return seasons.filter((season) => isPubliclyVisibleSeason(season));
+}
+
+function isPubliclyVisibleTournament(tournament: Tournament) {
+  return !hasPublicDemoMarker(tournament.title, tournament.seasonTitle);
+}
+
+function sanitizePublicTournament(tournament: Tournament): Tournament {
+  return {
+    id: tournament.id,
+    title: tournament.title,
+    tier: tournament.tier,
+    status: tournament.status,
+    prizePool: tournament.prizePool,
+    teamCount: tournament.teamCount,
+    maxTeams: tournament.maxTeams,
+    startDate: tournament.startDate,
+    endDate: tournament.endDate,
+    format: tournament.format,
+    mode: tournament.mode,
+    server: tournament.server,
+    perspective: tournament.perspective,
+    description:
+      sanitizePublicCopy(
+        tournament.description,
+        tournament.status === "COMPLETED"
+          ? "Official event results and standings will appear here after publication."
+          : "Official event details will appear here after publication."
+      ) ?? undefined,
+    rules: hasPublicDemoMarker(tournament.rules) ? undefined : tournament.rules,
+    schedule: hasPublicDemoMarker(tournament.schedule) ? undefined : tournament.schedule,
+    mapRotation: tournament.mapRotation?.filter(Boolean),
+    bannerUrl: sanitizePublicAssetUrl(tournament.bannerUrl ?? undefined),
+    registeredTeamIds: tournament.registeredTeamIds,
+    seasonId: tournament.seasonId,
+    seasonTitle: hasPublicDemoMarker(tournament.seasonTitle) ? undefined : tournament.seasonTitle,
+    seasonNumber: tournament.seasonNumber,
+    seasonDayNumber: tournament.seasonDayNumber,
+    dayNumber: tournament.dayNumber,
+    matchCount: tournament.matchCount,
+    createdAt: tournament.createdAt,
+    updatedAt: tournament.updatedAt,
+  };
+}
+
+function sanitizePublicPlayer(player: Player): Player {
+  return {
+    id: player.id,
+    slug: player.slug,
+    name: player.name,
+    realName: hasPublicDemoMarker(player.realName) ? undefined : player.realName,
+    inGameName: player.inGameName,
+    teamId: player.teamId,
+    teamName: player.teamName,
+    avatar: sanitizePublicAssetUrl(player.avatar ?? undefined),
+    avatarUrl: sanitizePublicAssetUrl(player.avatarUrl ?? undefined),
+    pubgName: hasPublicDemoMarker(player.pubgName) ? undefined : player.pubgName,
+    role: player.role,
+    nationality: player.nationality,
+    playerStatus: player.playerStatus,
+    assists: player.assists,
+    knocks: player.knocks,
+    placementPoints: player.placementPoints,
+    totalPoints: player.totalPoints,
+    averageDamage: player.averageDamage,
+    bestPlacement: player.bestPlacement,
+    kills: player.kills,
+    damage: player.damage,
+    mvpCount: player.mvpCount,
+    chickenDinners: player.chickenDinners,
+    matches: player.matches,
+    rating: player.rating,
+    winRate: player.winRate,
+    isMvpOfWeek: player.isMvpOfWeek,
+    scope: player.scope,
+    seasonId: player.seasonId,
+    seasonTitle: hasPublicDemoMarker(player.seasonTitle) ? undefined : player.seasonTitle,
+    seasonDayNumbers: player.seasonDayNumbers,
+    createdAt: player.createdAt,
+    updatedAt: player.updatedAt,
+  };
+}
+
+function sanitizePublicStatText(value: string, fallback: string) {
+  const sanitized = value
+    .replace(/\bpreview pool\b/gi, "")
+    .replace(/\blaunch preview\b/gi, "")
+    .replace(/\bpreview\b/gi, "")
+    .replace(/\blaunch\b/gi, "")
+    .replace(/\bqa\b/gi, "")
+    .replace(/\btest\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  if (!sanitized || hasPublicDemoMarker(sanitized)) {
+    return fallback;
+  }
+
+  return sanitized;
+}
+
+function sanitizePublicAnnouncement(announcement: Announcement): Announcement | null {
+  if (hasPublicDemoMarker(announcement.id, announcement.title, announcement.detail, announcement.category)) {
+    return null;
+  }
+
+  const detail = sanitizePublicCopy(
+    announcement.detail,
+    "Official update details will appear here after publication."
+  );
+  if (!detail) {
+    return null;
+  }
+
+  return {
+    id: announcement.id,
+    title: sanitizePublicCopy(announcement.title, "Bravo Update") ?? "Bravo Update",
+    detail,
+    date: announcement.date,
+    category: hasPublicDemoMarker(announcement.category) ? undefined : announcement.category,
+    published: announcement.published !== false,
+  };
+}
+
+function sanitizePublicStream(stream: StreamSchedule): StreamSchedule | null {
+  if (hasPublicDemoMarker(stream.id, stream.title, stream.time, stream.description, stream.platform)) {
+    return null;
+  }
+
+  return {
+    id: stream.id,
+    time: stream.time,
+    title: stream.title,
+    platform: hasPublicDemoMarker(stream.platform) ? undefined : stream.platform,
+    isLive: Boolean(stream.isLive),
+    description: sanitizePublicCopy(stream.description),
+    viewers: stream.viewers ? sanitizePublicStatText(stream.viewers, "") || undefined : undefined,
+    embedUrl: stream.embedUrl,
+    channelUrl: stream.channelUrl,
+    supportUrl: stream.supportUrl,
+  };
+}
+
+function sanitizePublicVideo(video: VideoItem): VideoItem | null {
+  if (hasPublicDemoMarker(video.id, video.slug, video.title, video.category, video.source)) {
+    return null;
+  }
+
+  return {
+    id: video.id,
+    slug: hasPublicDemoMarker(video.slug) ? undefined : video.slug,
+    title: video.title,
+    category: video.category,
+    duration: video.duration,
+    url: video.url,
+    kind: video.kind,
+    gameSlug: hasPublicDemoMarker(video.gameSlug) ? undefined : video.gameSlug,
+    summary: sanitizePublicCopy(video.summary),
+    imageUrl: sanitizePublicAssetUrl(video.imageUrl),
+    featured: Boolean(video.featured),
+    published: video.published !== false,
+    youtubeVideoId: video.youtubeVideoId,
+    publishedAt: video.publishedAt,
+    createdAt: video.createdAt,
+    updatedAt: video.updatedAt,
+  };
+}
+
+function sanitizePublicSponsor(sponsor: SponsorItem): SponsorItem | null {
+  if (hasPublicDemoMarker(sponsor.id, sponsor.slug, sponsor.name, sponsor.tier, sponsor.description)) {
+    return null;
+  }
+
+  return {
+    id: sponsor.id,
+    name: sponsor.name,
+    kind: sponsor.kind,
+    tier: sponsor.tier,
+    url: sponsor.url,
+    websiteUrl: sponsor.websiteUrl,
+    socialUrl: sponsor.socialUrl,
+    logoUrl: sanitizePublicAssetUrl(sponsor.logoUrl),
+    bannerUrl: sanitizePublicAssetUrl(sponsor.bannerUrl),
+    designAssetUrl: sanitizePublicAssetUrl(sponsor.designAssetUrl),
+    slug: hasPublicDemoMarker(sponsor.slug) ? undefined : sponsor.slug,
+    description: sanitizePublicCopy(sponsor.description),
+    supportedEvents: sponsor.supportedEvents,
+    eventSlugs: sponsor.eventSlugs,
+    partnershipHistory: sponsor.partnershipHistory,
+    visible: sponsor.visible !== false,
+    featured: Boolean(sponsor.featured),
+    published: sponsor.published !== false,
+    showOnHomepage: Boolean(sponsor.showOnHomepage),
+    showOnSponsorsPage: sponsor.showOnSponsorsPage !== false,
+    showOnEventPage: Boolean(sponsor.showOnEventPage),
+    showOnPubgPage: Boolean(sponsor.showOnPubgPage),
+    createdAt: sponsor.createdAt,
+    updatedAt: sponsor.updatedAt,
+  };
 }
 
 function normalizeSeasonPayload(data: Partial<Season> & { title: string; slug?: string }) {
@@ -607,7 +821,17 @@ export async function getSiteStats(): Promise<SiteStats> {
   if (!isDocumentStoreConfigured()) return seedStats;
   try {
     const doc = await getDocument<SiteStats>(COLLECTIONS.siteStats, "main");
-    const mergedStats = { ...seedStats, ...(doc ?? {}) };
+    const mergedStats = {
+      teamsRegistered: doc?.teamsRegistered ?? seedStats.teamsRegistered,
+      matchesHosted: doc?.matchesHosted ?? seedStats.matchesHosted,
+      tournamentsCompleted: doc?.tournamentsCompleted ?? seedStats.tournamentsCompleted,
+      prizePoolsAwarded: sanitizePublicStatText(
+        doc?.prizePoolsAwarded ?? seedStats.prizePoolsAwarded,
+        "Prize pool announced"
+      ),
+      communityMembers: doc?.communityMembers ?? seedStats.communityMembers,
+      youtubeViews: doc?.youtubeViews ?? seedStats.youtubeViews,
+    } satisfies SiteStats;
     const currentSeason = await getCurrentSeason();
 
     if (!currentSeason) {
@@ -632,9 +856,11 @@ export async function getSeasons(): Promise<Season[]> {
   try {
     const seasons = await listCompetitionSeasons();
     if (seasons.length > 0) {
-      return seasons.sort((a, b) => {
+      return filterPublicSeasons(seasons).sort((a, b) => {
         const dateComparison = compareIsoDateDesc(a.startDate, b.startDate);
         if (dateComparison !== 0) return dateComparison;
+        const createdAtComparison = (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+        if (createdAtComparison !== 0) return createdAtComparison;
         return (b.seasonNumber ?? 0) - (a.seasonNumber ?? 0);
       });
     }
@@ -642,11 +868,13 @@ export async function getSeasons(): Promise<Season[]> {
     // Fall back to the document compatibility layer when relational data is unavailable.
   }
 
-  return fromDocumentStoreOrSeed<Season>(COLLECTIONS.seasons, [], (a, b) => {
+  return filterPublicSeasons(await fromDocumentStoreOrSeed<Season>(COLLECTIONS.seasons, [], (a, b) => {
     const dateComparison = compareIsoDateDesc(a.startDate, b.startDate);
     if (dateComparison !== 0) return dateComparison;
+    const createdAtComparison = (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+    if (createdAtComparison !== 0) return createdAtComparison;
     return (b.seasonNumber ?? 0) - (a.seasonNumber ?? 0);
-  });
+  }));
 }
 
 export async function getSeason(id: string): Promise<Season | null> {
@@ -864,7 +1092,7 @@ export async function getSeasonPlayers(seasonId: string): Promise<Player[]> {
 }
 
 async function buildSeasonOverview(season: Season | null) {
-  if (!season) return null;
+  if (!season || !isPubliclyVisibleSeason(season)) return null;
 
   const [seasonTournaments, seasonLeaderboard, seasonTeams, seasonPlayers] = await Promise.all([
     getSeasonTournaments(season.id),
@@ -927,15 +1155,21 @@ export async function getCurrentSeasonOverview() {
   return buildSeasonOverview(await getCurrentSeason());
 }
 
-export async function getTournaments(status?: string): Promise<Tournament[]> {
+export async function getTournaments(
+  status?: string,
+  options: { includeInternal?: boolean } = {}
+): Promise<Tournament[]> {
   try {
     const [tournaments, seasons] = await Promise.all([listCompetitionEvents(), listCompetitionSeasons()]);
     if (tournaments.length > 0 || seasons.length > 0) {
+      const scopedTournaments = options.includeInternal
+        ? tournaments
+        : tournaments.filter((tournament) => isPubliclyVisibleTournament(tournament)).map((tournament) => sanitizePublicTournament(tournament));
       if (!status) {
-        return tournaments;
+        return scopedTournaments;
       }
 
-      return tournaments.filter((tournament) => tournament.status === status);
+      return scopedTournaments.filter((tournament) => tournament.status === status);
     }
   } catch {
     // Fall back to the document compatibility layer when relational data is unavailable.
@@ -946,8 +1180,11 @@ export async function getTournaments(status?: string): Promise<Tournament[]> {
     if (dateComparison !== 0) return dateComparison;
     return a.title.localeCompare(b.title);
   });
-  if (!status) return all;
-  return all.filter((t) => t.status === status);
+  const scopedTournaments = options.includeInternal
+    ? all
+    : all.filter((tournament) => isPubliclyVisibleTournament(tournament)).map((tournament) => sanitizePublicTournament(tournament));
+  if (!status) return scopedTournaments;
+  return scopedTournaments.filter((t) => t.status === status);
 }
 
 export async function getTournament(id: string): Promise<Tournament | null> {
@@ -961,6 +1198,15 @@ export async function getTournament(id: string): Promise<Tournament | null> {
   }
 
   return oneFromDocumentStoreOrSeed(COLLECTIONS.tournaments, id, seedTournaments);
+}
+
+export async function getPublicTournament(id: string): Promise<Tournament | null> {
+  const tournament = await getTournament(id);
+  if (!tournament || !isPubliclyVisibleTournament(tournament)) {
+    return null;
+  }
+
+  return sanitizePublicTournament(tournament);
 }
 
 export async function saveTournament(data: Partial<Tournament> & { title: string }, id?: string) {
@@ -1370,7 +1616,9 @@ export async function getPlayers(): Promise<Player[]> {
       getCurrentCompetitionSeason().catch(() => null),
     ]);
     if (players.length > 0 || currentSeason) {
-      return players.sort((firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer));
+      return players
+        .map((player) => sanitizePublicPlayer(player))
+        .sort((firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer));
     }
   } catch {
     // Fall back to the document compatibility layer when relational data is unavailable.
@@ -1395,7 +1643,9 @@ export async function getPlayers(): Promise<Player[]> {
     }
   }
 
-  return visiblePlayers.sort((firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer));
+  return visiblePlayers
+    .map((player) => sanitizePublicPlayer(player))
+    .sort((firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer));
 }
 
 export async function getPlayer(id: string): Promise<Player | null> {
@@ -1403,6 +1653,12 @@ export async function getPlayer(id: string): Promise<Player | null> {
     (await getDocumentByIdOrSlug<Player & { id: string }>(COLLECTIONS.players, id)) ??
     (await oneFromDocumentStoreOrSeed(COLLECTIONS.players, id, []))
   );
+}
+
+export async function getPublicPlayer(id: string): Promise<Player | null> {
+  const normalizedId = id.trim().toLowerCase();
+  const players = await getPlayers();
+  return players.find((player) => player.id === id || (player.slug ?? "").toLowerCase() === normalizedId) ?? null;
 }
 
 export async function getPlayerMatchPlayers(sourcePlayerId: string): Promise<MatchPlayerRecord[]> {
@@ -1500,7 +1756,10 @@ export async function getLeaderboard(): Promise<LeaderboardRow[]> {
 
 export async function getAnnouncements(): Promise<Announcement[]> {
   const all = await fromDocumentStoreOrSeed<Announcement>(COLLECTIONS.announcements, seedAnnouncements);
-  return all.filter((a) => a.published !== false);
+  return all
+    .filter((announcement) => announcement.published !== false)
+    .map((announcement) => sanitizePublicAnnouncement(announcement))
+    .filter((announcement): announcement is Announcement => Boolean(announcement));
 }
 
 export async function saveAnnouncement(data: Partial<Announcement> & { title: string; detail: string }, id?: string) {
@@ -1520,7 +1779,10 @@ export async function deleteAnnouncement(id: string) {
 }
 
 export async function getStreams(): Promise<StreamSchedule[]> {
-  return fromDocumentStoreOrSeed(COLLECTIONS.streams, seedStreams);
+  const streams = await fromDocumentStoreOrSeed(COLLECTIONS.streams, seedStreams);
+  return streams
+    .map((stream) => sanitizePublicStream(stream))
+    .filter((stream): stream is StreamSchedule => Boolean(stream));
 }
 
 function normalizeYouTubeHandle(value?: string) {
@@ -1573,7 +1835,14 @@ export async function getLiveStreamFeed(): Promise<StreamSchedule> {
 export async function getVideos(options: { includeUnpublished?: boolean } = {}): Promise<VideoItem[]> {
   const videos = await fromDocumentStoreOrSeed(COLLECTIONS.videos, seedVideos);
   const visibleVideos = filterSoftDeleted(videos);
-  return options.includeUnpublished ? visibleVideos : visibleVideos.filter((video) => video.published !== false);
+  if (options.includeUnpublished) {
+    return visibleVideos;
+  }
+
+  return visibleVideos
+    .filter((video) => video.published !== false)
+    .map((video) => sanitizePublicVideo(video))
+    .filter((video): video is VideoItem => Boolean(video));
 }
 
 export async function saveVideo(data: Partial<VideoItem> & { title: string }, id?: string) {
@@ -1605,7 +1874,14 @@ export async function deleteVideo(id: string) {
 export async function getSponsors(options: { includeUnpublished?: boolean } = {}): Promise<SponsorItem[]> {
   const sponsors = await fromDocumentStoreOrSeed<SponsorItem>(COLLECTIONS.sponsors, seedSponsors);
   const visibleSponsors = filterSoftDeleted(sponsors);
-  return options.includeUnpublished ? visibleSponsors : visibleSponsors.filter((sponsor) => sponsor.published !== false);
+  if (options.includeUnpublished) {
+    return visibleSponsors;
+  }
+
+  return visibleSponsors
+    .filter((sponsor) => sponsor.published !== false)
+    .map((sponsor) => sanitizePublicSponsor(sponsor))
+    .filter((sponsor): sponsor is SponsorItem => Boolean(sponsor));
 }
 
 export async function saveSponsor(data: Partial<SponsorItem> & { name: string }, id?: string) {

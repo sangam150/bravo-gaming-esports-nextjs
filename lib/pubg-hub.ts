@@ -3,6 +3,7 @@ import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
 import { placementPoints, totalPoints } from "./pubg";
 import { BRAVO_DISCORD_URL } from "./brand-links";
+import { hasPublicDemoMarker, hasPublicDemoSeedTag, sanitizePublicAssetUrl, sanitizePublicCopy } from "./public-content";
 import { normalizeMapName } from "./tournament-standings";
 import { getUserFacingPlayerLabel, getUserFacingTeamLabel } from "./user-facing-errors";
 import type { Player, Scrim, Team, Tournament, TournamentMatch } from "./types";
@@ -550,6 +551,11 @@ function toBoolean(value: unknown, fallback = false) {
   return fallback;
 }
 
+function isHiddenPublicStatus(status: string | null | undefined) {
+  const normalizedStatus = status?.trim().toLowerCase() ?? "";
+  return ["inactive", "pending", "draft", "private", "archived"].includes(normalizedStatus);
+}
+
 function sortByNewest<T extends { startTime?: string; startDate?: string }>(firstValue: T, secondValue: T) {
   return (secondValue.startTime ?? secondValue.startDate ?? "").localeCompare(firstValue.startTime ?? firstValue.startDate ?? "");
 }
@@ -1090,6 +1096,7 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
 
   try {
     const [
+      seasonRows,
       teamRows,
       playerRows,
       eventRows,
@@ -1099,6 +1106,7 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
       matchPlayerResultRows,
       rosterHistoryRows,
     ] = await Promise.all([
+      fetchSupabaseRows("seasons").catch(() => []),
       fetchSupabaseRows("teams").catch(() => []),
       fetchSupabaseRows("players").catch(() => []),
       fetchSupabaseRows("events").catch(() => []),
@@ -1109,27 +1117,52 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
       fetchSupabaseRows("team_roster_history").catch(() => []),
     ]);
 
-    const teams: BaseTeamRow[] = teamRows.map((row) => ({
-      id: toText(row.id),
-      slug: toText(row.slug, slugify(toText(row.name))),
-      name: toText(row.name),
-      tag: toOptionalText(row.tag ?? row.short_name),
-      logoUrl: toOptionalText(row.logo_url),
-      region: toOptionalText(row.region),
-      slotNumber: toOptionalNumber(row.slot_number),
-      active: toBoolean(row.is_active ?? (toText(row.status).toLowerCase() !== "inactive"), true),
-    })).filter((team) => team.id && team.name);
+    const hiddenSeasonIds = new Set(
+      seasonRows
+        .filter((row) =>
+          hasPublicDemoMarker(
+            toOptionalText(row.name),
+            toOptionalText(row.slug),
+            toOptionalText(row.series_title)
+          )
+        )
+        .map((row) => toText(row.id))
+        .filter(Boolean)
+    );
 
-    const players: BasePlayerRow[] = playerRows.map((row) => ({
-      id: toText(row.id),
-      slug: toText(row.slug, slugify(toText(row.pubg_name ?? row.display_name))),
-      pubgName: toText(row.pubg_name ?? row.display_name),
-      avatarUrl: toOptionalText(row.avatar_url ?? row.photo_url),
-      teamId: toOptionalText(row.current_team_id),
-      active: toBoolean(row.is_active, true),
-    })).filter((player) => player.id && player.pubgName);
+    const teams: BaseTeamRow[] = teamRows.map<BaseTeamRow | null>((row) => {
+      const normalizedStatus = toText(row.status, "active");
+      const isActiveFlag = toBoolean(row.is_active, normalizedStatus.toLowerCase() !== "inactive");
+      const isDeleted = Boolean(toOptionalText(row.deleted_at));
 
-    const events: BaseEventRow[] = eventRows.map((row) => {
+      return {
+        id: toText(row.id),
+        slug: toText(row.slug, slugify(toText(row.name))),
+        name: toText(row.name),
+        tag: toOptionalText(row.tag ?? row.short_name),
+        logoUrl: toOptionalText(row.logo_url),
+        region: toOptionalText(row.region),
+        slotNumber: toOptionalNumber(row.slot_number),
+        active: isActiveFlag && !isDeleted && !isHiddenPublicStatus(normalizedStatus),
+      };
+    }).filter((team): team is BaseTeamRow => Boolean(team?.id && team.name));
+
+    const players: BasePlayerRow[] = playerRows.map<BasePlayerRow | null>((row) => {
+      return {
+        id: toText(row.id),
+        slug: toText(row.slug, slugify(toText(row.pubg_name ?? row.display_name))),
+        pubgName: toText(row.pubg_name ?? row.display_name),
+        avatarUrl: toOptionalText(row.avatar_url ?? row.photo_url),
+        teamId: toOptionalText(row.current_team_id),
+        active: toBoolean(row.is_active, true) && !Boolean(toOptionalText(row.deleted_at)),
+      };
+    }).filter((player): player is BasePlayerRow => Boolean(player?.id && player.pubgName));
+
+    const events: BaseEventRow[] = eventRows.map<BaseEventRow | null>((row) => {
+      if (toOptionalText(row.season_id) && hiddenSeasonIds.has(toText(row.season_id))) {
+        return null;
+      }
+
       const eventName = toText(row.name ?? row.title);
       const startDate = toText(row.start_date);
       const endDate = toOptionalText(row.end_date);
@@ -1157,56 +1190,70 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
         discordUrl: toOptionalText(row.discord_url),
         published,
       };
-    }).filter((event) => event.id && event.name);
+    }).filter((event): event is BaseEventRow => Boolean(event?.id && event.name));
 
-    const eventTeams: BaseEventTeamRow[] = eventTeamRows.map((row) => ({
-      eventId: toText(row.event_id),
-      teamId: toText(row.team_id),
-      slotNumber: toOptionalNumber(row.slot_number),
-      status: toText(row.status, "approved"),
-    })).filter((row) => row.eventId && row.teamId);
+    const eventTeams: BaseEventTeamRow[] = eventTeamRows.map<BaseEventTeamRow | null>((row) => {
+      return {
+        eventId: toText(row.event_id),
+        teamId: toText(row.team_id),
+        slotNumber: toOptionalNumber(row.slot_number),
+        status: toText(row.status, "approved"),
+      };
+    }).filter((row): row is BaseEventTeamRow => Boolean(row?.eventId && row.teamId));
 
-    const matches: BaseMatchRow[] = matchRows.map((row) => ({
-      id: toText(row.id),
-      eventId: toText(row.event_id),
-      matchNumber: toNumber(row.match_number, 0),
-      mapName: normalizeMapName(toText(row.map_name ?? row.map, "Unknown")),
-      startTime: toText(row.start_time ?? row.match_date),
-      status: toText(row.status, "published"),
-      vodUrl: toOptionalText(row.vod_url),
-    })).filter((match) => match.id && match.eventId);
+    const matches: BaseMatchRow[] = matchRows.map<BaseMatchRow | null>((row) => {
+      if (toOptionalText(row.season_id) && hiddenSeasonIds.has(toText(row.season_id))) {
+        return null;
+      }
 
-    const teamResults: BaseTeamResultRow[] = matchTeamResultRows.map((row) => ({
-      id: toText(row.id),
-      matchId: toText(row.match_id),
-      teamId: toText(row.team_id),
-      placement: toNumber(row.placement, 0),
-      kills: toNumber(row.kills, 0),
-      placementPoints: toNumber(row.placement_points, 0),
-      killPoints: toNumber(row.kill_points, toNumber(row.kills, 0)),
-      totalPoints: toNumber(row.total_points, 0),
-      wwcd: toBoolean(row.wwcd, toNumber(row.placement, 0) === 1),
-    })).filter((row) => row.id && row.matchId && row.teamId);
+      return {
+        id: toText(row.id),
+        eventId: toText(row.event_id),
+        matchNumber: toNumber(row.match_number, 0),
+        mapName: normalizeMapName(toText(row.map_name ?? row.map, "Unknown")),
+        startTime: toText(row.start_time ?? row.match_date),
+        status: toText(row.status, "published"),
+        vodUrl: toOptionalText(row.vod_url),
+      };
+    }).filter((match): match is BaseMatchRow => Boolean(match?.id && match.eventId));
 
-    const playerResults: BasePlayerResultRow[] = matchPlayerResultRows.map((row) => ({
-      id: toText(row.id),
-      matchId: toText(row.match_id),
-      playerId: toText(row.player_id),
-      teamId: toText(row.team_id),
-      kills: toNumber(row.kills, 0),
-      assists: toNumber(row.assists, 0),
-      knocks: toNumber(row.knocks, 0),
-      damage: toNumber(row.damage, 0),
-      survivalTime: toNumber(row.survival_time, 0),
-    })).filter((row) => row.id && row.matchId && row.playerId);
+    const teamResults: BaseTeamResultRow[] = matchTeamResultRows.map<BaseTeamResultRow | null>((row) => {
+      return {
+        id: toText(row.id),
+        matchId: toText(row.match_id),
+        teamId: toText(row.team_id),
+        placement: toNumber(row.placement, 0),
+        kills: toNumber(row.kills, 0),
+        placementPoints: toNumber(row.placement_points, 0),
+        killPoints: toNumber(row.kill_points, toNumber(row.kills, 0)),
+        totalPoints: toNumber(row.total_points, 0),
+        wwcd: toBoolean(row.wwcd, toNumber(row.placement, 0) === 1),
+      };
+    }).filter((row): row is BaseTeamResultRow => Boolean(row?.id && row.matchId && row.teamId));
 
-    const rosterHistory: BaseRosterRow[] = rosterHistoryRows.map((row) => ({
-      teamId: toText(row.team_id),
-      playerId: toText(row.player_id),
-      startDate: toText(row.start_date),
-      endDate: toOptionalText(row.end_date),
-      status: toText(row.status, "active"),
-    })).filter((row) => row.teamId && row.playerId);
+    const playerResults: BasePlayerResultRow[] = matchPlayerResultRows.map<BasePlayerResultRow | null>((row) => {
+      return {
+        id: toText(row.id),
+        matchId: toText(row.match_id),
+        playerId: toText(row.player_id),
+        teamId: toText(row.team_id),
+        kills: toNumber(row.kills, 0),
+        assists: toNumber(row.assists, 0),
+        knocks: toNumber(row.knocks, 0),
+        damage: toNumber(row.damage, 0),
+        survivalTime: toNumber(row.survival_time, 0),
+      };
+    }).filter((row): row is BasePlayerResultRow => Boolean(row?.id && row.matchId && row.playerId));
+
+    const rosterHistory: BaseRosterRow[] = rosterHistoryRows.map<BaseRosterRow | null>((row) => {
+      return {
+        teamId: toText(row.team_id),
+        playerId: toText(row.player_id),
+        startDate: toText(row.start_date),
+        endDate: toOptionalText(row.end_date),
+        status: toText(row.status, "active"),
+      };
+    }).filter((row): row is BaseRosterRow => Boolean(row?.teamId && row.playerId));
 
     if (teams.length === 0 && events.length === 0 && matches.length === 0) {
       return null;
@@ -1924,6 +1971,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
     .sort(sortByNewest);
 
   const eventsByIdDetailed = new Map(events.map((event) => [event.id, event] as const));
+  const publicBaseTeams = base.teams.filter((team) => team.active);
 
   const teamSummaryMap = new Map<
     string,
@@ -1951,6 +1999,43 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
     }
   >();
 
+  function createTeamSummaryEntry(input: {
+    id: string;
+    name: string;
+    tag?: string | null;
+    logoUrl?: string | null;
+    region?: string | null;
+    slotNumber?: number | null;
+    active: boolean;
+  }) {
+    return {
+      id: input.id,
+      name: input.name,
+      tag: input.tag ?? null,
+      logoUrl: input.logoUrl ?? null,
+      region: input.region ?? null,
+      slotNumber: input.slotNumber ?? null,
+      active: input.active,
+      matches: 0,
+      wins: 0,
+      kills: 0,
+      damage: 0,
+      placementPoints: 0,
+      killPoints: 0,
+      totalPoints: 0,
+      placementTotal: 0,
+      recentPlacements: [],
+      recentPoints: [],
+      recentKills: [],
+      recentMatches: [],
+      mapInputs: [],
+    };
+  }
+
+  for (const team of publicBaseTeams) {
+    teamSummaryMap.set(team.id, createTeamSummaryEntry(team));
+  }
+
   const teamPreviousRosterMap = new Map<string, PubgHubRosterHistoryEntry[]>();
   base.rosterHistory.forEach((historyRow) => {
     const player = playersById.get(historyRow.playerId);
@@ -1968,7 +2053,11 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
   for (const match of matches) {
     for (const teamResult of match.teamResults) {
       const team = teamsById.get(teamResult.teamId);
-      const currentValue = teamSummaryMap.get(teamResult.teamId) ?? {
+      if (team && !team.active) {
+        continue;
+      }
+
+      const currentValue = teamSummaryMap.get(teamResult.teamId) ?? createTeamSummaryEntry({
         id: teamResult.teamId,
         name: team?.name ?? teamResult.teamName,
         tag: team?.tag ?? null,
@@ -1976,20 +2065,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         region: team?.region ?? null,
         slotNumber: team?.slotNumber ?? null,
         active: team?.active ?? true,
-        matches: 0,
-        wins: 0,
-        kills: 0,
-        damage: 0,
-        placementPoints: 0,
-        killPoints: 0,
-        totalPoints: 0,
-        placementTotal: 0,
-        recentPlacements: [],
-        recentPoints: [],
-        recentKills: [],
-        recentMatches: [],
-        mapInputs: [],
-      };
+      });
 
       const teamDamage = match.playerResults
         .filter((playerResult) => playerResult.teamId === teamResult.teamId)
@@ -2147,10 +2223,46 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
     }
   >();
 
+  for (const player of base.players) {
+    if (!player.active) {
+      continue;
+    }
+
+    const currentTeam = player.teamId ? teamsById.get(player.teamId) : null;
+    if (currentTeam && !currentTeam.active) {
+      continue;
+    }
+
+    playerSummaryMap.set(player.id, {
+      id: player.id,
+      pubgName: player.pubgName,
+      avatarUrl: player.avatarUrl ?? null,
+      teamId: currentTeam?.id ?? player.teamId ?? null,
+      teamName: currentTeam?.name ?? null,
+      matches: 0,
+      kills: 0,
+      assists: 0,
+      knocks: 0,
+      damage: 0,
+      wins: 0,
+      recentTrend: [],
+      recentDamageTrend: [],
+      recentMatches: [],
+      mapInputs: [],
+      previousTeams: new Set<string>(),
+      bestMatch: null,
+    });
+  }
+
   for (const match of matches) {
     const topPlayerId = match.playerResults[0]?.playerId;
 
     for (const playerResult of match.playerResults) {
+      const currentTeam = teamsById.get(playerResult.teamId);
+      if (currentTeam && !currentTeam.active) {
+        continue;
+      }
+
       const currentValue = playerSummaryMap.get(playerResult.playerId) ?? {
         id: playerResult.playerId,
         pubgName: playerResult.pubgName,
@@ -2396,19 +2508,244 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
   } satisfies PubgHubDataset;
 }
 
+function resequenceRanks<T extends { rank: number }>(rows: T[]) {
+  return rows.map((row, index) => ({
+    ...row,
+    rank: index + 1,
+  }));
+}
+
+function hasVisibleTeamProfile(team: PubgHubTeam) {
+  return Boolean(sanitizePublicAssetUrl(team.logoUrl ?? undefined));
+}
+
+function hasVisibleTeamActivity(
+  team: PubgHubTeam,
+  visibleEventTeamIds: ReadonlySet<string>,
+  visibleMatchTeamIds: ReadonlySet<string>
+) {
+  return visibleEventTeamIds.has(team.id) || visibleMatchTeamIds.has(team.id);
+}
+
+function hasVisiblePlayerProfile(player: PubgHubPlayer) {
+  return Boolean(sanitizePublicAssetUrl(player.avatarUrl ?? undefined));
+}
+
+function hasVisiblePlayerActivity(player: PubgHubPlayer, visibleMatchPlayerIds: ReadonlySet<string>) {
+  return visibleMatchPlayerIds.has(player.id);
+}
+
+function sanitizePubgDatasetForPublicDisplay(dataset: PubgHubDataset): PubgHubDataset {
+  const candidateEvents = dataset.events.filter(
+    (event) => !hasPublicDemoMarker(event.name, event.slug, event.region, event.type)
+  );
+  const visibleEventIds = new Set(candidateEvents.map((event) => event.id));
+  const visibleEventTeamIds = new Set<string>();
+  for (const event of candidateEvents) {
+    event.teamIds.forEach((teamId) => visibleEventTeamIds.add(teamId));
+    event.standings.forEach((row) => visibleEventTeamIds.add(row.teamId));
+  }
+  const rawCandidateMatches = dataset.matches.filter(
+    (match) => visibleEventIds.has(match.eventId) && !hasPublicDemoMarker(match.eventName, match.eventSlug)
+  );
+  const visibleMatchTeamIds = new Set<string>();
+  const visibleMatchPlayerIds = new Set<string>();
+  for (const match of rawCandidateMatches) {
+    match.teamResults.forEach((teamResult) => {
+      if (!hasPublicDemoMarker(teamResult.teamName, teamResult.tag ?? undefined)) {
+        visibleMatchTeamIds.add(teamResult.teamId);
+      }
+    });
+    match.playerResults.forEach((playerResult) => {
+      if (!hasPublicDemoMarker(playerResult.pubgName, playerResult.teamName)) {
+        visibleMatchPlayerIds.add(playerResult.playerId);
+      }
+    });
+  }
+
+  const teams = dataset.teams
+    .filter((team) => {
+      if (hasPublicDemoMarker(team.name, team.tag ?? undefined, team.slug, team.region ?? undefined)) {
+        return false;
+      }
+
+      return hasVisibleTeamActivity(team, visibleEventTeamIds, visibleMatchTeamIds) || hasVisibleTeamProfile(team);
+    })
+    .map((team) => ({
+      ...team,
+      logoUrl: sanitizePublicAssetUrl(team.logoUrl ?? undefined) ?? null,
+      currentRoster: team.currentRoster
+        .filter((player) => !hasPublicDemoMarker(player.pubgName))
+        .map((player) => ({
+          ...player,
+          avatarUrl: sanitizePublicAssetUrl(player.avatarUrl ?? undefined) ?? null,
+        })),
+      rosterHistory: team.rosterHistory.filter((player) => !hasPublicDemoMarker(player.pubgName)),
+      recentMatches: team.recentMatches.filter(
+        (match) =>
+          visibleEventIds.has(match.eventId) &&
+          !hasPublicDemoMarker(match.eventName, match.eventSlug, match.teamName, match.playerName)
+      ),
+      eventStats: team.eventStats.filter(
+        (event) => visibleEventIds.has(event.eventId) && !hasPublicDemoMarker(event.eventName, event.eventSlug)
+      ),
+    }));
+  const teamIds = new Set(teams.map((team) => team.id));
+
+  const players = dataset.players
+    .filter((player) => {
+      if (hasPublicDemoMarker(player.pubgName, player.slug, player.currentTeamName ?? undefined)) {
+        return false;
+      }
+
+      const belongsToVisibleTeam = !player.currentTeamId || teamIds.has(player.currentTeamId);
+      if (!belongsToVisibleTeam) {
+        return false;
+      }
+
+      return hasVisiblePlayerActivity(player, visibleMatchPlayerIds) || Boolean(player.currentTeamId && teamIds.has(player.currentTeamId) && hasVisiblePlayerProfile(player));
+    })
+    .map((player) => ({
+      ...player,
+      avatarUrl: sanitizePublicAssetUrl(player.avatarUrl ?? undefined) ?? null,
+      currentTeamLogoUrl: sanitizePublicAssetUrl(player.currentTeamLogoUrl ?? undefined) ?? null,
+      recentMatches: player.recentMatches.filter(
+        (match) =>
+          visibleEventIds.has(match.eventId) &&
+          !hasPublicDemoMarker(match.eventName, match.eventSlug, match.teamName, match.playerName)
+      ),
+      eventStats: player.eventStats.filter(
+        (event) => visibleEventIds.has(event.eventId) && !hasPublicDemoMarker(event.eventName, event.eventSlug)
+      ),
+      previousTeams: player.previousTeams.filter((teamName) => !hasPublicDemoMarker(teamName)),
+    }));
+  const playerIds = new Set(players.map((player) => player.id));
+
+  const candidateMatches = rawCandidateMatches
+    .map((match) => {
+      const teamResults = match.teamResults.filter(
+        (teamResult) =>
+          teamIds.has(teamResult.teamId) && !hasPublicDemoMarker(teamResult.teamName, teamResult.tag ?? undefined)
+      );
+      const playerResults = match.playerResults.filter(
+        (playerResult) =>
+          playerIds.has(playerResult.playerId) &&
+          teamIds.has(playerResult.teamId) &&
+          !hasPublicDemoMarker(playerResult.pubgName, playerResult.teamName)
+      );
+
+      if (teamResults.length === 0) {
+        return null;
+      }
+
+      const winner = teamResults.find((teamResult) => teamResult.placement === 1) ?? teamResults[0];
+
+      return {
+        ...match,
+        teamResults,
+        playerResults,
+        winnerTeamId: winner?.teamId ?? undefined,
+        winnerTeamName: winner?.teamName ?? undefined,
+        totalKills:
+          playerResults.length > 0
+            ? playerResults.reduce((sum, playerResult) => sum + playerResult.kills, 0)
+            : teamResults.reduce((sum, teamResult) => sum + teamResult.kills, 0),
+        totalDamage: playerResults.reduce((sum, playerResult) => sum + playerResult.damage, 0),
+      };
+    })
+    .filter((match): match is NonNullable<typeof match> => Boolean(match));
+
+  const candidateMatchesByEventId = new Map<string, PubgHubMatch[]>();
+  for (const match of candidateMatches) {
+    const currentMatches = candidateMatchesByEventId.get(match.eventId) ?? [];
+    currentMatches.push(match);
+    candidateMatchesByEventId.set(match.eventId, currentMatches);
+  }
+
+  const events = candidateEvents
+    .map((event) => {
+      const standings = resequenceRanks(
+        event.standings.filter(
+          (row) => teamIds.has(row.teamId) && !hasPublicDemoMarker(row.teamName, row.tag ?? undefined)
+        )
+      );
+      const playerTable = resequenceRanks(
+        event.playerTable.filter(
+          (row) =>
+            playerIds.has(row.playerId) &&
+            !hasPublicDemoMarker(row.pubgName, row.teamName ?? undefined)
+        )
+      );
+      const matches = candidateMatchesByEventId.get(event.id) ?? [];
+      const teamIdList = event.teamIds.filter((teamId) => teamIds.has(teamId));
+
+      return {
+        ...event,
+        bannerUrl: sanitizePublicAssetUrl(event.bannerUrl ?? undefined) ?? null,
+        description: sanitizePublicCopy(event.description) ?? null,
+        rules: sanitizePublicCopy(event.rules) ?? null,
+        teamCount: teamIdList.length > 0 ? teamIdList.length : standings.length,
+        matchCount: matches.length,
+        teamIds: teamIdList,
+        topTeamId: standings[0]?.teamId,
+        topPlayerId: playerTable[0]?.playerId,
+        standings,
+        playerTable,
+        matches,
+      };
+    });
+  const eventIds = new Set(events.map((event) => event.id));
+
+  const matches = candidateMatches.filter((match) => eventIds.has(match.eventId));
+
+  const communities = Array.from(
+    new Set(teams.map((team) => team.region).filter((region): region is string => Boolean(region)))
+  ).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
+
+  return {
+    ...dataset,
+    communities,
+    summary: {
+      trackedMatches: matches.length,
+      activeEvents: events.filter((event) => event.status === "ongoing" || event.status === "upcoming").length,
+      teamsInForm: teams.filter((team) => team.formScore >= 10).length,
+      recentEvents: events.filter((event) => event.matchCount > 0).length,
+      communitiesActive: communities.length,
+    },
+    teams,
+    players,
+    events,
+    matches,
+    fantasy: {
+      ...dataset.fantasy,
+      events: dataset.fantasy.events.filter(
+        (event) => eventIds.has(event.eventId) && !hasPublicDemoMarker(event.eventName, event.eventSlug, event.region)
+      ),
+      leaderboard: dataset.fantasy.leaderboard.filter(
+        (player) => playerIds.has(player.playerId) && !hasPublicDemoMarker(player.pubgName, player.teamName ?? undefined)
+      ),
+    },
+  };
+}
+
 export async function getPubgHubDataset() {
   const liveDataset = await buildSupabaseBaseDataset();
   const documentStoreDataset = await buildDocumentStoreBaseDataset();
   const mergedDataset = mergeBaseDatasets(liveDataset, documentStoreDataset);
 
   if (mergedDataset) {
-    const aggregatedLive = buildDataset(mergedDataset);
-    if (aggregatedLive.matches.length > 0 || aggregatedLive.events.length > 0) {
+    const aggregatedLive = sanitizePubgDatasetForPublicDisplay(buildDataset(mergedDataset));
+    if (
+      aggregatedLive.matches.length > 0 ||
+      aggregatedLive.events.length > 0 ||
+      aggregatedLive.teams.length > 0 ||
+      aggregatedLive.players.length > 0
+    ) {
       return aggregatedLive;
     }
   }
 
-  return buildDataset(buildEmptyBaseDataset());
+  return sanitizePubgDatasetForPublicDisplay(buildDataset(buildEmptyBaseDataset()));
 }
 
 export async function getPubgDashboardData() {

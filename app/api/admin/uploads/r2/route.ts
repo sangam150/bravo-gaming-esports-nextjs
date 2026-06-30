@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const previousUrl = (formData.get("previousUrl") as string | null) ?? undefined;
 
     if (!file || !type) {
-      return Response.json({ error: "file and type are required" }, { status: 400 });
+      return Response.json({ success: false, error: "file and type are required" }, { status: 400 });
     }
 
     const validationError = validateUpload({
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     });
 
     if (validationError) {
-      return Response.json({ error: validationError }, { status: 400 });
+      return Response.json({ success: false, error: validationError }, { status: 400 });
     }
 
     const contentType =
@@ -82,10 +82,16 @@ export async function POST(request: Request) {
       },
     });
 
-    return Response.json({ success: true, url, path: uploadResult.path, id: record.id });
+    return Response.json({
+      success: true,
+      id: record.id,
+      key: uploadResult.path,
+      path: uploadResult.path,
+      url,
+    });
   } catch (error: unknown) {
     await logServerError("admin.upload.r2", error, request);
     const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ success: false, error: message }, { status: 500 });
   }
 }
