@@ -412,7 +412,7 @@ function GameCard({ game }: { game: PlatformGame }) {
 }
 
 function sponsorKindLabel(kind: PlatformSponsorProfile["kind"]) {
-  return kind === "design" ? "Design" : kind === "sponsor" ? "Sponsor" : "Partner";
+  return kind === "design" ? "Design Partner" : kind === "sponsor" ? "Official Sponsor" : "Community Partner";
 }
 
 function sponsorPrimaryAsset(sponsor: PlatformSponsorProfile) {
@@ -575,7 +575,7 @@ export function PlatformHomePage({
     { label: "Tracked Matches", value: pubg.matches.length, detail: "Real match cards, standings, and player output powering the flagship section.", tone: "yellow" as const },
     { label: "Communities Active", value: communityCount, detail: "Kathmandu, Pokhara, Chitwan, and more scenes represented in the hub.", tone: "red" as const },
     { label: "Published News", value: hub.news.length, detail: "Editorial coverage makes the platform feel alive beyond tournament operations.", tone: "blue" as const },
-    { label: "Sponsors Live", value: hub.sponsors.filter((sponsor) => sponsor.showOnSponsorsPage).length, detail: "Commercial partners now have dedicated public surface area and campaign value.", tone: "green" as const },
+    { label: "Partner Profiles", value: hub.sponsors.filter((sponsor) => sponsor.showOnSponsorsPage).length, detail: "Official partners supporting Bravo events, media, and competitive coverage.", tone: "green" as const },
   ];
 
   return (
@@ -720,7 +720,7 @@ export function PlatformHomePage({
 
         <section className="grid gap-6 xl:grid-cols-[1.15fr,0.85fr]">
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Live Now" title="Match center spotlight" description="Live streams, upcoming series, and recent results from across Bravo competitions." action={<a href={hub.home.liveFeature.href} target={hub.home.liveFeature.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="btn-watch-live">Watch Broadcast</a>} />
+            <SectionHeader eyebrow="Match Center" title="Match center spotlight" description="Broadcasts, upcoming series, and recent results from across Bravo competitions." action={<a href={hub.home.liveFeature.href} target={hub.home.liveFeature.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="btn-secondary">Open Broadcast</a>} />
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               <MetricCard label="Viewer Count" value={hub.home.liveFeature.viewers} compact />
               <MetricCard label="Live Matches" value={hub.home.liveMatches.length} compact tone="red" />
@@ -887,7 +887,7 @@ export function PlatformHomePage({
 
         <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Sponsor Showcase" title="Premium partner visibility" description="A premium esports homepage should surface sponsors, partners, and design collaborators as part of the ecosystem, not as an afterthought." />
+            <SectionHeader eyebrow="Sponsor Showcase" title="Premium partner visibility" description="Sponsors, partners, and design collaborators should feel like part of the Bravo ecosystem, not an afterthought." />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {homepageSponsors.map((sponsor) => (
                 <SponsorCard key={sponsor.id} sponsor={sponsor} />
@@ -1343,7 +1343,7 @@ export function PlatformGameDetailPage({
             </div>
           </div>
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Matches" title="Game match center lane" description="Upcoming, live, completed, and planned matches can all sit in the same public surface." />
+            <SectionHeader eyebrow="Matches" title="Game match center lane" description="Upcoming, live, completed, and planned matches all stay in one official match center." />
             <div className="mt-5 grid gap-3">
               {relatedMatches.map((match) => (
                 <MatchCard key={match.id} match={match} />
@@ -2463,7 +2463,7 @@ export function PlatformPlayersPage({
                 title={game !== "all" && game !== "pubg-pc" ? "Match data will appear once results are published." : "No players match this filter"}
                 description={
                   game !== "all" && game !== "pubg-pc"
-                    ? "That title is already modeled into the platform, but player cards will surface when public results and roster data are published."
+                    ? "That title is already part of the platform, and player cards will appear once public results and roster data are published."
                     : "Try broadening the search or switching back to all game titles."
                 }
               />
@@ -3106,15 +3106,19 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
               </Link>
             </>
           }
-          stats={[
-            { label: "Profiles", value: publicSponsors.length, tone: "blue" },
-            { label: "Event Links", value: publicSponsors.reduce((sum, sponsor) => sum + sponsor.supportedEvents.length, 0), tone: "green" },
-            { label: "Partner Tiers", value: new Set(publicSponsors.map((sponsor) => sponsor.tier)).size, tone: "yellow" },
-            { label: "Kinds", value: new Set(publicSponsors.map((sponsor) => sponsor.kind)).size, tone: "red" },
-          ]}
+          stats={
+            publicSponsors.length > 1
+              ? [
+                  { label: "Profiles", value: publicSponsors.length, tone: "blue" as const },
+                  { label: "Event Links", value: publicSponsors.reduce((sum, sponsor) => sum + sponsor.supportedEvents.length, 0), tone: "green" as const },
+                  { label: "Partner Tiers", value: new Set(publicSponsors.map((sponsor) => sponsor.tier)).size, tone: "yellow" as const },
+                  { label: "Kinds", value: new Set(publicSponsors.map((sponsor) => sponsor.kind)).size, tone: "red" as const },
+                ]
+              : undefined
+          }
         />
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section className={joinClasses("grid gap-4", publicSponsors.length === 1 ? "mx-auto max-w-4xl" : "md:grid-cols-2 xl:grid-cols-3")}>
           {publicSponsors.map((sponsor) => (
             <SponsorCard key={sponsor.id} sponsor={sponsor} />
           ))}

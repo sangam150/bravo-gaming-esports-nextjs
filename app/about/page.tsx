@@ -61,9 +61,6 @@ export default function AboutPage() {
                 <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
                   Join Discord
                 </a>
-                <a href={BRAVO_INSTAGRAM_URL} target="_blank" rel="noreferrer" className="btn-secondary">
-                  Follow Instagram
-                </a>
               </div>
             </div>
 

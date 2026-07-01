@@ -342,12 +342,13 @@ body::after {
     box-shadow: 0 0 10px rgba(220, 38, 38, 0.9);
   }
 
-  .data-table thead tr {
-    @apply bg-bg-primary text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted;
-  }
-
   .data-table thead {
     @apply sticky top-[72px] z-20;
+  }
+
+  .data-table thead tr {
+    @apply border-b border-white/[0.08] bg-[rgba(5,7,11,0.96)] text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
   }
 
   .data-table tbody tr {
@@ -363,9 +364,16 @@ body::after {
     background: rgba(20, 36, 64, 0.92);
   }
 
-  .data-table th,
+  .data-table th {
+    @apply px-4 pb-3 pt-4 text-left align-middle;
+  }
+
   .data-table td {
-    @apply px-4 py-2 text-left align-middle;
+    @apply px-4 py-3 text-left align-middle;
+  }
+
+  .data-table tbody tr:first-child td {
+    @apply pt-4;
   }
 
   .table-scroll {

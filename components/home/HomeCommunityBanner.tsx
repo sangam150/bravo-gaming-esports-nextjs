@@ -41,38 +41,38 @@ export default function HomeCommunityBanner() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[75] px-4 sm:px-6">
-      <div className="pointer-events-auto mx-auto max-w-5xl overflow-hidden rounded-[24px] border border-white/[0.1] bg-[linear-gradient(180deg,rgba(9,15,29,0.98),rgba(7,11,21,0.98))] shadow-[0_30px_90px_rgba(0,0,0,0.42)]">
-        <div className="relative px-4 py-4 pr-14 sm:px-5 sm:py-5 sm:pr-16">
+      <div className="pointer-events-auto mx-auto max-w-4xl overflow-hidden rounded-[22px] border border-white/[0.1] bg-[linear-gradient(180deg,rgba(9,15,29,0.98),rgba(7,11,21,0.98))] shadow-[0_28px_80px_rgba(0,0,0,0.4)]">
+        <div className="relative px-4 py-3.5 pr-12 sm:px-5 sm:py-4 sm:pr-14">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(20,126,245,0.24),transparent_30%),radial-gradient(circle_at_88%_20%,rgba(239,68,68,0.14),transparent_24%)]" />
           <button
             type="button"
             aria-label="Close community banner"
             onClick={() => setVisible(false)}
-            className="btn-secondary absolute right-3 top-3 !h-10 !w-10 !px-0"
+            className="btn-secondary absolute right-3 top-3 !h-9 !w-9 !px-0"
           >
             <X className="h-4 w-4" />
           </button>
 
-          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative flex flex-col gap-3.5 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0 max-w-2xl">
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-accent-blue/25 bg-accent-blue/10 text-accent-blue-light">
                   <BellRing className="h-4 w-4" />
                 </span>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">
-                  Want to play Bravo scrims?
+                  Want to compete in Bravo scrims?
                 </p>
               </div>
-              <p className="mt-3 text-sm leading-7 text-text-muted">
-                Register your team, get room updates, and follow official PUBG PC scrims and tournaments.
+              <p className="mt-2.5 text-sm leading-6 text-text-muted">
+                Register your team or join Discord for room updates and official match announcements.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Link href="/teams/register" className="btn-primary">
+              <Link href="/teams/register" className="btn-primary !h-9 !px-3.5">
                 Register Team
               </Link>
-              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord !h-9 !px-3.5">
                 Join Discord
               </a>
             </div>

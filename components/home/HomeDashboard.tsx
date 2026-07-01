@@ -14,10 +14,7 @@ import {
 import HomeCommunityBanner from "@/components/home/HomeCommunityBanner";
 import BravoLogo from "@/components/ui/BravoLogo";
 import TeamAvatar from "@/components/ui/TeamAvatar";
-import {
-  BRAVO_DISCORD_URL,
-  BRAVO_INSTAGRAM_URL,
-} from "@/lib/brand-links";
+import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
 import type {
   PlatformArticle,
@@ -107,6 +104,14 @@ function getSponsorHref(sponsor: PlatformSponsorProfile) {
   return sponsor.websiteUrl ?? `/sponsors/${sponsor.slug}`;
 }
 
+function getSponsorKindLabel(kind: PlatformSponsorProfile["kind"]) {
+  return kind === "design" ? "Design Partner" : kind === "sponsor" ? "Official Sponsor" : "Community Partner";
+}
+
+function getSponsorVisualUrl(sponsor: PlatformSponsorProfile) {
+  return sponsor.bannerUrl ?? sponsor.designAssetUrl ?? sponsor.logoUrl ?? null;
+}
+
 function getMatchHref(match: PubgHubMatch) {
   return `/pubg/matches/${match.id}`;
 }
@@ -119,7 +124,7 @@ function getHeroLiveCard(
 ) {
   if (liveMatch) {
     return {
-      eyebrow: "Live Now",
+      eyebrow: "Current Match Center",
       title: liveMatch.eventName,
       detail: `Match ${liveMatch.matchNumber}/${Math.max(liveMatch.matchNumber, liveMatchCount)}`,
       subdetail: liveMatch.mapName,
@@ -236,7 +241,7 @@ function HeroSection({
                     : "Schedule TBA"}
                 </p>
                 <p className="mt-1 text-sm text-text-muted">{liveMatch ? liveMatch.eventName : "No live scrim right now"}</p>
-                <ActionLink href={liveCard.href} variant="watch" className="mt-4 w-full justify-center">
+                <ActionLink href={liveCard.href} variant={liveMatch ? "watch" : "secondary"} className="mt-4 w-full justify-center">
                   {liveCard.actionLabel}
                 </ActionLink>
               </div>
@@ -258,23 +263,66 @@ function SponsorStrip({
   }
 
   return (
-    <section className="standard-card p-3.5">
-      <PanelHeader title="Sponsors" href="/sponsors" hrefLabel="Partners" />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section className="light-card p-4 sm:p-5">
+      <PanelHeader title="Official Partners" href="/sponsors" hrefLabel="View All" />
+      <div className={joinClasses("grid gap-4", sponsors.length === 1 ? "mx-auto max-w-3xl" : "lg:grid-cols-2 xl:grid-cols-4")}>
         {sponsors.slice(0, 4).map((sponsor) => (
-          <a
+          <div
             key={sponsor.id}
-            href={getSponsorHref(sponsor)}
-            target={isExternalHref(getSponsorHref(sponsor)) ? "_blank" : undefined}
-            rel="noreferrer"
-            className="flex min-h-[68px] items-center justify-center rounded-[18px] border border-white/[0.06] bg-black/15 px-4 py-3 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
-          >
-            {sponsor.logoUrl ? (
-              <img src={sponsor.logoUrl} alt={sponsor.name} className="max-h-9 w-auto object-contain" />
-            ) : (
-              <span className="font-display text-lg font-black uppercase tracking-[0.12em] text-white">{sponsor.name}</span>
+            className={joinClasses(
+              "overflow-hidden rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(10,16,32,0.96),rgba(7,11,21,0.98))]",
+              sponsors.length === 1 && "shadow-[0_30px_80px_rgba(0,0,0,0.32)]"
             )}
-          </a>
+          >
+            <div className={joinClasses("grid gap-0", sponsors.length === 1 ? "lg:grid-cols-[0.92fr,1.08fr]" : "")}>
+              <div className="relative flex min-h-[180px] items-center justify-center overflow-hidden border-b border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.2),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.98),rgba(7,11,21,0.98))] p-6 lg:border-b-0 lg:border-r">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(20,126,245,0.18),transparent_30%),radial-gradient(circle_at_82%_80%,rgba(239,68,68,0.08),transparent_24%)]" />
+                {getSponsorVisualUrl(sponsor) ? (
+                  <img
+                    src={getSponsorVisualUrl(sponsor) ?? undefined}
+                    alt={sponsor.name}
+                    className="relative z-10 max-h-24 w-auto object-contain sm:max-h-28"
+                  />
+                ) : (
+                  <span className="relative z-10 font-display text-3xl font-black uppercase tracking-[0.12em] text-white">
+                    {sponsor.name}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex h-full flex-col p-5 sm:p-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue-light">
+                    {getSponsorKindLabel(sponsor.kind)}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">
+                    {sponsor.tier}
+                  </span>
+                </div>
+                <h3 className="mt-4 font-display text-2xl font-black uppercase text-white">{sponsor.name}</h3>
+                <p className="mt-3 text-sm leading-7 text-text-secondary">
+                  {sponsor.description || "Official partner support for Bravo Gaming Esports coverage and competition operations."}
+                </p>
+                {sponsor.supportedEvents.length > 0 ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {sponsor.supportedEvents.slice(0, 2).map((eventName) => (
+                      <span
+                        key={eventName}
+                        className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-text-muted"
+                      >
+                        {eventName}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="mt-5">
+                  <ActionLink href={getSponsorHref(sponsor)} variant={sponsor.websiteUrl ? "primary" : "secondary"}>
+                    {sponsor.websiteUrl ? "View Partner" : "Open Profile"}
+                  </ActionLink>
+                </div>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </section>
@@ -312,15 +360,15 @@ function LivePulse({ pubg }: { pubg: PubgHubDataset }) {
   const cards = [
     liveMatches > 0
       ? {
-          label: "Live Lobbies",
+          label: "Official Rooms",
           value: liveMatches,
-          detail: "Official rooms live",
+          detail: "Rooms currently in play",
           icon: <Radio className="h-4 w-4" />,
         }
       : {
           label: "Current Status",
-          value: "No Live Lobby",
-          detail: "Next lobby schedule will be announced in Discord.",
+          value: "No Active Room",
+          detail: "Next room timing will be shared in Discord.",
           icon: <Radio className="h-4 w-4" />,
         },
     ...(trackedPlayers > 0
@@ -431,7 +479,19 @@ function TodayScrims({
 }
 
 function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
-  const leaderboard = teams.slice(0, 5);
+  const leaderboard = [...teams]
+    .sort((firstTeam, secondTeam) => {
+      if (secondTeam.totalPoints !== firstTeam.totalPoints) {
+        return secondTeam.totalPoints - firstTeam.totalPoints;
+      }
+
+      if (secondTeam.wins !== firstTeam.wins) {
+        return secondTeam.wins - firstTeam.wins;
+      }
+
+      return secondTeam.kills - firstTeam.kills;
+    })
+    .slice(0, 5);
 
   return (
     <section className="priority-card h-full overflow-hidden !p-0">
@@ -445,7 +505,7 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Leaderboard</p>
             <h3 className="mt-3 font-display text-xl font-black uppercase text-white">Official standings are on the way</h3>
             <p className="mt-3 max-w-xl text-sm leading-7 text-text-muted">
-              Official standings will appear after published match results are available and the current leaderboard window is live.
+              Official standings will appear after published match results are available for the current leaderboard window.
             </p>
             <div className="mt-5">
               <ActionLink href="/pubg" variant="secondary">
@@ -458,13 +518,13 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
         <>
           <div className="hidden px-4 pb-4 md:block">
             <div className="rounded-[22px] border border-white/[0.06] bg-black/10 p-3">
-              <div className="grid grid-cols-[72px,minmax(0,1.45fr),88px,72px,72px,108px] gap-3 px-3 pb-3 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
+              <div className="grid grid-cols-[76px,minmax(0,1.5fr),92px,76px,76px,116px] gap-4 px-4 pb-4 pt-1 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
                 <span>Rank</span>
                 <span>Team</span>
                 <span className="text-right">Matches</span>
                 <span className="text-right">WWCD</span>
                 <span className="text-right">Kills</span>
-                <span className="text-right">Total</span>
+                <span className="text-right">Points</span>
               </div>
               <div className="space-y-3">
                 {leaderboard.map((team, index) => {
@@ -476,7 +536,7 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
                       key={team.id}
                       href={`/pubg/teams/${team.slug ?? team.id}`}
                       className={joinClasses(
-                        "grid grid-cols-[72px,minmax(0,1.45fr),88px,72px,72px,108px] items-center gap-3 rounded-[20px] border px-3 py-3 transition",
+                        "grid grid-cols-[76px,minmax(0,1.5fr),92px,76px,76px,116px] items-center gap-4 rounded-[20px] border px-4 py-3.5 transition",
                         styles.row
                       )}
                     >
@@ -491,8 +551,10 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
                       <div className="min-w-0 flex items-center gap-3">
                         <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="md" />
                         <div className="min-w-0">
-                          <p className="truncate font-display text-base font-black uppercase text-white">{team.name}</p>
-                          <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{team.formLabel}</p>
+                          <p className="font-display text-base font-black uppercase leading-tight text-white" title={team.name}>
+                            {team.name}
+                          </p>
+                          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{team.formLabel}</p>
                         </div>
                       </div>
                       <span className="text-right font-mono-stat text-white">{formatNumber(team.matches)}</span>
@@ -535,8 +597,10 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
                     </span>
                     <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="md" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-display text-base font-black uppercase text-white">{team.name}</p>
-                      <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{team.formLabel}</p>
+                      <p className="font-display text-base font-black uppercase leading-tight text-white" title={team.name}>
+                        {team.name}
+                      </p>
+                      <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{team.formLabel}</p>
                     </div>
                     <span
                       className={joinClasses(
@@ -549,9 +613,9 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
                   </div>
                   <p className="mt-4 text-sm text-text-muted">
                     {formatNumber(team.matches)} Matches
-                    <span className="mx-2 text-white/35">•</span>
+                    <span className="mx-2 text-white/35">|</span>
                     {formatNumber(team.wins)} WWCD
-                    <span className="mx-2 text-white/35">•</span>
+                    <span className="mx-2 text-white/35">|</span>
                     {formatNumber(team.kills)} Kills
                   </p>
                 </Link>
@@ -560,7 +624,9 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Placement points and the full breakdown live on the complete board.</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">
+              Full placement details and point breakdown stay on the complete leaderboard.
+            </p>
             <ActionLink href="/pubg/leaderboards" variant="secondary">
               Browse Full Leaderboard
             </ActionLink>
@@ -574,7 +640,7 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
 function UpcomingEvents({ events }: { events: PlatformEvent[] }) {
   return (
     <section className="standard-card h-full p-3.5">
-      <PanelHeader icon={<CalendarDays className="h-4 w-4" />} title="Upcoming Events" href="/events" />
+      <PanelHeader icon={<CalendarDays className="h-4 w-4" />} title="Upcoming Events" href="/events" hrefLabel="Schedule" />
       <div className="grid gap-3">
         {events.length === 0 ? (
           <div className="overflow-hidden rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.96))]">
@@ -638,28 +704,53 @@ function UpcomingEvents({ events }: { events: PlatformEvent[] }) {
 }
 
 function TeamSpotlightCard({ team, rank }: { team: PubgHubTeam; rank: number }) {
+  const styles = getLeaderboardStyles(rank);
+
   return (
-    <Link href={`/pubg/teams/${team.slug ?? team.id}`} className="standard-card h-full p-4">
-      <div className="flex items-center gap-3">
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] font-mono-stat text-xs text-accent-blue-light">
+    <Link
+      href={`/pubg/teams/${team.slug ?? team.id}`}
+      className={joinClasses("flex h-full flex-col rounded-[24px] border p-5 transition", styles.row)}
+    >
+      <div className="flex items-start gap-4">
+        <span
+          className={joinClasses(
+            "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border font-mono-stat text-xs",
+            styles.badge
+          )}
+        >
           #{rank}
         </span>
-        <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="md" />
-        <div className="min-w-0">
-          <p className="truncate font-display text-lg font-black uppercase text-white">{team.name}</p>
-          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{team.formLabel}</p>
+        <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-xl font-black uppercase leading-tight text-white" title={team.name}>
+            {team.name}
+          </p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{team.formLabel}</p>
         </div>
+        <span
+          className={joinClasses(
+            "shrink-0 rounded-full border px-3 py-1.5 font-mono-stat text-xs uppercase",
+            styles.points
+          )}
+        >
+          {formatNumber(team.totalPoints)} pts
+        </span>
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <div className="stat-pill !p-3">
+
+      <p className="mt-4 text-sm leading-7 text-text-secondary">
+        {formatNumber(team.totalPoints)} Points | {formatNumber(team.wins)} WWCD | {formatNumber(team.kills)} Kills
+      </p>
+
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        <div className="stat-pill !p-3.5">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Points</p>
           <p className="mt-2 font-mono-stat text-base text-accent-blue-light">{formatNumber(team.totalPoints)}</p>
         </div>
-        <div className="stat-pill !p-3">
+        <div className="stat-pill !p-3.5">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Wins</p>
           <p className="mt-2 font-mono-stat text-base text-white">{formatNumber(team.wins)}</p>
         </div>
-        <div className="stat-pill !p-3">
+        <div className="stat-pill !p-3.5">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Kills</p>
           <p className="mt-2 font-mono-stat text-base text-white">{formatNumber(team.kills)}</p>
         </div>
@@ -669,6 +760,20 @@ function TeamSpotlightCard({ team, rank }: { team: PubgHubTeam; rank: number }) 
 }
 
 function TopTeams({ teams }: { teams: PubgHubTeam[] }) {
+  const topTeams = [...teams]
+    .sort((firstTeam, secondTeam) => {
+      if (secondTeam.totalPoints !== firstTeam.totalPoints) {
+        return secondTeam.totalPoints - firstTeam.totalPoints;
+      }
+
+      if (secondTeam.wins !== firstTeam.wins) {
+        return secondTeam.wins - firstTeam.wins;
+      }
+
+      return secondTeam.kills - firstTeam.kills;
+    })
+    .slice(0, 4);
+
   if (teams.length === 0) {
     return null;
   }
@@ -676,8 +781,8 @@ function TopTeams({ teams }: { teams: PubgHubTeam[] }) {
   return (
     <section className="standard-card h-full p-3.5">
       <PanelHeader icon={<ShieldCheck className="h-4 w-4" />} title="Top Teams" href="/pubg/teams" />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {teams.slice(0, 4).map((team, index) => (
+      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+        {topTeams.map((team, index) => (
           <TeamSpotlightCard key={team.id} team={team} rank={index + 1} />
         ))}
       </div>
@@ -815,7 +920,7 @@ function LatestUpdates({
         </>
       ) : (
         <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 px-5 py-6 text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Content Queue</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Official Updates</p>
           <h3 className="mt-3 font-display text-xl font-black uppercase text-white">Official updates are coming soon</h3>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-text-muted">
             Official news, highlights, and video coverage will appear here after publication.
@@ -863,7 +968,7 @@ function CommunityStrip() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(20,126,245,0.24),transparent_30%),radial-gradient(circle_at_88%_20%,rgba(239,68,68,0.14),transparent_24%),linear-gradient(180deg,rgba(9,15,29,0.98),rgba(7,11,21,0.98))]" />
         <div className="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="max-w-2xl">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Community CTA</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Community</p>
             <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Join the Bravo Community</h2>
             <p className="mt-3 text-sm leading-7 text-text-muted">
               Register your team, get room updates, follow official results, and stay ready for PUBG PC scrims and tournaments.
@@ -884,9 +989,6 @@ function CommunityStrip() {
             <ActionLink href="/teams/register">Register Team</ActionLink>
             <ActionLink href={BRAVO_DISCORD_URL} variant="secondary">
               Join Discord
-            </ActionLink>
-            <ActionLink href={BRAVO_INSTAGRAM_URL} variant="secondary">
-              Follow Instagram
             </ActionLink>
           </div>
         </div>
@@ -924,7 +1026,7 @@ export default function HomeDashboard({
     !featuredMedia;
 
   return (
-    <main className="page-shell pb-10">
+    <main className="page-shell pb-20 sm:pb-24">
       <div className="page-stack">
         <HeroSection hub={hub} pubg={pubg} featuredEvent={featuredEvent} />
         <LivePulse pubg={pubg} />
@@ -941,10 +1043,9 @@ export default function HomeDashboard({
               <CurrentStandings teams={pubg.teams} />
             </section>
 
-            <section className="grid items-stretch gap-4 xl:grid-cols-[0.95fr,1.05fr]">
-              <UpcomingEvents events={hub.home.upcomingEvents} />
-              <TopTeams teams={pubg.teams} />
-            </section>
+            <UpcomingEvents events={hub.home.upcomingEvents} />
+
+            <TopTeams teams={pubg.teams} />
 
             <TopPlayers players={pubg.players} />
 

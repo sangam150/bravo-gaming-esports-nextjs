@@ -3252,10 +3252,10 @@ export function PubgLeaderboardsPage({
             ))}
           </select>
           <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
-            Boards update from filtered match inputs only, which keeps the math tied directly to the public relational result tables.
+            Boards update only from published match results for the selected event and map filters.
           </div>
           <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
-            Event and map filters narrow the board without hiding the route back to the full compare and profile pages.
+            Use the filters to narrow the board, then jump into team, player, and match pages for more detail.
           </div>
         </FilterBar>
 
@@ -3267,14 +3267,14 @@ export function PubgLeaderboardsPage({
           ) : (
           <section className="esports-card overflow-hidden !p-0">
             <div className="border-b border-white/[0.08] px-5 py-4">
-              <SectionHeader eyebrow="Team Boards" title="Team leaderboard and form table" description="Placement points, kill points, total points, average placement, damage, and recent trend in one compact board." />
+              <SectionHeader eyebrow="Team Boards" title="Team leaderboard and form table" description="Placement points, kill points, total points, average placement, damage, and recent form in one board." />
             </div>
-            <div className="table-scroll">
+            <div className="mt-4 table-scroll">
               <table className="data-table min-w-full">
                 <thead>
                   <tr>
                     <th>Rank</th>
-                    <th>Team</th>
+                    <th className="min-w-[240px]">Team</th>
                     <th>Matches</th>
                     <th>Wins</th>
                     <th>Kills</th>
@@ -3292,7 +3292,7 @@ export function PubgLeaderboardsPage({
                       <td>
                         <RankBadge rank={row.rank} />
                       </td>
-                      <td>
+                      <td className="min-w-[240px]">
                         <Link href={`/pubg/teams/${row.teamId}`} className="flex items-center gap-3 rounded-card transition hover:text-accent-blue">
                           <TeamAvatar name={row.name} imageUrl={row.logoUrl ?? undefined} size="sm" />
                           <div className="min-w-0">
@@ -3326,15 +3326,15 @@ export function PubgLeaderboardsPage({
         ) : (
           <section className="esports-card overflow-hidden !p-0">
             <div className="border-b border-white/[0.08] px-5 py-4">
-              <SectionHeader eyebrow="Player Boards" title="Player leaderboard and output table" description="Kills, assists, knocks, damage, averages, and recent trend built directly from filtered match player rows." />
+              <SectionHeader eyebrow="Player Boards" title="Player leaderboard and output table" description="Kills, assists, knocks, damage, averages, and recent form from published player results." />
             </div>
-            <div className="table-scroll">
+            <div className="mt-4 table-scroll">
               <table className="data-table min-w-full">
                 <thead>
                   <tr>
                     <th>Rank</th>
-                    <th>Player</th>
-                    <th>Team</th>
+                    <th className="min-w-[220px]">Player</th>
+                    <th className="min-w-[180px]">Team</th>
                     <th>Matches</th>
                     <th>Wins</th>
                     <th>Kills</th>
@@ -3351,7 +3351,7 @@ export function PubgLeaderboardsPage({
                       <td>
                         <RankBadge rank={row.rank} />
                       </td>
-                      <td>
+                      <td className="min-w-[220px]">
                         <Link href={`/pubg/players/${row.playerId}`} className="flex items-center gap-3 rounded-card transition hover:text-accent-blue">
                           <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="sm" />
                           <div className="min-w-0">
@@ -3360,7 +3360,7 @@ export function PubgLeaderboardsPage({
                           </div>
                         </Link>
                       </td>
-                      <td>
+                      <td className="min-w-[180px]">
                         {row.teamName ? (
                           row.teamId ? (
                             <Link href={`/pubg/teams/${row.teamId}`} className="text-white hover:text-accent-blue">
