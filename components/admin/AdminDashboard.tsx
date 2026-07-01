@@ -92,6 +92,20 @@ const defaultScrimForm: Partial<Scrim> = {
   lobbyTime: "8:00 PM NPT",
   pubgMatchIds: [],
 };
+
+function buildDefaultTournamentForm(season?: Season | null): Partial<Tournament> {
+  return {
+    status: "UPCOMING",
+    maxTeams: 32,
+    teamCount: 0,
+    mapRotation: [],
+    registeredTeamIds: [],
+    seasonId: season?.id,
+    seasonTitle: season?.seriesTitle ?? season?.title,
+    seasonNumber: season?.seasonNumber,
+  };
+}
+
 const defaultHomepageForm: HomepageContentRecord = {
   id: "main",
   heroSlides: [
@@ -388,13 +402,7 @@ export default function AdminDashboard({
   const [savingHomepage, setSavingHomepage] = useState(false);
   const [savingNews, setSavingNews] = useState(false);
 
-  const [tournamentForm, setTournamentForm] = useState<Partial<Tournament>>({
-    status: "UPCOMING",
-    maxTeams: 32,
-    teamCount: 0,
-    mapRotation: [],
-    registeredTeamIds: [],
-  });
+  const [tournamentForm, setTournamentForm] = useState<Partial<Tournament>>(() => buildDefaultTournamentForm());
   const [teamForm, setTeamForm] = useState<Partial<Team>>({
     totalPoints: 0,
     kills: 0,
@@ -426,6 +434,8 @@ export default function AdminDashboard({
   const [matchId, setMatchId] = useState("");
   const [importTournamentId, setImportTournamentId] = useState("");
   const [importScrimId, setImportScrimId] = useState("");
+  const [importAutoPreviewKey, setImportAutoPreviewKey] = useState("");
+  const [tournamentImportMatchIds, setTournamentImportMatchIds] = useState("");
   const [importingBravoFeed, setImportingBravoFeed] = useState(false);
   const [syncingSeason, setSyncingSeason] = useState(false);
   const [creatingNextDay, setCreatingNextDay] = useState(false);
@@ -606,9 +616,61 @@ export default function AdminDashboard({
             ...currentForm,
             seasonId: activeSeason.id,
             seasonTitle: activeSeason.seriesTitle ?? activeSeason.title,
-          }
+        }
     );
   }, [activeSeason]);
+
+  function findTournamentScrim(tournamentId?: string | null) {
+    if (!tournamentId) return undefined;
+    return scrims.find((scrim) => scrim.tournamentId === tournamentId);
+  }
+
+  function resetTournamentEditor() {
+    setEditingTournament(null);
+    setTournamentForm(buildDefaultTournamentForm(activeSeason));
+    setTournamentImportMatchIds("");
+  }
+
+  function openTournamentEditor(tournament: Tournament) {
+    setEditingTournament(tournament.id);
+    setTournamentForm(tournament);
+    setTournamentImportMatchIds(formatScrimMatchIds(findTournamentScrim(tournament.id)));
+  }
+
+  function openTournamentImportWorkflow(tournamentId: string, directMatchIds: string) {
+    const linkedScrim = findTournamentScrim(tournamentId);
+    setMatchId(directMatchIds);
+    setImportTournamentId(tournamentId);
+    setImportScrimId(linkedScrim?.id ?? "");
+    setImportAutoPreviewKey(`${tournamentId}:${Date.now()}`);
+    setSection("pubg");
+  }
+
+  function handleTournamentMatchPull() {
+    if (!editingTournament) {
+      setError("Create the tournament first, then pull PUBG match JSONs into its editor.");
+      return;
+    }
+
+    const normalizedMatchIds = normalizeMatchIds(tournamentImportMatchIds);
+    if (normalizedMatchIds.length === 0) {
+      setError("Paste at least one PUBG match ID before pulling JSONs.");
+      return;
+    }
+
+    const selectedTournament = tournaments.find((tournament) => tournament.id === editingTournament);
+    const selectedDayNumber = selectedTournament?.seasonDayNumber ?? selectedTournament?.dayNumber;
+    if (!selectedTournament?.seasonId || typeof selectedDayNumber !== "number" || selectedDayNumber < 1) {
+      setError("Set the tournament season and season day number before pulling PUBG match JSONs.");
+      return;
+    }
+
+    setError(null);
+    setMessage(
+      "Opening PUBG import workflow. Stored raw JSON will be reused first, then missing matches will be fetched from PUBG."
+    );
+    openTournamentImportWorkflow(editingTournament, normalizedMatchIds.join("\n"));
+  }
 
   function updateHomepageSlide(index: number, patch: Partial<HomepageHeroSlideRecord>) {
     setHomepageForm((currentForm) => ({
@@ -910,25 +972,23 @@ export default function AdminDashboard({
         teamCount: tournamentForm.registeredTeamIds?.length ?? tournamentForm.teamCount ?? 0,
         createdAt: tournamentForm.createdAt ?? new Date().toISOString(),
       };
-      if (editingTournament) {
-        await adminFetch(`/api/tournaments/${editingTournament}`, { method: "PUT", body: JSON.stringify(payload) });
-        setMessage("Tournament updated");
-      } else {
-        await adminFetch("/api/tournaments", { method: "POST", body: JSON.stringify(payload) });
-        setMessage("Tournament created");
-      }
-      setTournamentForm({
-        status: "UPCOMING",
-        maxTeams: 32,
-        teamCount: 0,
-        mapRotation: [],
-        registeredTeamIds: [],
-        seasonId: activeSeason?.id,
-        seasonTitle: activeSeason?.seriesTitle ?? activeSeason?.title,
-        seasonNumber: activeSeason?.seasonNumber,
-      });
-      setEditingTournament(null);
-      loadData();
+      const response = editingTournament
+        ? await adminFetch(`/api/tournaments/${editingTournament}`, {
+            method: "PUT",
+            body: JSON.stringify(payload),
+          })
+        : await adminFetch("/api/tournaments", { method: "POST", body: JSON.stringify(payload) });
+      const savedTournament = response.data as Tournament;
+
+      setTournamentForm(savedTournament);
+      setEditingTournament(savedTournament.id);
+      setTournamentImportMatchIds((currentValue) => currentValue || formatScrimMatchIds(findTournamentScrim(savedTournament.id)));
+      setMessage(
+        editingTournament
+          ? "Tournament updated. Match pulls will keep using this editor context."
+          : "Tournament created. Paste PUBG match IDs below, then pull JSONs into the import workflow."
+      );
+      await loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -2041,7 +2101,7 @@ export default function AdminDashboard({
         {section === "tournaments" && (
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-2xl font-black text-white">{editingTournament ? "Edit Tournament" : "Create Tournament"}</h2>
+              <h2 className="text-2xl font-black text-white">{editingTournament ? "Tournament Editor" : "Create Tournament"}</h2>
               <button type="button" onClick={handleImportBravoFeed} disabled={importingBravoFeed} className={btnPrimary}>
                 {importingBravoFeed ? "Importing Feed..." : "Import Reference Day 1-3 Data"}
               </button>
@@ -2089,9 +2149,61 @@ export default function AdminDashboard({
                   ))}
                 </div>
               </div>
+              <div className="sm:col-span-2 rounded-card border border-white/10 bg-bg-primary p-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="max-w-3xl">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">PUBG Match Pull</p>
+                    <p className="mt-2 text-sm text-slate-300">
+                      Save the tournament, paste PUBG match IDs, then pull JSONs. The backend checks stored raw payloads
+                      first, fetches missing matches from PUBG only when needed, saves raw JSON, normalizes teams and
+                      players, auto-assigns match numbers, and prepares standings for publish.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTournamentMatchPull}
+                    disabled={
+                      !editingTournament ||
+                      normalizeMatchIds(tournamentImportMatchIds).length === 0 ||
+                      !tournamentForm.seasonId ||
+                      !Number.isFinite(tournamentForm.seasonDayNumber ?? tournamentForm.dayNumber)
+                    }
+                    className={btnPrimary}
+                  >
+                    Pull Match JSONs
+                  </button>
+                </div>
+                <textarea
+                  className={`${inputClass} mt-4`}
+                  rows={5}
+                  value={tournamentImportMatchIds}
+                  onChange={(e) => setTournamentImportMatchIds(e.target.value)}
+                  placeholder="Paste one PUBG match ID per line or comma-separated."
+                />
+                <div className="mt-3 grid gap-3 text-xs text-slate-300 sm:grid-cols-3">
+                  <div className="rounded-card border border-white/10 bg-slate-950/50 p-3">
+                    <p className="uppercase tracking-[0.14em] text-text-muted">Match IDs Ready</p>
+                    <p className="mt-2 font-mono-stat text-lg text-white">{normalizeMatchIds(tournamentImportMatchIds).length}</p>
+                  </div>
+                  <div className="rounded-card border border-white/10 bg-slate-950/50 p-3">
+                    <p className="uppercase tracking-[0.14em] text-text-muted">Tournament Day</p>
+                    <p className="mt-2 font-semibold text-white">
+                      {tournamentForm.seasonId
+                        ? `Day ${tournamentForm.seasonDayNumber ?? tournamentForm.dayNumber ?? "not set"}`
+                        : "Season not set"}
+                    </p>
+                  </div>
+                  <div className="rounded-card border border-white/10 bg-slate-950/50 p-3">
+                    <p className="uppercase tracking-[0.14em] text-text-muted">Import Target</p>
+                    <p className="mt-2 font-semibold text-white">
+                      {editingTournament ? "Tournament standings + published day" : "Save tournament first"}
+                    </p>
+                  </div>
+                </div>
+              </div>
               <div className="flex gap-3 sm:col-span-2">
                 <button type="submit" className={btnPrimary}>{editingTournament ? "Update" : "Create"} Tournament</button>
-                {editingTournament && <button type="button" onClick={() => { setEditingTournament(null); setTournamentForm({ status: "UPCOMING", maxTeams: 32, teamCount: 0, mapRotation: [], registeredTeamIds: [], seasonId: activeSeason?.id, seasonTitle: activeSeason?.seriesTitle ?? activeSeason?.title, seasonNumber: activeSeason?.seasonNumber }); }} className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300">Cancel</button>}
+                {editingTournament && <button type="button" onClick={resetTournamentEditor} className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300">Cancel</button>}
               </div>
             </form>
             <div className="esports-card overflow-hidden">
@@ -2108,7 +2220,7 @@ export default function AdminDashboard({
                         <td className="px-4 py-3 text-slate-300">{t.teamCount}/{t.maxTeams}</td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-3">
-                            <button type="button" onClick={() => { setEditingTournament(t.id); setTournamentForm(t); }} className="text-bravoBlue hover:underline">Edit</button>
+                            <button type="button" onClick={() => openTournamentEditor(t)} className="text-bravoBlue hover:underline">Open Tournament Editor</button>
                             <button type="button" onClick={async () => { await adminFetch(`/api/tournaments/${t.id}`, { method: "DELETE" }); loadData(); }} className="text-bravoRed hover:underline">Delete</button>
                           </div>
                         </td>
@@ -2884,6 +2996,7 @@ export default function AdminDashboard({
             initialMatchIds={matchId}
             initialTournamentId={importTournamentId}
             initialScrimId={importScrimId}
+            autoPreviewRequestKey={importAutoPreviewKey}
             onImported={loadData}
           />
         )}

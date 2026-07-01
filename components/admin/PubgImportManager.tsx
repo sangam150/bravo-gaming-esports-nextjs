@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import FileUpload from "./FileUpload";
 import { adminFetch } from "@/lib/admin-api";
 import {
@@ -334,6 +334,7 @@ export default function PubgImportManager({
   initialMatchIds,
   initialTournamentId,
   initialScrimId,
+  autoPreviewRequestKey,
   onImported,
 }: {
   seasons: Season[];
@@ -343,6 +344,7 @@ export default function PubgImportManager({
   initialMatchIds?: string;
   initialTournamentId?: string;
   initialScrimId?: string;
+  autoPreviewRequestKey?: string;
   onImported?: () => void;
 }) {
   const [playerName, setPlayerName] = useState("");
@@ -387,6 +389,7 @@ export default function PubgImportManager({
   const [previewErrors, setPreviewErrors] = useState<Array<{ matchId: string; error: string; code: string }>>([]);
   const [importLog, setImportLog] = useState<Array<{ matchId: string; success: boolean; skipped?: boolean; error?: string }>>([]);
   const [seasonDraft, setSeasonDraft] = useState<SeasonDraft>(() => buildSeasonDraft(1));
+  const lastAutoPreviewRequestRef = useRef<string | null>(null);
 
   const nextSeasonNumber = useMemo(
     () => seasons.reduce((highestSeasonNumber, season) => Math.max(highestSeasonNumber, season.seasonNumber ?? 0), 0) + 1,
@@ -509,6 +512,20 @@ export default function PubgImportManager({
       }
     }
   }, [initialScrimId, scrims]);
+
+  useEffect(() => {
+    if (!autoPreviewRequestKey || autoPreviewRequestKey === lastAutoPreviewRequestRef.current) {
+      return;
+    }
+
+    const normalizedMatchIds = normalizeMatchIds(initialMatchIds ?? directMatchIds);
+    if (normalizedMatchIds.length === 0 || !selectedSeasonId || selectedDayNumber === "") {
+      return;
+    }
+
+    lastAutoPreviewRequestRef.current = autoPreviewRequestKey;
+    void previewMatchIds(normalizedMatchIds);
+  }, [autoPreviewRequestKey, directMatchIds, initialMatchIds, selectedDayNumber, selectedSeasonId]);
 
   useEffect(() => {
     if (!selectedTournament) return;
