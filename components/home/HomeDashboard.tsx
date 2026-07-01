@@ -94,7 +94,7 @@ function PanelHeader({
 }
 
 function getEventHref(event: PlatformEvent) {
-  return event.analyticsHref ?? (event.gameSlug === "pubg-pc" ? `/pubg/events/${event.slug}` : `/events/${event.slug}`);
+  return getEventDetailHref(event);
 }
 
 function getMediaHref(item: PlatformMediaItem) {
@@ -106,11 +106,108 @@ function getSponsorHref(sponsor: PlatformSponsorProfile) {
 }
 
 function getSponsorKindLabel(kind: PlatformSponsorProfile["kind"]) {
-  return kind === "design" ? "Design Partner" : kind === "sponsor" ? "Official Sponsor" : "Community Partner";
+  return kind === "design" ? "Design Partner" : kind === "sponsor" ? "Official Sponsor" : "Official Partner";
 }
 
 function getSponsorVisualUrl(sponsor: PlatformSponsorProfile) {
   return sponsor.bannerUrl ?? sponsor.designAssetUrl ?? sponsor.logoUrl ?? null;
+}
+
+function getEventDetailHref(event?: PlatformEvent | null) {
+  return event ? `/events/${event.slug}` : "/events";
+}
+
+function canRegisterForEvent(event?: PlatformEvent | null) {
+  return Boolean(event && (event.status === "upcoming" || event.status === "planned"));
+}
+
+function getEventRegistrationHref(event?: PlatformEvent | null) {
+  return event && canRegisterForEvent(event) ? `/teams/register?tournament=${event.id}` : "/teams/register";
+}
+
+function getEventRulesHref(_event?: PlatformEvent | null) {
+  return "/rules";
+}
+
+function getEventPrizeLabel(event: PlatformEvent) {
+  const prizePool = event.prizePool.trim();
+  return prizePool && prizePool.toLowerCase() !== "tbd" ? prizePool : "Prize Pool To Be Announced";
+}
+
+function getEventSlotsLabel(event: PlatformEvent) {
+  return event.teamsCount > 0 ? `${formatNumber(event.teamsCount)} teams confirmed` : "Slots to be announced";
+}
+
+function getEventRegistrationLabel(event: PlatformEvent) {
+  if (event.status === "live" || event.status === "completed") {
+    return "Registration closed";
+  }
+
+  if (event.status === "planned") {
+    return "Registration Opening Soon";
+  }
+
+  return "Registration through Bravo team registration";
+}
+
+function getEventStatusLabel(status: PlatformEvent["status"]) {
+  return status === "live" ? "Ongoing" : status === "completed" ? "Completed" : "Upcoming";
+}
+
+function normalizeSponsorLabel(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const words = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const dedupedWords: string[] = [];
+
+  for (const word of words) {
+    if (dedupedWords.at(-1)?.toLowerCase() === word.toLowerCase()) {
+      continue;
+    }
+    dedupedWords.push(word);
+  }
+
+  return dedupedWords.join(" ");
+}
+
+function getSponsorTierLabel(sponsor: PlatformSponsorProfile) {
+  const tierLabel = normalizeSponsorLabel(sponsor.tier);
+
+  if (!tierLabel || tierLabel.toLowerCase() === "partner") {
+    return getSponsorKindLabel(sponsor.kind);
+  }
+
+  return tierLabel;
+}
+
+function getSponsorSupportingLabel(sponsor: PlatformSponsorProfile) {
+  const kindLabel = getSponsorKindLabel(sponsor.kind);
+  const tierLabel = getSponsorTierLabel(sponsor);
+
+  return kindLabel.toLowerCase() === tierLabel.toLowerCase() ? null : kindLabel;
+}
+
+function resolveHomepageEvents(hub: PlatformHubData) {
+  const seen = new Set<string>();
+  const events: PlatformEvent[] = [];
+
+  for (const event of [...hub.home.featuredEvents, ...hub.home.upcomingEvents, ...hub.events]) {
+    const key = event.id || event.slug;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    events.push(event);
+  }
+
+  return events;
 }
 
 function getMatchHref(match: PubgHubMatch) {
@@ -203,16 +300,23 @@ function HeroSection({
           <p className="section-title">Bravo Gaming Esports</p>
           <h1 className="hero-h1 mt-4 max-w-[18ch]">Nepal&apos;s Home of Competitive PUBG PC Esports</h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
-            Compete in daily PUBG PC scrims, participate in tournaments, track official standings, analyze player statistics,
-            and become part of Nepal&apos;s growing competitive esports community.
+            Daily scrims, tournaments, leaderboards, match results, and team registration for Nepal PUBG PC competition.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <ActionLink href="/pubg/leaderboards">View Leaderboards</ActionLink>
-            <ActionLink href="/teams/register" variant="secondary">
+            <ActionLink href={getEventRegistrationHref(featuredEvent)}>
               Register Team
             </ActionLink>
+            <ActionLink href={getEventDetailHref(featuredEvent)} variant="secondary">
+              View Schedule
+            </ActionLink>
+            <ActionLink href="/pubg/results" variant="watch">
+              View Results
+            </ActionLink>
           </div>
+          <p className="mt-4 max-w-xl text-xs uppercase tracking-[0.16em] text-text-muted">
+            After registration, our admin team reviews your team details and confirms your slot through official channels.
+          </p>
         </div>
 
         <div className="relative z-10 min-w-0">
@@ -222,8 +326,11 @@ function HeroSection({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-accent-red">{liveCard.eyebrow}</p>
-                  <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">PUBG Match Center</h2>
-                  <p className="mt-2 text-sm text-text-muted">{liveCard.detail}</p>
+                  <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">
+                    {liveMatch ? "PUBG Match Center" : "Tournament Launch"}
+                  </h2>
+                  <p className="mt-2 text-sm text-white">{liveCard.title}</p>
+                  <p className="mt-1 text-sm text-text-muted">{liveCard.detail}</p>
                   <p className="mt-1 text-sm text-text-muted">{liveCard.subdetail}</p>
                 </div>
                 <img
@@ -235,16 +342,37 @@ function HeroSection({
               </div>
 
               <div className="mt-5 max-w-[16rem] rounded-[20px] border border-white/[0.08] bg-black/20 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">Daily Scrims</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
+                  {liveMatch ? "Daily Scrims" : "Tournament Action"}
+                </p>
                 <p className="mt-2 font-display text-lg font-black uppercase text-white">
                   {liveMatch
                     ? `Match ${liveMatch.matchNumber}/${Math.max(liveMatch.matchNumber, liveEvent?.matchCount ?? liveMatch.matchNumber)}`
-                    : "Schedule TBA"}
+                    : featuredEvent
+                      ? formatDateRange(featuredEvent.startDate, featuredEvent.endDate)
+                      : "Schedule Pending"}
                 </p>
-                <p className="mt-1 text-sm text-text-muted">{liveMatch ? liveMatch.eventName : "Current schedule will appear here"}</p>
-                <ActionLink href={liveCard.href} variant={liveMatch ? "primary" : "secondary"} className="mt-4 w-full justify-center">
-                  {liveCard.actionLabel}
-                </ActionLink>
+                <p className="mt-1 text-sm text-text-muted">
+                  {liveMatch
+                    ? liveMatch.eventName
+                    : featuredEvent
+                      ? getEventPrizeLabel(featuredEvent)
+                      : "Current schedule will appear here"}
+                </p>
+                <div className="mt-4 flex flex-col gap-2">
+                  <ActionLink
+                    href={liveMatch ? liveCard.href : getEventRegistrationHref(featuredEvent)}
+                    variant="primary"
+                    className="w-full justify-center"
+                  >
+                    {liveMatch ? liveCard.actionLabel : "Register Team"}
+                  </ActionLink>
+                  {!liveMatch ? (
+                    <ActionLink href={getEventDetailHref(featuredEvent)} variant="secondary" className="w-full justify-center">
+                      View Schedule
+                    </ActionLink>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
@@ -266,6 +394,20 @@ function SponsorStrip({
   return (
     <section className="light-card p-4 sm:p-5">
       <PanelHeader title="Official Partners" href="/sponsors" hrefLabel="View All" />
+      <div className="mb-4 flex flex-col gap-4 rounded-[22px] border border-white/[0.08] bg-black/15 p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-2xl">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Official Partners</p>
+          <p className="mt-3 text-sm leading-7 text-text-secondary">
+            Proudly supported by partners helping grow Nepal PUBG PC esports, tournament broadcasts, and community events.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <ActionLink href="/about/sponsor-us">Become a Sponsor</ActionLink>
+          <ActionLink href="/contact" variant="secondary">
+            Sponsor Inquiry
+          </ActionLink>
+        </div>
+      </div>
       <div className={joinClasses("grid gap-4", sponsors.length === 1 ? "mx-auto max-w-3xl" : "lg:grid-cols-2 xl:grid-cols-4")}>
         {sponsors.slice(0, 4).map((sponsor) => (
           <div
@@ -294,15 +436,17 @@ function SponsorStrip({
               <div className="flex h-full flex-col p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue-light">
-                    {getSponsorKindLabel(sponsor.kind)}
+                    {getSponsorTierLabel(sponsor)}
                   </span>
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">
-                    {sponsor.tier}
-                  </span>
+                  {getSponsorSupportingLabel(sponsor) ? (
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">
+                      {getSponsorSupportingLabel(sponsor)}
+                    </span>
+                  ) : null}
                 </div>
                 <h3 className="mt-4 font-display text-2xl font-black uppercase text-white">{sponsor.name}</h3>
                 <p className="mt-3 text-sm leading-7 text-text-secondary">
-                  {sponsor.description || "Official partner support for Bravo Gaming Esports coverage and competition operations."}
+                  {sponsor.description || "Official partner support for Bravo Gaming Esports tournaments, broadcast coverage, and competition operations."}
                 </p>
                 {sponsor.supportedEvents.length > 0 ? (
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -318,7 +462,7 @@ function SponsorStrip({
                 ) : null}
                 <div className="mt-5">
                   <ActionLink href={getSponsorHref(sponsor)} variant={sponsor.websiteUrl ? "primary" : "secondary"}>
-                    {sponsor.websiteUrl ? "View Partner" : "Open Profile"}
+                    {sponsor.websiteUrl ? "Visit Website" : "View Profile"}
                   </ActionLink>
                 </div>
               </div>
@@ -439,7 +583,7 @@ function TodayScrims({
               match.eventStatus === "ongoing"
                 ? { label: "Open Match Center", href: watchLiveHref, variant: "primary" as const }
                 : event?.status === "upcoming"
-                  ? { label: "Join", href: `/teams/register?tournament=${event.id}`, variant: "secondary" as const }
+                  ? { label: "Register Team", href: event ? `/teams/register?tournament=${event.id}` : "/teams/register", variant: "secondary" as const }
                   : { label: "View", href: getMatchHref(match), variant: "secondary" as const };
 
             return (
@@ -631,11 +775,14 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
 }
 
 function UpcomingEvents({ events }: { events: PlatformEvent[] }) {
+  const featuredEvent = events.find((event) => canRegisterForEvent(event)) ?? events[0] ?? null;
+  const queuedEvents = events.filter((event) => event.id !== featuredEvent?.id).slice(0, 3);
+
   return (
     <section className="standard-card h-full p-3.5">
-      <PanelHeader icon={<CalendarDays className="h-4 w-4" />} title="Upcoming Events" href="/events" hrefLabel="Schedule" />
+      <PanelHeader icon={<CalendarDays className="h-4 w-4" />} title="Upcoming Events" href="/events" hrefLabel="Full Schedule" />
       <div className="grid gap-3">
-        {events.length === 0 ? (
+        {!featuredEvent ? (
           <div className="overflow-hidden rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.96))]">
             <div className="border-b border-white/[0.08] px-4 py-4">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Registration</p>
@@ -652,45 +799,164 @@ function UpcomingEvents({ events }: { events: PlatformEvent[] }) {
             </div>
           </div>
         ) : (
-          events.slice(0, 3).map((event) => (
-            <Link
-              key={event.id}
-              href={getEventHref(event)}
-              className="overflow-hidden rounded-[20px] border border-white/[0.06] bg-black/15 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
-            >
-              <div className="grid gap-0 sm:grid-cols-[176px,minmax(0,1fr)]">
-                {event.bannerUrl ? (
-                  <img src={event.bannerUrl} alt={event.name} className="h-28 w-full object-cover sm:h-full" />
+          <>
+            <article className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))] shadow-[0_24px_80px_rgba(0,0,0,0.34)]">
+              <div className="grid gap-0 lg:grid-cols-[0.94fr,1.06fr]">
+                {featuredEvent.bannerUrl ? (
+                  <img src={featuredEvent.bannerUrl} alt={featuredEvent.name} className="h-56 w-full object-cover lg:h-full" />
                 ) : (
-                  <div className="h-28 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.22),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] sm:h-full" />
+                  <div className="h-56 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.22),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] lg:h-full" />
                 )}
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-3">
+                <div className="p-5 sm:p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">{event.type}</p>
-                      <h3 className="mt-2 font-display text-lg font-black uppercase text-white">{event.name}</h3>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Featured Tournament</p>
+                      <h3 className="mt-2 font-display text-2xl font-black uppercase text-white">{featuredEvent.name}</h3>
+                      <p className="mt-3 text-sm leading-7 text-text-secondary">
+                        {featuredEvent.summary || "Official PUBG PC tournament by Bravo Gaming Esports."}
+                      </p>
                     </div>
-                    {event.prizePool && event.prizePool !== "TBD" ? (
-                      <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue-light">
-                        {event.prizePool}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
-                    <span>{formatDateRange(event.startDate, event.endDate)}</span>
-                    <span>{event.region}</span>
-                  </div>
-                  <div className="mt-4">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue">
-                      Browse Event
-                      <ChevronRight className="h-3.5 w-3.5" />
+                    <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue-light">
+                      {getEventStatusLabel(featuredEvent.status)}
                     </span>
                   </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Date</p>
+                      <p className="mt-2 text-sm text-white">{formatDateRange(featuredEvent.startDate, featuredEvent.endDate)}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Format</p>
+                      <p className="mt-2 text-sm text-white">{featuredEvent.gameName}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Slots</p>
+                      <p className="mt-2 text-sm text-white">{getEventSlotsLabel(featuredEvent)}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Registration</p>
+                      <p className="mt-2 text-sm text-white">{getEventRegistrationLabel(featuredEvent)}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Prize Pool</p>
+                      <p className="mt-2 text-sm text-white">{getEventPrizeLabel(featuredEvent)}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Status</p>
+                      <p className="mt-2 text-sm text-white">{getEventStatusLabel(featuredEvent.status)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <ActionLink href={getEventRegistrationHref(featuredEvent)}>Register Team</ActionLink>
+                    <ActionLink href={getEventDetailHref(featuredEvent)} variant="secondary">
+                      View Schedule
+                    </ActionLink>
+                    <ActionLink href={getEventRulesHref(featuredEvent)} variant="secondary">
+                      View Rules
+                    </ActionLink>
+                  </div>
+                  <p className="mt-4 max-w-2xl text-xs uppercase tracking-[0.16em] text-text-muted">
+                    After registration, our admin team reviews your team details and confirms your slot through official channels.
+                  </p>
                 </div>
               </div>
-            </Link>
-          ))
+            </article>
+
+            {queuedEvents.length > 0 ? (
+              <div className="rounded-[22px] border border-white/[0.08] bg-black/15 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Upcoming Scrims / Tournaments</p>
+                <div className="mt-4 grid gap-3">
+                  {queuedEvents.map((event) => (
+                    <Link
+                      key={event.id}
+                      href={getEventDetailHref(event)}
+                      className="rounded-[18px] border border-white/[0.06] bg-black/20 px-4 py-4 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-white">{event.name}</p>
+                          <p className="mt-2 text-sm text-text-muted">{formatDateRange(event.startDate, event.endDate)} | {event.region}</p>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue-light">
+                          View Event
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </>
         )}
+      </div>
+    </section>
+  );
+}
+
+function HowItWorksSection() {
+  return (
+    <section className="light-card p-4 sm:p-5">
+      <PanelHeader icon={<ShieldCheck className="h-4 w-4" />} title="How Bravo Scrims Work" />
+      <div className="grid gap-3 md:grid-cols-3">
+        {[
+          {
+            step: "1. Register your team",
+            detail: "Submit your team details and roster.",
+          },
+          {
+            step: "2. Join official rooms",
+            detail: "Room details are shared through official channels.",
+          },
+          {
+            step: "3. Play and track results",
+            detail: "Published match data updates standings, teams, and player stats.",
+          },
+        ].map((item) => (
+          <div key={item.step} className="rounded-[22px] border border-white/[0.08] bg-black/15 p-5">
+            <p className="font-display text-lg font-black uppercase text-white">{item.step}</p>
+            <p className="mt-3 text-sm leading-7 text-text-secondary">{item.detail}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TrustStrip({ watchLiveHref }: { watchLiveHref: string }) {
+  return (
+    <section className="light-card overflow-hidden !p-0">
+      <div className="relative rounded-[30px] px-5 py-5 sm:px-6 sm:py-6">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(20,126,245,0.22),transparent_30%),radial-gradient(circle_at_90%_28%,rgba(0,230,118,0.12),transparent_24%),linear-gradient(180deg,rgba(9,15,29,0.98),rgba(7,11,21,0.98))]" />
+        <div className="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Trust & Support</p>
+            <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">
+              Trusted competitive PUBG PC platform for Nepal scrims, tournaments, leaderboards, and community events.
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs font-black uppercase tracking-[0.16em] text-text-muted">
+            <Link href="/rules" className="transition hover:text-white">
+              Rules
+            </Link>
+            <Link href="/anti-cheat" className="transition hover:text-white">
+              Anti-Cheat
+            </Link>
+            <Link href="/contact" className="transition hover:text-white">
+              Contact
+            </Link>
+            <Link href="/about/sponsor-us" className="transition hover:text-white">
+              Sponsor Inquiry
+            </Link>
+            <a href={watchLiveHref} className="transition hover:text-white">
+              Watch Live
+            </a>
+            <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="transition hover:text-white">
+              Official Discord
+            </a>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -1006,7 +1272,8 @@ export default function HomeDashboard({
   hub: PlatformHubData;
   pubg: PubgHubDataset;
 }) {
-  const featuredEvent = hub.home.featuredEvents[0] ?? hub.home.upcomingEvents[0] ?? hub.events[0] ?? null;
+  const homepageEvents = resolveHomepageEvents(hub);
+  const featuredEvent = homepageEvents.find((event) => canRegisterForEvent(event)) ?? homepageEvents[0] ?? null;
   const featuredArticle = hub.home.featuredNews[0] ?? null;
   const featuredMedia = hub.home.featuredMedia[0] ?? null;
   const preferredSponsorOrder = ["sap", "kento", "hukut", "gorkhali roleplay"];
@@ -1045,8 +1312,6 @@ export default function HomeDashboard({
               <CurrentStandings teams={pubg.teams} />
             </section>
 
-            <UpcomingEvents events={hub.home.upcomingEvents} />
-
             <TopTeams teams={pubg.teams} />
 
             <TopPlayers players={pubg.players} />
@@ -1055,7 +1320,13 @@ export default function HomeDashboard({
           </>
         )}
 
+        <UpcomingEvents events={homepageEvents} />
+
         <SponsorStrip sponsors={homepageSponsors} />
+
+        <HowItWorksSection />
+
+        <TrustStrip watchLiveHref={hub.home.liveFeature.href} />
 
         <CommunityStrip />
       </div>

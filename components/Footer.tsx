@@ -7,9 +7,9 @@ const platformLinks = [
   { label: "PUBG Hub", href: "/pubg" },
   { label: "Leaderboards", href: "/pubg/leaderboards" },
   { label: "Events", href: "/events" },
-  { label: "Teams", href: "/teams" },
-  { label: "Players", href: "/players" },
-  { label: "Match Center", href: "/matches" },
+  { label: "Teams", href: "/pubg/teams" },
+  { label: "Players", href: "/pubg/players" },
+  { label: "Results", href: "/pubg/results" },
 ] as const;
 
 const communityLinks = [
@@ -20,10 +20,11 @@ const communityLinks = [
 ] as const;
 
 const supportLinks = [
+  { label: "Register Team", href: "/teams/register" },
   { label: "Rules", href: "/rules" },
   { label: "Anti-Cheat", href: "/anti-cheat" },
   { label: "Contact", href: "/contact" },
-  { label: "Sponsor Us", href: "/about/sponsor-us" },
+  { label: "Sponsor Inquiry", href: "/about/sponsor-us" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
 ] as const;
@@ -63,12 +64,12 @@ export default function Footer() {
                 </div>
               </div>
               <p className="mt-4 max-w-lg text-sm leading-6 text-text-muted">
-                Daily scrims, tournament coverage, standings, results, and community updates for Nepal&apos;s
-                competitive PUBG scene.
+                Daily scrims, tournament coverage, team registration, standings, results, and community updates for Nepal&apos;s
+                competitive PUBG PC scene.
               </p>
               <div className="mt-5 flex flex-wrap gap-2.5">
-                <Link href="/live-stream" className="btn-primary !h-9 !px-3.5">
-                  Watch Stream
+                <Link href="/teams/register" className="btn-primary !h-9 !px-3.5">
+                  Register Team
                 </Link>
                 <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary !h-9 !px-3.5">
                   Join Discord

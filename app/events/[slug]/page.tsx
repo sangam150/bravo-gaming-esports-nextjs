@@ -29,7 +29,11 @@ export const revalidate = 300;
 
 export default async function EventDetailPage({ params }: PageProps) {
   const [{ slug }, hub, pubg] = await Promise.all([params, getPlatformHubData(), getPubgHubDataset()]);
-  const event = hub.events.find((item) => item.slug === slug) ?? null;
+  const event =
+    hub.events.find((item) => item.slug === slug) ??
+    hub.home.featuredEvents.find((item) => item.slug === slug) ??
+    hub.home.upcomingEvents.find((item) => item.slug === slug) ??
+    null;
 
   if (!event) {
     notFound();

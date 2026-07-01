@@ -211,18 +211,6 @@ function PlatformStatusPill({
   return <span className={joinClasses("inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", className)}>{label}</span>;
 }
 
-function formatEventMatchSummary(event: PlatformEvent) {
-  if (event.matchesCount > 0) {
-    return `${formatNumber(event.matchesCount)} Matches Published`;
-  }
-
-  if (event.status === "completed") {
-    return "Results Pending";
-  }
-
-  return "Schedule Pending";
-}
-
 function ContentStatePill({ state }: { state: PlatformEvent["state"] }) {
   const className =
     state === "published"
@@ -274,6 +262,107 @@ function formatGameSlugLabel(value: string) {
     .join(" ");
 }
 
+function getEventDetailHref(event: PlatformEvent) {
+  return `/events/${event.slug}`;
+}
+
+function canRegisterForEvent(event?: PlatformEvent | null) {
+  return Boolean(event && (event.status === "upcoming" || event.status === "planned"));
+}
+
+function getEventRegistrationHref(event?: PlatformEvent | null) {
+  return event && canRegisterForEvent(event) ? `/teams/register?tournament=${event.id}` : "/teams/register";
+}
+
+function getEventRulesHref(_event?: PlatformEvent | null) {
+  return "/rules";
+}
+
+function getEventPrizeLabel(event: PlatformEvent) {
+  const prizePool = event.prizePool.trim();
+  return prizePool && prizePool.toLowerCase() !== "tbd" ? prizePool : "Prize Pool To Be Announced";
+}
+
+function getEventSlotsLabel(event: PlatformEvent) {
+  return event.teamsCount > 0 ? `${formatNumber(event.teamsCount)} teams confirmed` : "Slots to be announced";
+}
+
+function getEventRegistrationLabel(event: PlatformEvent) {
+  if (event.status === "live" || event.status === "completed") {
+    return "Registration closed";
+  }
+
+  if (event.status === "planned") {
+    return "Registration Opening Soon";
+  }
+
+  return "Registration through Bravo team registration";
+}
+
+function getEventStatusLabel(status: PlatformEvent["status"]) {
+  return status === "live" ? "Ongoing" : status === "completed" ? "Completed" : "Upcoming";
+}
+
+function resolvePublicEventBoardEvents(hub: PlatformHubData) {
+  const seen = new Set<string>();
+  const events: PlatformEvent[] = [];
+
+  for (const event of [...hub.home.featuredEvents, ...hub.home.upcomingEvents, ...hub.events]) {
+    const key = event.id || event.slug;
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    events.push(event);
+  }
+
+  return events;
+}
+
+function normalizeSponsorLabel(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const words = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const dedupedWords: string[] = [];
+
+  for (const word of words) {
+    if (dedupedWords.at(-1)?.toLowerCase() === word.toLowerCase()) {
+      continue;
+    }
+
+    dedupedWords.push(word);
+  }
+
+  return dedupedWords.join(" ");
+}
+
+function sponsorKindLabel(kind: PlatformSponsorProfile["kind"]) {
+  return kind === "design" ? "Design Partner" : kind === "sponsor" ? "Official Sponsor" : "Official Partner";
+}
+
+function sponsorTierLabel(sponsor: PlatformSponsorProfile) {
+  const normalizedTier = normalizeSponsorLabel(sponsor.tier);
+
+  if (!normalizedTier || normalizedTier.toLowerCase() === "partner") {
+    return sponsorKindLabel(sponsor.kind);
+  }
+
+  return normalizedTier;
+}
+
+function sponsorSupportingLabel(sponsor: PlatformSponsorProfile) {
+  const roleLabel = sponsorKindLabel(sponsor.kind);
+  const tierLabel = sponsorTierLabel(sponsor);
+
+  return roleLabel.toLowerCase() === tierLabel.toLowerCase() ? null : roleLabel;
+}
+
 function NewsCard({ article }: { article: PlatformArticle }) {
   return (
     <Link href={`/news/${article.slug}`} className="block rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
@@ -300,13 +389,13 @@ function NewsCard({ article }: { article: PlatformArticle }) {
 }
 
 function EventCard({ event }: { event: PlatformEvent }) {
-  const showPrize = Boolean(event.prizePool && event.prizePool !== "TBD");
+  const showResultsCta = event.status === "completed" && Boolean(event.analyticsHref);
   const eventTypeClass = /tournament|cup|championship|league|final/i.test(event.type)
     ? "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
     : "border-accent-blue/30 bg-accent-blue/10 text-accent-blue-light";
 
   return (
-    <Link href={`/events/${event.slug}`} className="flex h-full flex-col rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
+    <article className="flex h-full flex-col rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
       <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
         {event.bannerUrl ? (
           <img src={event.bannerUrl} alt={event.name} className="h-36 w-full object-cover" />
@@ -326,30 +415,56 @@ function EventCard({ event }: { event: PlatformEvent }) {
           <PlatformStatusPill status={event.status} />
         </div>
       </div>
+      <p className="mt-4 text-sm leading-relaxed text-text-muted">{event.summary}</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div>
           <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Date</p>
           <p className="mt-1 text-sm text-white">{formatDateRange(event.startDate, event.endDate)}</p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Teams</p>
-          <p className="mt-1 font-mono-stat text-white">{formatNumber(event.teamsCount)}</p>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Location / Region</p>
+          <p className="mt-1 text-sm text-white">{event.region}</p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Matches</p>
-          <p className="mt-1 text-sm text-white">{formatEventMatchSummary(event)}</p>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Format</p>
+          <p className="mt-1 text-sm text-white">{event.gameName}</p>
         </div>
-        {showPrize ? (
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Prize Pool</p>
-            <p className="mt-1 text-sm text-white">{event.prizePool}</p>
-          </div>
-        ) : null}
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Slots</p>
+          <p className="mt-1 text-sm text-white">{getEventSlotsLabel(event)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Registration</p>
+          <p className="mt-1 text-sm text-white">{getEventRegistrationLabel(event)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Prize Pool</p>
+          <p className="mt-1 text-sm text-white">{getEventPrizeLabel(event)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Status</p>
+          <p className="mt-1 text-sm text-white">{getEventStatusLabel(event.status)}</p>
+        </div>
       </div>
       <div className="mt-auto flex flex-wrap gap-2 pt-5">
-        <span className="btn-primary">View Details</span>
+        <Link href={getEventDetailHref(event)} className="btn-primary">
+          View Event
+        </Link>
+        {canRegisterForEvent(event) ? (
+          <Link href={getEventRegistrationHref(event)} className="btn-secondary">
+            Register Team
+          </Link>
+        ) : null}
+        <Link href={getEventRulesHref(event)} className="btn-secondary">
+          View Rules
+        </Link>
+        {showResultsCta ? (
+          <Link href={event.analyticsHref ?? getEventDetailHref(event)} className="btn-secondary">
+            View Results
+          </Link>
+        ) : null}
       </div>
-    </Link>
+    </article>
   );
 }
 
@@ -424,10 +539,6 @@ function GameCard({ game }: { game: PlatformGame }) {
   );
 }
 
-function sponsorKindLabel(kind: PlatformSponsorProfile["kind"]) {
-  return kind === "design" ? "Design Partner" : kind === "sponsor" ? "Official Sponsor" : "Community Partner";
-}
-
 function sponsorPrimaryAsset(sponsor: PlatformSponsorProfile) {
   return sponsor.bannerUrl ?? sponsor.designAssetUrl ?? sponsor.logoUrl ?? null;
 }
@@ -457,8 +568,10 @@ function SponsorCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
         )}
         <div>
           <div className="flex flex-wrap gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{sponsor.tier}</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">{sponsorKindLabel(sponsor.kind)}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">{sponsorTierLabel(sponsor)}</p>
+            {sponsorSupportingLabel(sponsor) ? (
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">{sponsorSupportingLabel(sponsor)}</p>
+            ) : null}
           </div>
           <h3 className="mt-2 font-display text-xl font-black uppercase text-white">{sponsor.name}</h3>
         </div>
@@ -474,7 +587,7 @@ function SponsorCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
       <div className="mt-auto flex flex-wrap gap-2 pt-5">
         {sponsor.websiteUrl ? (
           <a href={sponsor.websiteUrl} target="_blank" rel="noreferrer" className="btn-primary">
-            Website
+            Visit Website
           </a>
         ) : null}
         <Link href={`/sponsors/${sponsor.slug}`} className="btn-secondary">
@@ -1394,25 +1507,51 @@ export function PlatformEventsPage({
   hub: PlatformHubData;
   searchParams: SearchParamDictionary;
 }) {
+  const publicEvents = resolvePublicEventBoardEvents(hub);
   const game = readSearchParam(searchParams.game, "all");
   const status = readSearchParam(searchParams.status, "all");
-  const hasEvents = hub.events.length > 0;
+  const hasEvents = publicEvents.length > 0;
+  const hasMultipleEvents = publicEvents.length > 1;
   const pageParam = Number.parseInt(readSearchParam(searchParams.page, "1"), 10);
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
   const pageSize = 12;
-  const filteredEvents = hub.events.filter((event) => {
+  const filteredEvents = publicEvents.filter((event) => {
     if (game !== "all" && event.gameSlug !== game) return false;
-    if (status !== "all" && event.status !== status) return false;
+    if (status === "upcoming" && event.status !== "upcoming" && event.status !== "planned") return false;
+    if (status !== "all" && status !== "upcoming" && event.status !== status) return false;
     return true;
   });
   const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const paginatedEvents = filteredEvents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const groupedEvents = [
-    { key: "live", title: "Ongoing", items: paginatedEvents.filter((event) => event.status === "live") },
-    { key: "upcoming", title: "Upcoming", items: paginatedEvents.filter((event) => event.status === "upcoming" || event.status === "planned") },
-    { key: "completed", title: "Recently Completed", items: paginatedEvents.filter((event) => event.status === "completed") },
-  ].filter((group) => group.items.length > 0);
+  const featuredEvent =
+    paginatedEvents.find((event) => canRegisterForEvent(event)) ??
+    paginatedEvents.find((event) => event.status === "live") ??
+    paginatedEvents.find((event) => event.status === "upcoming" || event.status === "planned") ??
+    paginatedEvents[0] ??
+    null;
+  const spotlightQueue = featuredEvent
+    ? paginatedEvents.filter(
+        (event) =>
+          event.id !== featuredEvent.id && (event.status === "live" || event.status === "upcoming" || event.status === "planned")
+      )
+    : [];
+  const completedArchive = featuredEvent
+    ? paginatedEvents.filter((event) => event.id !== featuredEvent.id && event.status === "completed")
+    : paginatedEvents.filter((event) => event.status === "completed");
+  const liveCount = publicEvents.filter((event) => event.status === "live").length;
+  const upcomingCount = publicEvents.filter((event) => event.status === "upcoming" || event.status === "planned").length;
+  const completedCount = publicEvents.filter((event) => event.status === "completed").length;
+  const heroStats = hasEvents
+    ? [
+        { label: "Events", value: publicEvents.length, tone: "blue" as const },
+        ...(upcomingCount > 0 ? [{ label: "Upcoming", value: upcomingCount, tone: "yellow" as const }] : []),
+        ...(liveCount > 0 ? [{ label: "Ongoing", value: liveCount, tone: "green" as const }] : []),
+        ...(completedCount > 0 ? [{ label: "Completed", value: completedCount, tone: "red" as const }] : []),
+      ].slice(0, 4)
+    : undefined;
+  const featuredEventCanRegister = canRegisterForEvent(featuredEvent);
+  const featuredEventResultsHref = featuredEvent?.status === "completed" ? featuredEvent.analyticsHref ?? getEventDetailHref(featuredEvent) : null;
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -1426,19 +1565,36 @@ export function PlatformEventsPage({
           }
           description={
             hasEvents
-              ? "Ongoing, upcoming, and recently completed competitions from the Bravo public schedule."
+              ? "Official Bravo event board for tournaments, scrims, schedules, results, and team registration."
               : "No official events are published yet. Tournament registration and scrim schedules will appear here soon."
           }
           actions={
-            hasEvents ? (
-              <>
-                <Link href="/calendar" className="btn-secondary">
-                  Calendar
-                </Link>
-                <Link href="/matches" className="btn-primary">
-                  Match Center
-                </Link>
-              </>
+            hasEvents && featuredEvent ? (
+              featuredEventCanRegister ? (
+                <>
+                  <Link href={getEventRegistrationHref(featuredEvent)} className="btn-primary">
+                    Register Team
+                  </Link>
+                  <Link href={getEventDetailHref(featuredEvent)} className="btn-secondary">
+                    View Schedule
+                  </Link>
+                  <Link href={getEventRulesHref(featuredEvent)} className="btn-secondary">
+                    View Rules
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href={featuredEventResultsHref ?? getEventDetailHref(featuredEvent)} className="btn-primary">
+                    {featuredEvent.status === "completed" ? "View Results" : "View Event"}
+                  </Link>
+                  <Link href={getEventDetailHref(featuredEvent)} className="btn-secondary">
+                    View Schedule
+                  </Link>
+                  <Link href={getEventRulesHref(featuredEvent)} className="btn-secondary">
+                    View Rules
+                  </Link>
+                </>
+              )
             ) : (
               <>
                 <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
@@ -1450,19 +1606,63 @@ export function PlatformEventsPage({
               </>
             )
           }
-          stats={
-            hasEvents
-              ? [
-                  { label: "Events", value: hub.events.length, tone: "blue" as const },
-                  { label: "Ongoing", value: hub.events.filter((event) => event.status === "live").length, tone: "green" as const },
-                  { label: "Upcoming", value: hub.events.filter((event) => event.status === "upcoming").length, tone: "yellow" as const },
-                  { label: "Completed", value: hub.events.filter((event) => event.status === "completed").length, tone: "red" as const },
-                ]
-              : undefined
-          }
+          stats={heroStats}
         />
 
-        {hasEvents ? (
+        {featuredEvent ? (
+          <section className="overflow-hidden rounded-[32px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))]">
+            <div className="grid gap-0 xl:grid-cols-[0.92fr,1.08fr]">
+              {featuredEvent.bannerUrl ? (
+                <img src={featuredEvent.bannerUrl} alt={featuredEvent.name} className="h-72 w-full object-cover xl:h-full" />
+              ) : (
+                <div className="h-72 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.22),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] xl:h-full" />
+              )}
+              <div className="p-6 sm:p-7">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="max-w-3xl">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue-light">Featured Tournament</p>
+                    <h2 className="mt-3 font-display text-3xl font-black uppercase text-white">{featuredEvent.name}</h2>
+                    <p className="mt-4 text-sm leading-7 text-text-muted">{featuredEvent.summary}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <PlatformStatusPill status={featuredEvent.status} />
+                    <CategoryPill label={featuredEvent.gameName} />
+                  </div>
+                </div>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <MetricCard label="Date" value={formatDateRange(featuredEvent.startDate, featuredEvent.endDate)} compact tone="blue" />
+                  <MetricCard label="Format" value={featuredEvent.gameName} compact tone="green" />
+                  <MetricCard label="Slots" value={getEventSlotsLabel(featuredEvent)} compact tone="yellow" />
+                  <MetricCard label="Registration" value={getEventRegistrationLabel(featuredEvent)} compact tone="red" />
+                  <MetricCard label="Prize Pool" value={getEventPrizeLabel(featuredEvent)} compact tone="blue" />
+                  <MetricCard label="Status" value={getEventStatusLabel(featuredEvent.status)} compact tone="green" />
+                </div>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {featuredEventCanRegister ? (
+                    <Link href={getEventRegistrationHref(featuredEvent)} className="btn-primary">
+                      Register Team
+                    </Link>
+                  ) : (
+                    <Link href={featuredEventResultsHref ?? getEventDetailHref(featuredEvent)} className="btn-primary">
+                      {featuredEvent.status === "completed" ? "View Results" : "View Event"}
+                    </Link>
+                  )}
+                  <Link href={getEventDetailHref(featuredEvent)} className="btn-secondary">
+                    View Schedule
+                  </Link>
+                  <Link href={getEventRulesHref(featuredEvent)} className="btn-secondary">
+                    View Rules
+                  </Link>
+                </div>
+                <p className="mt-4 max-w-2xl text-xs uppercase tracking-[0.16em] text-text-muted">
+                  After registration, our admin team reviews your team details and confirms your slot through official channels.
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {hasEvents && hasMultipleEvents ? (
           <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
             <div className="tab-bar mb-3">
               <Link href="/events" className={`tab-item ${status === "all" ? "tab-item-active" : ""}`}>
@@ -1529,20 +1729,37 @@ export function PlatformEventsPage({
             </div>
           </section>
         ) : (
-          groupedEvents.map((group) => (
-            <section key={group.key} className="space-y-4">
-              <SectionHeader
-                eyebrow="Event Board"
-                title={group.title}
-                description={`${group.items.length} public event${group.items.length === 1 ? "" : "s"} on this page.`}
-              />
-              <div className="grid gap-4 xl:grid-cols-2">
-                {group.items.map((event) => (
-                  <EventCard key={event.id} event={event} />
-                ))}
-              </div>
-            </section>
-          ))
+          <>
+            {spotlightQueue.length > 0 ? (
+              <section className="space-y-4">
+                <SectionHeader
+                  eyebrow="Event Board"
+                  title="Upcoming Scrims / Tournaments"
+                  description="Current public event cards stay registration-ready and link safely into the event detail flow."
+                />
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {spotlightQueue.map((event) => (
+                    <EventCard key={event.id} event={event} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {completedArchive.length > 0 ? (
+              <section className="space-y-4">
+                <SectionHeader
+                  eyebrow="Event Archive"
+                  title="Completed Events"
+                  description="Published tournament and scrim history remains accessible without burying the next registration window."
+                />
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {completedArchive.map((event) => (
+                    <EventCard key={event.id} event={event} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </>
         )}
 
         {filteredEvents.length > pageSize ? (
@@ -1615,21 +1832,37 @@ export function PlatformEventDetailPage({
           description={event.summary}
           actions={
             <>
+              {canRegisterForEvent(event) ? (
+                <Link href={getEventRegistrationHref(event)} className="btn-primary">
+                  Register Team
+                </Link>
+              ) : event.analyticsHref ? (
+                <Link href={event.analyticsHref} className="btn-primary">
+                  {event.gameSlug === "pubg-pc" ? "View Results" : "Open Game Hub"}
+                </Link>
+              ) : (
+                <Link href={getEventDetailHref(event)} className="btn-primary">
+                  View Event
+                </Link>
+              )}
+              <Link href={getEventRulesHref(event)} className="btn-secondary">
+                View Rules
+              </Link>
               <Link href="/events" className="btn-secondary">
                 Back to events
               </Link>
-              {event.analyticsHref ? (
-                <Link href={event.analyticsHref} className="btn-primary">
+              {event.analyticsHref && !canRegisterForEvent(event) ? (
+                <Link href={event.analyticsHref} className="btn-secondary">
                   {event.gameSlug === "pubg-pc" ? "Open full analytics" : "Open game hub"}
                 </Link>
               ) : null}
             </>
           }
           stats={[
-            { label: "Teams", value: event.teamsCount, tone: "blue" },
-            { label: event.matchesCount > 0 ? "Matches" : event.status === "completed" ? "Results" : "Schedule", value: formatEventMatchSummary(event), tone: "green" },
-            { label: "Prize", value: event.prizePool, tone: "yellow" },
-            { label: "Region", value: event.region, tone: "red" },
+            { label: "Date", value: formatDateRange(event.startDate, event.endDate), tone: "blue" },
+            { label: "Format", value: event.gameName, tone: "green" },
+            { label: "Registration", value: getEventRegistrationLabel(event), tone: "yellow" },
+            { label: "Status", value: getEventStatusLabel(event.status), tone: "red" },
           ]}
           aside={
             <div className="space-y-4">
@@ -1699,6 +1932,46 @@ export function PlatformEventDetailPage({
               {relatedMatches.length === 0 ? (
                   <EmptyState title="Match schedule information is not available yet" description="Please check back later for official timing updates." />
               ) : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+          <div className="esports-card p-6">
+            <SectionHeader eyebrow="Registration" title="Register and stay tournament-ready" description="Public registration stays simple, visible, and linked to the same event promoted across the homepage and event board." />
+            <div className="mt-5 rounded-card border border-white/[0.08] bg-bg-primary p-5">
+              <p className="text-sm leading-7 text-text-muted">
+                After registration, our admin team reviews your team details and confirms your slot through official channels.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link href={getEventRegistrationHref(event)} className="btn-primary">
+                  Register Team
+                </Link>
+                <Link href={getEventRulesHref(event)} className="btn-secondary">
+                  View Rules
+                </Link>
+                <Link href="/contact" className="btn-secondary">
+                  Contact Bravo
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="esports-card p-6">
+            <SectionHeader eyebrow="Trust" title="Rules, support, and official channels" description="Teams should not have to hunt for the core trust and support links around a tournament detail page." />
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link href="/rules" className="btn-secondary">
+                Rules
+              </Link>
+              <Link href="/anti-cheat" className="btn-secondary">
+                Anti-Cheat
+              </Link>
+              <Link href="/about/sponsor-us" className="btn-secondary">
+                Sponsor Inquiry
+              </Link>
+              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
+                Official Discord
+              </a>
             </div>
           </div>
         </section>
@@ -1777,9 +2050,16 @@ export function PlatformEventDetailPage({
                       <img src={sponsor.logoUrl} alt={sponsor.name} className="h-14 w-14 rounded-card border border-white/10 bg-black/20 object-contain p-2" />
                     ) : null}
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">
-                        {sponsor.tier} | {sponsorKindLabel(sponsor.kind)}
-                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">
+                          {sponsorTierLabel(sponsor)}
+                        </p>
+                        {sponsorSupportingLabel(sponsor) ? (
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+                            {sponsorSupportingLabel(sponsor)}
+                          </p>
+                        ) : null}
+                      </div>
                       <p className="mt-1 font-display text-lg font-black uppercase text-white">{sponsor.name}</p>
                     </div>
                   </div>
@@ -3095,6 +3375,8 @@ export function PlatformOrganizationDetailPage({
 
 export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
   const publicSponsors = hub.sponsors.filter((sponsor) => sponsor.showOnSponsorsPage);
+  const leadSponsor = publicSponsors[0] ?? null;
+  const supportingSponsors = publicSponsors.slice(1);
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -3106,41 +3388,110 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
               Sponsors & Partners
             </>
           }
-          description="Official partners supporting Bravo Gaming Esports and Nepal PUBG competition coverage."
+          description="Official partners supporting Bravo Gaming Esports, PUBG PC scrims, tournaments, broadcasts, and community events."
           actions={
             <>
               <Link href="/about/sponsor-us" className="btn-primary">
                 Become a Sponsor
               </Link>
-              <Link href="/about/sponsor-us" className="btn-secondary">
-                Sponsor Inquiry
+              <Link href="/contact" className="btn-secondary">
+                Contact Bravo
+              </Link>
+              <Link href="/media" className="btn-secondary">
+                Media Center
               </Link>
             </>
           }
-          stats={
-            publicSponsors.length > 1
-              ? [
-                  { label: "Profiles", value: publicSponsors.length, tone: "blue" as const },
-                  { label: "Event Links", value: publicSponsors.reduce((sum, sponsor) => sum + sponsor.supportedEvents.length, 0), tone: "green" as const },
-                  { label: "Partner Tiers", value: new Set(publicSponsors.map((sponsor) => sponsor.tier)).size, tone: "yellow" as const },
-                  { label: "Kinds", value: new Set(publicSponsors.map((sponsor) => sponsor.kind)).size, tone: "red" as const },
-                ]
-              : undefined
-          }
         />
 
-        <section className={joinClasses("grid gap-4", publicSponsors.length === 1 ? "mx-auto max-w-4xl" : "md:grid-cols-2 xl:grid-cols-3")}>
-          {publicSponsors.map((sponsor) => (
-            <SponsorCard key={sponsor.id} sponsor={sponsor} />
-          ))}
-          {publicSponsors.length === 0 ? (
-            <div className="md:col-span-2 xl:col-span-3">
-              <EmptyState
-                title="Partner lineup coming soon"
-                description="Official partner cards will include website and profile links once announcements go live."
-              />
+        {leadSponsor ? (
+          <section className="overflow-hidden rounded-[32px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))]">
+            <div className="grid gap-0 xl:grid-cols-[0.92fr,1.08fr]">
+              {sponsorPrimaryAsset(leadSponsor) ? (
+                <img src={sponsorPrimaryAsset(leadSponsor) ?? undefined} alt={leadSponsor.name} className="h-72 w-full object-cover xl:h-full" />
+              ) : (
+                <div className="flex h-72 items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.22),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] font-display text-4xl font-black uppercase tracking-[0.14em] text-white xl:h-full">
+                  {buildInitials(leadSponsor.name)}
+                </div>
+              )}
+              <div className="p-6 sm:p-7">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="max-w-3xl">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue-light">
+                      {sponsorTierLabel(leadSponsor)}
+                    </p>
+                    <h2 className="mt-3 font-display text-3xl font-black uppercase text-white">{leadSponsor.name}</h2>
+                    <p className="mt-4 text-sm leading-7 text-text-muted">{leadSponsor.description}</p>
+                  </div>
+                  {sponsorSupportingLabel(leadSponsor) ? (
+                    <CategoryPill label={sponsorSupportingLabel(leadSponsor) ?? ""} />
+                  ) : null}
+                </div>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {leadSponsor.websiteUrl ? (
+                    <HeroActionLink href={leadSponsor.websiteUrl} label="Visit Website" className="btn-primary" />
+                  ) : null}
+                  <Link href={`/sponsors/${leadSponsor.slug}`} className="btn-secondary">
+                    View Profile
+                  </Link>
+                </div>
+              </div>
             </div>
-          ) : null}
+          </section>
+        ) : null}
+
+        {supportingSponsors.length > 0 ? (
+          <section className="space-y-4">
+            <SectionHeader eyebrow="Official Partners" title="Published partner profiles" description="Official partner cards stay visible, credible, and linked to real profiles instead of hidden footer-only mentions." />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {supportingSponsors.map((sponsor) => (
+                <SponsorCard key={sponsor.id} sponsor={sponsor} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {publicSponsors.length === 0 ? (
+          <section className="mx-auto max-w-4xl">
+            <EmptyState
+              title="Partner lineup coming soon"
+              description="Official partner cards will include website and profile links once announcements go live."
+            />
+          </section>
+        ) : null}
+
+        <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
+          <div className="esports-card p-6">
+            <SectionHeader eyebrow="Why Partner With Bravo?" title="Why Partner With Bravo?" description="The sponsor page should explain the real tournament value without inventing numbers." />
+            <div className="mt-5 grid gap-3">
+              {[
+                "Brand exposure on live streams",
+                "Logo placement on event graphics",
+                "Social media recognition",
+                "Discord and community promotion",
+                "Tournament partnership opportunities",
+              ].map((item) => (
+                <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="esports-card p-6">
+            <SectionHeader eyebrow="Sponsor Inquiry" title="Start a sponsor conversation" description="Contact Bravo through the public channels below to discuss stream, event, and community partnership options." />
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link href="/contact" className="btn-primary">
+                Contact Bravo
+              </Link>
+              <Link href="/about/sponsor-us" className="btn-secondary">
+                Sponsor Inquiry
+              </Link>
+              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
+                Official Discord
+              </a>
+            </div>
+          </div>
         </section>
       </div>
     </main>
@@ -3163,12 +3514,14 @@ export function PlatformSponsorDetailPage({
     sponsor.showOnEventPage ? "Event pages" : null,
     sponsor.showOnPubgPage ? "PUBG page" : null,
   ].filter((item): item is string => Boolean(item));
+  const tierLabel = sponsorTierLabel(sponsor);
+  const supportingLabel = sponsorSupportingLabel(sponsor);
 
   return (
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge={`${sponsor.tier} | ${sponsorKindLabel(sponsor.kind)}`}
+          badge={supportingLabel ? `${tierLabel} | ${supportingLabel}` : tierLabel}
           title={
             <>
               {sponsor.name}

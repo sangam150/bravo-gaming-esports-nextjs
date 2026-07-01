@@ -6,6 +6,7 @@ import {
   buildHref,
   EmptyState,
   formatDecimal,
+  formatDateTime,
   formatNumber,
   PageHero,
   RankBadge,
@@ -41,6 +42,33 @@ function filterMatches(dataset: PubgHubDataset, options: { eventSlug?: string; m
 
     return true;
   });
+}
+
+function getLatestFilteredMatch(matches: PubgHubMatch[]) {
+  return [...matches].sort((firstValue, secondValue) => {
+    const firstTime = new Date(firstValue.startTime).getTime();
+    const secondTime = new Date(secondValue.startTime).getTime();
+
+    if (Number.isFinite(firstTime) && Number.isFinite(secondTime) && secondTime !== firstTime) {
+      return secondTime - firstTime;
+    }
+
+    return secondValue.matchNumber - firstValue.matchNumber;
+  })[0] ?? null;
+}
+
+function getLeaderboardLensLabel(dataset: PubgHubDataset, eventSlug: string, latestMatch: PubgHubMatch | null) {
+  if (eventSlug !== "all") {
+    return dataset.events.find((event) => event.slug === eventSlug)?.name ?? eventSlug;
+  }
+
+  const activeEvent =
+    dataset.events.find((event) => event.status === "ongoing") ??
+    dataset.events.find((event) => event.status === "upcoming") ??
+    dataset.events[0] ??
+    null;
+
+  return latestMatch?.eventName ?? activeEvent?.name ?? "All published PUBG results";
 }
 
 function getLeaderboardSurface(rank: number) {
@@ -132,9 +160,9 @@ function TeamLeaderboardMobileCard({ row }: { row: PubgTeamBoardRow }) {
           <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{row.tag ? row.tag : "PUBG Team"}</p>
         </div>
       </div>
-      <p className="mt-4 font-mono-stat text-xl text-accent-blue-light">{formatNumber(row.totalPoints)} Total</p>
+      <p className="mt-4 font-mono-stat text-xl text-accent-blue-light">{formatNumber(row.totalPoints)} Total Points</p>
       <p className="mt-2 text-sm text-text-muted">{formatNumber(row.kills)} Kills • {formatNumber(row.wins)} WWCD</p>
-      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.matches)} Matches • {formatNumber(row.placementPoints)} Placement</p>
+      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.matches)} Matches • {formatNumber(row.placementPoints)} Placement Points</p>
       <p className="mt-2 text-sm text-text-muted">Damage: {formatNumber(row.damage)}</p>
     </Link>
   );
@@ -196,6 +224,11 @@ export function PubgLeaderboardsRoute({
     eventSlug: eventSlug === "all" ? undefined : eventSlug,
     mapName,
   });
+  const latestFilteredMatch = getLatestFilteredMatch(filteredMatches);
+  const leaderboardLensLabel = getLeaderboardLensLabel(dataset, eventSlug, latestFilteredMatch);
+  const leaderboardUpdatedLabel = latestFilteredMatch
+    ? `After published Match ${latestFilteredMatch.matchNumber} on ${latestFilteredMatch.mapName}`
+    : "Generated from the current published results set";
   const teamBoard = buildPubgTeamBoardRows(filteredMatches, teamLookup);
   const playerBoard = buildPubgPlayerBoardRows(filteredMatches, playerLookup);
   const mapOptions = dedupeMaps(dataset.matches);
@@ -245,6 +278,13 @@ export function PubgLeaderboardsRoute({
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-text-muted">
                 Coverage mode: {sourceLabel(dataset.source)}
+              </div>
+              <div className="rounded-card border border-white/[0.08] bg-black/20 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Current Event</p>
+                <p className="mt-2 text-sm font-semibold text-white">{leaderboardLensLabel}</p>
+                <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Last Updated</p>
+                <p className="mt-2 text-sm text-white">{leaderboardUpdatedLabel}</p>
+                <p className="mt-2 text-xs text-text-muted">Dataset generated {formatDateTime(dataset.generatedAt)}</p>
               </div>
             </div>
           }
@@ -302,7 +342,7 @@ export function PubgLeaderboardsRoute({
           ) : (
             <section className="esports-card overflow-hidden !p-0">
               <div className="border-b border-white/[0.08] px-5 py-4">
-                <SectionHeader eyebrow="Team Board" title="Official team leaderboard" description="Rank, team, matches, WWCD, placement, kills, damage, total points, and recent trend from the published board." />
+                <SectionHeader eyebrow="Team Board" title="Official team leaderboard" description="Rank, team, matches, WWCD, placement points, kills, damage, total points, and recent trend from the published board." />
               </div>
               <div className="grid gap-3 p-4 md:hidden">
                 {teamBoard.map((row) => (
@@ -316,10 +356,10 @@ export function PubgLeaderboardsRoute({
                     <span>Team</span>
                     <span className="text-right">Matches</span>
                     <span className="text-right">WWCD</span>
-                    <span className="text-right">Placement</span>
+                    <span className="text-right">Placement Points</span>
                     <span className="text-right">Kills</span>
                     <span className="text-right">Damage</span>
-                    <span className="text-right">Total</span>
+                    <span className="text-right">Total Points</span>
                     <span className="text-right">Trend</span>
                   </div>
                   {teamBoard.map((row) => (

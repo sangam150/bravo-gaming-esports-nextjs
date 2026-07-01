@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Menu,
   Radio,
-  Search,
   X,
 } from "lucide-react";
 import BravoLogo from "@/components/ui/BravoLogo";
@@ -33,11 +32,11 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/", prefixes: ["/"] },
   { label: "PUBG", href: "/pubg", prefixes: ["/pubg"] },
   { label: "Events", href: "/events", prefixes: ["/events"] },
-  { label: "Community", href: "/pubg/community", prefixes: ["/pubg/community", "/community", "/teams", "/players"] },
-  { label: "Media", href: "/media", prefixes: ["/media", "/videos", "/highlights"] },
-  { label: "News", href: "/news", prefixes: ["/news"] },
+  { label: "Leaderboards", href: "/pubg/leaderboards", prefixes: ["/pubg/leaderboards", "/leaderboard", "/rankings"] },
+  { label: "Teams", href: "/pubg/teams", prefixes: ["/pubg/teams", "/teams"] },
+  { label: "Players", href: "/pubg/players", prefixes: ["/pubg/players", "/players"] },
   { label: "Sponsors", href: "/sponsors", prefixes: ["/sponsors", "/partners"] },
-  { label: "About", href: "/about", prefixes: ["/about", "/contact", "/privacy", "/terms"] },
+  { label: "About", href: "/about", prefixes: ["/about", "/contact", "/privacy", "/terms", "/rules", "/anti-cheat"] },
 ];
 
 function isActive(pathname: string, prefixes: string[]) {
@@ -134,7 +133,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                       Quick Navigation
                     </h2>
                     <p className="mt-3 text-sm leading-7 text-text-muted">
-                      Home, PUBG, events, and content routes with direct quick actions for search, streams, and login.
+                      Home, PUBG, events, and tournament routes with direct quick actions for registration, live coverage, and login.
                     </p>
                   </div>
                   <button
@@ -178,14 +177,14 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                     <div className="h-px flex-1 bg-white/10" />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <Link href="/search" className="btn-secondary justify-center">
-                      Search
+                    <Link href="/teams/register" className="btn-primary justify-center">
+                      Register Team
                     </Link>
                     <Link href={watchLiveHref || "/live-stream"} className="btn-watch-live justify-center">
                       <Radio className="h-3.5 w-3.5" />
-                      Watch Stream
+                      Watch Live
                     </Link>
-                    <Link href="/login" className="btn-primary justify-center">
+                    <Link href="/login" className="btn-secondary justify-center">
                       Login
                     </Link>
                   </div>
@@ -240,14 +239,14 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
             </nav>
 
             <div className="ml-auto hidden items-center gap-2 xl:flex">
-              <Link href="/search" aria-label="Search" className={`${utilityClasses()} !w-11 !px-0`}>
-                <Search className="h-4 w-4" />
+              <Link href="/teams/register" className={utilityClasses(true)}>
+                Register Team
               </Link>
               <Link href={watchLiveHref || "/live-stream"} className="btn-watch-live">
                 <span className="live-dot h-1.5 w-1.5" />
-                Watch Stream
+                Watch Live
               </Link>
-              <Link href="/login" className={utilityClasses(true)}>
+              <Link href="/login" className={utilityClasses()}>
                 Login
               </Link>
             </div>
@@ -267,11 +266,11 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
           <div className="mt-2 hidden items-center justify-between px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted sm:flex xl:hidden">
             <span>Current section: {currentSection}</span>
             <div className="flex items-center gap-3">
-              <Link href="/search" className="transition hover:text-white">
-                Search
+              <Link href="/teams/register" className="transition hover:text-white">
+                Register Team
               </Link>
               <Link href={watchLiveHref || "/live-stream"} className="transition hover:text-white">
-                Watch Stream
+                Watch Live
               </Link>
             </div>
           </div>
