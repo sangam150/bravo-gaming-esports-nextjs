@@ -2772,8 +2772,8 @@ export async function getPubgHubDataset() {
 
 export async function getPubgDashboardData() {
   const dataset = await getPubgHubDataset();
-  const topTeams = dataset.teams.slice(0, 6);
-  const topPlayers = dataset.players.slice(0, 6);
+  const topTeams = getRankedTeams(dataset.teams).slice(0, 6);
+  const topPlayers = getRankedPlayers(dataset.players).slice(0, 6);
   const activeEvents = dataset.events.filter((event) => event.status !== "finished").slice(0, 4);
   const recentEvents = [...dataset.events].sort(sortByNewest).slice(0, 5);
   const recentMatches = dataset.matches.slice(0, 8);

@@ -134,7 +134,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                       Quick Navigation
                     </h2>
                     <p className="mt-3 text-sm leading-7 text-text-muted">
-                      Home, PUBG, events, and content routes with direct quick actions for search, live, and login.
+                      Home, PUBG, events, and content routes with direct quick actions for search, streams, and login.
                     </p>
                   </div>
                   <button
@@ -183,7 +183,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                     </Link>
                     <Link href={watchLiveHref || "/live-stream"} className="btn-watch-live justify-center">
                       <Radio className="h-3.5 w-3.5" />
-                      Watch Live
+                      Watch Stream
                     </Link>
                     <Link href="/login" className="btn-primary justify-center">
                       Login
@@ -245,7 +245,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
               </Link>
               <Link href={watchLiveHref || "/live-stream"} className="btn-watch-live">
                 <span className="live-dot h-1.5 w-1.5" />
-                Watch Live
+                Watch Stream
               </Link>
               <Link href="/login" className={utilityClasses(true)}>
                 Login
@@ -271,7 +271,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                 Search
               </Link>
               <Link href={watchLiveHref || "/live-stream"} className="transition hover:text-white">
-                Watch Live
+                Watch Stream
               </Link>
             </div>
           </div>

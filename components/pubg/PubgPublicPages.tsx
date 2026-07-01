@@ -316,6 +316,11 @@ function HubMatchCard({
   playerLookup: Map<string, PubgHubPlayer>;
 }) {
   const topFragger = buildTopFragger(match, playerLookup);
+  const matchStatusLabel = match.status === "published" ? "Published" : match.eventStatus === "finished" ? "Completed" : "Current";
+  const matchStatusClass =
+    match.status === "published" || match.eventStatus === "finished"
+      ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
+      : "border-accent-red/30 bg-accent-red/10 text-white";
 
   return (
     <div className="rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-4">
@@ -327,7 +332,9 @@ function HubMatchCard({
           <h3 className="mt-2 font-display text-lg font-black uppercase text-white">{match.eventName}</h3>
           <p className="mt-2 text-sm text-text-muted">{formatDateTime(match.startTime)}</p>
         </div>
-        <StatusPill status={match.eventStatus} />
+        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${matchStatusClass}`}>
+          {matchStatusLabel}
+        </span>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-[20px] border border-white/[0.08] bg-black/20 p-3">
@@ -594,18 +601,21 @@ export function PubgDashboardPage({
   partners: PlatformSponsorProfile[];
 }) {
   const playerLookup = buildPlayerLookup(dataset);
+  const teamLookup = buildTeamLookup(dataset);
   const hasVerifiedCompetitionData = dataset.source === "supabase";
   const publishedMatches = hasVerifiedCompetitionData ? recentMatches.filter((match) => match.status === "published").slice(0, 4) : [];
-  const leaderboardTeams = hasVerifiedCompetitionData ? dataset.teams.slice(0, 6) : [];
-  const leaderboardPlayers = hasVerifiedCompetitionData ? dataset.players.slice(0, 6) : [];
+  const rankedTeams = getRankedTeams(dataset.teams);
+  const rankedPlayers = getRankedPlayers(dataset.players);
+  const leaderboardTeams = hasVerifiedCompetitionData ? rankedTeams.slice(0, 6) : [];
+  const leaderboardPlayers = hasVerifiedCompetitionData ? rankedPlayers.slice(0, 6) : [];
   const featuredEvents = hasVerifiedCompetitionData ? recentEvents.slice(0, 3) : [];
   const scrimEvents = hasVerifiedCompetitionData
     ? dataset.events.filter((event) => event.status !== "finished" && /scrim/i.test(event.type)).slice(0, 3)
     : [];
   const upcomingScrims = scrimEvents.length > 0 ? scrimEvents : featuredEvents.filter((event) => event.status !== "finished").slice(0, 3);
-  const featuredTeams = hasVerifiedCompetitionData ? topTeams.slice(0, 4) : [];
-  const sidebarTeams = hasVerifiedCompetitionData ? topTeams.slice(0, 3) : [];
-  const sidebarPlayers = hasVerifiedCompetitionData ? topPlayers.slice(0, 3) : [];
+  const featuredTeams = hasVerifiedCompetitionData ? getRankedTeams(topTeams).slice(0, 4) : [];
+  const sidebarTeams = hasVerifiedCompetitionData ? getRankedTeams(topTeams).slice(0, 3) : [];
+  const sidebarPlayers = hasVerifiedCompetitionData ? getRankedPlayers(topPlayers).slice(0, 3) : [];
   const spotlightEvent = hasVerifiedCompetitionData ? activeEvents[0] ?? recentEvents[0] ?? null : null;
   const latestWinner = publishedMatches[0]?.winnerTeamName ?? null;
   const mostWinsTeam = leaderboardTeams.length > 0 ? [...leaderboardTeams].sort((a, b) => b.wins - a.wins || b.totalPoints - a.totalPoints)[0] : null;
@@ -621,6 +631,13 @@ export function PubgDashboardPage({
       : null;
   const spotlightSeasonLabel = activeSeason?.title ?? "Current season";
   const latestMatchLabel = publishedMatches[0] ? `Match ${publishedMatches[0].matchNumber}` : "Awaiting result";
+  const fallbackCurrentDayLabel =
+    activeSeason?.currentDay && activeSeason.currentDay > 0
+      ? `Day ${activeSeason.currentDay}`
+      : spotlightEvent?.name ?? publishedMatches[0]?.eventName ?? "Published results";
+  const matchesPlayed = activeSeason?.matchesPlayed && activeSeason.matchesPlayed > 0 ? activeSeason.matchesPlayed : dataset.matches.length;
+  const teamsTracked = activeSeason?.teamsTracked && activeSeason.teamsTracked > 0 ? activeSeason.teamsTracked : dataset.teams.length;
+  const playersTracked = activeSeason?.playersTracked && activeSeason.playersTracked > 0 ? activeSeason.playersTracked : dataset.players.length;
 
   if (!hasVerifiedCompetitionData) {
     return (
@@ -809,10 +826,10 @@ export function PubgDashboardPage({
                       ) : null}
                     </div>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                      <HeaderStatCell label="Current Day" value={activeSeason?.currentDay ?? "TBA"} />
-                      <HeaderStatCell label="Matches Played" value={activeSeason?.matchesPlayed ?? 0} />
-                      <HeaderStatCell label="Teams Tracked" value={activeSeason?.teamsTracked ?? 0} />
-                      <HeaderStatCell label="Players Tracked" value={activeSeason?.playersTracked ?? 0} />
+                      <HeaderStatCell label="Current Day" value={fallbackCurrentDayLabel} />
+                      <HeaderStatCell label="Matches Played" value={matchesPlayed} />
+                      <HeaderStatCell label="Teams Tracked" value={teamsTracked} />
+                      <HeaderStatCell label="Players Tracked" value={playersTracked} />
                     </div>
                     <div className="mt-5 rounded-[20px] border border-white/[0.08] bg-black/20 p-4">
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Current Focus</p>
@@ -968,7 +985,7 @@ export function PubgDashboardPage({
                           </td>
                           <td>
                             {player.currentTeamId ? (
-                              <Link href={`/pubg/teams/${player.currentTeamId}`} className="text-white hover:text-accent-blue">
+                              <Link href={`/pubg/teams/${teamLookup.get(player.currentTeamId)?.slug ?? player.currentTeamId}`} className="text-white hover:text-accent-blue">
                                 {player.currentTeamName ?? "Team TBD"}
                               </Link>
                             ) : (
@@ -3217,6 +3234,32 @@ function PlayerLeaderboardMobileCard({ row }: { row: PubgPlayerBoardRow }) {
   );
 }
 
+function PlayerLeaderboardMobileSummaryCard({ row }: { row: PubgPlayerBoardRow }) {
+  return (
+    <Link
+      href={`/pubg/players/${row.slug}`}
+      className={`block rounded-[24px] border p-4 ${getLeaderboardSurface(row.rank)}`}
+    >
+      <div className="flex items-start gap-3">
+        <RankBadge rank={row.rank} />
+        <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 font-display text-lg font-black uppercase text-white">{row.pubgName}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team TBD"}</p>
+        </div>
+      </div>
+      <p className="mt-4 text-sm text-text-muted">
+        {formatNumber(row.kills)} Kills • {formatNumber(row.assists)} Assists • {formatNumber(row.knocks)} Knocks
+      </p>
+      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.damage)} Damage</p>
+      <p className="mt-2 text-sm text-text-muted">Avg Kills: {formatDecimal(row.avgKills, 2)}</p>
+      <p className="mt-2 text-sm text-text-muted">
+        Best Match: {row.bestMatch ? `${row.bestMatch.kills}K on ${row.bestMatch.mapName}` : "Pending"}
+      </p>
+    </Link>
+  );
+}
+
 export function PubgLeaderboardsPage({
   dataset,
   searchParams,
@@ -3397,7 +3440,7 @@ export function PubgLeaderboardsPage({
             </div>
             <div className="grid gap-3 p-4 md:hidden">
               {playerBoard.map((row) => (
-                <PlayerLeaderboardMobileCard key={row.playerId} row={row} />
+                <PlayerLeaderboardMobileSummaryCard key={row.playerId} row={row} />
               ))}
             </div>
             <div className="hidden px-4 pb-4 md:block">

@@ -130,7 +130,7 @@ function getHeroLiveCard(
       detail: `Match ${liveMatch.matchNumber}/${Math.max(liveMatch.matchNumber, liveMatchCount)}`,
       subdetail: liveMatch.mapName,
       href: watchLiveHref,
-      actionLabel: "Watch Live",
+      actionLabel: "Open Match Center",
     };
   }
 
@@ -203,7 +203,7 @@ function HeroSection({
           <p className="section-title">Bravo Gaming Esports</p>
           <h1 className="hero-h1 mt-4 max-w-[18ch]">Nepal&apos;s Home of Competitive PUBG PC Esports</h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
-            Compete in daily PUBG PC scrims, participate in tournaments, track live standings, analyze player statistics,
+            Compete in daily PUBG PC scrims, participate in tournaments, track official standings, analyze player statistics,
             and become part of Nepal&apos;s growing competitive esports community.
           </p>
 
@@ -241,8 +241,8 @@ function HeroSection({
                     ? `Match ${liveMatch.matchNumber}/${Math.max(liveMatch.matchNumber, liveEvent?.matchCount ?? liveMatch.matchNumber)}`
                     : "Schedule TBA"}
                 </p>
-                <p className="mt-1 text-sm text-text-muted">{liveMatch ? liveMatch.eventName : "No live scrim right now"}</p>
-                <ActionLink href={liveCard.href} variant={liveMatch ? "watch" : "secondary"} className="mt-4 w-full justify-center">
+                <p className="mt-1 text-sm text-text-muted">{liveMatch ? liveMatch.eventName : "Current schedule will appear here"}</p>
+                <ActionLink href={liveCard.href} variant={liveMatch ? "primary" : "secondary"} className="mt-4 w-full justify-center">
                   {liveCard.actionLabel}
                 </ActionLink>
               </div>
@@ -340,10 +340,10 @@ function LivePulse({ pubg }: { pubg: PubgHubDataset }) {
   if (!hasTrackedData && liveMatches === 0) {
     return (
       <section className="standard-card p-3.5">
-        <PanelHeader icon={<Radio className="h-4 w-4" />} title="Live Pulse" />
+        <PanelHeader icon={<Radio className="h-4 w-4" />} title="Competition Pulse" />
         <div className="rounded-[22px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.96))] p-5">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Current Status</p>
-          <h3 className="mt-3 font-display text-xl font-black uppercase text-white">No live scrim right now</h3>
+          <h3 className="mt-3 font-display text-xl font-black uppercase text-white">No active room right now</h3>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-text-muted">
             Join Discord for room updates, lobby timing, and official match announcements.
           </p>
@@ -363,7 +363,7 @@ function LivePulse({ pubg }: { pubg: PubgHubDataset }) {
       ? {
           label: "Official Rooms",
           value: liveMatches,
-          detail: "Rooms currently in play",
+          detail: "Current Bravo room count",
           icon: <Radio className="h-4 w-4" />,
         }
       : {
@@ -385,7 +385,7 @@ function LivePulse({ pubg }: { pubg: PubgHubDataset }) {
 
   return (
     <section className="standard-card p-3.5">
-      <PanelHeader icon={<Radio className="h-4 w-4" />} title="Live Pulse" />
+      <PanelHeader icon={<Radio className="h-4 w-4" />} title="Competition Pulse" />
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <div key={card.label} className="stat-pill flex min-h-[112px] items-start gap-3">
@@ -421,7 +421,7 @@ function TodayScrims({
         {matches.length === 0 ? (
           <div className="rounded-[22px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.96))] p-5">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Match Center</p>
-            <h3 className="mt-3 font-display text-xl font-black uppercase text-white">No official scrims are live right now</h3>
+            <h3 className="mt-3 font-display text-xl font-black uppercase text-white">No official scrim update is published right now</h3>
             <p className="mt-3 max-w-xl text-sm leading-7 text-text-muted">
               Join Discord for room updates, lobby calls, and match announcements, or browse the PUBG event schedule to see what&apos;s next.
             </p>
@@ -437,7 +437,7 @@ function TodayScrims({
             const event = eventById.get(match.eventId);
             const action =
               match.eventStatus === "ongoing"
-                ? { label: "Watch", href: watchLiveHref, variant: "watch" as const }
+                ? { label: "Open Match Center", href: watchLiveHref, variant: "primary" as const }
                 : event?.status === "upcoming"
                   ? { label: "Join", href: `/teams/register?tournament=${event.id}`, variant: "secondary" as const }
                   : { label: "View", href: getMatchHref(match), variant: "secondary" as const };
@@ -463,7 +463,7 @@ function TodayScrims({
                             : "border-accent-green/30 bg-accent-green/10 text-accent-green"
                       )}
                     >
-                      {match.eventStatus === "ongoing" ? "Live" : match.eventStatus === "upcoming" ? "Upcoming" : "Completed"}
+                      {match.eventStatus === "ongoing" ? "Current" : match.eventStatus === "upcoming" ? "Upcoming" : "Published"}
                     </span>
                     <ActionLink href={action.href} variant={action.variant} className="!h-9 !px-3">
                       {action.label}

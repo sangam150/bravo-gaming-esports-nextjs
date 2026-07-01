@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { getPubgHubDataset } from "../lib/pubg-hub";
+import { getPubgDashboardData, getPubgHubDataset } from "../lib/pubg-hub";
 import { buildPubgPlayerBoardRows, buildPubgTeamBoardRows, comparePubgPlayers, comparePubgTeams, getRankedPlayers, getRankedTeams } from "../lib/pubg-rankings";
 
 function assertSequentialRanks(label: string, ranks: number[]) {
@@ -29,7 +29,7 @@ function assertSortedPlayers<T extends Parameters<typeof comparePubgPlayers>[0]>
 }
 
 async function main() {
-  const dataset = await getPubgHubDataset();
+  const [dataset, dashboard] = await Promise.all([getPubgHubDataset(), getPubgDashboardData()]);
   const teamLookup = new Map(dataset.teams.map((team) => [team.id, team] as const));
   const playerLookup = new Map(dataset.players.map((player) => [player.id, player] as const));
 
@@ -60,9 +60,29 @@ async function main() {
     "Top Teams cards no longer match the full leaderboard top 4"
   );
   assert.deepEqual(
+    dashboard.topTeams.map((team) => team.id),
+    rankedTeams.slice(0, 6).map((team) => team.id),
+    "PUBG hub top teams no longer match the official leaderboard top 6"
+  );
+  assert.deepEqual(
+    dashboard.topTeams.slice(0, 4).map((team) => team.id),
+    rankedTeams.slice(0, 4).map((team) => team.id),
+    "PUBG hub top team cards no longer match the full leaderboard top 4"
+  );
+  assert.deepEqual(
+    dashboard.topTeams.slice(0, 3).map((team) => team.id),
+    rankedTeams.slice(0, 3).map((team) => team.id),
+    "PUBG hub sidebar standings no longer match the full leaderboard top 3"
+  );
+  assert.deepEqual(
     rankedPlayers.slice(0, 4).map((player) => player.id),
     playerBoard.slice(0, 4).map((row) => row.playerId),
     "Top player cards no longer match the full player leaderboard top 4"
+  );
+  assert.deepEqual(
+    dashboard.topPlayers.map((player) => player.id),
+    rankedPlayers.slice(0, 6).map((player) => player.id),
+    "PUBG hub player preview no longer matches the full player leaderboard top 6"
   );
 
   assertSequentialRanks("Team board", teamBoard.map((row) => row.rank));

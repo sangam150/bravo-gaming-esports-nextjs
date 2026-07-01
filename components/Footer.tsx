@@ -68,7 +68,7 @@ export default function Footer() {
               </p>
               <div className="mt-5 flex flex-wrap gap-2.5">
                 <Link href="/live-stream" className="btn-primary !h-9 !px-3.5">
-                  Watch Live
+                  Watch Stream
                 </Link>
                 <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary !h-9 !px-3.5">
                   Join Discord

@@ -159,6 +159,27 @@ function PlayerLeaderboardMobileCard({ row }: { row: PubgPlayerBoardRow }) {
   );
 }
 
+function PlayerLeaderboardMobileSummaryCard({ row }: { row: PubgPlayerBoardRow }) {
+  return (
+    <Link href={`/pubg/players/${row.slug}`} className={`block rounded-[24px] border p-4 ${getLeaderboardSurface(row.rank)}`}>
+      <div className="flex items-start gap-3">
+        <RankBadge rank={row.rank} />
+        <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 font-display text-lg font-black uppercase text-white">{row.pubgName}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team TBD"}</p>
+        </div>
+      </div>
+      <p className="mt-4 text-sm text-text-muted">
+        {formatNumber(row.kills)} Kills • {formatNumber(row.assists)} Assists • {formatNumber(row.knocks)} Knocks
+      </p>
+      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.damage)} Damage</p>
+      <p className="mt-2 text-sm text-text-muted">Avg Kills: {formatDecimal(row.avgKills, 2)}</p>
+      <p className="mt-2 text-sm text-text-muted">Best Match: {row.bestMatch ? `${row.bestMatch.kills}K on ${row.bestMatch.mapName}` : "Pending"}</p>
+    </Link>
+  );
+}
+
 export function PubgLeaderboardsRoute({
   dataset,
   searchParams,
@@ -340,7 +361,7 @@ export function PubgLeaderboardsRoute({
             </div>
             <div className="grid gap-3 p-4 md:hidden">
               {playerBoard.map((row) => (
-                <PlayerLeaderboardMobileCard key={row.playerId} row={row} />
+                <PlayerLeaderboardMobileSummaryCard key={row.playerId} row={row} />
               ))}
             </div>
             <div className="hidden px-4 pb-4 md:block">

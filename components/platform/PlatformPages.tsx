@@ -13,6 +13,7 @@ import type {
 } from "@/lib/platform-hub";
 import { buildInitials } from "@/lib/public-content";
 import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
+import { getRankedPlayers, getRankedTeams } from "@/lib/pubg-rankings";
 import { getSiteUrl } from "@/lib/site";
 import {
   buildHref,
@@ -200,7 +201,7 @@ function PlatformStatusPill({
 
   const label =
     status === "live"
-      ? "Live"
+      ? "Ongoing"
       : status === "completed"
         ? "Completed"
         : status === "planned"
@@ -208,6 +209,18 @@ function PlatformStatusPill({
           : "Upcoming";
 
   return <span className={joinClasses("inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", className)}>{label}</span>;
+}
+
+function formatEventMatchSummary(event: PlatformEvent) {
+  if (event.matchesCount > 0) {
+    return `${formatNumber(event.matchesCount)} Matches Published`;
+  }
+
+  if (event.status === "completed") {
+    return "Results Pending";
+  }
+
+  return "Schedule Pending";
 }
 
 function ContentStatePill({ state }: { state: PlatformEvent["state"] }) {
@@ -324,7 +337,7 @@ function EventCard({ event }: { event: PlatformEvent }) {
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Matches</p>
-          <p className="mt-1 font-mono-stat text-white">{formatNumber(event.matchesCount)}</p>
+          <p className="mt-1 text-sm text-white">{formatEventMatchSummary(event)}</p>
         </div>
         {showPrize ? (
           <div>
@@ -493,7 +506,7 @@ function OrganizationCard({ organization }: { organization: PlatformOrganization
 }
 
 function buildTopTeamCards(pubg: PubgHubDataset) {
-  return pubg.teams.slice(0, 5).map((team) => ({
+  return getRankedTeams(pubg.teams).slice(0, 5).map((team) => ({
     id: team.id,
     slug: team.slug,
     name: team.name,
@@ -506,7 +519,7 @@ function buildTopTeamCards(pubg: PubgHubDataset) {
 }
 
 function buildTopPlayerCards(pubg: PubgHubDataset) {
-  return pubg.players.slice(0, 5).map((player) => ({
+  return getRankedPlayers(pubg.players).slice(0, 5).map((player) => ({
     id: player.id,
     slug: player.slug,
     name: player.pubgName,
@@ -525,8 +538,8 @@ function resolveFeaturedTeamCards(pubg: PubgHubDataset, featuredTeamIds: string[
     return defaultCards;
   }
 
-  const teamById = new Map(defaultCards.map((team) => [team.id, team]));
-  const orderedTeams = featuredTeamIds.map((teamId) => teamById.get(teamId) ?? null).filter((team): team is NonNullable<typeof defaultCards[number]> => Boolean(team));
+  const featuredTeamIdSet = new Set(featuredTeamIds);
+  const orderedTeams = defaultCards.filter((team) => featuredTeamIdSet.has(team.id));
 
   return orderedTeams.length > 0 ? orderedTeams : defaultCards;
 }
@@ -537,10 +550,8 @@ function resolveFeaturedPlayerCards(pubg: PubgHubDataset, featuredPlayerIds: str
     return defaultCards;
   }
 
-  const playerById = new Map(defaultCards.map((player) => [player.id, player]));
-  const orderedPlayers = featuredPlayerIds
-    .map((playerId) => playerById.get(playerId) ?? null)
-    .filter((player): player is NonNullable<typeof defaultCards[number]> => Boolean(player));
+  const featuredPlayerIdSet = new Set(featuredPlayerIds);
+  const orderedPlayers = defaultCards.filter((player) => featuredPlayerIdSet.has(player.id));
 
   return orderedPlayers.length > 0 ? orderedPlayers : defaultCards;
 }
@@ -1398,7 +1409,7 @@ export function PlatformEventsPage({
   const currentPage = Math.min(page, totalPages);
   const paginatedEvents = filteredEvents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const groupedEvents = [
-    { key: "live", title: "Live", items: paginatedEvents.filter((event) => event.status === "live") },
+    { key: "live", title: "Ongoing", items: paginatedEvents.filter((event) => event.status === "live") },
     { key: "upcoming", title: "Upcoming", items: paginatedEvents.filter((event) => event.status === "upcoming" || event.status === "planned") },
     { key: "completed", title: "Recently Completed", items: paginatedEvents.filter((event) => event.status === "completed") },
   ].filter((group) => group.items.length > 0);
@@ -1415,7 +1426,7 @@ export function PlatformEventsPage({
           }
           description={
             hasEvents
-              ? "Live, upcoming, and recently completed competitions from the Bravo public schedule."
+              ? "Ongoing, upcoming, and recently completed competitions from the Bravo public schedule."
               : "No official events are published yet. Tournament registration and scrim schedules will appear here soon."
           }
           actions={
@@ -1478,7 +1489,7 @@ export function PlatformEventsPage({
               </select>
               <select name="status" defaultValue={status} className="input-esports h-11">
                 <option value="all">All statuses</option>
-                <option value="live">Live</option>
+                <option value="live">Ongoing</option>
                 <option value="upcoming">Upcoming</option>
                 <option value="completed">Completed</option>
                 <option value="planned">Planned</option>
@@ -1616,7 +1627,7 @@ export function PlatformEventDetailPage({
           }
           stats={[
             { label: "Teams", value: event.teamsCount, tone: "blue" },
-            { label: "Matches", value: event.matchesCount, tone: "green" },
+            { label: event.matchesCount > 0 ? "Matches" : event.status === "completed" ? "Results" : "Schedule", value: formatEventMatchSummary(event), tone: "green" },
             { label: "Prize", value: event.prizePool, tone: "yellow" },
             { label: "Region", value: event.region, tone: "red" },
           ]}
@@ -3099,10 +3110,10 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
           actions={
             <>
               <Link href="/about/sponsor-us" className="btn-primary">
-                Sponsor Us
+                Become a Sponsor
               </Link>
-              <Link href="/media" className="btn-secondary">
-                Media Center
+              <Link href="/about/sponsor-us" className="btn-secondary">
+                Sponsor Inquiry
               </Link>
             </>
           }

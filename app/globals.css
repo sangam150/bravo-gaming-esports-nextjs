@@ -342,17 +342,21 @@ body::after {
     box-shadow: 0 0 10px rgba(220, 38, 38, 0.9);
   }
 
+  .data-table {
+    border-collapse: separate;
+    border-spacing: 0 10px;
+  }
+
   .data-table thead {
-    @apply sticky top-[72px] z-20;
+    position: static;
   }
 
   .data-table thead tr {
-    @apply border-b border-white/[0.08] bg-[rgba(5,7,11,0.96)] text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+    @apply bg-[rgba(5,7,11,0.96)] text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted;
   }
 
   .data-table tbody tr {
-    @apply border-b border-white/[0.05] text-[13px] text-white transition;
+    @apply text-[13px] text-white transition;
     background: rgba(11, 17, 31, 0.9);
   }
 
@@ -365,11 +369,11 @@ body::after {
   }
 
   .data-table th {
-    @apply px-4 pb-3 pt-4 text-left align-middle;
+    @apply px-4 py-3 text-left align-middle;
   }
 
   .data-table td {
-    @apply px-4 py-3 text-left align-middle;
+    @apply px-4 py-4 text-left align-middle;
   }
 
   .data-table tbody tr:first-child td {
@@ -377,7 +381,7 @@ body::after {
   }
 
   .table-scroll {
-    @apply w-full overflow-x-auto;
+    @apply w-full overflow-x-auto overflow-y-visible;
   }
 
   .table-scroll > table {

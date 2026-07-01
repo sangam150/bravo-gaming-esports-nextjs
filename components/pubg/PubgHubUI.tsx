@@ -245,7 +245,7 @@ function toneClassForState(state: PubgHubEventState) {
 }
 
 export function StatusPill({ status }: { status: PubgHubEventStatus }) {
-  const label = status === "ongoing" ? "Live" : status === "finished" ? "Completed" : "Upcoming";
+  const label = status === "ongoing" ? "Current" : status === "finished" ? "Completed" : "Upcoming";
 
   return (
     <span
