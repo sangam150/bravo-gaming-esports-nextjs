@@ -10,6 +10,17 @@ import type {
   PubgHubRecentMatch,
   PubgHubTeam,
 } from "@/lib/pubg-hub";
+import {
+  buildPubgPlayerBoardRows,
+  buildPubgTeamBoardRows,
+  comparePubgPlayers,
+  getPlayerRankMap,
+  getRankedPlayers,
+  getRankedTeams,
+  getTeamRankMap,
+  type PubgPlayerBoardRow,
+  type PubgTeamBoardRow,
+} from "@/lib/pubg-rankings";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import {
   buildHref,
@@ -40,41 +51,6 @@ import {
 } from "@/components/pubg/PubgHubUI";
 
 type SearchParamDictionary = Record<string, string | string[] | undefined>;
-
-type TeamBoardRow = {
-  rank: number;
-  teamId: string;
-  name: string;
-  tag?: string | null;
-  logoUrl?: string | null;
-  matches: number;
-  wins: number;
-  kills: number;
-  damage: number;
-  placementPoints: number;
-  killPoints: number;
-  totalPoints: number;
-  avgPlacement: number;
-  trend: number[];
-};
-
-type PlayerBoardRow = {
-  rank: number;
-  playerId: string;
-  pubgName: string;
-  avatarUrl?: string | null;
-  teamId?: string | null;
-  teamName?: string | null;
-  matches: number;
-  wins: number;
-  kills: number;
-  assists: number;
-  knocks: number;
-  damage: number;
-  avgKills: number;
-  avgDamage: number;
-  trend: number[];
-};
 
 type PubgDashboardSeasonSummary = {
   title: string;
@@ -134,138 +110,72 @@ function filterMatches(dataset: PubgHubDataset, options: { eventSlug?: string; m
   });
 }
 
-function summarizeTeamsFromMatches(matches: PubgHubMatch[], teamLookup: Map<string, PubgHubTeam>) {
-  const summary = new Map<string, Omit<TeamBoardRow, "rank" | "name" | "tag" | "logoUrl"> & { totalPlacement: number }>();
-
-  for (const match of matches) {
-    for (const teamResult of match.teamResults) {
-      const current = summary.get(teamResult.teamId) ?? {
-        teamId: teamResult.teamId,
-        matches: 0,
-        wins: 0,
-        kills: 0,
-        damage: 0,
-        placementPoints: 0,
-        killPoints: 0,
-        totalPoints: 0,
-        avgPlacement: 0,
-        totalPlacement: 0,
-        trend: [],
-      };
-
-      current.matches += 1;
-      current.wins += teamResult.wwcd ? 1 : 0;
-      current.kills += teamResult.kills;
-      current.placementPoints += teamResult.placementPoints;
-      current.killPoints += teamResult.killPoints;
-      current.totalPoints += teamResult.totalPoints;
-      current.totalPlacement += teamResult.placement;
-      current.trend.push(teamResult.totalPoints);
-      current.damage += match.playerResults
-        .filter((playerResult) => playerResult.teamId === teamResult.teamId)
-        .reduce((sum, playerResult) => sum + playerResult.damage, 0);
-
-      summary.set(teamResult.teamId, current);
-    }
+function getLeaderboardSurface(rank: number) {
+  if (rank === 1) {
+    return "border-[#f5c76a]/20 bg-[linear-gradient(180deg,rgba(245,199,106,0.12),rgba(11,21,33,0.94))]";
   }
 
-  return Array.from(summary.values())
-    .map((row) => {
-      const team = teamLookup.get(row.teamId);
+  if (rank === 2) {
+    return "border-slate-300/20 bg-[linear-gradient(180deg,rgba(203,213,225,0.1),rgba(11,21,33,0.94))]";
+  }
 
-      return {
-        rank: 0,
-        teamId: row.teamId,
-        name: team?.name ?? row.teamId,
-        tag: team?.tag ?? null,
-        logoUrl: team?.logoUrl ?? null,
-        matches: row.matches,
-        wins: row.wins,
-        kills: row.kills,
-        damage: row.damage,
-        placementPoints: row.placementPoints,
-        killPoints: row.killPoints,
-        totalPoints: row.totalPoints,
-        avgPlacement: row.totalPlacement / Math.max(row.matches, 1),
-        trend: row.trend.slice(-6),
-      } satisfies TeamBoardRow;
-    })
-    .sort(
-      (firstValue, secondValue) =>
-        secondValue.totalPoints - firstValue.totalPoints ||
-        secondValue.kills - firstValue.kills ||
-        firstValue.avgPlacement - secondValue.avgPlacement ||
-        firstValue.name.localeCompare(secondValue.name)
-    )
-    .map((row, index) => ({
-      ...row,
-      rank: index + 1,
-    }));
+  if (rank === 3) {
+    return "border-orange-300/18 bg-[linear-gradient(180deg,rgba(253,186,116,0.1),rgba(11,21,33,0.94))]";
+  }
+
+  return "border-white/[0.08] bg-[#08101a]";
 }
 
-function summarizePlayersFromMatches(matches: PubgHubMatch[], playerLookup: Map<string, PubgHubPlayer>) {
-  const summary = new Map<string, Omit<PlayerBoardRow, "rank" | "pubgName" | "avatarUrl" | "teamId" | "teamName" | "avgKills" | "avgDamage">>();
+function FilterField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="grid gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
 
-  for (const match of matches) {
-    const winningTeamId = match.winnerTeamId;
+function ActiveFilterSummary({
+  items,
+}: {
+  items: Array<{ label: string; value?: string | null }>;
+}) {
+  const activeItems = items.filter((item) => item.value && item.value !== "all");
 
-    for (const playerResult of match.playerResults) {
-      const current = summary.get(playerResult.playerId) ?? {
-        playerId: playerResult.playerId,
-        matches: 0,
-        wins: 0,
-        kills: 0,
-        assists: 0,
-        knocks: 0,
-        damage: 0,
-        trend: [],
-      };
-
-      current.matches += 1;
-      current.wins += playerResult.teamId === winningTeamId ? 1 : 0;
-      current.kills += playerResult.kills;
-      current.assists += playerResult.assists;
-      current.knocks += playerResult.knocks;
-      current.damage += playerResult.damage;
-      current.trend.push(playerResult.kills);
-
-      summary.set(playerResult.playerId, current);
-    }
+  if (activeItems.length === 0) {
+    return null;
   }
 
-  return Array.from(summary.values())
-    .map((row) => {
-      const player = playerLookup.get(row.playerId);
+  return (
+    <div className="flex flex-wrap gap-2">
+      {activeItems.map((item) => (
+        <span
+          key={`${item.label}-${item.value}`}
+          className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted"
+        >
+          {item.label}: <span className="ml-1 text-white">{item.value}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
-      return {
-        rank: 0,
-        playerId: row.playerId,
-        pubgName: player?.pubgName ?? row.playerId,
-        avatarUrl: player?.avatarUrl ?? null,
-        teamId: player?.currentTeamId ?? null,
-        teamName: player?.currentTeamName ?? null,
-        matches: row.matches,
-        wins: row.wins,
-        kills: row.kills,
-        assists: row.assists,
-        knocks: row.knocks,
-        damage: row.damage,
-        avgKills: row.kills / Math.max(row.matches, 1),
-        avgDamage: row.damage / Math.max(row.matches, 1),
-        trend: row.trend.slice(-6),
-      } satisfies PlayerBoardRow;
-    })
-    .sort(
-      (firstValue, secondValue) =>
-        secondValue.kills - firstValue.kills ||
-        secondValue.damage - firstValue.damage ||
-        secondValue.assists - firstValue.assists ||
-        firstValue.pubgName.localeCompare(secondValue.pubgName)
-    )
-    .map((row, index) => ({
-      ...row,
-      rank: index + 1,
-    }));
+function sortDirectoryPlayers(players: PubgHubPlayer[], sort: string) {
+  if (sort === "damage") {
+    return [...players].sort((firstValue, secondValue) => secondValue.damage - firstValue.damage || comparePubgPlayers(firstValue, secondValue));
+  }
+
+  if (sort === "avg") {
+    return [...players].sort((firstValue, secondValue) => secondValue.avgKills - firstValue.avgKills || comparePubgPlayers(firstValue, secondValue));
+  }
+
+  return getRankedPlayers(players);
 }
 
 function buildTopFragger(match: PubgHubMatch, playerLookup: Map<string, PubgHubPlayer>) {
@@ -492,13 +402,13 @@ function HubTeamCard({
   rank: number;
 }) {
   return (
-    <div className="h-full rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-4">
+    <div className={`h-full rounded-[24px] border p-4 ${getLeaderboardSurface(rank)}`}>
       <div className="flex items-start gap-3">
         <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <RankBadge rank={rank} />
-            <p className="truncate font-display text-lg font-black uppercase text-white">{team.name}</p>
+            <p className="line-clamp-2 font-display text-lg font-black uppercase text-white">{team.name}</p>
           </div>
           <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">
             {team.tag ? `[${team.tag}]` : "PUBG Team"} | {team.region ?? "Region TBA"}
@@ -509,10 +419,10 @@ function HubTeamCard({
         <HeaderStatCell label="Points" value={team.totalPoints} />
         <HeaderStatCell label="Kills" value={team.kills} />
         <HeaderStatCell label="WWCD" value={team.wins} />
-        <HeaderStatCell label="Form" value={team.formLabel} />
+        <HeaderStatCell label="Avg Place" value={formatDecimal(team.avgPlacement, 2)} />
       </div>
       <div className="mt-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Recent form</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Recent placement run</p>
         <div className="mt-2">
           <PlacementFormStrip placements={team.recentPlacements} />
         </div>
@@ -534,13 +444,13 @@ function HubPlayerCard({
   rank: number;
 }) {
   return (
-    <div className="h-full rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-4">
+    <div className={`h-full rounded-[24px] border p-4 ${getLeaderboardSurface(rank)}`}>
       <div className="flex items-start gap-3">
         <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <RankBadge rank={rank} />
-            <p className="truncate font-display text-base font-black uppercase text-white">{player.pubgName}</p>
+            <p className="line-clamp-2 font-display text-base font-black uppercase text-white">{player.pubgName}</p>
           </div>
           <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
         </div>
@@ -549,7 +459,7 @@ function HubPlayerCard({
         <HeaderStatCell label="Kills" value={player.kills} />
         <HeaderStatCell label="Assists" value={player.assists} />
         <HeaderStatCell label="Damage" value={player.damage} />
-        <HeaderStatCell label="MVP" value={player.mvpCount} />
+        <HeaderStatCell label="Avg K" value={formatDecimal(player.avgKills, 2)} />
       </div>
       <div className="mt-4 flex justify-end">
         <Link href={`/pubg/players/${player.slug || player.id}`} className="btn-secondary">
@@ -980,7 +890,7 @@ export function PubgDashboardPage({
               {leaderboardTeams.length > 0 ? (
                 <div className="table-scroll">
                   <table className="data-table min-w-full">
-                    <thead>
+                    <thead style={{ position: "static" }}>
                       <tr>
                         <th>Rank</th>
                         <th>Logo</th>
@@ -1358,7 +1268,8 @@ export function PubgCommunityPage({
   hub: PlatformHubData;
   searchParams: SearchParamDictionary;
 }) {
-  const query = readSearchParam(searchParams.q).trim().toLowerCase();
+  const rawQuery = readSearchParam(searchParams.q).trim();
+  const query = rawQuery.toLowerCase();
   const requestedView = readSearchParam(searchParams.view, "all");
   const view = requestedView === "teams" || requestedView === "players" ? requestedView : "all";
   const latestAnnouncements = hub.news.slice(0, 3);
@@ -1371,18 +1282,20 @@ export function PubgCommunityPage({
   const communityRegions = Array.from(
     new Set(dataset.teams.map((team) => team.region).filter((value): value is string => Boolean(value)))
   ).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
-  const filteredTeams = dataset.teams
+  const rankedTeams = getRankedTeams(dataset.teams);
+  const rankedPlayers = getRankedPlayers(dataset.players);
+  const teamRankMap = getTeamRankMap(rankedTeams);
+  const playerRankMap = getPlayerRankMap(rankedPlayers);
+  const filteredTeams = rankedTeams
     .filter((team) => {
       if (!query) return true;
       return `${team.name} ${team.tag ?? ""} ${team.region ?? ""}`.toLowerCase().includes(query);
-    })
-    .sort((firstValue, secondValue) => secondValue.formScore - firstValue.formScore || secondValue.totalPoints - firstValue.totalPoints);
-  const filteredPlayers = dataset.players
+    });
+  const filteredPlayers = rankedPlayers
     .filter((player) => {
       if (!query) return true;
       return `${player.pubgName} ${player.currentTeamName ?? ""}`.toLowerCase().includes(query);
-    })
-    .sort((firstValue, secondValue) => secondValue.kills - firstValue.kills || secondValue.damage - firstValue.damage);
+    });
   const visibleTeams = filteredTeams.slice(0, query ? 12 : 8);
   const visiblePlayers = filteredPlayers.slice(0, query ? 12 : 8);
   const showTeams = view !== "players";
@@ -1462,7 +1375,7 @@ export function PubgCommunityPage({
                   key={tab.value}
                   href={buildHref("/pubg/community", {
                     view: tab.value === "all" ? undefined : tab.value,
-                    q: query || undefined,
+                    q: rawQuery || undefined,
                   })}
                   className={`tab-item ${view === tab.value ? "tab-item-active" : ""}`}
                 >
@@ -1478,12 +1391,15 @@ export function PubgCommunityPage({
                 </Link>
               }
             >
-              <input name="q" defaultValue={query} className="input-esports h-11" placeholder="Search team, player, or region" />
+              <FilterField label="Search">
+                <input name="q" defaultValue={rawQuery} className="input-esports h-11" placeholder="Search team, player, or region" />
+              </FilterField>
               <input type="hidden" name="view" value={view} />
               <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
                 Browse published PUBG teams and players, or use search to jump straight to a name or region.
               </div>
             </FilterBar>
+            <ActiveFilterSummary items={[{ label: "Search", value: rawQuery || null }, { label: "View", value: view === "all" ? null : view }]} />
           </>
         ) : null}
 
@@ -1591,7 +1507,7 @@ export function PubgCommunityPage({
             {visibleTeams.length > 0 ? (
               <div className="grid gap-4 xl:grid-cols-2">
                 {visibleTeams.map((team, index) => (
-                  <HubTeamCard key={team.id} team={team} rank={index + 1} />
+                  <HubTeamCard key={team.id} team={team} rank={teamRankMap.get(team.id) ?? index + 1} />
                 ))}
               </div>
             ) : (
@@ -1621,7 +1537,7 @@ export function PubgCommunityPage({
             {visiblePlayers.length > 0 ? (
               <div className="grid gap-4 xl:grid-cols-2">
                 {visiblePlayers.map((player, index) => (
-                  <HubPlayerCard key={player.id} player={player} rank={index + 1} />
+                  <HubPlayerCard key={player.id} player={player} rank={playerRankMap.get(player.id) ?? index + 1} />
                 ))}
               </div>
             ) : (
@@ -2162,23 +2078,27 @@ export function PubgTeamsPage({
   dataset: PubgHubDataset;
   searchParams: SearchParamDictionary;
 }) {
-  const query = readSearchParam(searchParams.q).trim().toLowerCase();
+  const rawQuery = readSearchParam(searchParams.q).trim();
+  const query = rawQuery.toLowerCase();
   const region = readSearchParam(searchParams.region, "all");
-  const sort = readSearchParam(searchParams.sort, "form");
-  const teamRegions = Array.from(new Set(dataset.teams.map((team) => team.region).filter((value): value is string => Boolean(value)))).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
-
-  const filteredTeams = dataset.teams
+  const page = Math.max(Number(readSearchParam(searchParams.page, "1")) || 1, 1);
+  const pageSize = 12;
+  const rankedTeams = getRankedTeams(dataset.teams);
+  const teamRankMap = getTeamRankMap(rankedTeams);
+  const teamRegions = Array.from(new Set(rankedTeams.map((team) => team.region).filter((value): value is string => Boolean(value)))).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
+  const filteredTeams = rankedTeams
     .filter((team) => {
       if (query && !`${team.name} ${team.tag ?? ""} ${team.region ?? ""}`.toLowerCase().includes(query)) return false;
       if (region !== "all" && team.region !== region) return false;
       return true;
-    })
-    .sort((firstValue, secondValue) => {
-      if (sort === "kills") return secondValue.kills - firstValue.kills || secondValue.totalPoints - firstValue.totalPoints;
-      if (sort === "points") return secondValue.totalPoints - firstValue.totalPoints || secondValue.kills - firstValue.kills;
-      if (sort === "matches") return secondValue.matches - firstValue.matches || secondValue.totalPoints - firstValue.totalPoints;
-      return secondValue.formScore - firstValue.formScore || secondValue.totalPoints - firstValue.totalPoints;
     });
+  const visibleTeams = filteredTeams.slice(0, page * pageSize);
+  const hasMore = visibleTeams.length < filteredTeams.length;
+  const nextPageHref = buildHref("/pubg/teams", {
+    q: rawQuery || undefined,
+    region: region === "all" ? undefined : region,
+    page: String(page + 1),
+  });
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -2189,17 +2109,17 @@ export function PubgTeamsPage({
             <>
               Team profiles with roster,
               <br />
-              form, and map splits
+              rank, roster, and map splits
             </>
           }
-          description="Every team found across tracked events gets a public Bravo profile with current roster, event-specific output, match history, form indicators, placement trend, kill trend, map performance, and roster overlay history."
+          description="Every tracked Bravo squad gets one official ranking card with roster preview, core scoring stats, recent output, and direct routes into the full team profile."
           actions={
             <>
               <Link href="/pubg/leaderboards?view=teams" className="btn-primary">
                 Team board
               </Link>
-              <Link href="/pubg/compare" className="btn-secondary">
-                Compare teams
+              <Link href="/pubg/community?view=teams" className="btn-secondary">
+                Community view
               </Link>
             </>
           }
@@ -2207,19 +2127,27 @@ export function PubgTeamsPage({
             { label: "Tracked Teams", value: dataset.teams.length, tone: "blue" },
             { label: "Active Rosters", value: dataset.teams.filter((team) => team.currentRoster.length > 0).length, tone: "green" },
             { label: "Regions", value: teamRegions.length, tone: "yellow" },
-            { label: "Surging Teams", value: dataset.teams.filter((team) => team.formLabel === "Surging").length, tone: "red" },
+            { label: "Ranked Cards", value: filteredTeams.length, tone: "red" },
           ]}
           aside={
             <div className="space-y-4">
               <div>
-                <p className="section-title">Form Lens</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Current squad pressure and stability</h2>
+                <p className="section-title">Top Seed Snapshot</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Official team order from published results</h2>
               </div>
-              {dataset.teams.slice(0, 4).map((team) => (
+              {rankedTeams.slice(0, 4).map((team, index) => (
                 <div key={team.id} className="rounded-card border border-white/[0.08] bg-black/20 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold text-white">{team.name}</p>
-                    <FormPill label={team.formLabel} />
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <RankBadge rank={index + 1} />
+                        <p className="truncate font-semibold text-white">{team.name}</p>
+                      </div>
+                      <p className="mt-2 text-sm text-text-muted">
+                        {formatNumber(team.totalPoints)} pts • {formatNumber(team.kills)} kills • {formatNumber(team.wins)} WWCD
+                      </p>
+                    </div>
+                    <span className="font-mono-stat text-sm text-accent-blue-light">{formatNumber(team.matches)}M</span>
                   </div>
                   <div className="mt-3">
                     <TrendBars values={team.recentPoints} tone="green" />
@@ -2237,89 +2165,119 @@ export function PubgTeamsPage({
             </Link>
           }
         >
-          <input name="q" defaultValue={query} className="input-esports h-11" placeholder="Search team, tag, or region" />
-          <select name="region" defaultValue={region} className="input-esports h-11">
-            <option value="all">All regions</option>
-            {teamRegions.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-          <select name="sort" defaultValue={sort} className="input-esports h-11">
-            <option value="form">Sort by form</option>
-            <option value="points">Sort by points</option>
-            <option value="kills">Sort by kills</option>
-            <option value="matches">Sort by matches</option>
-          </select>
-          <input type="hidden" name="view" value="grid" />
+          <FilterField label="Search">
+            <input name="q" defaultValue={rawQuery} className="input-esports h-11" placeholder="Search team, tag, or region" />
+          </FilterField>
+          <FilterField label="Region">
+            <select name="region" defaultValue={region} className="input-esports h-11">
+              <option value="all">All regions</option>
+              {teamRegions.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+          <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
+            Cards keep the official leaderboard order, even when you filter by region or search.
+          </div>
+          <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
+            Showing {visibleTeams.length} of {filteredTeams.length} ranked teams.
+          </div>
         </FilterBar>
+        <ActiveFilterSummary items={[{ label: "Search", value: rawQuery || null }, { label: "Region", value: region === "all" ? null : region }]} />
 
-        <section className="grid gap-4 xl:grid-cols-2">
-          {filteredTeams.map((team) => (
-            <div key={team.id} className="esports-card p-6">
-              <div className="flex flex-wrap items-center gap-3">
-                <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
-                <div>
-                  <h2 className="font-display text-2xl font-black uppercase text-white">{team.name}</h2>
-                  <p className="text-sm uppercase tracking-[0.16em] text-text-muted">
-                    {team.tag ? `[${team.tag}]` : "PUBG Team"} | {team.region ?? "Region TBA"}
-                  </p>
-                </div>
-                <div className="ml-auto">
-                  <FormPill label={team.formLabel} />
-                </div>
-              </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-4">
-                <MetricCard label="Points" value={team.totalPoints} compact tone="green" />
-                <MetricCard label="Kills" value={team.kills} compact tone="blue" />
-                <MetricCard label="Matches" value={team.matches} compact />
-                <MetricCard label="Avg Place" value={formatDecimal(team.avgPlacement, 2)} compact tone="yellow" />
-              </div>
-              <div className="mt-5 grid gap-5 xl:grid-cols-[1fr,0.95fr]">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Current roster</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    {team.currentRoster.map((member) => (
-                      <div key={member.playerId} className="rounded-card border border-white/[0.08] bg-bg-primary p-3">
-                        <p className="font-semibold text-white">{member.pubgName}</p>
-                        <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{member.role}</p>
-                      </div>
-                    ))}
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {visibleTeams.map((team) => {
+            const rank = teamRankMap.get(team.id) ?? 0;
+
+            return (
+              <div key={team.id} className={`flex h-full flex-col rounded-[26px] border p-5 ${getLeaderboardSurface(rank)}`}>
+                <div className="flex items-start gap-4">
+                  <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <RankBadge rank={rank} />
+                      <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted">
+                        {team.tag ? `[${team.tag}]` : "PUBG Team"}
+                      </span>
+                    </div>
+                    <h2 className="mt-3 line-clamp-2 font-display text-xl font-black uppercase text-white">{team.name}</h2>
+                    <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{team.region ?? "Region TBA"}</p>
                   </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Recent point trend</p>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <MetricCard label="Points" value={team.totalPoints} compact tone="green" />
+                  <MetricCard label="Kills" value={team.kills} compact tone="blue" />
+                  <MetricCard label="Matches" value={team.matches} compact />
+                  <MetricCard label="Avg Place" value={formatDecimal(team.avgPlacement, 2)} compact tone="yellow" />
+                </div>
+
+                <div className="mt-5 rounded-card border border-white/[0.08] bg-black/20 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Last 6 matches</p>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-white">
+                      {formatNumber(team.wins)} WWCD
+                    </span>
+                  </div>
                   <div className="mt-3">
                     <TrendBars values={team.recentPoints} tone="green" />
                   </div>
-                  <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Map edge</p>
-                  <div className="mt-3 space-y-2">
-                    {team.mapStats.slice(0, 3).map((mapStat) => (
-                      <div key={mapStat.map} className="flex items-center justify-between gap-3 rounded-card border border-white/[0.08] bg-bg-primary px-3 py-2 text-sm">
-                        <span className="text-white">{mapStat.map}</span>
-                        <span className="font-mono-stat text-accent-green">{formatNumber(mapStat.points)} pts</span>
-                      </div>
-                    ))}
+                </div>
+
+                <div className="mt-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Roster</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {team.currentRoster.length > 0 ? (
+                      team.currentRoster.slice(0, 4).map((member) => (
+                        <span key={member.playerId} className="rounded-full border border-white/10 bg-bg-primary px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-white">
+                          {member.pubgName}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-text-muted">Roster update pending.</span>
+                    )}
                   </div>
                 </div>
+
+                <div className="mt-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Map Strength</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {team.mapStats.slice(0, 2).map((mapStat) => (
+                      <span
+                        key={mapStat.map}
+                        className="rounded-full border border-accent-blue/20 bg-accent-blue/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-accent-blue-light"
+                      >
+                        {mapStat.map} • {formatNumber(mapStat.points)} pts
+                      </span>
+                    ))}
+                    {team.mapStats.length === 0 ? <span className="text-sm text-text-muted">Map splits will appear after more matches.</span> : null}
+                  </div>
+                </div>
+
+                <div className="mt-auto pt-5">
+                  <Link href={`/pubg/teams/${team.slug ?? team.id}`} className="btn-primary">
+                    View Team
+                  </Link>
+                </div>
               </div>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Link href={`/pubg/teams/${team.slug ?? team.id}`} className="btn-primary">
-                  Open team profile
-                </Link>
-                <Link href={buildHref("/pubg/compare", { mode: "teams", sideA: team.id })} className="btn-secondary">
-                  Compare this team
-                </Link>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {filteredTeams.length === 0 ? (
-            <div className="xl:col-span-2">
+            <div className="md:col-span-2 xl:col-span-3">
               <EmptyState title="No teams match the current filters" description="Try adjusting your search or browse available categories." />
             </div>
           ) : null}
         </section>
+
+        {hasMore ? (
+          <div className="flex justify-center">
+            <Link href={nextPageHref} className="btn-secondary">
+              Load More Teams
+            </Link>
+          </div>
+        ) : null}
       </div>
     </main>
   );
@@ -2598,23 +2556,33 @@ export function PubgPlayersPage({
   dataset: PubgHubDataset;
   searchParams: SearchParamDictionary;
 }) {
-  const query = readSearchParam(searchParams.q).trim().toLowerCase();
+  const rawQuery = readSearchParam(searchParams.q).trim();
+  const query = rawQuery.toLowerCase();
   const teamId = readSearchParam(searchParams.team, "all");
   const sort = readSearchParam(searchParams.sort, "kills");
+  const minMatches = Math.max(Number(readSearchParam(searchParams.minMatches, "0")) || 0, 0);
+  const page = Math.max(Number(readSearchParam(searchParams.page, "1")) || 1, 1);
+  const pageSize = 12;
   const teams = buildTeamLookup(dataset);
-
-  const filteredPlayers = dataset.players
+  const rankedPlayers = getRankedPlayers(dataset.players);
+  const playerRankMap = getPlayerRankMap(rankedPlayers);
+  const filteredPlayers = rankedPlayers
     .filter((player) => {
       if (query && !`${player.pubgName} ${player.currentTeamName ?? ""}`.toLowerCase().includes(query)) return false;
       if (teamId !== "all" && player.currentTeamId !== teamId) return false;
+      if (player.matches < minMatches) return false;
       return true;
-    })
-    .sort((firstValue, secondValue) => {
-      if (sort === "damage") return secondValue.damage - firstValue.damage || secondValue.kills - firstValue.kills;
-      if (sort === "form") return secondValue.formScore - firstValue.formScore || secondValue.kills - firstValue.kills;
-      if (sort === "avg") return secondValue.avgKills - firstValue.avgKills || secondValue.kills - firstValue.kills;
-      return secondValue.kills - firstValue.kills || secondValue.damage - firstValue.damage;
     });
+  const sortedPlayers = sortDirectoryPlayers(filteredPlayers, sort);
+  const visiblePlayers = sortedPlayers.slice(0, page * pageSize);
+  const hasMore = visiblePlayers.length < sortedPlayers.length;
+  const nextPageHref = buildHref("/pubg/players", {
+    q: rawQuery || undefined,
+    team: teamId === "all" ? undefined : teamId,
+    sort: sort === "kills" ? undefined : sort,
+    minMatches: minMatches > 0 ? String(minMatches) : undefined,
+    page: String(page + 1),
+  });
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -2625,17 +2593,17 @@ export function PubgPlayersPage({
             <>
               Player profiles with
               <br />
-              output, form, and history
+              output, rank, and history
             </>
           }
-          description="All tracked players across custom matches land in a dedicated Bravo player board with current team, event stats, match history, kills, assists, knocks, damage, average kills, best match, recent form, and ranking context."
+          description="All tracked players land in one compact Bravo board with official leaderboard context, core stat output, best-match snapshots, and direct profile access."
           actions={
             <>
               <Link href="/pubg/leaderboards?view=players" className="btn-primary">
                 Player board
               </Link>
-              <Link href="/pubg/compare" className="btn-secondary">
-                Compare players
+              <Link href="/pubg/community?view=players" className="btn-secondary">
+                Community view
               </Link>
             </>
           }
@@ -2643,19 +2611,27 @@ export function PubgPlayersPage({
             { label: "Tracked Players", value: dataset.players.length, tone: "blue" },
             { label: "MVP-Level", value: dataset.players.filter((player) => player.mvpCount > 0).length, tone: "green" },
             { label: "Teams Represented", value: new Set(dataset.players.map((player) => player.currentTeamId).filter(Boolean)).size, tone: "yellow" },
-            { label: "Surging Players", value: dataset.players.filter((player) => player.formLabel === "Surging").length, tone: "red" },
+            { label: "Visible Cards", value: sortedPlayers.length, tone: "red" },
           ]}
           aside={
             <div className="space-y-4">
               <div>
-                <p className="section-title">Output Lens</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Fragging and damage leaders</h2>
+                <p className="section-title">Frag Leader Snapshot</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Official player order from published results</h2>
               </div>
-              {dataset.players.slice(0, 4).map((player) => (
+              {rankedPlayers.slice(0, 4).map((player, index) => (
                 <div key={player.id} className="rounded-card border border-white/[0.08] bg-black/20 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold text-white">{player.pubgName}</p>
-                    <FormPill label={player.formLabel} />
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <RankBadge rank={index + 1} />
+                        <p className="truncate font-semibold text-white">{player.pubgName}</p>
+                      </div>
+                      <p className="mt-2 text-sm text-text-muted">
+                        {formatNumber(player.kills)} kills • {formatNumber(player.damage)} damage
+                      </p>
+                    </div>
+                    <span className="font-mono-stat text-sm text-accent-blue-light">{player.avgKills.toFixed(2)} A/K</span>
                   </div>
                   <p className="mt-2 text-sm text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
                   <div className="mt-3">
@@ -2674,100 +2650,130 @@ export function PubgPlayersPage({
             </Link>
           }
         >
-          <input name="q" defaultValue={query} className="input-esports h-11" placeholder="Search player or team" />
-          <select name="team" defaultValue={teamId} className="input-esports h-11">
-            <option value="all">All teams</option>
-            {dataset.teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </select>
-          <select name="sort" defaultValue={sort} className="input-esports h-11">
-            <option value="kills">Sort by kills</option>
-            <option value="damage">Sort by damage</option>
-            <option value="form">Sort by form</option>
-            <option value="avg">Sort by average kills</option>
-          </select>
-          <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
-            Team and player detail pages stay linked from every card so the search board never becomes a dead end.
-          </div>
+          <FilterField label="Search">
+            <input name="q" defaultValue={rawQuery} className="input-esports h-11" placeholder="Search player or team" />
+          </FilterField>
+          <FilterField label="Team">
+            <select name="team" defaultValue={teamId} className="input-esports h-11">
+              <option value="all">All teams</option>
+              {getRankedTeams(dataset.teams).map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+          <FilterField label="Sort">
+            <select name="sort" defaultValue={sort} className="input-esports h-11">
+              <option value="kills">Sort by kills</option>
+              <option value="damage">Sort by damage</option>
+              <option value="avg">Sort by average kills</option>
+            </select>
+          </FilterField>
+          <FilterField label="Minimum Matches">
+            <select name="minMatches" defaultValue={String(minMatches)} className="input-esports h-11">
+              <option value="0">All samples</option>
+              <option value="3">3+ matches</option>
+              <option value="5">5+ matches</option>
+              <option value="8">8+ matches</option>
+            </select>
+          </FilterField>
         </FilterBar>
+        <ActiveFilterSummary
+          items={[
+            { label: "Search", value: rawQuery || null },
+            { label: "Team", value: teamId === "all" ? null : teams.get(teamId)?.name ?? teamId },
+            { label: "Sort", value: sort === "kills" ? null : sort === "damage" ? "Damage" : "Avg Kills" },
+            { label: "Min Matches", value: minMatches > 0 ? String(minMatches) : null },
+          ]}
+        />
 
-        <section className="grid gap-4 xl:grid-cols-2">
-          {filteredPlayers.map((player, index) => (
-            <div key={player.id} className="esports-card p-6">
-              <div className="flex flex-wrap items-center gap-3">
-                <RankBadge rank={index + 1} />
-                <PlayerIdentity player={player} />
-                <div className="ml-auto">
-                  <FormPill label={player.formLabel} />
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {visiblePlayers.map((player, index) => {
+            const officialRank = playerRankMap.get(player.id) ?? index + 1;
+            const displayRank = index + 1;
+
+            return (
+              <div key={player.id} className={`flex h-full flex-col rounded-[26px] border p-5 ${getLeaderboardSurface(displayRank)}`}>
+                <div className="flex items-start gap-4">
+                  <RankBadge rank={displayRank} />
+                  <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="lg" />
+                  <div className="min-w-0 flex-1">
+                    <h2 className="line-clamp-2 font-display text-xl font-black uppercase text-white">{player.pubgName}</h2>
+                    <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
+                    <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue-light">
+                      Official leaderboard #{officialRank}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-5">
-                <MetricCard label="Kills" value={player.kills} compact tone="blue" />
-                <MetricCard label="Assists" value={player.assists} compact tone="yellow" />
-                <MetricCard label="Knocks" value={player.knocks} compact tone="green" />
-                <MetricCard label="Damage" value={player.damage} compact tone="red" />
-                <MetricCard label="Avg K" value={formatDecimal(player.avgKills, 2)} compact />
-              </div>
-              <div className="mt-5 grid gap-5 xl:grid-cols-[1fr,0.95fr]">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Recent kill trend</p>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <MetricCard label="Kills" value={player.kills} compact tone="blue" />
+                  <MetricCard label="Damage" value={player.damage} compact tone="red" />
+                  <MetricCard label="Assists" value={player.assists} compact tone="yellow" />
+                  <MetricCard label="Knocks" value={player.knocks} compact tone="green" />
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <MetricCard label="Avg K" value={formatDecimal(player.avgKills, 2)} compact />
+                  <MetricCard label="Matches" value={player.matches} compact />
+                </div>
+
+                <div className="mt-5 rounded-card border border-white/[0.08] bg-black/20 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Recent output</p>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-white">
+                      {player.avgKills.toFixed(2)} avg kills
+                    </span>
+                  </div>
                   <div className="mt-3">
                     <TrendBars values={player.recentTrend} tone="blue" />
                   </div>
-                  <div className="mt-5 rounded-card border border-white/[0.08] bg-bg-primary p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Best match</p>
-                    {player.bestMatch ? (
-                      <>
-                        <p className="mt-2 font-semibold text-white">
-                          {player.bestMatch.eventName} | Match {player.bestMatch.matchNumber}
-                        </p>
-                        <p className="mt-2 text-sm text-text-muted">
-                          {player.bestMatch.kills} kills | {player.bestMatch.damage ?? 0} damage | {player.bestMatch.mapName}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="mt-2 text-sm text-text-muted">Best-match context will appear once more match data is published.</p>
-                    )}
-                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Event context</p>
-                  <div className="mt-3 space-y-2">
-                    {player.eventStats.slice(0, 3).map((eventStat) => (
-                      <div key={eventStat.eventId} className="rounded-card border border-white/[0.08] bg-bg-primary px-3 py-2 text-sm">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="font-semibold text-white">{eventStat.eventName}</span>
-                          <span className="font-mono-stat text-accent-green">{formatNumber(eventStat.kills)} K</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+
+                <div className="mt-5 rounded-card border border-white/[0.08] bg-bg-primary p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Best Match</p>
+                  {player.bestMatch ? (
+                    <>
+                      <p className="mt-2 font-semibold text-white">
+                        {player.bestMatch.eventName} • Match {player.bestMatch.matchNumber}
+                      </p>
+                      <p className="mt-2 text-sm text-text-muted">
+                        {player.bestMatch.kills} kills • {player.bestMatch.damage ?? 0} damage • {player.bestMatch.mapName}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-2 text-sm text-text-muted">Best-match context will appear once more match data is published.</p>
+                  )}
                 </div>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Link href={`/pubg/players/${player.slug ?? player.id}`} className="btn-primary">
-                  Open player profile
-                </Link>
-                <Link href={buildHref("/pubg/compare", { mode: "players", sideA: player.id })} className="btn-secondary">
-                  Compare player
-                </Link>
-                {player.currentTeamId && teams.get(player.currentTeamId) ? (
-                  <Link href={`/pubg/teams/${player.currentTeamId}`} className="btn-secondary">
-                    Open team
+
+                <div className="mt-auto flex flex-wrap gap-2 pt-5">
+                  <Link href={`/pubg/players/${player.slug ?? player.id}`} className="btn-primary">
+                    View Player
                   </Link>
-                ) : null}
+                  {player.currentTeamId && teams.get(player.currentTeamId) ? (
+                    <Link href={`/pubg/teams/${teams.get(player.currentTeamId)?.slug ?? player.currentTeamId}`} className="btn-secondary">
+                      Open Team
+                    </Link>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))}
-          {filteredPlayers.length === 0 ? (
-            <div className="xl:col-span-2">
+            );
+          })}
+          {sortedPlayers.length === 0 ? (
+            <div className="md:col-span-2 xl:col-span-3">
               <EmptyState title="No players match the current filters" description="Try adjusting your search or browse available categories." />
             </div>
           ) : null}
         </section>
+
+        {hasMore ? (
+          <div className="flex justify-center">
+            <Link href={nextPageHref} className="btn-secondary">
+              Load More Players
+            </Link>
+          </div>
+        ) : null}
       </div>
     </main>
   );
@@ -3157,6 +3163,60 @@ export function PubgResultsPage({
   );
 }
 
+function TeamLeaderboardMobileCard({ row }: { row: PubgTeamBoardRow }) {
+  return (
+    <Link
+      href={`/pubg/teams/${row.slug}`}
+      className={`block rounded-[24px] border p-4 ${getLeaderboardSurface(row.rank)}`}
+    >
+      <div className="flex items-start gap-3">
+        <RankBadge rank={row.rank} />
+        <TeamAvatar name={row.name} imageUrl={row.logoUrl ?? undefined} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 font-display text-lg font-black uppercase text-white">{row.name}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{row.tag ? row.tag : "PUBG Team"}</p>
+        </div>
+      </div>
+      <p className="mt-4 font-mono-stat text-xl text-accent-blue-light">{formatNumber(row.totalPoints)} Total</p>
+      <p className="mt-2 text-sm text-text-muted">
+        {formatNumber(row.kills)} Kills • {formatNumber(row.wins)} WWCD
+      </p>
+      <p className="mt-2 text-sm text-text-muted">
+        {formatNumber(row.matches)} Matches • {formatNumber(row.placementPoints)} Placement
+      </p>
+      <p className="mt-2 text-sm text-text-muted">Damage: {formatNumber(row.damage)}</p>
+    </Link>
+  );
+}
+
+function PlayerLeaderboardMobileCard({ row }: { row: PubgPlayerBoardRow }) {
+  return (
+    <Link
+      href={`/pubg/players/${row.slug}`}
+      className={`block rounded-[24px] border p-4 ${getLeaderboardSurface(row.rank)}`}
+    >
+      <div className="flex items-start gap-3">
+        <RankBadge rank={row.rank} />
+        <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 font-display text-lg font-black uppercase text-white">{row.pubgName}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team TBD"}</p>
+        </div>
+      </div>
+      <p className="mt-4 text-sm text-text-muted">
+        {formatNumber(row.kills)} Kills • {formatNumber(row.damage)} Damage
+      </p>
+      <p className="mt-2 text-sm text-text-muted">
+        {formatNumber(row.assists)} Assists • {formatNumber(row.knocks)} Knocks
+      </p>
+      <p className="mt-2 text-sm text-text-muted">Avg Kills: {formatDecimal(row.avgKills, 2)}</p>
+      <p className="mt-2 text-sm text-text-muted">
+        Best Match: {row.bestMatch ? `${row.bestMatch.kills}K on ${row.bestMatch.mapName}` : "Pending"}
+      </p>
+    </Link>
+  );
+}
+
 export function PubgLeaderboardsPage({
   dataset,
   searchParams,
@@ -3173,8 +3233,8 @@ export function PubgLeaderboardsPage({
     eventSlug: eventSlug === "all" ? undefined : eventSlug,
     mapName,
   });
-  const teamBoard = summarizeTeamsFromMatches(filteredMatches, teamLookup);
-  const playerBoard = summarizePlayersFromMatches(filteredMatches, playerLookup);
+  const teamBoard = buildPubgTeamBoardRows(filteredMatches, teamLookup);
+  const playerBoard = buildPubgPlayerBoardRows(filteredMatches, playerLookup);
   const mapOptions = dedupeMaps(dataset.matches);
 
   return (
@@ -3189,14 +3249,14 @@ export function PubgLeaderboardsPage({
               built from published results
             </>
           }
-          description="Leaderboards update from published match results, with event and map filters that make it easy to narrow the board to the exact competitive view you want."
+          description="Leaderboards update from the current published results set, with a shared ranking model that keeps the homepage, hub, directories, and full boards aligned."
           actions={
             <>
+              <Link href={view === "teams" ? "/pubg/teams" : "/pubg/players"} className="btn-primary">
+                {view === "teams" ? "Browse Teams" : "Browse Players"}
+              </Link>
               <Link href="/pubg/results" className="btn-secondary">
                 Match activity
-              </Link>
-              <Link href="/pubg/compare" className="btn-primary">
-                Open compare
               </Link>
             </>
           }
@@ -3235,29 +3295,40 @@ export function PubgLeaderboardsPage({
           }
         >
           <input type="hidden" name="view" value={view} />
-          <select name="event" defaultValue={eventSlug} className="input-esports h-11">
-            <option value="all">All events</option>
-            {dataset.events.map((event) => (
-              <option key={event.id} value={event.slug}>
-                {event.name}
-              </option>
-            ))}
-          </select>
-          <select name="map" defaultValue={mapName} className="input-esports h-11">
-            <option value="all">All maps</option>
-            {mapOptions.map((map) => (
-              <option key={map} value={map}>
-                {map}
-              </option>
-            ))}
-          </select>
+          <FilterField label="Event">
+            <select name="event" defaultValue={eventSlug} className="input-esports h-11">
+              <option value="all">All events</option>
+              {dataset.events.map((event) => (
+                <option key={event.id} value={event.slug}>
+                  {event.name}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+          <FilterField label="Map">
+            <select name="map" defaultValue={mapName} className="input-esports h-11">
+              <option value="all">All maps</option>
+              {mapOptions.map((map) => (
+                <option key={map} value={map}>
+                  {map}
+                </option>
+              ))}
+            </select>
+          </FilterField>
           <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
-            Boards update only from published match results for the selected event and map filters.
+            Team order follows one official rule set everywhere: total points, kills, WWCD, placement points, then average placement.
           </div>
           <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
-            Use the filters to narrow the board, then jump into team, player, and match pages for more detail.
+            Player order follows the same shared default across homepage, hub previews, and the full player board.
           </div>
         </FilterBar>
+        <ActiveFilterSummary
+          items={[
+            { label: "View", value: view === "teams" ? "Team Board" : "Player Board" },
+            { label: "Event", value: eventSlug === "all" ? null : dataset.events.find((event) => event.slug === eventSlug)?.name ?? eventSlug },
+            { label: "Map", value: mapName === "all" ? null : mapName },
+          ]}
+        />
 
         {view === "teams" ? (
           filteredMatches.length === 0 ? (
@@ -3265,59 +3336,55 @@ export function PubgLeaderboardsPage({
               <EmptyState title="Leaderboard data is not available yet" description="Leaderboard data will be available once matches have been completed and officially published." />
             </section>
           ) : (
-          <section className="esports-card overflow-hidden !p-0">
-            <div className="border-b border-white/[0.08] px-5 py-4">
-              <SectionHeader eyebrow="Team Boards" title="Team leaderboard and form table" description="Placement points, kill points, total points, average placement, damage, and recent form in one board." />
-            </div>
-            <div className="mt-4 table-scroll">
-              <table className="data-table min-w-full">
-                <thead>
-                  <tr>
-                    <th>Rank</th>
-                    <th className="min-w-[240px]">Team</th>
-                    <th>Matches</th>
-                    <th>Wins</th>
-                    <th>Kills</th>
-                    <th>Damage</th>
-                    <th>Placement</th>
-                    <th>Kill Pts</th>
-                    <th>Total</th>
-                    <th>Avg Place</th>
-                    <th>Trend</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <section className="esports-card overflow-hidden !p-0">
+              <div className="border-b border-white/[0.08] px-5 py-4">
+                <SectionHeader eyebrow="Team Board" title="Official team leaderboard" description="Rank, team, matches, WWCD, placement, kills, damage, total points, and recent trend from the published board." />
+              </div>
+              <div className="grid gap-3 p-4 md:hidden">
+                {teamBoard.map((row) => (
+                  <TeamLeaderboardMobileCard key={row.teamId} row={row} />
+                ))}
+              </div>
+              <div className="hidden px-4 pb-4 md:block">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-[72px,minmax(0,1.8fr),90px,76px,98px,84px,112px,102px,120px] gap-4 rounded-[20px] border border-white/[0.08] bg-black/20 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
+                    <span>Rank</span>
+                    <span>Team</span>
+                    <span className="text-right">Matches</span>
+                    <span className="text-right">WWCD</span>
+                    <span className="text-right">Placement</span>
+                    <span className="text-right">Kills</span>
+                    <span className="text-right">Damage</span>
+                    <span className="text-right">Total</span>
+                    <span className="text-right">Trend</span>
+                  </div>
                   {teamBoard.map((row) => (
-                    <tr key={row.teamId}>
-                      <td>
-                        <RankBadge rank={row.rank} />
-                      </td>
-                      <td className="min-w-[240px]">
-                        <Link href={`/pubg/teams/${row.teamId}`} className="flex items-center gap-3 rounded-card transition hover:text-accent-blue">
-                          <TeamAvatar name={row.name} imageUrl={row.logoUrl ?? undefined} size="sm" />
-                          <div className="min-w-0">
-                            <p className="font-semibold text-white">{row.name}</p>
-                            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{row.tag ? row.tag : "PUBG Team"}</p>
-                          </div>
-                        </Link>
-                      </td>
-                      <td>{formatNumber(row.matches)}</td>
-                      <td>{formatNumber(row.wins)}</td>
-                      <td>{formatNumber(row.kills)}</td>
-                      <td>{formatNumber(row.damage)}</td>
-                      <td>{formatNumber(row.placementPoints)}</td>
-                      <td>{formatNumber(row.killPoints)}</td>
-                      <td className="points-cell">{formatNumber(row.totalPoints)}</td>
-                      <td>{formatDecimal(row.avgPlacement, 2)}</td>
-                      <td className="min-w-28">
+                    <div
+                      key={row.teamId}
+                      className={`grid grid-cols-[72px,minmax(0,1.8fr),90px,76px,98px,84px,112px,102px,120px] items-center gap-4 rounded-[22px] border px-4 py-4 ${getLeaderboardSurface(row.rank)}`}
+                    >
+                      <RankBadge rank={row.rank} />
+                      <Link href={`/pubg/teams/${row.slug}`} className="flex min-w-0 items-center gap-3 rounded-card transition hover:text-accent-blue">
+                        <TeamAvatar name={row.name} imageUrl={row.logoUrl ?? undefined} size="sm" />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-white">{row.name}</p>
+                          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{row.tag ? row.tag : "PUBG Team"}</p>
+                        </div>
+                      </Link>
+                      <span className="text-right font-mono-stat text-white">{formatNumber(row.matches)}</span>
+                      <span className="text-right font-mono-stat text-white">{formatNumber(row.wins)}</span>
+                      <span className="text-right font-mono-stat text-white">{formatNumber(row.placementPoints)}</span>
+                      <span className="text-right font-mono-stat text-white">{formatNumber(row.kills)}</span>
+                      <span className="text-right font-mono-stat text-white">{formatNumber(row.damage)}</span>
+                      <span className="text-right font-mono-stat text-accent-blue-light">{formatNumber(row.totalPoints)}</span>
+                      <div className="justify-self-end min-w-[110px]">
                         <TrendBars values={row.trend} tone="green" />
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                </div>
+              </div>
+            </section>
           )
         ) : filteredMatches.length === 0 ? (
           <section className="esports-card p-6">
@@ -3326,67 +3393,70 @@ export function PubgLeaderboardsPage({
         ) : (
           <section className="esports-card overflow-hidden !p-0">
             <div className="border-b border-white/[0.08] px-5 py-4">
-              <SectionHeader eyebrow="Player Boards" title="Player leaderboard and output table" description="Kills, assists, knocks, damage, averages, and recent form from published player results." />
+              <SectionHeader eyebrow="Player Board" title="Official player leaderboard" description="Rank, player, team, kills, damage, assists, knocks, average kills, and best-match context from the published board." />
             </div>
-            <div className="mt-4 table-scroll">
-              <table className="data-table min-w-full">
-                <thead>
-                  <tr>
-                    <th>Rank</th>
-                    <th className="min-w-[220px]">Player</th>
-                    <th className="min-w-[180px]">Team</th>
-                    <th>Matches</th>
-                    <th>Wins</th>
-                    <th>Kills</th>
-                    <th>Assists</th>
-                    <th>Knocks</th>
-                    <th>Damage</th>
-                    <th>Avg K</th>
-                    <th>Trend</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {playerBoard.map((row) => (
-                    <tr key={row.playerId}>
-                      <td>
-                        <RankBadge rank={row.rank} />
-                      </td>
-                      <td className="min-w-[220px]">
-                        <Link href={`/pubg/players/${row.playerId}`} className="flex items-center gap-3 rounded-card transition hover:text-accent-blue">
-                          <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="sm" />
-                          <div className="min-w-0">
-                            <p className="font-semibold text-white">{row.pubgName}</p>
-                            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team TBD"}</p>
-                          </div>
-                        </Link>
-                      </td>
-                      <td className="min-w-[180px]">
-                        {row.teamName ? (
-                          row.teamId ? (
-                            <Link href={`/pubg/teams/${row.teamId}`} className="text-white hover:text-accent-blue">
-                              {row.teamName}
-                            </Link>
-                          ) : (
-                            row.teamName
-                          )
-                        ) : (
-                          "Team TBD"
-                        )}
-                      </td>
-                      <td>{formatNumber(row.matches)}</td>
-                      <td>{formatNumber(row.wins)}</td>
-                      <td>{formatNumber(row.kills)}</td>
-                      <td>{formatNumber(row.assists)}</td>
-                      <td>{formatNumber(row.knocks)}</td>
-                      <td>{formatNumber(row.damage)}</td>
-                      <td>{formatDecimal(row.avgKills, 2)}</td>
-                      <td className="min-w-28">
-                        <TrendBars values={row.trend} tone="blue" />
-                      </td>
+            <div className="grid gap-3 p-4 md:hidden">
+              {playerBoard.map((row) => (
+                <PlayerLeaderboardMobileCard key={row.playerId} row={row} />
+              ))}
+            </div>
+            <div className="hidden px-4 pb-4 md:block">
+              <div className="table-scroll">
+                <table className="data-table min-w-full">
+                  <thead style={{ position: "static" }}>
+                    <tr>
+                      <th>Rank</th>
+                      <th className="min-w-[240px]">Player</th>
+                      <th className="min-w-[180px]">Team</th>
+                      <th>Kills</th>
+                      <th>Damage</th>
+                      <th>Assists</th>
+                      <th>Knocks</th>
+                      <th>Avg Kills</th>
+                      <th className="min-w-[220px]">Best Match</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {playerBoard.map((row) => (
+                      <tr key={row.playerId} className={getLeaderboardSurface(row.rank)}>
+                        <td>
+                          <RankBadge rank={row.rank} />
+                        </td>
+                        <td className="min-w-[240px]">
+                          <Link href={`/pubg/players/${row.slug}`} className="flex items-center gap-3 rounded-card transition hover:text-accent-blue">
+                            <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="sm" />
+                            <div className="min-w-0">
+                              <p className="font-semibold text-white">{row.pubgName}</p>
+                              <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team TBD"}</p>
+                            </div>
+                          </Link>
+                        </td>
+                        <td className="min-w-[180px]">
+                          {row.teamName ? (
+                            row.teamId ? (
+                              <Link href={`/pubg/teams/${row.teamId}`} className="text-white hover:text-accent-blue">
+                                {row.teamName}
+                              </Link>
+                            ) : (
+                              row.teamName
+                            )
+                          ) : (
+                            "Team TBD"
+                          )}
+                        </td>
+                        <td>{formatNumber(row.kills)}</td>
+                        <td>{formatNumber(row.damage)}</td>
+                        <td>{formatNumber(row.assists)}</td>
+                        <td>{formatNumber(row.knocks)}</td>
+                        <td>{formatDecimal(row.avgKills, 2)}</td>
+                        <td className="min-w-[220px] text-sm text-text-muted">
+                          {row.bestMatch ? `${row.bestMatch.kills}K • ${row.bestMatch.mapName} • Match ${row.bestMatch.matchNumber}` : "Pending"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </section>
         )}

@@ -1,0 +1,402 @@
+import Link from "next/link";
+import TeamAvatar from "@/components/ui/TeamAvatar";
+import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
+import { buildPubgPlayerBoardRows, buildPubgTeamBoardRows, type PubgPlayerBoardRow, type PubgTeamBoardRow } from "@/lib/pubg-rankings";
+import {
+  buildHref,
+  EmptyState,
+  formatDecimal,
+  formatNumber,
+  PageHero,
+  RankBadge,
+  readSearchParam,
+  SectionHeader,
+  sourceLabel,
+  TrendBars,
+} from "@/components/pubg/PubgHubUI";
+
+type SearchParamDictionary = Record<string, string | string[] | undefined>;
+
+function buildTeamLookup(dataset: PubgHubDataset) {
+  return new Map(dataset.teams.map((team) => [team.id, team] as const));
+}
+
+function buildPlayerLookup(dataset: PubgHubDataset) {
+  return new Map(dataset.players.map((player) => [player.id, player] as const));
+}
+
+function dedupeMaps(matches: PubgHubMatch[]) {
+  return Array.from(new Set(matches.map((match) => match.mapName))).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
+}
+
+function filterMatches(dataset: PubgHubDataset, options: { eventSlug?: string; mapName?: string }) {
+  return dataset.matches.filter((match) => {
+    if (options.eventSlug && match.eventSlug !== options.eventSlug) {
+      return false;
+    }
+
+    if (options.mapName && options.mapName !== "all" && match.mapName !== options.mapName) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function getLeaderboardSurface(rank: number) {
+  if (rank === 1) {
+    return "border-[#f5c76a]/20 bg-[linear-gradient(180deg,rgba(245,199,106,0.12),rgba(11,21,33,0.94))]";
+  }
+
+  if (rank === 2) {
+    return "border-slate-300/20 bg-[linear-gradient(180deg,rgba(203,213,225,0.1),rgba(11,21,33,0.94))]";
+  }
+
+  if (rank === 3) {
+    return "border-orange-300/18 bg-[linear-gradient(180deg,rgba(253,186,116,0.1),rgba(11,21,33,0.94))]";
+  }
+
+  return "border-white/[0.08] bg-[#08101a]";
+}
+
+function FilterBar({
+  children,
+  action,
+}: {
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-card border border-white/[0.08] bg-bg-card p-4">
+      <form method="get" className="grid gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+        {children}
+        <div className="flex items-end gap-2">
+          <button type="submit" className="btn-primary h-11">
+            Apply Filters
+          </button>
+          {action}
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function FilterField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="grid gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ActiveFilterSummary({
+  items,
+}: {
+  items: Array<{ label: string; value?: string | null }>;
+}) {
+  const activeItems = items.filter((item) => item.value && item.value !== "all");
+
+  if (activeItems.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {activeItems.map((item) => (
+        <span
+          key={`${item.label}-${item.value}`}
+          className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted"
+        >
+          {item.label}: <span className="ml-1 text-white">{item.value}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function TeamLeaderboardMobileCard({ row }: { row: PubgTeamBoardRow }) {
+  return (
+    <Link href={`/pubg/teams/${row.slug}`} className={`block rounded-[24px] border p-4 ${getLeaderboardSurface(row.rank)}`}>
+      <div className="flex items-start gap-3">
+        <RankBadge rank={row.rank} />
+        <TeamAvatar name={row.name} imageUrl={row.logoUrl ?? undefined} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 font-display text-lg font-black uppercase text-white">{row.name}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{row.tag ? row.tag : "PUBG Team"}</p>
+        </div>
+      </div>
+      <p className="mt-4 font-mono-stat text-xl text-accent-blue-light">{formatNumber(row.totalPoints)} Total</p>
+      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.kills)} Kills • {formatNumber(row.wins)} WWCD</p>
+      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.matches)} Matches • {formatNumber(row.placementPoints)} Placement</p>
+      <p className="mt-2 text-sm text-text-muted">Damage: {formatNumber(row.damage)}</p>
+    </Link>
+  );
+}
+
+function PlayerLeaderboardMobileCard({ row }: { row: PubgPlayerBoardRow }) {
+  return (
+    <Link href={`/pubg/players/${row.slug}`} className={`block rounded-[24px] border p-4 ${getLeaderboardSurface(row.rank)}`}>
+      <div className="flex items-start gap-3">
+        <RankBadge rank={row.rank} />
+        <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 font-display text-lg font-black uppercase text-white">{row.pubgName}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team TBD"}</p>
+        </div>
+      </div>
+      <p className="mt-4 text-sm text-text-muted">{formatNumber(row.kills)} Kills • {formatNumber(row.damage)} Damage</p>
+      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.assists)} Assists • {formatNumber(row.knocks)} Knocks</p>
+      <p className="mt-2 text-sm text-text-muted">Avg Kills: {formatDecimal(row.avgKills, 2)}</p>
+      <p className="mt-2 text-sm text-text-muted">Best Match: {row.bestMatch ? `${row.bestMatch.kills}K on ${row.bestMatch.mapName}` : "Pending"}</p>
+    </Link>
+  );
+}
+
+export function PubgLeaderboardsRoute({
+  dataset,
+  searchParams,
+}: {
+  dataset: PubgHubDataset;
+  searchParams: SearchParamDictionary;
+}) {
+  const view = readSearchParam(searchParams.view, "teams");
+  const eventSlug = readSearchParam(searchParams.event, "all");
+  const mapName = readSearchParam(searchParams.map, "all");
+  const teamLookup = buildTeamLookup(dataset);
+  const playerLookup = buildPlayerLookup(dataset);
+  const filteredMatches = filterMatches(dataset, {
+    eventSlug: eventSlug === "all" ? undefined : eventSlug,
+    mapName,
+  });
+  const teamBoard = buildPubgTeamBoardRows(filteredMatches, teamLookup);
+  const playerBoard = buildPubgPlayerBoardRows(filteredMatches, playerLookup);
+  const mapOptions = dedupeMaps(dataset.matches);
+
+  return (
+    <main className="page-shell pb-12 pt-6">
+      <div className="page-stack">
+        <PageHero
+          badge="PUBG Leaderboards"
+          title={
+            <>
+              Team and player boards
+              <br />
+              built from published results
+            </>
+          }
+          description="Leaderboards update from the current published results set, with a shared ranking model that keeps the homepage, hub, directories, and full boards aligned."
+          actions={
+            <>
+              <Link href={view === "teams" ? "/pubg/teams" : "/pubg/players"} className="btn-primary">
+                {view === "teams" ? "Browse Teams" : "Browse Players"}
+              </Link>
+              <Link href="/pubg/results" className="btn-secondary">
+                Match activity
+              </Link>
+            </>
+          }
+          stats={[
+            { label: "Filtered Matches", value: filteredMatches.length, tone: "blue" },
+            { label: "Team Rows", value: teamBoard.length, tone: "green" },
+            { label: "Player Rows", value: playerBoard.length, tone: "yellow" },
+            { label: "Maps In Lens", value: mapName === "all" ? mapOptions.length : 1, tone: "red" },
+          ]}
+          aside={
+            <div className="space-y-4">
+              <div>
+                <p className="section-title">Board Lens</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Team and player switches</h2>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link href={buildHref("/pubg/leaderboards", { view: "teams", event: eventSlug === "all" ? undefined : eventSlug, map: mapName === "all" ? undefined : mapName })} className={`rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${view === "teams" ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue" : "border-white/10 bg-bg-primary text-text-muted"}`}>
+                  Team board
+                </Link>
+                <Link href={buildHref("/pubg/leaderboards", { view: "players", event: eventSlug === "all" ? undefined : eventSlug, map: mapName === "all" ? undefined : mapName })} className={`rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${view === "players" ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue" : "border-white/10 bg-bg-primary text-text-muted"}`}>
+                  Player board
+                </Link>
+              </div>
+              <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-text-muted">
+                Coverage mode: {sourceLabel(dataset.source)}
+              </div>
+            </div>
+          }
+        />
+
+        <FilterBar
+          action={
+            <Link href={buildHref("/pubg/leaderboards", { view })} className="btn-secondary h-11">
+              Reset
+            </Link>
+          }
+        >
+          <input type="hidden" name="view" value={view} />
+          <FilterField label="Event">
+            <select name="event" defaultValue={eventSlug} className="input-esports h-11">
+              <option value="all">All events</option>
+              {dataset.events.map((event) => (
+                <option key={event.id} value={event.slug}>
+                  {event.name}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+          <FilterField label="Map">
+            <select name="map" defaultValue={mapName} className="input-esports h-11">
+              <option value="all">All maps</option>
+              {mapOptions.map((map) => (
+                <option key={map} value={map}>
+                  {map}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+          <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
+            Team order follows one official rule set everywhere: total points, kills, WWCD, placement points, then average placement.
+          </div>
+          <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
+            Player order follows the same shared default across homepage, hub previews, and the full player board.
+          </div>
+        </FilterBar>
+
+        <ActiveFilterSummary
+          items={[
+            { label: "View", value: view === "teams" ? "Team Board" : "Player Board" },
+            { label: "Event", value: eventSlug === "all" ? null : dataset.events.find((event) => event.slug === eventSlug)?.name ?? eventSlug },
+            { label: "Map", value: mapName === "all" ? null : mapName },
+          ]}
+        />
+
+        {view === "teams" ? (
+          filteredMatches.length === 0 ? (
+            <section className="esports-card p-6">
+              <EmptyState title="Leaderboard data is not available yet" description="Leaderboard data will be available once matches have been completed and officially published." />
+            </section>
+          ) : (
+            <section className="esports-card overflow-hidden !p-0">
+              <div className="border-b border-white/[0.08] px-5 py-4">
+                <SectionHeader eyebrow="Team Board" title="Official team leaderboard" description="Rank, team, matches, WWCD, placement, kills, damage, total points, and recent trend from the published board." />
+              </div>
+              <div className="grid gap-3 p-4 md:hidden">
+                {teamBoard.map((row) => (
+                  <TeamLeaderboardMobileCard key={row.teamId} row={row} />
+                ))}
+              </div>
+              <div className="hidden px-4 pb-4 md:block">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-[72px,minmax(0,1.8fr),90px,76px,98px,84px,112px,102px,120px] gap-4 rounded-[20px] border border-white/[0.08] bg-black/20 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
+                    <span>Rank</span>
+                    <span>Team</span>
+                    <span className="text-right">Matches</span>
+                    <span className="text-right">WWCD</span>
+                    <span className="text-right">Placement</span>
+                    <span className="text-right">Kills</span>
+                    <span className="text-right">Damage</span>
+                    <span className="text-right">Total</span>
+                    <span className="text-right">Trend</span>
+                  </div>
+                  {teamBoard.map((row) => (
+                    <div
+                      key={row.teamId}
+                      className={`grid grid-cols-[72px,minmax(0,1.8fr),90px,76px,98px,84px,112px,102px,120px] items-center gap-4 rounded-[22px] border px-4 py-4 ${getLeaderboardSurface(row.rank)}`}
+                    >
+                      <RankBadge rank={row.rank} />
+                      <Link href={`/pubg/teams/${row.slug}`} className="flex min-w-0 items-center gap-3 rounded-card transition hover:text-accent-blue">
+                        <TeamAvatar name={row.name} imageUrl={row.logoUrl ?? undefined} size="sm" />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-white">{row.name}</p>
+                          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{row.tag ? row.tag : "PUBG Team"}</p>
+                        </div>
+                      </Link>
+                      <span className="text-right font-mono-stat text-white">{formatNumber(row.matches)}</span>
+                      <span className="text-right font-mono-stat text-white">{formatNumber(row.wins)}</span>
+                      <span className="text-right font-mono-stat text-white">{formatNumber(row.placementPoints)}</span>
+                      <span className="text-right font-mono-stat text-white">{formatNumber(row.kills)}</span>
+                      <span className="text-right font-mono-stat text-white">{formatNumber(row.damage)}</span>
+                      <span className="text-right font-mono-stat text-accent-blue-light">{formatNumber(row.totalPoints)}</span>
+                      <div className="justify-self-end min-w-[110px]">
+                        <TrendBars values={row.trend} tone="green" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )
+        ) : filteredMatches.length === 0 ? (
+          <section className="esports-card p-6">
+            <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
+          </section>
+        ) : (
+          <section className="esports-card overflow-hidden !p-0">
+            <div className="border-b border-white/[0.08] px-5 py-4">
+              <SectionHeader eyebrow="Player Board" title="Official player leaderboard" description="Rank, player, team, kills, damage, assists, knocks, average kills, and best-match context from the published board." />
+            </div>
+            <div className="grid gap-3 p-4 md:hidden">
+              {playerBoard.map((row) => (
+                <PlayerLeaderboardMobileCard key={row.playerId} row={row} />
+              ))}
+            </div>
+            <div className="hidden px-4 pb-4 md:block">
+              <div className="space-y-3">
+                <div className="grid grid-cols-[72px,minmax(0,1.5fr),minmax(0,1.2fr),84px,110px,86px,86px,96px,minmax(0,1.2fr)] gap-4 rounded-[20px] border border-white/[0.08] bg-black/20 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
+                  <span>Rank</span>
+                  <span>Player</span>
+                  <span>Team</span>
+                  <span className="text-right">Kills</span>
+                  <span className="text-right">Damage</span>
+                  <span className="text-right">Assists</span>
+                  <span className="text-right">Knocks</span>
+                  <span className="text-right">Avg Kills</span>
+                  <span>Best Match</span>
+                </div>
+                {playerBoard.map((row) => (
+                  <div
+                    key={row.playerId}
+                    className={`grid grid-cols-[72px,minmax(0,1.5fr),minmax(0,1.2fr),84px,110px,86px,86px,96px,minmax(0,1.2fr)] items-center gap-4 rounded-[22px] border px-4 py-4 ${getLeaderboardSurface(row.rank)}`}
+                  >
+                    <RankBadge rank={row.rank} />
+                    <Link href={`/pubg/players/${row.slug}`} className="flex min-w-0 items-center gap-3 rounded-card transition hover:text-accent-blue">
+                      <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="sm" />
+                      <div className="min-w-0">
+                        <p className="font-semibold text-white">{row.pubgName}</p>
+                        <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team TBD"}</p>
+                      </div>
+                    </Link>
+                    <div className="min-w-0 text-sm text-white">
+                      {row.teamName ? (
+                        row.teamId ? (
+                          <Link href={`/pubg/teams/${teamLookup.get(row.teamId)?.slug ?? row.teamId}`} className="hover:text-accent-blue">
+                            {row.teamName}
+                          </Link>
+                        ) : (
+                          row.teamName
+                        )
+                      ) : (
+                        "Team TBD"
+                      )}
+                    </div>
+                    <span className="text-right font-mono-stat text-white">{formatNumber(row.kills)}</span>
+                    <span className="text-right font-mono-stat text-white">{formatNumber(row.damage)}</span>
+                    <span className="text-right font-mono-stat text-white">{formatNumber(row.assists)}</span>
+                    <span className="text-right font-mono-stat text-white">{formatNumber(row.knocks)}</span>
+                    <span className="text-right font-mono-stat text-accent-blue-light">{formatDecimal(row.avgKills, 2)}</span>
+                    <span className="text-sm text-text-muted">
+                      {row.bestMatch ? `${row.bestMatch.kills}K • ${row.bestMatch.mapName} • Match ${row.bestMatch.matchNumber}` : "Pending"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+      </div>
+    </main>
+  );
+}

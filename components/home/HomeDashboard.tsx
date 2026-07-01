@@ -16,6 +16,7 @@ import BravoLogo from "@/components/ui/BravoLogo";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
+import { getRankedPlayers, getRankedTeams } from "@/lib/pubg-rankings";
 import type {
   PlatformArticle,
   PlatformEvent,
@@ -479,19 +480,7 @@ function TodayScrims({
 }
 
 function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
-  const leaderboard = [...teams]
-    .sort((firstTeam, secondTeam) => {
-      if (secondTeam.totalPoints !== firstTeam.totalPoints) {
-        return secondTeam.totalPoints - firstTeam.totalPoints;
-      }
-
-      if (secondTeam.wins !== firstTeam.wins) {
-        return secondTeam.wins - firstTeam.wins;
-      }
-
-      return secondTeam.kills - firstTeam.kills;
-    })
-    .slice(0, 5);
+  const leaderboard = getRankedTeams(teams).slice(0, 5);
 
   return (
     <section className="priority-card h-full overflow-hidden !p-0">
@@ -550,12 +539,14 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
                       </span>
                       <div className="min-w-0 flex items-center gap-3">
                         <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="md" />
-                        <div className="min-w-0">
-                          <p className="font-display text-base font-black uppercase leading-tight text-white" title={team.name}>
-                            {team.name}
-                          </p>
-                          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{team.formLabel}</p>
-                        </div>
+                      <div className="min-w-0">
+                        <p className="font-display text-base font-black uppercase leading-tight text-white" title={team.name}>
+                          {team.name}
+                        </p>
+                        <p className="text-xs uppercase tracking-[0.16em] text-text-muted">
+                          {team.tag ? `[${team.tag}]` : "PUBG Team"}
+                        </p>
+                      </div>
                       </div>
                       <span className="text-right font-mono-stat text-white">{formatNumber(team.matches)}</span>
                       <span className="text-right font-mono-stat text-white">{formatNumber(team.wins)}</span>
@@ -600,7 +591,9 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
                       <p className="font-display text-base font-black uppercase leading-tight text-white" title={team.name}>
                         {team.name}
                       </p>
-                      <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{team.formLabel}</p>
+                      <p className="text-xs uppercase tracking-[0.16em] text-text-muted">
+                        {team.tag ? `[${team.tag}]` : "PUBG Team"}
+                      </p>
                     </div>
                     <span
                       className={joinClasses(
@@ -722,57 +715,42 @@ function TeamSpotlightCard({ team, rank }: { team: PubgHubTeam; rank: number }) 
         </span>
         <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
         <div className="min-w-0 flex-1">
-          <p className="font-display text-xl font-black uppercase leading-tight text-white" title={team.name}>
+          <p className="line-clamp-2 font-display text-xl font-black uppercase leading-tight text-white" title={team.name}>
             {team.name}
           </p>
-          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{team.formLabel}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">
+            {team.tag ? `[${team.tag}]` : "PUBG Team"}
+          </p>
         </div>
-        <span
-          className={joinClasses(
-            "shrink-0 rounded-full border px-3 py-1.5 font-mono-stat text-xs uppercase",
-            styles.points
-          )}
-        >
-          {formatNumber(team.totalPoints)} pts
+        {rank <= 3 ? <Trophy className="h-5 w-5 shrink-0 text-[#f5c76a]" /> : null}
+      </div>
+
+      <div className="mt-6">
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">Total Points</p>
+        <p className="mt-2 font-mono-stat text-3xl text-white">{formatNumber(team.totalPoints)}</p>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        <span className={joinClasses("rounded-full border px-3 py-1.5 font-mono-stat text-xs uppercase", styles.points)}>
+          {formatNumber(team.wins)} WWCD
+        </span>
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono-stat text-xs uppercase text-white">
+          {formatNumber(team.kills)} Kills
         </span>
       </div>
 
-      <p className="mt-4 text-sm leading-7 text-text-secondary">
-        {formatNumber(team.totalPoints)} Points | {formatNumber(team.wins)} WWCD | {formatNumber(team.kills)} Kills
-      </p>
-
-      <div className="mt-5 grid grid-cols-3 gap-3">
-        <div className="stat-pill !p-3.5">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Points</p>
-          <p className="mt-2 font-mono-stat text-base text-accent-blue-light">{formatNumber(team.totalPoints)}</p>
-        </div>
-        <div className="stat-pill !p-3.5">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Wins</p>
-          <p className="mt-2 font-mono-stat text-base text-white">{formatNumber(team.wins)}</p>
-        </div>
-        <div className="stat-pill !p-3.5">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Kills</p>
-          <p className="mt-2 font-mono-stat text-base text-white">{formatNumber(team.kills)}</p>
-        </div>
+      <div className="mt-auto pt-5">
+        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">
+          View Team
+          <ChevronRight className="h-3.5 w-3.5" />
+        </span>
       </div>
     </Link>
   );
 }
 
 function TopTeams({ teams }: { teams: PubgHubTeam[] }) {
-  const topTeams = [...teams]
-    .sort((firstTeam, secondTeam) => {
-      if (secondTeam.totalPoints !== firstTeam.totalPoints) {
-        return secondTeam.totalPoints - firstTeam.totalPoints;
-      }
-
-      if (secondTeam.wins !== firstTeam.wins) {
-        return secondTeam.wins - firstTeam.wins;
-      }
-
-      return secondTeam.kills - firstTeam.kills;
-    })
-    .slice(0, 4);
+  const topTeams = getRankedTeams(teams).slice(0, 4);
 
   if (teams.length === 0) {
     return null;
@@ -790,17 +768,28 @@ function TopTeams({ teams }: { teams: PubgHubTeam[] }) {
   );
 }
 
-function PlayerSpotlightCard({ player }: { player: PubgHubPlayer }) {
+function PlayerSpotlightCard({ player, rank }: { player: PubgHubPlayer; rank: number }) {
+  const styles = getLeaderboardStyles(rank);
+
   return (
-    <Link href={`/pubg/players/${player.slug ?? player.id}`} className="standard-card h-full p-4">
-      <div className="flex items-center gap-3">
+    <Link href={`/pubg/players/${player.slug ?? player.id}`} className={joinClasses("flex h-full flex-col rounded-[24px] border p-4 transition", styles.row)}>
+      <div className="flex items-start gap-3">
+        <span
+          className={joinClasses(
+            "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border font-mono-stat text-xs",
+            styles.badge
+          )}
+        >
+          #{rank}
+        </span>
         <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="md" />
-        <div className="min-w-0">
-          <p className="truncate font-display text-lg font-black uppercase text-white">{player.pubgName}</p>
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 font-display text-lg font-black uppercase leading-tight text-white">{player.pubgName}</p>
           <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
         </div>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3">
+
+      <div className="mt-4 grid grid-cols-3 gap-3">
         <div className="stat-pill !p-3">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Kills</p>
           <p className="mt-2 font-mono-stat text-base text-accent-blue-light">{formatNumber(player.kills)}</p>
@@ -809,13 +798,26 @@ function PlayerSpotlightCard({ player }: { player: PubgHubPlayer }) {
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Damage</p>
           <p className="mt-2 font-mono-stat text-base text-white">{formatNumber(player.damage)}</p>
         </div>
+        <div className="stat-pill !p-3">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Avg K</p>
+          <p className="mt-2 font-mono-stat text-base text-white">{player.avgKills.toFixed(2)}</p>
+        </div>
+      </div>
+
+      <div className="mt-auto pt-4">
+        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">
+          View Player
+          <ChevronRight className="h-3.5 w-3.5" />
+        </span>
       </div>
     </Link>
   );
 }
 
 function TopPlayers({ players }: { players: PubgHubPlayer[] }) {
-  if (players.length === 0) {
+  const topPlayers = getRankedPlayers(players).slice(0, 4);
+
+  if (topPlayers.length === 0) {
     return null;
   }
 
@@ -823,8 +825,8 @@ function TopPlayers({ players }: { players: PubgHubPlayer[] }) {
     <section className="standard-card p-4">
       <PanelHeader icon={<Users className="h-4 w-4" />} title="Top Players" href="/pubg/players" />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {players.slice(0, 4).map((player) => (
-          <PlayerSpotlightCard key={player.id} player={player} />
+        {topPlayers.map((player, index) => (
+          <PlayerSpotlightCard key={player.id} player={player} rank={index + 1} />
         ))}
       </div>
     </section>

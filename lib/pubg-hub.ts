@@ -2,6 +2,7 @@ import { COLLECTIONS, fetchDocumentCollection, isDocumentStoreConfigured } from 
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
 import { placementPoints, totalPoints } from "./pubg";
+import { comparePubgPlayers, comparePubgTeams, getRankedPlayers, getRankedTeams } from "./pubg-rankings";
 import { BRAVO_DISCORD_URL } from "./brand-links";
 import { hasPublicDemoMarker, hasPublicDemoSeedTag, sanitizePublicAssetUrl, sanitizePublicCopy } from "./public-content";
 import { normalizeMapName } from "./tournament-standings";
@@ -1850,7 +1851,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
       }
 
       const standings = Array.from(standingsMap.values())
-        .map((value, index, rows) => ({
+        .map((value) => ({
           rank: 0,
           teamId: value.teamId,
           teamName: value.teamName,
@@ -1869,11 +1870,28 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         }))
         .sort(
           (firstValue, secondValue) =>
-            secondValue.totalPoints - firstValue.totalPoints ||
-            secondValue.wins - firstValue.wins ||
-            secondValue.killPoints - firstValue.killPoints ||
-            firstValue.avgPlacement - secondValue.avgPlacement ||
-            firstValue.teamName.localeCompare(secondValue.teamName)
+            comparePubgTeams(
+              {
+                id: firstValue.teamId,
+                name: firstValue.teamName,
+                totalPoints: firstValue.totalPoints,
+                kills: firstValue.kills,
+                wins: firstValue.wins,
+                placementPoints: firstValue.placementPoints,
+                avgPlacement: firstValue.avgPlacement,
+                slotNumber: firstValue.slotNumber ?? null,
+              },
+              {
+                id: secondValue.teamId,
+                name: secondValue.teamName,
+                totalPoints: secondValue.totalPoints,
+                kills: secondValue.kills,
+                wins: secondValue.wins,
+                placementPoints: secondValue.placementPoints,
+                avgPlacement: secondValue.avgPlacement,
+                slotNumber: secondValue.slotNumber ?? null,
+              }
+            )
         )
         .map((value, index) => ({
           ...value,
@@ -1900,10 +1918,26 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         }))
         .sort(
           (firstValue, secondValue) =>
-            secondValue.kills - firstValue.kills ||
-            secondValue.damage - firstValue.damage ||
-            secondValue.assists - firstValue.assists ||
-            firstValue.pubgName.localeCompare(secondValue.pubgName)
+            comparePubgPlayers(
+              {
+                id: firstValue.playerId,
+                pubgName: firstValue.pubgName,
+                kills: firstValue.kills,
+                damage: firstValue.damage,
+                knocks: firstValue.knocks,
+                assists: firstValue.assists,
+                avgKills: firstValue.avgKills,
+              },
+              {
+                id: secondValue.playerId,
+                pubgName: secondValue.pubgName,
+                kills: secondValue.kills,
+                damage: secondValue.damage,
+                knocks: secondValue.knocks,
+                assists: secondValue.assists,
+                avgKills: secondValue.avgKills,
+              }
+            )
         )
         .map((value, index) => ({
           ...value,
@@ -2111,7 +2145,8 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
     }
   }
 
-  const teams: PubgHubTeam[] = Array.from(teamSummaryMap.values())
+  const teams: PubgHubTeam[] = getRankedTeams(
+    Array.from(teamSummaryMap.values())
     .map((value) => {
       const roster = base.players
         .filter((player) => player.teamId === value.id && player.active)
@@ -2190,15 +2225,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         eventStats,
       } satisfies PubgHubTeam;
     })
-    .sort(
-      (firstValue, secondValue) =>
-        secondValue.formScore - firstValue.formScore ||
-        secondValue.totalPoints - firstValue.totalPoints ||
-        firstValue.avgPlacement - secondValue.avgPlacement ||
-        (firstValue.slotNumber ?? 999) - (secondValue.slotNumber ?? 999)
-    );
-
-  const teamRanks = new Map(teams.map((team, index) => [team.id, index + 1] as const));
+  );
 
   const playerSummaryMap = new Map<
     string,
@@ -2365,7 +2392,8 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
     }
   }
 
-  const players = Array.from(playerSummaryMap.values())
+  const players = getRankedPlayers(
+    Array.from(playerSummaryMap.values())
     .map((value) => {
       const team = value.teamId ? teamsById.get(value.teamId) : null;
       const eventStats = events
@@ -2432,13 +2460,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         mapStats: aggregateMapStats(value.mapInputs),
       } satisfies PubgHubPlayer;
     })
-    .sort(
-      (firstValue, secondValue) =>
-        secondValue.kills - firstValue.kills ||
-        secondValue.damage - firstValue.damage ||
-        secondValue.assists - firstValue.assists ||
-        firstValue.pubgName.localeCompare(secondValue.pubgName)
-    );
+  );
 
   const fantasyEvents = events
     .filter((event) => event.state !== "draft")
