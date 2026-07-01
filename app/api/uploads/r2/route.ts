@@ -23,6 +23,76 @@ export const runtime = "nodejs";
 
 const TEAM_UPLOAD_TYPES = new Set<UploadType>(["team_logo", "moss_file"]);
 
+function resolvePublicAssetKind(objectKey: string) {
+  const segments = objectKey.split("/").filter(Boolean);
+  const [rootFolder, , nestedFolder] = segments;
+  const managedFolder = rootFolder === "demo" ? nestedFolder : rootFolder;
+
+  if (managedFolder === "players") {
+    return "PLAYER AVATAR";
+  }
+
+  if (managedFolder === "teams") {
+    return "TEAM ASSET";
+  }
+
+  if (managedFolder === "sponsors") {
+    return "SPONSOR ASSET";
+  }
+
+  if (managedFolder === "events") {
+    return "EVENT ART";
+  }
+
+  if (managedFolder === "news") {
+    return "NEWS ART";
+  }
+
+  if (managedFolder === "media") {
+    return "MEDIA ART";
+  }
+
+  return "BRAVO ASSET";
+}
+
+function buildPublicAssetFallbackResponse(objectKey: string) {
+  const kind = resolvePublicAssetKind(objectKey);
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-label="${kind}">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#07111c" />
+          <stop offset="100%" stop-color="#13263d" />
+        </linearGradient>
+        <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#1d9bf0" />
+          <stop offset="100%" stop-color="#56c2ff" />
+        </linearGradient>
+      </defs>
+      <rect width="1280" height="720" rx="40" fill="url(#bg)" />
+      <rect x="72" y="72" width="1136" height="576" rx="30" fill="none" stroke="rgba(255,255,255,0.12)" />
+      <circle cx="196" cy="182" r="32" fill="url(#accent)" opacity="0.95" />
+      <path d="M184 182h188" stroke="url(#accent)" stroke-width="12" stroke-linecap="round" opacity="0.9" />
+      <text x="96" y="300" fill="#f8fafc" font-size="92" font-family="Arial, Helvetica, sans-serif" font-weight="700" letter-spacing="8">
+        BRAVO GAMING
+      </text>
+      <text x="96" y="390" fill="#93c5fd" font-size="36" font-family="Arial, Helvetica, sans-serif" font-weight="700" letter-spacing="10">
+        ${kind}
+      </text>
+      <text x="96" y="470" fill="#cbd5e1" font-size="28" font-family="Arial, Helvetica, sans-serif">
+        Managed public asset fallback served because the requested upload is unavailable.
+      </text>
+    </svg>
+  `.trim();
+
+  return new Response(svg, {
+    headers: {
+      "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+      "Content-Type": "image/svg+xml; charset=utf-8",
+    },
+  });
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -36,7 +106,7 @@ export async function GET(request: Request) {
     const stream = toReadableStream(object.Body);
 
     if (!stream) {
-      return Response.json({ error: "Public upload not found." }, { status: 404 });
+      return buildPublicAssetFallbackResponse(objectKey);
     }
 
     const headers = new Headers();
@@ -50,6 +120,13 @@ export async function GET(request: Request) {
     return new Response(stream as unknown as BodyInit, { headers });
   } catch (error: unknown) {
     if (isR2ObjectMissingError(error)) {
+      const { searchParams } = new URL(request.url);
+      const objectKey = normalizeManagedPublicObjectKey(searchParams.get("key") ?? "");
+
+      if (objectKey) {
+        return buildPublicAssetFallbackResponse(objectKey);
+      }
+
       return Response.json({ error: "Public upload not found." }, { status: 404 });
     }
 

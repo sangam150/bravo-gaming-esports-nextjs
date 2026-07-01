@@ -20,7 +20,10 @@ const communityLinks = [
 ] as const;
 
 const supportLinks = [
+  { label: "Rules", href: "/rules" },
+  { label: "Anti-Cheat", href: "/anti-cheat" },
   { label: "Contact", href: "/contact" },
+  { label: "Sponsor Us", href: "/about/sponsor-us" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
 ] as const;
@@ -103,7 +106,8 @@ export default function Footer() {
             </section>
 
             <section>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Follow Bravo</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Social</p>
+              <p className="mt-2 text-sm text-text-muted">Official Bravo channels</p>
               <div className="mt-5 flex flex-wrap gap-3">
                 {BRAVO_SOCIAL_LINKS.map((item) => (
                   <a
@@ -119,9 +123,6 @@ export default function Footer() {
                   </a>
                 ))}
               </div>
-              <p className="mt-5 text-sm leading-7 text-text-muted">
-                Follow official match posters, results, clips, and community updates across Bravo&apos;s public channels.
-              </p>
             </section>
           </div>
 

@@ -174,6 +174,7 @@ export function NewsIndexPage({
   const queryValue = readSearchParam(searchParams.q).trim();
   const query = queryValue.toLowerCase();
   const category = readSearchParam(searchParams.category, "all");
+  const hasNews = hub.news.length > 0;
   const categories = Array.from(new Set(hub.news.map((article) => article.category))).sort((firstValue, secondValue) =>
     firstValue.localeCompare(secondValue)
   );
@@ -201,7 +202,11 @@ export function NewsIndexPage({
               updates, and match-adjacent coverage
             </>
           }
-          description="Only real public Bravo posts belong here. Drafts stay hidden, scheduled stories wait for their publish window, and empty states stay honest when nothing is live yet."
+          description={
+            hasNews
+              ? "Official announcements, tournament updates, and community stories from Bravo Gaming Esports."
+              : "Official announcements, tournament updates, and community stories from Bravo Gaming Esports."
+          }
           actions={
             <>
               <Link href="/events" className="btn-secondary">
@@ -210,35 +215,39 @@ export function NewsIndexPage({
               <ArticleActionLink href={BRAVO_DISCORD_URL} label="Follow Updates" className="btn-primary" />
             </>
           }
-          stats={[
-            { label: "Published Posts", value: hub.news.length, tone: "blue" },
-            { label: "Featured", value: hub.news.filter((article) => article.featured).length, tone: "green" },
-            { label: "Categories", value: categories.length, tone: "yellow" },
-            { label: "Breaking", value: hub.news.filter((article) => article.breaking).length, tone: "red" },
-          ]}
-          aside={
+          stats={
+            hasNews
+              ? [
+                  { label: "Published Posts", value: hub.news.length, tone: "blue" as const },
+                  { label: "Featured", value: hub.news.filter((article) => article.featured).length, tone: "green" as const },
+                  { label: "Categories", value: categories.length, tone: "yellow" as const },
+                  { label: "Breaking", value: hub.news.filter((article) => article.breaking).length, tone: "red" as const },
+                ]
+              : undefined
+          }
+          aside={hasNews ? (
             <div className="space-y-4">
               <div>
-                <p className="section-title">Visibility Rules</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Public-safe publishing only</h2>
+                <p className="section-title">News Desk</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Public coverage only</h2>
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
-                Draft stories stay private until editorial review is complete.
+                Only approved public stories and tournament updates appear in this feed.
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
-                Scheduled stories appear automatically after their configured publish time.
+                Breaking announcements and event stories are published here as they go live.
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
-                Published coverage appears here as soon as it is ready for public release.
+                Use Discord and the events board for immediate match-day updates.
               </div>
             </div>
-          }
+          ) : undefined}
         />
 
-        {hub.news.length === 0 ? (
+        {!hasNews ? (
           <EmptyState
-            title="No published news posts yet"
-            description="Editorial stories and public updates will appear here once they are published from the Bravo admin newsroom."
+            title="No official news has been published yet"
+            description="Announcements, tournament updates, and community stories will appear here soon."
             action={
               <div className="flex flex-wrap justify-center gap-2">
                 <Link href="/events" className="btn-secondary">

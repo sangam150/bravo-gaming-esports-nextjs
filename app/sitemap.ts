@@ -8,6 +8,7 @@ const staticRoutes = [
   "",
   "/stats",
   "/about",
+  "/anti-cheat",
   "/contact",
   "/events",
   "/media",
@@ -16,6 +17,7 @@ const staticRoutes = [
   "/pubg",
   "/pubg/community",
   "/pubg/leaderboards",
+  "/rules",
   "/sponsors",
   "/terms",
 ];

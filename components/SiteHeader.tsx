@@ -57,7 +57,7 @@ export default async function SiteHeader() {
     title: featuredEvent?.name ?? "Featured PUBG Event",
     description:
       featuredEvent?.summary ??
-      "The next flagship PUBG event will appear here automatically as soon as it is published.",
+      "The next flagship PUBG event will be announced here once the schedule is live.",
     meta: featuredEvent
       ? `${toTitleCase(featuredEvent.status)} | ${formatShortDate(featuredEvent.startDate)}`
       : "PUBG event coverage",
@@ -85,7 +85,7 @@ export default async function SiteHeader() {
     title: topTeam?.name ?? "Top Team",
     description: topTeam
       ? `${topTeam.formLabel} form with ${topTeam.totalPoints} total points and ${topTeam.kills} kills across the current tracked results window.`
-      : "The leaderboard leader will appear here automatically once published PUBG results are available.",
+      : "Official top-team form will appear here after published PUBG results are available.",
     meta: topTeam ? `#1 board slot | ${topTeam.matches} matches | ${topTeam.wins} WWCD` : "PUBG flagship board",
     href: topTeam ? `/pubg/teams/${topTeam.slug ?? topTeam.id}` : "/pubg/teams",
     actionLabel: topTeam ? "Open Team" : "Browse Teams",

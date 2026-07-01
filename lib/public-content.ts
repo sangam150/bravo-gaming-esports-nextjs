@@ -23,6 +23,7 @@ const PUBLIC_TEXT_MARKERS = [
 const PUBLIC_ASSET_MARKERS = [
   "bravo_demo_seed_2026",
   "/demo/",
+  "launch-event-banner",
   "launch-preview",
   "launch_preview",
   "placeholder",

@@ -642,7 +642,7 @@ export function PlatformHomePage({
                 </div>
               ) : (
                 <div className="rounded-[30px] border border-white/[0.08] bg-black/30 p-5">
-                  <EmptyState title="No upcoming tournaments" description="There are currently no upcoming tournaments. New events will be announced soon." />
+                  <EmptyState title="No events scheduled right now" description="Upcoming tournaments and registration windows will be posted here soon." />
                 </div>
               )}
             </div>
@@ -750,7 +750,7 @@ export function PlatformHomePage({
           </div>
 
           <div className="esports-card p-6">
-            <SectionHeader eyebrow="Featured Event" title={featuredTournament?.name ?? "Next Bravo event"} description={featuredTournament?.summary ?? "The next published event will headline this block automatically."} />
+            <SectionHeader eyebrow="Featured Event" title={featuredTournament?.name ?? "Next Bravo event"} description={featuredTournament?.summary ?? "The next Bravo event will headline this block once it is announced."} />
             {featuredTournament ? (
               <div className="mt-5 space-y-4">
                 {featuredTournament.bannerUrl ? (
@@ -781,7 +781,7 @@ export function PlatformHomePage({
               </div>
             ) : (
               <div className="mt-5">
-                <EmptyState title="No upcoming tournaments" description="There are currently no upcoming tournaments. New events will be announced soon." />
+                <EmptyState title="No events scheduled right now" description="Upcoming tournaments and registration windows will be posted here soon." />
               </div>
             )}
           </div>
@@ -894,7 +894,7 @@ export function PlatformHomePage({
               ))}
               {homepageSponsors.length === 0 ? (
                 <div className="sm:col-span-2">
-                  <EmptyState title="No sponsors or partners announced yet" description="Our sponsors and partners will be featured here once officially announced." />
+                  <EmptyState title="Partner lineup coming soon" description="Official sponsors and partners will be listed here once announcements go live." />
                 </div>
               ) : null}
             </div>
@@ -1338,7 +1338,7 @@ export function PlatformGameDetailPage({
                 <EventCard key={event.id} event={event} />
               ))}
               {relatedEvents.length === 0 ? (
-                  <EmptyState title="No upcoming tournaments" description="There are currently no upcoming tournaments. New events will be announced soon." />
+                  <EmptyState title="No events scheduled right now" description="Upcoming tournaments and registration windows will be posted here soon." />
               ) : null}
             </div>
           </div>
@@ -1385,6 +1385,7 @@ export function PlatformEventsPage({
 }) {
   const game = readSearchParam(searchParams.game, "all");
   const status = readSearchParam(searchParams.status, "all");
+  const hasEvents = hub.events.length > 0;
   const pageParam = Number.parseInt(readSearchParam(searchParams.page, "1"), 10);
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
   const pageSize = 12;
@@ -1412,68 +1413,105 @@ export function PlatformEventsPage({
               Events
             </>
           }
-          description="Live, upcoming, and recently completed competitions from the Bravo public schedule."
-          actions={
-            <>
-              <Link href="/calendar" className="btn-secondary">
-                Calendar
-              </Link>
-              <Link href="/matches" className="btn-primary">
-                Match Center
-              </Link>
-            </>
+          description={
+            hasEvents
+              ? "Live, upcoming, and recently completed competitions from the Bravo public schedule."
+              : "No official events are published yet. Tournament registration and scrim schedules will appear here soon."
           }
-          stats={[
-            { label: "Events", value: hub.events.length, tone: "blue" },
-            { label: "Ongoing", value: hub.events.filter((event) => event.status === "live").length, tone: "green" },
-            { label: "Upcoming", value: hub.events.filter((event) => event.status === "upcoming").length, tone: "yellow" },
-            { label: "Completed", value: hub.events.filter((event) => event.status === "completed").length, tone: "red" },
-          ]}
+          actions={
+            hasEvents ? (
+              <>
+                <Link href="/calendar" className="btn-secondary">
+                  Calendar
+                </Link>
+                <Link href="/matches" className="btn-primary">
+                  Match Center
+                </Link>
+              </>
+            ) : (
+              <>
+                <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
+                  Join Discord
+                </a>
+                <Link href="/teams/register" className="btn-primary">
+                  Register Team
+                </Link>
+              </>
+            )
+          }
+          stats={
+            hasEvents
+              ? [
+                  { label: "Events", value: hub.events.length, tone: "blue" as const },
+                  { label: "Ongoing", value: hub.events.filter((event) => event.status === "live").length, tone: "green" as const },
+                  { label: "Upcoming", value: hub.events.filter((event) => event.status === "upcoming").length, tone: "yellow" as const },
+                  { label: "Completed", value: hub.events.filter((event) => event.status === "completed").length, tone: "red" as const },
+                ]
+              : undefined
+          }
         />
 
-        <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
-          <div className="tab-bar mb-3">
-            <Link href="/events" className={`tab-item ${status === "all" ? "tab-item-active" : ""}`}>
-              All
-            </Link>
-            <Link href="/events?status=upcoming" className={`tab-item ${status === "upcoming" ? "tab-item-active" : ""}`}>
-              Upcoming
-            </Link>
-            <Link href="/events?status=live" className={`tab-item ${status === "live" ? "tab-item-active" : ""}`}>
-              Ongoing
-            </Link>
-            <Link href="/events?status=completed" className={`tab-item ${status === "completed" ? "tab-item-active" : ""}`}>
-              Completed
-            </Link>
-          </div>
-          <form method="get" className="grid gap-3 xl:grid-cols-[1fr,1fr,auto]">
-            <select name="game" defaultValue={game} className="input-esports h-11">
-              <option value="all">All games</option>
-              {hub.games.map((gameRow) => (
-                <option key={gameRow.slug} value={gameRow.slug}>
-                  {gameRow.name}
-                </option>
-              ))}
-            </select>
-            <select name="status" defaultValue={status} className="input-esports h-11">
-              <option value="all">All statuses</option>
-              <option value="live">Live</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="completed">Completed</option>
-              <option value="planned">Planned</option>
-            </select>
-            <div className="flex items-end gap-2">
-              <button type="submit" className="btn-primary h-11">
-                Apply
-              </button>
-              <Link href="/events" className="btn-secondary h-11">
-                Reset
+        {hasEvents ? (
+          <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
+            <div className="tab-bar mb-3">
+              <Link href="/events" className={`tab-item ${status === "all" ? "tab-item-active" : ""}`}>
+                All
+              </Link>
+              <Link href="/events?status=upcoming" className={`tab-item ${status === "upcoming" ? "tab-item-active" : ""}`}>
+                Upcoming
+              </Link>
+              <Link href="/events?status=live" className={`tab-item ${status === "live" ? "tab-item-active" : ""}`}>
+                Ongoing
+              </Link>
+              <Link href="/events?status=completed" className={`tab-item ${status === "completed" ? "tab-item-active" : ""}`}>
+                Completed
               </Link>
             </div>
-          </form>
-        </section>
+            <form method="get" className="grid gap-3 xl:grid-cols-[1fr,1fr,auto]">
+              <select name="game" defaultValue={game} className="input-esports h-11">
+                <option value="all">All games</option>
+                {hub.games.map((gameRow) => (
+                  <option key={gameRow.slug} value={gameRow.slug}>
+                    {gameRow.name}
+                  </option>
+                ))}
+              </select>
+              <select name="status" defaultValue={status} className="input-esports h-11">
+                <option value="all">All statuses</option>
+                <option value="live">Live</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="completed">Completed</option>
+                <option value="planned">Planned</option>
+              </select>
+              <div className="flex items-end gap-2">
+                <button type="submit" className="btn-primary h-11">
+                  Apply
+                </button>
+                <Link href="/events" className="btn-secondary h-11">
+                  Reset
+                </Link>
+              </div>
+            </form>
+          </section>
+        ) : null}
 
-        {paginatedEvents.length === 0 ? (
+        {!hasEvents ? (
+          <section className="rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.96))] p-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Event Board</p>
+            <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">No official events are published yet</h2>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">
+              Tournament registration and scrim schedules will appear here soon.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
+                Join Discord
+              </a>
+              <Link href="/teams/register" className="btn-primary">
+                Register Team
+              </Link>
+            </div>
+          </section>
+        ) : paginatedEvents.length === 0 ? (
           <section className="grid gap-4 xl:grid-cols-2">
             <div className="xl:col-span-2">
               <EmptyState title="No events match this view" description="Try adjusting the game or status filters to browse the public event board." />
@@ -2657,6 +2695,7 @@ export function PlatformMediaPage({
   searchParams: SearchParamDictionary;
 }) {
   const category = readSearchParam(searchParams.category, "all");
+  const hasMedia = hub.media.length > 0;
   const pageParam = Number.parseInt(readSearchParam(searchParams.page, "1"), 10);
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
   const pageSize = 9;
@@ -2676,7 +2715,11 @@ export function PlatformMediaPage({
               Media Center
             </>
           }
-          description="Published highlights, broadcasts, and video coverage from the Bravo public media library."
+          description={
+            hasMedia
+              ? "Published highlights, broadcasts, and video coverage from the Bravo public media library."
+              : "Published highlights, broadcasts, and video coverage from the Bravo public media library."
+          }
           actions={
             <>
               <Link href="/news" className="btn-secondary">
@@ -2687,34 +2730,40 @@ export function PlatformMediaPage({
               </Link>
             </>
           }
-          stats={[
-            { label: "Media Items", value: hub.media.length, tone: "blue" },
-            { label: "Featured", value: hub.media.filter((item) => item.featured).length, tone: "green" },
-            { label: "Categories", value: categories.length, tone: "yellow" },
-            { label: "Games", value: new Set(hub.media.map((item) => item.gameSlug)).size, tone: "red" },
-          ]}
+          stats={
+            hasMedia
+              ? [
+                  { label: "Media Items", value: hub.media.length, tone: "blue" as const },
+                  { label: "Featured", value: hub.media.filter((item) => item.featured).length, tone: "green" as const },
+                  { label: "Categories", value: categories.length, tone: "yellow" as const },
+                  { label: "Games", value: new Set(hub.media.map((item) => item.gameSlug)).size, tone: "red" as const },
+                ]
+              : undefined
+          }
         />
 
-        <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
-          <form method="get" className="grid gap-3 xl:grid-cols-[1fr,auto]">
-            <select name="category" defaultValue={category} className="input-esports h-11">
-              <option value="all">All categories</option>
-              {categories.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-            <div className="flex items-end gap-2">
-              <button type="submit" className="btn-primary h-11">
-                Apply
-              </button>
-              <Link href="/media" className="btn-secondary h-11">
-                Reset
-              </Link>
-            </div>
-          </form>
-        </section>
+        {hasMedia ? (
+          <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
+            <form method="get" className="grid gap-3 xl:grid-cols-[1fr,auto]">
+              <select name="category" defaultValue={category} className="input-esports h-11">
+                <option value="all">All categories</option>
+                {categories.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+              <div className="flex items-end gap-2">
+                <button type="submit" className="btn-primary h-11">
+                  Apply
+                </button>
+                <Link href="/media" className="btn-secondary h-11">
+                  Reset
+                </Link>
+              </div>
+            </form>
+          </section>
+        ) : null}
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {media.map((item) => (
@@ -2748,7 +2797,25 @@ export function PlatformMediaPage({
               </div>
             </div>
           ))}
-          {media.length === 0 ? (
+          {!hasMedia ? (
+            <div className="md:col-span-2 xl:col-span-3">
+              <div className="rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.96))] p-6">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Media Queue</p>
+                <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">No official media has been published yet</h2>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">
+                  Highlights, broadcasts, clips, and featured coverage will appear here after publication.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Link href="/news" className="btn-secondary">
+                    Browse News
+                  </Link>
+                  <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-primary">
+                    Join Discord
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : media.length === 0 ? (
             <div className="md:col-span-2 xl:col-span-3">
               <EmptyState
                 title="No published media yet"
@@ -3054,8 +3121,8 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
           {publicSponsors.length === 0 ? (
             <div className="md:col-span-2 xl:col-span-3">
               <EmptyState
-                title="No sponsors or partners announced yet"
-                description="Sponsor cards will show Website and View Profile actions once official partners are published."
+                title="Partner lineup coming soon"
+                description="Official partner cards will include website and profile links once announcements go live."
               />
             </div>
           ) : null}
