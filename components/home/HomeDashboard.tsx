@@ -110,7 +110,7 @@ function getSponsorKindLabel(kind: PlatformSponsorProfile["kind"]) {
 }
 
 function getSponsorVisualUrl(sponsor: PlatformSponsorProfile) {
-  return sponsor.bannerUrl ?? sponsor.designAssetUrl ?? sponsor.logoUrl ?? null;
+  return sponsor.logoUrl ?? sponsor.designAssetUrl ?? sponsor.bannerUrl ?? null;
 }
 
 function getEventDetailHref(event?: PlatformEvent | null) {
@@ -190,6 +190,61 @@ function getSponsorSupportingLabel(sponsor: PlatformSponsorProfile) {
   const tierLabel = getSponsorTierLabel(sponsor);
 
   return kindLabel.toLowerCase() === tierLabel.toLowerCase() ? null : kindLabel;
+}
+
+function getSponsorInitials(name?: string | null) {
+  const normalizedName = name?.trim() ?? "";
+  if (!normalizedName) {
+    return "BG";
+  }
+
+  const words = normalizedName.split(/\s+/).filter(Boolean);
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function getSponsorOneLineDescription(sponsor: PlatformSponsorProfile) {
+  return (
+    sponsor.description?.trim() ||
+    "Official partner supporting Bravo Gaming Esports tournaments, broadcasts, and competitive coverage."
+  );
+}
+
+function SponsorLogoBadge({
+  sponsor,
+  className,
+  imageClassName,
+  initialsClassName,
+}: {
+  sponsor: PlatformSponsorProfile;
+  className?: string;
+  imageClassName?: string;
+  initialsClassName?: string;
+}) {
+  const visualUrl = getSponsorVisualUrl(sponsor);
+
+  return (
+    <div
+      className={joinClasses(
+        "flex items-center justify-center overflow-hidden rounded-[18px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.18),transparent_34%),linear-gradient(180deg,rgba(13,20,36,0.98),rgba(8,12,24,0.98))]",
+        className
+      )}
+    >
+      {visualUrl ? (
+        <img src={visualUrl} alt={sponsor.name} className={joinClasses("w-auto object-contain", imageClassName)} />
+      ) : (
+        <span className={joinClasses("font-display font-black uppercase tracking-[0.14em] text-white", initialsClassName)}>
+          {getSponsorInitials(sponsor.name)}
+        </span>
+      )}
+    </div>
+  );
 }
 
 function resolveHomepageEvents(hub: PlatformHubData) {
@@ -393,12 +448,12 @@ function SponsorStrip({
 
   return (
     <section className="light-card p-4 sm:p-5">
-      <PanelHeader title="Official Partners" href="/sponsors" hrefLabel="View All" />
+      <PanelHeader title="Sponsor Showcase" href="/sponsors" hrefLabel="View All" />
       <div className="mb-4 flex flex-col gap-4 rounded-[22px] border border-white/[0.08] bg-black/15 p-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Official Partners</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Partners & Sponsors</p>
           <p className="mt-3 text-sm leading-7 text-text-secondary">
-            Proudly supported by partners helping grow Nepal PUBG PC esports, tournament broadcasts, and community events.
+            Published sponsor profiles, official partners, and brand collaborators supporting Bravo tournaments, broadcasts, and community events.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -420,17 +475,12 @@ function SponsorStrip({
             <div className={joinClasses("grid gap-0", sponsors.length === 1 ? "lg:grid-cols-[0.92fr,1.08fr]" : "")}>
               <div className="relative flex min-h-[180px] items-center justify-center overflow-hidden border-b border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.2),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.98),rgba(7,11,21,0.98))] p-6 lg:border-b-0 lg:border-r">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(20,126,245,0.18),transparent_30%),radial-gradient(circle_at_82%_80%,rgba(239,68,68,0.08),transparent_24%)]" />
-                {getSponsorVisualUrl(sponsor) ? (
-                  <img
-                    src={getSponsorVisualUrl(sponsor) ?? undefined}
-                    alt={sponsor.name}
-                    className="relative z-10 max-h-24 w-auto object-contain sm:max-h-28"
-                  />
-                ) : (
-                  <span className="relative z-10 font-display text-3xl font-black uppercase tracking-[0.12em] text-white">
-                    {sponsor.name}
-                  </span>
-                )}
+                <SponsorLogoBadge
+                  sponsor={sponsor}
+                  className="relative z-10 h-28 w-full max-w-[12rem] rounded-[24px] border-white/12 bg-black/20 sm:h-32"
+                  imageClassName="max-h-24 sm:max-h-28"
+                  initialsClassName="text-3xl sm:text-4xl"
+                />
               </div>
 
               <div className="flex h-full flex-col p-5 sm:p-6">
@@ -446,7 +496,7 @@ function SponsorStrip({
                 </div>
                 <h3 className="mt-4 font-display text-2xl font-black uppercase text-white">{sponsor.name}</h3>
                 <p className="mt-3 text-sm leading-7 text-text-secondary">
-                  {sponsor.description || "Official partner support for Bravo Gaming Esports tournaments, broadcast coverage, and competition operations."}
+                  {getSponsorOneLineDescription(sponsor)}
                 </p>
                 {sponsor.supportedEvents.length > 0 ? (
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -469,6 +519,86 @@ function SponsorStrip({
             </div>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function FeaturedSponsorStrip({
+  sponsor,
+  supportingSponsors,
+}: {
+  sponsor: PlatformSponsorProfile | null;
+  supportingSponsors: PlatformSponsorProfile[];
+}) {
+  if (!sponsor?.name.trim()) {
+    return null;
+  }
+
+  const tierLabel = getSponsorTierLabel(sponsor);
+  const supportingLabel = getSponsorSupportingLabel(sponsor);
+  const compactSupportingSponsors = supportingSponsors
+    .filter((item) => item.name.trim())
+    .slice(0, 2);
+
+  return (
+    <section className="light-card !p-0">
+      <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(10,16,32,0.96),rgba(7,11,21,0.98))] px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.28)] sm:px-5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_16%,rgba(47,152,255,0.18),transparent_28%),radial-gradient(circle_at_88%_50%,rgba(245,199,106,0.08),transparent_24%)]" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Presented By</p>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <SponsorLogoBadge
+                sponsor={sponsor}
+                className="h-14 w-14 shrink-0 rounded-[18px] border-white/12 bg-black/20 sm:h-16 sm:w-16"
+                imageClassName="max-h-10 sm:max-h-12"
+                initialsClassName="text-lg sm:text-xl"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="min-w-0 truncate font-display text-xl font-black uppercase text-white sm:text-[1.35rem]">
+                    {sponsor.name}
+                  </h2>
+                  <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent-blue-light">
+                    {tierLabel}
+                  </span>
+                  {supportingLabel ? (
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">
+                      {supportingLabel}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 line-clamp-1 text-sm text-text-secondary">{getSponsorOneLineDescription(sponsor)}</p>
+                {compactSupportingSponsors.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Supported By</span>
+                    {compactSupportingSponsors.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={getSponsorHref(item)}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1.5 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
+                      >
+                        <SponsorLogoBadge
+                          sponsor={item}
+                          className="h-6 w-6 rounded-full border-white/10 bg-black/20"
+                          imageClassName="max-h-4"
+                          initialsClassName="text-[10px]"
+                        />
+                        <span className="max-w-[8rem] truncate text-[10px] font-black uppercase tracking-[0.14em] text-white">
+                          {item.name}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <ActionLink href="/sponsors" variant="secondary" className="w-full justify-center sm:w-auto lg:shrink-0">
+            Become a Sponsor
+          </ActionLink>
+        </div>
       </div>
     </section>
   );
@@ -1280,14 +1410,19 @@ export default function HomeDashboard({
   const orderedPreferredSponsors = preferredSponsorOrder
     .map((name) => hub.sponsors.find((sponsor) => sponsor.name.toLowerCase().includes(name)) ?? null)
     .filter((sponsor): sponsor is PlatformSponsorProfile => Boolean(sponsor));
-  const homepageSponsors =
+  const homepageSponsors = (
     orderedPreferredSponsors.length > 0
       ? orderedPreferredSponsors
       : (
           hub.home.featuredSponsors.length > 0
             ? hub.home.featuredSponsors
             : hub.sponsors.filter((sponsor) => sponsor.showOnHomepage)
-        ).slice(0, 4);
+        )
+  )
+    .filter((sponsor) => sponsor.name.trim().length > 0)
+    .slice(0, 4);
+  const featuredHomepageSponsor = homepageSponsors[0] ?? null;
+  const supportingHomepageSponsors = homepageSponsors.slice(1);
   const showCombinedUpdatesPanel =
     pubg.matches.length === 0 &&
     hub.home.upcomingEvents.length === 0 &&
@@ -1298,6 +1433,7 @@ export default function HomeDashboard({
     <main className="page-shell pb-20 sm:pb-24">
       <div className="page-stack">
         <HeroSection hub={hub} pubg={pubg} featuredEvent={featuredEvent} />
+        <FeaturedSponsorStrip sponsor={featuredHomepageSponsor} supportingSponsors={supportingHomepageSponsors} />
         <LivePulse pubg={pubg} />
 
         {showCombinedUpdatesPanel ? (
