@@ -14,6 +14,12 @@ schema_paths = [
   "./migrations/006_milestone4_profiles_auth_upsert_compat.sql",
   "./migrations/007_milestone4_legacy_users_auth_compat.sql",
   "./migrations/008_launch_hotfix_blockers.sql",
+  "./migrations/009_profiles_rls_policy_cleanup.sql",
+  "./migrations/010_pubg_import_lifecycle_extensions.sql",
+  "./migrations/011_profile_discord_links.sql",
+  "./migrations/012_fix_security_invoker_leaderboard_views.sql",
+  "./migrations/013_add_demo_seed_tag_columns.sql",
+  "./migrations/014_shared_rate_limits.sql",
 ]
 
 [db.seed]

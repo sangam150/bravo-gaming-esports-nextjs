@@ -9,7 +9,7 @@ import { logServerError } from "@/lib/server-monitoring";
 import type { PubgImportWatcher, Scrim } from "@/lib/types";
 
 export async function GET(request: Request) {
-  const limited = enforceRateLimit(request, { key: "cron-sync-matches", maxRequests: 30, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "cron-sync-matches", maxRequests: 30, windowMs: 60_000 });
   if (limited) return limited;
 
   const authHeader = request.headers.get("authorization");
@@ -197,4 +197,5 @@ export async function GET(request: Request) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
+
 

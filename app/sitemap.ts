@@ -11,14 +11,17 @@ const staticRoutes = [
   "/anti-cheat",
   "/contact",
   "/events",
+  "/live-stream",
   "/media",
   "/news",
   "/privacy",
   "/pubg",
   "/pubg/community",
   "/pubg/leaderboards",
+  "/results",
   "/rules",
   "/sponsors",
+  "/teams/register",
   "/terms",
 ];
 

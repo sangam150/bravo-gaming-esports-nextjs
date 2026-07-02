@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getLiveStreamFeed, getStreams, getVideos } from "@/lib/data";
+import { buildContentMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: "Live Stream",
+export const metadata: Metadata = buildContentMetadata({
+  title: "Live Stream | Bravo Gaming Esports",
   description: "Watch Bravo Gaming Esports live coverage, upcoming PUBG streams, and recent video highlights.",
-};
+  path: "/live-stream",
+  type: "website",
+});
 
 export const revalidate = 300;
 

@@ -13,7 +13,7 @@ import {
 } from "@/lib/user-facing-errors";
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, { key: "auth-session", maxRequests: 10, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "auth-session", maxRequests: 10, windowMs: 60_000 });
   if (limited) return limited;
 
   try {
@@ -85,3 +85,4 @@ export async function DELETE() {
   );
   return response;
 }
+

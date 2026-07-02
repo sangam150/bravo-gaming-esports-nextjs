@@ -8,7 +8,7 @@ import {
 } from "@/lib/user-facing-errors";
 
 export async function GET(request: Request) {
-  const limited = enforceRateLimit(request, { key: "team-workspace", maxRequests: 30, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "team-workspace", maxRequests: 30, windowMs: 60_000 });
   if (limited) return limited;
 
   const auth = await requireTeamWorkspaceUser(request);
@@ -35,3 +35,4 @@ export async function GET(request: Request) {
     });
   }
 }
+

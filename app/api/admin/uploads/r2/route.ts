@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   if (unauthorized) return unauthorized;
 
   const session = await getRequestSession(request);
-  const limited = enforceRateLimit(request, { key: "admin-upload-r2", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "admin-upload-r2", maxRequests: 20, windowMs: 60_000 });
   if (limited) return limited;
 
   try {
@@ -95,3 +95,4 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: message }, { status: 500 });
   }
 }
+

@@ -1939,6 +1939,7 @@ export async function createRegistration(data: Omit<TeamRegistration, "id" | "cr
     captainEmail: cleanString(data.captainEmail),
     playerNames: cleanStringArray(data.playerNames) ?? [],
     tournamentId: cleanString(data.tournamentId),
+    tournamentTitle: cleanString(data.tournamentTitle),
     logoUrl: cleanString(data.logoUrl),
     logoPath: cleanString(data.logoPath),
     logoUploadId: cleanString(data.logoUploadId),
@@ -1966,6 +1967,7 @@ export async function updateRegistrationStatus(
     logoUploadId: cleanString(updates.logoUploadId),
     logoUrl: cleanString(updates.logoUrl),
     tournamentId: cleanString(updates.tournamentId),
+    tournamentTitle: cleanString(updates.tournamentTitle),
   } satisfies Partial<TeamRegistration>;
 
   if (isDocumentStoreConfigured()) {

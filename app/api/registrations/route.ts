@@ -13,6 +13,11 @@ import { getManagedUploadRecord, getPrivateObject, readObjectBodyAsBuffer, uploa
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { revalidateCompetitionPaths, revalidateTeamPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
+import {
+  isValidDiscordHandle,
+  RegistrationValidationError,
+  validateRegistrationTarget,
+} from "@/lib/team-registration";
 import { createUploadRecord } from "@/lib/upload-records";
 import {
   jsonErrorResponse,
@@ -96,14 +101,29 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, { key: "team-registration", maxRequests: 5, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "team-registration", maxRequests: 5, windowMs: 60_000 });
   if (limited) return limited;
 
   try {
     const body = await request.json();
+    const playerNames = Array.isArray(body.playerNames)
+      ? body.playerNames.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      : [];
     if (!body.teamName || !body.captainName || !body.captainDiscord) {
       return Response.json(
         { error: "Please provide the team name, captain name, and captain Discord before submitting." },
+        { status: 400 }
+      );
+    }
+    if (playerNames.length > 4) {
+      return Response.json(
+        { error: "Team registrations support up to 4 player names in this form." },
+        { status: 400 }
+      );
+    }
+    if (!isValidDiscordHandle(body.captainDiscord)) {
+      return Response.json(
+        { error: "Enter a valid Discord username so Bravo admins can contact your team after review." },
         { status: 400 }
       );
     }
@@ -113,18 +133,40 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    const pendingUploadRecord = await getManagedUploadRecord(String(body.logoUploadId)).catch(() => null);
+    if (
+      !pendingUploadRecord ||
+      pendingUploadRecord.fileType !== "team_logo_pending" ||
+      pendingUploadRecord.filePath !== String(body.logoPath) ||
+      pendingUploadRecord.url !== String(body.logoUrl)
+    ) {
+      return Response.json(
+        { error: "Upload the team logo again before you submit this registration." },
+        { status: 400 }
+      );
+    }
+    const registrationTarget = await validateRegistrationTarget({
+      tournamentId: typeof body.tournamentId === "string" ? body.tournamentId : undefined,
+      teamName: body.teamName,
+      captainDiscord: body.captainDiscord,
+    });
     const result = await createRegistration({
       teamName: body.teamName,
       captainName: body.captainName,
       captainDiscord: body.captainDiscord,
-      playerNames: body.playerNames ?? [],
-      tournamentId: body.tournamentId,
+      playerNames,
+      tournamentId: registrationTarget?.id ?? body.tournamentId,
+      tournamentTitle: registrationTarget?.title,
       logoUrl: body.logoUrl,
       logoPath: body.logoPath,
       logoUploadId: body.logoUploadId,
     });
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
+    if (error instanceof RegistrationValidationError) {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+
     await logServerError("registrations.create", error, request);
     return jsonErrorResponse(error, {
       status: 500,
@@ -137,7 +179,7 @@ export async function PATCH(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = enforceRateLimit(request, { key: "registration-admin-update", maxRequests: 30, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "registration-admin-update", maxRequests: 30, windowMs: 60_000 });
   if (limited) return limited;
 
   try {
@@ -224,6 +266,7 @@ export async function PATCH(request: Request) {
       logoUploadId: approvedLogo.logoUploadId,
       logoUrl: approvedLogo.logoUrl,
       tournamentId: registration.tournamentId,
+      tournamentTitle: registration.tournamentTitle,
     });
 
     await writeAuditLogFromRequest(request, {

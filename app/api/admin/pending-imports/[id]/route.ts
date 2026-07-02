@@ -14,7 +14,7 @@ export async function PATCH(
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = enforceRateLimit(request, { key: "admin-pending-imports-action", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "admin-pending-imports-action", maxRequests: 20, windowMs: 60_000 });
   if (limited) return limited;
 
   const { id } = await context.params;
@@ -105,7 +105,7 @@ export async function DELETE(
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = enforceRateLimit(request, { key: "admin-pending-imports-delete", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "admin-pending-imports-delete", maxRequests: 20, windowMs: 60_000 });
   if (limited) return limited;
 
   const { id } = await context.params;
@@ -124,4 +124,3 @@ export async function DELETE(
     return Response.json({ error: message }, { status: 500 });
   }
 }
-

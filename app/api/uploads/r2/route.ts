@@ -144,7 +144,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, { key: "shared-upload-r2", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "shared-upload-r2", maxRequests: 20, windowMs: 60_000 });
   if (limited) return limited;
 
   const auth = await requireAuthenticatedUser(request);
@@ -257,3 +257,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

@@ -17,7 +17,7 @@ export const runtime = "nodejs";
 const TEAM_UPLOAD_TYPES = new Set<UploadType>(["team_logo", "moss_file"]);
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, { key: "team-upload", maxRequests: 12, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "team-upload", maxRequests: 12, windowMs: 60_000 });
   if (limited) return limited;
 
   const auth = await requireTeamWorkspaceUser(request);
@@ -114,3 +114,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

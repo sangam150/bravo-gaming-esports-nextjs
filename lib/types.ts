@@ -329,6 +329,7 @@ export interface TeamRegistration {
   captainEmail?: string;
   playerNames: string[];
   tournamentId?: string;
+  tournamentTitle?: string;
   logoUrl?: string;
   logoPath?: string;
   logoUploadId?: string;

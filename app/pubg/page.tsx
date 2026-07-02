@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { PubgDashboardPage } from "@/components/pubg/PubgPublicPages";
 import { getCurrentSeasonOverview } from "@/lib/data";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgDashboardData } from "@/lib/pubg-hub";
 
-export const metadata: Metadata = {
-  title: "Bravo Gaming PUBG PC",
-  description: "Bravo Gaming's PUBG PC hub for seasons, tournaments, scrims, match results, leaderboards, teams, players, partners, and media.",
-};
+export const metadata: Metadata = buildContentMetadata({
+  title: "PUBG Hub | Bravo Gaming Esports",
+  description: "Bravo Gaming's PUBG PC hub for seasons, tournaments, scrims, results, leaderboards, teams, players, sponsors, and media.",
+  path: "/pubg",
+  type: "website",
+});
 
 export const revalidate = 300;
 

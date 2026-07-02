@@ -99,11 +99,9 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
     updateScrollState();
     window.addEventListener("scroll", updateScrollState, { passive: true });
     window.addEventListener("resize", updateScrollState);
-    const intervalId = window.setInterval(updateScrollState, 240);
     return () => {
       window.removeEventListener("scroll", updateScrollState);
       window.removeEventListener("resize", updateScrollState);
-      window.clearInterval(intervalId);
     };
   }, []);
 

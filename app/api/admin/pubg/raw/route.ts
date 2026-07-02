@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = enforceRateLimit(request, { key: "admin-pubg-raw", maxRequests: 30, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "admin-pubg-raw", maxRequests: 30, windowMs: 60_000 });
   if (limited) return limited;
 
   try {
@@ -29,3 +29,4 @@ export async function GET(request: Request) {
     return Response.json({ error: message }, { status: 500 });
   }
 }
+

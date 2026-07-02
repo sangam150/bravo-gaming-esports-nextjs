@@ -33,7 +33,9 @@ export function buildContentMetadata({
   const socialImage = resolveAbsoluteUrl(ogImageUrl || imageUrl || "/images/bravo-logo.png");
 
   return {
-    title,
+    title: {
+      absolute: title,
+    },
     description,
     alternates: {
       canonical: canonicalPath,

@@ -152,7 +152,7 @@ export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = enforceRateLimit(request, { key: "admin-pubg-match-import", maxRequests: 12, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "admin-pubg-match-import", maxRequests: 12, windowMs: 60_000 });
   if (limited) return limited;
 
   try {
@@ -202,3 +202,4 @@ export async function POST(request: Request) {
     return Response.json({ error: message }, { status: getErrorStatus(message) });
   }
 }
+

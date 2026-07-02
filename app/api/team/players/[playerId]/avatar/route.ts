@@ -21,7 +21,7 @@ type RouteContext = {
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: RouteContext) {
-  const limited = enforceRateLimit(request, { key: "team-player-avatar-upload", maxRequests: 12, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "team-player-avatar-upload", maxRequests: 12, windowMs: 60_000 });
   if (limited) return limited;
 
   const auth = await requireTeamWorkspaceUser(request);

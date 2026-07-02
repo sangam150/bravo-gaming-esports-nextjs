@@ -138,7 +138,10 @@ export default function TournamentDetailClient({
         </div>
       </div>
 
-      <Tabs tabs={["Overview", "Standings", "Matches", "Teams", "Players", "Rules"]}>
+      <Tabs
+        tabs={["Overview", "Standings", "Schedule", "Teams", "Players", "Rules"]}
+        barClassName="sticky top-16 z-20 sm:top-20 md:static"
+      >
         {(tab) => (
           <div className="grid gap-6 lg:grid-cols-3">
             {tab === "Overview" && (
@@ -228,7 +231,7 @@ export default function TournamentDetailClient({
               </div>
             )}
 
-            {tab === "Matches" && (
+            {tab === "Schedule" && (
               <div className="space-y-4 lg:col-span-3">
                 {activeMatches.length === 0 ? (
                   <div className="esports-card p-6 text-sm text-text-muted">Match cards will appear here after admin approval.</div>

@@ -23,7 +23,7 @@ function buildPlayerSavePayload(player: Player) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, { key: "player-avatar-upload", maxRequests: 10, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, { key: "player-avatar-upload", maxRequests: 10, windowMs: 60_000 });
   if (limited) return limited;
 
   const auth = await requirePlayerDashboardUser(request);
@@ -162,3 +162,4 @@ export async function POST(request: Request) {
     });
   }
 }
+
