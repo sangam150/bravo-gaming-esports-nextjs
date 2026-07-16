@@ -33,8 +33,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: "PUBG", href: "/pubg", prefixes: ["/pubg"] },
   { label: "Events", href: "/events", prefixes: ["/events"] },
   { label: "Leaderboards", href: "/pubg/leaderboards", prefixes: ["/pubg/leaderboards", "/leaderboard", "/rankings"] },
-  { label: "Teams", href: "/pubg/teams", prefixes: ["/pubg/teams", "/teams"] },
-  { label: "Players", href: "/pubg/players", prefixes: ["/pubg/players", "/players"] },
+  { label: "News", href: "/news", prefixes: ["/news", "/news-media"] },
+  { label: "Media", href: "/media", prefixes: ["/media", "/highlights", "/videos"] },
   { label: "Sponsors", href: "/sponsors", prefixes: ["/sponsors", "/partners"] },
   { label: "About", href: "/about", prefixes: ["/about", "/contact", "/privacy", "/terms", "/rules", "/anti-cheat"] },
 ];
@@ -131,7 +131,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                       Quick Navigation
                     </h2>
                     <p className="mt-3 text-sm leading-7 text-text-muted">
-                      Home, PUBG, events, and tournament routes with direct quick actions for registration, live coverage, and login.
+                      Home, PUBG, events, news, media, and sponsor routes with direct quick actions for registration, live coverage, and login.
                     </p>
                   </div>
                   <button

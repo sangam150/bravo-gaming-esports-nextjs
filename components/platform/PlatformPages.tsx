@@ -304,6 +304,22 @@ function getEventStatusLabel(status: PlatformEvent["status"]) {
   return status === "live" ? "Ongoing" : status === "completed" ? "Completed" : "Upcoming";
 }
 
+function getEventMatchSummaryLabel(event: PlatformEvent) {
+  if (event.matchesCount > 0) {
+    return `${formatNumber(event.matchesCount)} ${event.matchesCount === 1 ? "Match" : "Matches"} Published`;
+  }
+
+  if (event.status === "completed") {
+    return "Results Pending";
+  }
+
+  if (event.status === "live") {
+    return "Live Updates Pending";
+  }
+
+  return "Schedule Pending";
+}
+
 function resolvePublicEventBoardEvents(hub: PlatformHubData) {
   const seen = new Set<string>();
   const events: PlatformEvent[] = [];
@@ -455,6 +471,10 @@ function EventCard({ event }: { event: PlatformEvent }) {
         <div>
           <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Status</p>
           <p className="mt-1 text-sm text-white">{getEventStatusLabel(event.status)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Match Updates</p>
+          <p className="mt-1 text-sm text-white">{getEventMatchSummaryLabel(event)}</p>
         </div>
       </div>
       <div className="mt-auto flex flex-wrap gap-2 pt-5">
@@ -1602,7 +1622,7 @@ export function PlatformEventsPage({
           description={
             hasEvents
               ? "Official Bravo event board for tournaments, scrims, schedules, results, and team registration."
-              : "No official events are published yet. Tournament registration and scrim schedules will appear here soon."
+              : "Tournament registration is still open while the next Bravo event card is being finalized. Teams can join the review queue, track schedule updates, and stay synced through Discord."
           }
           actions={
             hasEvents && featuredEvent ? (
@@ -1633,11 +1653,14 @@ export function PlatformEventsPage({
               )
             ) : (
               <>
+                <Link href="/teams/register" className="btn-primary">
+                  Register Team
+                </Link>
                 <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
                   Join Discord
                 </a>
-                <Link href="/teams/register" className="btn-primary">
-                  Register Team
+                <Link href="/contact" className="btn-secondary">
+                  Contact Bravo
                 </Link>
               </>
             )
@@ -1752,16 +1775,19 @@ export function PlatformEventsPage({
         {!hasEvents ? (
           <section className="rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.96))] p-6">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Event Board</p>
-            <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">No official events are published yet</h2>
+            <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Registration is still open during launch prep</h2>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">
-              Tournament registration and scrim schedules will appear here soon.
+              We are finalizing the next public Bravo event card. Submit your team now, join Discord for room timing, or contact Bravo for manual placement help.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
+              <Link href="/teams/register" className="btn-primary">
+                Register Team
+              </Link>
               <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
                 Join Discord
               </a>
-              <Link href="/teams/register" className="btn-primary">
-                Register Team
+              <Link href="/contact" className="btn-secondary">
+                Contact Bravo
               </Link>
             </div>
           </section>
@@ -1999,7 +2025,14 @@ export function PlatformEventDetailPage({
                 </div>
               ))}
               {relatedMatches.length === 0 ? (
-                  <EmptyState title="Match schedule information is not available yet" description="Please check back later for official timing updates." />
+                <EmptyState
+                  title={event.status === "completed" ? "Results are pending publication" : "Schedule details are pending"}
+                  description={
+                    event.status === "completed"
+                      ? "Official match results will appear here after Bravo verification is complete."
+                      : "Official room times, match order, and broadcast timing will appear here once they are confirmed."
+                  }
+                />
               ) : null}
             </div>
           </div>
@@ -3175,21 +3208,20 @@ export function PlatformMediaPage({
           ))}
           {!hasMedia ? (
             <div className="md:col-span-2 xl:col-span-3">
-              <div className="rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.96))] p-6">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Media Queue</p>
-                <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">No official media has been published yet</h2>
-                <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">
-                  Highlights, broadcasts, clips, and featured coverage will appear here after publication.
-                </p>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <Link href="/news" className="btn-secondary">
-                    Browse News
-                  </Link>
-                  <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-primary">
-                    Join Discord
-                  </a>
-                </div>
-              </div>
+              <EmptyState
+                title="Highlights coming soon"
+                description="Official broadcasts, highlights, and featured media coverage will appear here after publication."
+                action={
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Link href="/news" className="btn-secondary">
+                      Latest News
+                    </Link>
+                    <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-primary">
+                      Join Discord
+                    </a>
+                  </div>
+                }
+              />
             </div>
           ) : media.length === 0 ? (
             <div className="md:col-span-2 xl:col-span-3">
@@ -3481,11 +3513,11 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
           description="Official partners supporting Bravo Gaming Esports, PUBG PC scrims, tournaments, broadcasts, and community events."
           actions={
             <>
-              <Link href="/sponsor-kit" className="btn-primary">
-                View Sponsor Kit
+              <Link href="/contact" className="btn-primary">
+                Become a Sponsor
               </Link>
-              <Link href="/tournament-partners" className="btn-secondary">
-                Tournament Partners
+              <Link href="/sponsor-kit" className="btn-secondary">
+                View Sponsor Kit
               </Link>
               <Link href="/contact" className="btn-secondary">
                 Contact Bravo
@@ -3551,8 +3583,18 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
         {publicSponsors.length === 0 ? (
           <section className="mx-auto max-w-4xl">
             <EmptyState
-              title="Partner lineup coming soon"
-              description="Official partner cards will include website and profile links once announcements go live."
+              title="Official partner cards are being finalized"
+              description="Public sponsor profiles are still being prepared, but the Bravo sponsor kit and contact flow remain live for approved partner conversations."
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Link href="/sponsor-kit" className="btn-secondary">
+                    View Sponsor Kit
+                  </Link>
+                  <Link href="/contact" className="btn-primary">
+                    Contact Bravo
+                  </Link>
+                </div>
+              }
             />
           </section>
         ) : null}

@@ -323,6 +323,7 @@ export interface Announcement {
 export interface TeamRegistration {
   id: string;
   teamName: string;
+  teamTag?: string;
   captainName: string;
   captainDiscord: string;
   captainPhone?: string;

@@ -106,12 +106,15 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+    const logoUrl = normalizeOptionalString(body.logoUrl);
+    const logoPath = normalizeOptionalString(body.logoPath);
+    const logoUploadId = normalizeOptionalString(body.logoUploadId);
     const playerNames = Array.isArray(body.playerNames)
       ? body.playerNames.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
       : [];
     if (!body.teamName || !body.captainName || !body.captainDiscord) {
       return Response.json(
-        { error: "Please provide the team name, captain name, and captain Discord before submitting." },
+        { error: "Please provide the team name, IGL or manager name, and Discord contact before submitting." },
         { status: 400 }
       );
     }
@@ -127,23 +130,27 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    if (!body.logoUrl || !body.logoPath || !body.logoUploadId) {
-      return Response.json(
-        { error: "Upload the team logo before you submit this registration." },
-        { status: 400 }
-      );
-    }
-    const pendingUploadRecord = await getManagedUploadRecord(String(body.logoUploadId)).catch(() => null);
-    if (
-      !pendingUploadRecord ||
-      pendingUploadRecord.fileType !== "team_logo_pending" ||
-      pendingUploadRecord.filePath !== String(body.logoPath) ||
-      pendingUploadRecord.url !== String(body.logoUrl)
-    ) {
-      return Response.json(
-        { error: "Upload the team logo again before you submit this registration." },
-        { status: 400 }
-      );
+    const hasAnyLogoField = Boolean(logoUrl || logoPath || logoUploadId);
+    if (hasAnyLogoField) {
+      if (!logoUrl || !logoPath || !logoUploadId) {
+        return Response.json(
+          { error: "Finish the team logo upload before you submit, or submit the form without a logo." },
+          { status: 400 }
+        );
+      }
+
+      const pendingUploadRecord = await getManagedUploadRecord(logoUploadId).catch(() => null);
+      if (
+        !pendingUploadRecord ||
+        pendingUploadRecord.fileType !== "team_logo_pending" ||
+        pendingUploadRecord.filePath !== logoPath ||
+        pendingUploadRecord.url !== logoUrl
+      ) {
+        return Response.json(
+          { error: "Upload the team logo again before you submit this registration." },
+          { status: 400 }
+        );
+      }
     }
     const registrationTarget = await validateRegistrationTarget({
       tournamentId: typeof body.tournamentId === "string" ? body.tournamentId : undefined,
@@ -152,14 +159,15 @@ export async function POST(request: Request) {
     });
     const result = await createRegistration({
       teamName: body.teamName,
+      teamTag: normalizeOptionalString(body.teamTag),
       captainName: body.captainName,
       captainDiscord: body.captainDiscord,
       playerNames,
       tournamentId: registrationTarget?.id ?? body.tournamentId,
       tournamentTitle: registrationTarget?.title,
-      logoUrl: body.logoUrl,
-      logoPath: body.logoPath,
-      logoUploadId: body.logoUploadId,
+      logoUrl,
+      logoPath,
+      logoUploadId,
     });
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
@@ -241,7 +249,7 @@ export async function PATCH(request: Request) {
           averagePlacement: existingTeam?.averagePlacement,
           chickenDinners: existingTeam?.chickenDinners,
           country: existingTeam?.country,
-          tag: existingTeam?.tag,
+          tag: existingTeam?.tag ?? registration.teamTag,
           slotNumber: existingTeam?.slotNumber,
           scope: existingTeam?.scope,
           seasonId: existingTeam?.seasonId,

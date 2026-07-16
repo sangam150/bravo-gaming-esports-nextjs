@@ -94,6 +94,10 @@ export function buildPubgTeamBoardRows(matches: readonly PubgHubMatch[], teamLoo
     string,
     {
       teamId: string;
+      name: string;
+      tag?: string | null;
+      logoUrl?: string | null;
+      slotNumber?: number | null;
       matches: number;
       wins: number;
       kills: number;
@@ -116,6 +120,10 @@ export function buildPubgTeamBoardRows(matches: readonly PubgHubMatch[], teamLoo
     for (const teamResult of match.teamResults) {
       const currentValue = summary.get(teamResult.teamId) ?? {
         teamId: teamResult.teamId,
+        name: teamResult.teamName,
+        tag: teamResult.tag ?? null,
+        logoUrl: teamResult.logoUrl ?? null,
+        slotNumber: teamResult.slotNumber ?? null,
         matches: 0,
         wins: 0,
         kills: 0,
@@ -128,6 +136,10 @@ export function buildPubgTeamBoardRows(matches: readonly PubgHubMatch[], teamLoo
       };
 
       currentValue.matches += 1;
+      currentValue.name = currentValue.name || teamResult.teamName;
+      currentValue.tag = currentValue.tag ?? teamResult.tag ?? null;
+      currentValue.logoUrl = currentValue.logoUrl ?? teamResult.logoUrl ?? null;
+      currentValue.slotNumber = currentValue.slotNumber ?? teamResult.slotNumber ?? null;
       currentValue.wins += teamResult.wwcd ? 1 : 0;
       currentValue.kills += teamResult.kills;
       currentValue.damage += damageByTeamId.get(teamResult.teamId) ?? 0;
@@ -150,10 +162,10 @@ export function buildPubgTeamBoardRows(matches: readonly PubgHubMatch[], teamLoo
         id: row.teamId,
         teamId: row.teamId,
         slug: team?.slug ?? row.teamId,
-        name: team?.name ?? row.teamId,
-        tag: team?.tag ?? null,
-        logoUrl: team?.logoUrl ?? null,
-        slotNumber: team?.slotNumber ?? null,
+        name: team?.name ?? row.name,
+        tag: team?.tag ?? row.tag ?? null,
+        logoUrl: team?.logoUrl ?? row.logoUrl ?? null,
+        slotNumber: team?.slotNumber ?? row.slotNumber ?? null,
         matches: row.matches,
         wins: row.wins,
         kills: row.kills,
@@ -177,6 +189,10 @@ export function buildPubgPlayerBoardRows(matches: readonly PubgHubMatch[], playe
     string,
     {
       playerId: string;
+      pubgName: string;
+      avatarUrl?: string | null;
+      teamId?: string | null;
+      teamName?: string | null;
       matches: number;
       wins: number;
       kills: number;
@@ -196,6 +212,10 @@ export function buildPubgPlayerBoardRows(matches: readonly PubgHubMatch[], playe
       const teamResult = teamResultById.get(playerResult.teamId);
       const currentValue = summary.get(playerResult.playerId) ?? {
         playerId: playerResult.playerId,
+        pubgName: playerResult.pubgName,
+        avatarUrl: playerResult.avatarUrl ?? null,
+        teamId: playerResult.teamId,
+        teamName: playerResult.teamName,
         matches: 0,
         wins: 0,
         kills: 0,
@@ -207,6 +227,10 @@ export function buildPubgPlayerBoardRows(matches: readonly PubgHubMatch[], playe
       };
 
       currentValue.matches += 1;
+      currentValue.pubgName = currentValue.pubgName || playerResult.pubgName;
+      currentValue.avatarUrl = currentValue.avatarUrl ?? playerResult.avatarUrl ?? null;
+      currentValue.teamId = playerResult.teamId;
+      currentValue.teamName = playerResult.teamName;
       currentValue.wins += playerResult.teamId === winningTeamId ? 1 : 0;
       currentValue.kills += playerResult.kills;
       currentValue.assists += playerResult.assists;
@@ -261,10 +285,10 @@ export function buildPubgPlayerBoardRows(matches: readonly PubgHubMatch[], playe
         id: row.playerId,
         playerId: row.playerId,
         slug: player?.slug ?? row.playerId,
-        pubgName: player?.pubgName ?? row.playerId,
-        avatarUrl: player?.avatarUrl ?? null,
-        teamId: player?.currentTeamId ?? null,
-        teamName: player?.currentTeamName ?? null,
+        pubgName: player?.pubgName ?? row.pubgName,
+        avatarUrl: player?.avatarUrl ?? row.avatarUrl ?? null,
+        teamId: player?.currentTeamId ?? row.teamId ?? null,
+        teamName: player?.currentTeamName ?? row.teamName ?? null,
         matches: row.matches,
         wins: row.wins,
         kills: row.kills,

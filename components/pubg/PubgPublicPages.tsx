@@ -2,14 +2,16 @@ import Link from "next/link";
 import ManagedImage from "@/components/ui/ManagedImage";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import type { PlatformHubData, PlatformSponsorProfile } from "@/lib/platform-hub";
-import type {
-  PubgHubDataset,
-  PubgHubEvent,
-  PubgHubEventPlayerRow,
-  PubgHubMatch,
-  PubgHubPlayer,
-  PubgHubRecentMatch,
-  PubgHubTeam,
+import {
+  getPublicPubgPlayers,
+  getPublicPubgTeams,
+  type PubgHubDataset,
+  type PubgHubEvent,
+  type PubgHubEventPlayerRow,
+  type PubgHubMatch,
+  type PubgHubPlayer,
+  type PubgHubRecentMatch,
+  type PubgHubTeam,
 } from "@/lib/pubg-hub";
 import {
   buildPubgPlayerBoardRows,
@@ -84,6 +86,10 @@ function buildTeamLookup(dataset: PubgHubDataset) {
 
 function buildPlayerLookup(dataset: PubgHubDataset) {
   return new Map(dataset.players.map((player) => [player.id, player] as const));
+}
+
+function buildTeamMap(teams: readonly PubgHubTeam[]) {
+  return new Map(teams.map((team) => [team.id, team] as const));
 }
 
 function buildEventLookup(dataset: PubgHubDataset) {
@@ -605,21 +611,21 @@ export function PubgDashboardPage({
 }) {
   const playerLookup = buildPlayerLookup(dataset);
   const teamLookup = buildTeamLookup(dataset);
-  const hasVerifiedCompetitionData = dataset.source === "supabase";
-  const publishedMatches = hasVerifiedCompetitionData ? recentMatches.filter((match) => match.status === "published").slice(0, 4) : [];
-  const rankedTeams = getRankedTeams(dataset.teams);
-  const rankedPlayers = getRankedPlayers(dataset.players);
-  const leaderboardTeams = hasVerifiedCompetitionData ? rankedTeams.slice(0, 6) : [];
-  const leaderboardPlayers = hasVerifiedCompetitionData ? rankedPlayers.slice(0, 6) : [];
-  const featuredEvents = hasVerifiedCompetitionData ? recentEvents.slice(0, 3) : [];
-  const scrimEvents = hasVerifiedCompetitionData
+  const hasSupabaseDataset = dataset.source === "supabase";
+  const publishedMatches = hasSupabaseDataset ? recentMatches.filter((match) => match.status === "published").slice(0, 4) : [];
+  const rankedTeams = getPublicPubgTeams(dataset);
+  const rankedPlayers = getPublicPubgPlayers(dataset, rankedTeams);
+  const leaderboardTeams = hasSupabaseDataset ? rankedTeams.slice(0, 6) : [];
+  const leaderboardPlayers = hasSupabaseDataset ? rankedPlayers.slice(0, 6) : [];
+  const featuredEvents = hasSupabaseDataset ? recentEvents.slice(0, 3) : [];
+  const scrimEvents = hasSupabaseDataset
     ? dataset.events.filter((event) => event.status !== "finished" && /scrim/i.test(event.type)).slice(0, 3)
     : [];
   const upcomingScrims = scrimEvents.length > 0 ? scrimEvents : featuredEvents.filter((event) => event.status !== "finished").slice(0, 3);
-  const featuredTeams = hasVerifiedCompetitionData ? getRankedTeams(topTeams).slice(0, 4) : [];
-  const sidebarTeams = hasVerifiedCompetitionData ? getRankedTeams(topTeams).slice(0, 3) : [];
-  const sidebarPlayers = hasVerifiedCompetitionData ? getRankedPlayers(topPlayers).slice(0, 3) : [];
-  const spotlightEvent = hasVerifiedCompetitionData ? activeEvents[0] ?? recentEvents[0] ?? null : null;
+  const featuredTeams = hasSupabaseDataset ? getRankedTeams(topTeams).slice(0, 4) : [];
+  const sidebarTeams = hasSupabaseDataset ? getRankedTeams(topTeams).slice(0, 3) : [];
+  const sidebarPlayers = hasSupabaseDataset ? getRankedPlayers(topPlayers).slice(0, 3) : [];
+  const spotlightEvent = hasSupabaseDataset ? activeEvents[0] ?? recentEvents[0] ?? null : null;
   const latestWinner = publishedMatches[0]?.winnerTeamName ?? null;
   const mostWinsTeam = leaderboardTeams.length > 0 ? [...leaderboardTeams].sort((a, b) => b.wins - a.wins || b.totalPoints - a.totalPoints)[0] : null;
   const mostKillsPlayer = leaderboardPlayers.length > 0 ? [...leaderboardPlayers].sort((a, b) => b.kills - a.kills || b.damage - a.damage)[0] : null;
@@ -639,10 +645,16 @@ export function PubgDashboardPage({
       ? `Day ${activeSeason.currentDay}`
       : spotlightEvent?.name ?? publishedMatches[0]?.eventName ?? "Published results";
   const matchesPlayed = activeSeason?.matchesPlayed && activeSeason.matchesPlayed > 0 ? activeSeason.matchesPlayed : dataset.matches.length;
-  const teamsTracked = activeSeason?.teamsTracked && activeSeason.teamsTracked > 0 ? activeSeason.teamsTracked : dataset.teams.length;
-  const playersTracked = activeSeason?.playersTracked && activeSeason.playersTracked > 0 ? activeSeason.playersTracked : dataset.players.length;
+  const teamsTracked = activeSeason?.teamsTracked && activeSeason.teamsTracked > 0 ? activeSeason.teamsTracked : rankedTeams.length;
+  const playersTracked = activeSeason?.playersTracked && activeSeason.playersTracked > 0 ? activeSeason.playersTracked : rankedPlayers.length;
+  const hasPublishedCompetitionData =
+    publishedMatches.length > 0 ||
+    leaderboardTeams.some((team) => team.matches > 0 || team.totalPoints > 0 || team.kills > 0) ||
+    leaderboardPlayers.some((player) => player.kills > 0 || player.damage > 0 || player.mvpCount > 0) ||
+    Boolean(activeSeason && activeSeason.matchesPlayed > 0);
+  const showAnalyticsDashboard = hasSupabaseDataset && hasPublishedCompetitionData;
 
-  if (!hasVerifiedCompetitionData) {
+  if (!showAnalyticsDashboard) {
     return (
       <main className="page-shell overflow-x-hidden pb-12 pt-6">
         <div className="page-stack overflow-x-hidden">
@@ -792,9 +804,9 @@ export function PubgDashboardPage({
                 value={spotlightSeasonLabel}
                 detail={activeSeason?.currentTournamentTitle ?? "Current PUBG season board"}
               />
-              <HeaderStatCell label="Matches Tracked" value={hasVerifiedCompetitionData ? dataset.summary.trackedMatches : 0} />
-              <HeaderStatCell label="Teams" value={hasVerifiedCompetitionData ? dataset.teams.length : 0} />
-              <HeaderStatCell label="Players" value={hasVerifiedCompetitionData ? dataset.players.length : 0} />
+              <HeaderStatCell label="Matches Tracked" value={showAnalyticsDashboard ? dataset.summary.trackedMatches : 0} />
+              <HeaderStatCell label="Teams" value={showAnalyticsDashboard ? dataset.teams.length : 0} />
+              <HeaderStatCell label="Players" value={showAnalyticsDashboard ? dataset.players.length : 0} />
               <HeaderStatCell
                 label="Latest Match"
                 value={latestMatchLabel}
@@ -1049,7 +1061,7 @@ export function PubgDashboardPage({
               title="PUBG hub snapshot"
               description="Verified performance highlights from the published results set."
             >
-              {hasVerifiedCompetitionData ? (
+              {showAnalyticsDashboard ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <MetricCard label="Most WWCD" value={mostWinsTeam?.name ?? "TBA"} detail={mostWinsTeam ? `${formatNumber(mostWinsTeam.wins)} WWCD` : undefined} tone="green" />
                   <MetricCard label="Most Kills" value={mostKillsPlayer?.pubgName ?? "TBA"} detail={mostKillsPlayer ? `${formatNumber(mostKillsPlayer.kills)} kills` : undefined} tone="blue" />
@@ -1138,7 +1150,20 @@ export function PubgDashboardPage({
                   ))}
                 </div>
               ) : (
-                <EmptyState title="Partner lineup coming soon" description="Official sponsors and partners will be listed here once announcements go live." />
+                <EmptyState
+                  title="Official partner support remains available"
+                  description="Approved partner cards will appear here once they are published. In the meantime, Bravo can still route sponsor conversations through the contact and sponsor-kit flows."
+                  action={
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Link href="/sponsor-kit" className="btn-secondary">
+                        Sponsor Kit
+                      </Link>
+                      <Link href="/contact" className="btn-primary">
+                        Contact Bravo
+                      </Link>
+                    </div>
+                  }
+                />
               )}
             </DashboardSection>
 
@@ -1293,17 +1318,17 @@ export function PubgCommunityPage({
   const requestedView = readSearchParam(searchParams.view, "all");
   const view = requestedView === "teams" || requestedView === "players" ? requestedView : "all";
   const latestAnnouncements = hub.news.slice(0, 3);
-  const hasTeams = dataset.teams.length > 0;
-  const hasPlayers = dataset.players.length > 0;
+  const rankedTeams = getPublicPubgTeams(dataset);
+  const rankedPlayers = getPublicPubgPlayers(dataset, rankedTeams);
+  const hasTeams = rankedTeams.length > 0;
+  const hasPlayers = rankedPlayers.length > 0;
   const hasAnnouncements = latestAnnouncements.length > 0;
   const hasCommunityDirectory = hasTeams || hasPlayers;
   const hasCommunityData = hasCommunityDirectory || hasAnnouncements || dataset.matches.length > 0;
   const liveOrUpcomingEvents = dataset.events.filter((event) => event.status !== "finished").length;
   const communityRegions = Array.from(
-    new Set(dataset.teams.map((team) => team.region).filter((value): value is string => Boolean(value)))
+    new Set(rankedTeams.map((team) => team.region).filter((value): value is string => Boolean(value)))
   ).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
-  const rankedTeams = getRankedTeams(dataset.teams);
-  const rankedPlayers = getRankedPlayers(dataset.players);
   const teamRankMap = getTeamRankMap(rankedTeams);
   const playerRankMap = getPlayerRankMap(rankedPlayers);
   const filteredTeams = rankedTeams
@@ -1357,8 +1382,8 @@ export function PubgCommunityPage({
           stats={
             hasCommunityData
               ? [
-                  { label: "Tracked Teams", value: dataset.teams.length, tone: "blue" as const },
-                  { label: "Tracked Players", value: dataset.players.length, tone: "green" as const },
+                  { label: "Tracked Teams", value: rankedTeams.length, tone: "blue" as const },
+                  { label: "Tracked Players", value: rankedPlayers.length, tone: "green" as const },
                   { label: "Published Matches", value: dataset.matches.length, tone: "yellow" as const },
                   { label: "Announcements", value: hub.news.length, tone: "red" as const },
                 ]
@@ -2103,7 +2128,7 @@ export function PubgTeamsPage({
   const region = readSearchParam(searchParams.region, "all");
   const page = Math.max(Number(readSearchParam(searchParams.page, "1")) || 1, 1);
   const pageSize = 12;
-  const rankedTeams = getRankedTeams(dataset.teams);
+  const rankedTeams = getPublicPubgTeams(dataset);
   const teamRankMap = getTeamRankMap(rankedTeams);
   const teamRegions = Array.from(new Set(rankedTeams.map((team) => team.region).filter((value): value is string => Boolean(value)))).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
   const filteredTeams = rankedTeams
@@ -2144,8 +2169,8 @@ export function PubgTeamsPage({
             </>
           }
           stats={[
-            { label: "Tracked Teams", value: dataset.teams.length, tone: "blue" },
-            { label: "Active Rosters", value: dataset.teams.filter((team) => team.currentRoster.length > 0).length, tone: "green" },
+            { label: "Tracked Teams", value: rankedTeams.length, tone: "blue" },
+            { label: "Active Rosters", value: rankedTeams.filter((team) => team.currentRoster.length > 0).length, tone: "green" },
             { label: "Regions", value: teamRegions.length, tone: "yellow" },
             { label: "Ranked Cards", value: filteredTeams.length, tone: "red" },
           ]}
@@ -2583,8 +2608,9 @@ export function PubgPlayersPage({
   const minMatches = Math.max(Number(readSearchParam(searchParams.minMatches, "0")) || 0, 0);
   const page = Math.max(Number(readSearchParam(searchParams.page, "1")) || 1, 1);
   const pageSize = 12;
-  const teams = buildTeamLookup(dataset);
-  const rankedPlayers = getRankedPlayers(dataset.players);
+  const rankedTeams = getPublicPubgTeams(dataset);
+  const teams = buildTeamMap(rankedTeams);
+  const rankedPlayers = getPublicPubgPlayers(dataset, rankedTeams);
   const playerRankMap = getPlayerRankMap(rankedPlayers);
   const filteredPlayers = rankedPlayers
     .filter((player) => {
@@ -2628,9 +2654,9 @@ export function PubgPlayersPage({
             </>
           }
           stats={[
-            { label: "Tracked Players", value: dataset.players.length, tone: "blue" },
-            { label: "MVP-Level", value: dataset.players.filter((player) => player.mvpCount > 0).length, tone: "green" },
-            { label: "Teams Represented", value: new Set(dataset.players.map((player) => player.currentTeamId).filter(Boolean)).size, tone: "yellow" },
+            { label: "Tracked Players", value: rankedPlayers.length, tone: "blue" },
+            { label: "MVP-Level", value: rankedPlayers.filter((player) => player.mvpCount > 0).length, tone: "green" },
+            { label: "Teams Represented", value: new Set(rankedPlayers.map((player) => player.currentTeamId).filter(Boolean)).size, tone: "yellow" },
             { label: "Visible Cards", value: sortedPlayers.length, tone: "red" },
           ]}
           aside={
@@ -2676,7 +2702,7 @@ export function PubgPlayersPage({
           <FilterField label="Team">
             <select name="team" defaultValue={teamId} className="input-esports h-11">
               <option value="all">All teams</option>
-              {getRankedTeams(dataset.teams).map((team) => (
+              {rankedTeams.map((team) => (
                 <option key={team.id} value={team.id}>
                   {team.name}
                 </option>

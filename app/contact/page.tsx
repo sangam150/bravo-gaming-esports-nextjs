@@ -25,11 +25,9 @@ export default function ContactPage() {
         <section className="glass-panel">
           <div className="grid gap-5 xl:grid-cols-[0.78fr,1.22fr]">
             <div className="rounded-[24px] border border-white/[0.06] bg-[radial-gradient(circle_at_top_right,rgba(20,126,245,0.16),transparent_28%),linear-gradient(180deg,rgba(16,24,43,0.95),rgba(9,15,29,0.95))] p-5">
-              <p className="section-title">10. Contact Page</p>
+              <p className="section-title">Contact</p>
               <h1 className="mt-3 font-display text-[2rem] font-black uppercase leading-[0.92] text-white sm:text-[2.5rem]">
-                Contact Bravo
-                <br />
-                Gaming Esports
+                Contact Bravo Gaming Esports
               </h1>
               <p className="mt-4 max-w-md text-sm leading-7 text-text-secondary">
                 Have questions about tournaments, scrims, sponsorship opportunities, or partnerships? Get in touch

@@ -1824,7 +1824,7 @@ export async function getLiveStreamFeed(): Promise<StreamSchedule> {
     isLive: activeStream?.isLive ?? false,
     description:
       activeStream?.description ??
-      "No featured broadcast is currently scheduled. Please check back later for upcoming live streams and featured broadcasts.",
+      "Official broadcasts and tournament streams will appear here once the next Bravo live window is scheduled.",
     viewers: activeStream?.viewers,
     embedUrl: activeStream?.embedUrl ?? buildLiveEmbedUrl(),
     channelUrl: activeStream?.channelUrl ?? buildYouTubeChannelUrl(),
@@ -1933,6 +1933,7 @@ export async function getRegistration(id: string): Promise<TeamRegistration | nu
 export async function createRegistration(data: Omit<TeamRegistration, "id" | "createdAt" | "status">) {
   const payload = {
     teamName: data.teamName.trim(),
+    teamTag: cleanString(data.teamTag),
     captainName: data.captainName.trim(),
     captainDiscord: data.captainDiscord.trim(),
     captainPhone: cleanString(data.captainPhone),

@@ -97,6 +97,7 @@ export default function TeamRegistrationPageClient({
   const logoPreviewUrlRef = useRef<string | null>(null);
 
   const [teamName, setTeamName] = useState("");
+  const [teamTag, setTeamTag] = useState("");
   const [captainName, setCaptainName] = useState("");
   const [captainDiscord, setCaptainDiscord] = useState("");
   const [playerNames, setPlayerNames] = useState(["", "", "", ""]);
@@ -210,11 +211,6 @@ export default function TeamRegistrationPageClient({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!uploadedLogo) {
-      setError("Upload the team logo before you submit your registration.");
-      return;
-    }
-
     if (invalidTournamentSelection) {
       setError("The selected event is unavailable. Open registration from a published event page and try again.");
       return;
@@ -234,13 +230,14 @@ export default function TeamRegistrationPageClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           teamName,
+          teamTag,
           captainName,
           captainDiscord,
           playerNames: playerNames.filter(Boolean),
           tournamentId: selectedTarget?.id || undefined,
-          logoUploadId: uploadedLogo.id,
-          logoPath: uploadedLogo.path,
-          logoUrl: uploadedLogo.url,
+          logoUploadId: uploadedLogo?.id,
+          logoPath: uploadedLogo?.path,
+          logoUrl: uploadedLogo?.url,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -300,7 +297,7 @@ export default function TeamRegistrationPageClient({
         <p className="section-title">Team Registration</p>
         <h1 className="section-heading mt-3">Register Your Squad</h1>
         <p className="mt-3 text-slate-400">
-          Submit your roster for Bravo Gaming Esports scrims and tournaments. Admins verify event eligibility, logo assets, and team details before confirming slots.
+          Submit your roster for Bravo Gaming Esports scrims and tournaments. Admins verify event eligibility, team details, and optional logo assets before confirming slots.
         </p>
       </div>
 
@@ -320,20 +317,20 @@ export default function TeamRegistrationPageClient({
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-sm text-slate-300">
-              Choose an open Bravo event by name below, or leave it as a general review submission if you need a manual placement.
+              Choose an open Bravo event by name below, or keep the form on the general Bravo review queue if you need manual placement during launch prep.
             </div>
           )}
 
           <div>
             <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Event Selection
+              Select Event
             </label>
             <select
               className="input-esports"
               value={selectedEventId}
               onChange={(event) => setSelectedEventId(event.target.value)}
             >
-              <option value="">General Bravo review queue</option>
+              <option value="">General Bravo review queue (manual placement)</option>
               {availableTournaments.map((tournament) => (
                 <option key={tournament.id} value={tournament.id}>
                   {formatRegistrationTargetOption(tournament)}
@@ -341,39 +338,55 @@ export default function TeamRegistrationPageClient({
               ))}
             </select>
             <p className="mt-2 text-xs text-slate-500">
-              Public events are listed by name only. Bravo validates the final event selection again on the server before submission is accepted.
+              Public events are listed by name only. If no live event is open yet, use the general review queue and include your Discord/contact details so Bravo can follow up manually before a slot is confirmed.
             </p>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Team Name *
-            </label>
-            <input
-              className="input-esports"
-              value={teamName}
-              onChange={(event) => setTeamName(event.target.value)}
-              required
-              placeholder="Your team name"
-            />
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                Captain Name *
+                Team Name *
+              </label>
+              <input
+                className="input-esports"
+                value={teamName}
+                onChange={(event) => setTeamName(event.target.value)}
+                required
+                placeholder="Your team name"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                Team Tag / Clan Code
+              </label>
+              <input
+                className="input-esports"
+                value={teamTag}
+                onChange={(event) => setTeamTag(event.target.value)}
+                placeholder="Short tag used on scoreboards and lobby sheets"
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                This short tag helps Bravo show your roster clearly on scoreboards, lobby sheets, and event graphics.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                IGL / Manager Name *
               </label>
               <input
                 className="input-esports"
                 value={captainName}
                 onChange={(event) => setCaptainName(event.target.value)}
                 required
-                placeholder="In-game name"
+                placeholder="Primary team contact"
               />
             </div>
             <div>
               <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                Captain Discord *
+                Discord Contact *
               </label>
               <input
                 className="input-esports"
@@ -387,7 +400,7 @@ export default function TeamRegistrationPageClient({
 
           <div>
             <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Roster (up to 4 players)
+              Player IGN Fields
             </label>
             <div className="space-y-3">
               {playerNames.map((name, index) => (
@@ -400,7 +413,7 @@ export default function TeamRegistrationPageClient({
                     updated[index] = event.target.value;
                     setPlayerNames(updated);
                   }}
-                  placeholder={`Player ${index + 1} in-game name`}
+                  placeholder={`Player ${index + 1} IGN`}
                 />
               ))}
             </div>
@@ -408,7 +421,7 @@ export default function TeamRegistrationPageClient({
 
           <div className="space-y-3">
             <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Team Logo *
+              Team Logo (Optional)
             </label>
             <input
               ref={logoInputRef}
@@ -433,15 +446,18 @@ export default function TeamRegistrationPageClient({
                   />
                 ) : (
                   <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-dashed border-white/15 text-center text-xs uppercase tracking-[0.14em] text-slate-500">
-                    Logo Preview
+                    Optional Logo
                   </div>
                 )}
                 <div className="min-w-0 flex-1 space-y-2">
                   <p className="text-sm font-semibold text-white">
-                    {uploadedLogo ? "Replace uploaded logo" : "Upload team logo for review"}
+                    {uploadedLogo ? "Replace uploaded logo" : "Upload a team logo if you have one"}
                   </p>
                   <p className="text-xs text-slate-400">
-                    JPG, PNG, and WEBP only. Max size: {teamLogoMaxSize}.
+                    JPG, PNG, and WEBP only. Max size: {teamLogoMaxSize}. You can still submit without a logo.
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    If you skip the logo now, Bravo can still review your registration and collect branding later through Discord or the contact page.
                   </p>
                   <button
                     type="button"
@@ -477,10 +493,16 @@ export default function TeamRegistrationPageClient({
             <button type="submit" disabled={submitBlocked} className="btn-esports-primary w-full sm:w-auto">
               {loading ? "Submitting your registration..." : "Submit Registration"}
             </button>
+            <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord w-full justify-center sm:w-auto">
+              Join Discord
+            </a>
             <Link href="/contact" className="btn-secondary w-full justify-center sm:w-auto">
-              Need Help?
+              Contact Admin
             </Link>
           </div>
+          <p className="text-xs text-slate-500">
+            Registration fallback: if no public event is open or you need manual help, submit here first and Bravo will continue the conversation through Discord or your contact details.
+          </p>
         </form>
       </div>
     </main>

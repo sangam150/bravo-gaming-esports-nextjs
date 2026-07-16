@@ -66,7 +66,7 @@ const responseTimeline = [
     value: "Target within 7 business days after final result verification",
   },
   {
-    title: "Community Support Routing",
+    title: "Community Support",
     value: "Public contact and Discord route always available",
   },
 ] as const;

@@ -2,7 +2,16 @@ import { COLLECTIONS, fetchDocumentCollection, isDocumentStoreConfigured } from 
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
 import { placementPoints, totalPoints } from "./pubg";
-import { comparePubgPlayers, comparePubgTeams, getRankedPlayers, getRankedTeams } from "./pubg-rankings";
+import {
+  buildPubgPlayerBoardRows,
+  buildPubgTeamBoardRows,
+  comparePubgPlayers,
+  comparePubgTeams,
+  getRankedPlayers,
+  getRankedTeams,
+  type PubgPlayerBoardRow,
+  type PubgTeamBoardRow,
+} from "./pubg-rankings";
 import { BRAVO_DISCORD_URL } from "./brand-links";
 import { hasPublicDemoMarker, hasPublicDemoSeedTag, sanitizePublicAssetUrl, sanitizePublicCopy } from "./public-content";
 import { normalizeMapName } from "./tournament-standings";
@@ -2808,14 +2817,237 @@ export async function getPubgEventBySlug(slug: string) {
   return dataset.events.find((event) => event.slug === slug) ?? null;
 }
 
+function buildPublicTeamLookup(teams: readonly PubgHubTeam[]) {
+  return new Map(teams.map((team) => [team.id, team] as const));
+}
+
+function buildPublicPlayerLookup(players: readonly PubgHubPlayer[]) {
+  return new Map(players.map((player) => [player.id, player] as const));
+}
+
+function getFallbackFormLabel(matches: number, hotSignal: number) {
+  if (matches <= 0) {
+    return "Pending";
+  }
+
+  if (hotSignal >= 15) {
+    return "Hot";
+  }
+
+  if (hotSignal >= 8) {
+    return "Active";
+  }
+
+  return "Building";
+}
+
+function mergePublicTeamWithBoardRow(team: PubgHubTeam, boardRow: PubgTeamBoardRow): PubgHubTeam {
+  const recentPoints = boardRow.trend.length > 0 ? boardRow.trend : team.recentPoints;
+  const fallbackFormScore =
+    recentPoints.reduce((sum, value) => sum + value, 0) / Math.max(recentPoints.length, 1);
+
+  return {
+    ...team,
+    slug: team.slug || boardRow.slug,
+    name: team.name || boardRow.name,
+    tag: team.tag ?? boardRow.tag ?? null,
+    logoUrl: team.logoUrl ?? boardRow.logoUrl ?? null,
+    slotNumber: team.slotNumber ?? null,
+    matches: boardRow.matches,
+    wins: boardRow.wins,
+    kills: boardRow.kills,
+    damage: boardRow.damage,
+    placementPoints: boardRow.placementPoints,
+    killPoints: boardRow.killPoints,
+    totalPoints: boardRow.totalPoints,
+    avgPlacement: boardRow.avgPlacement,
+    formScore: team.formScore > 0 ? team.formScore : Number(fallbackFormScore.toFixed(2)),
+    formLabel: team.formLabel || getFallbackFormLabel(boardRow.matches, fallbackFormScore),
+    recentPoints,
+  };
+}
+
+function createPublicTeamFromBoardRow(boardRow: PubgTeamBoardRow): PubgHubTeam {
+  const fallbackFormScore =
+    boardRow.trend.reduce((sum, value) => sum + value, 0) / Math.max(boardRow.trend.length, 1);
+
+  return {
+    id: boardRow.teamId,
+    slug: boardRow.slug || slugify(boardRow.name),
+    name: boardRow.name,
+    tag: boardRow.tag ?? null,
+    logoUrl: boardRow.logoUrl ?? null,
+    region: null,
+    slotNumber: null,
+    active: true,
+    matches: boardRow.matches,
+    wins: boardRow.wins,
+    kills: boardRow.kills,
+    damage: boardRow.damage,
+    placementPoints: boardRow.placementPoints,
+    killPoints: boardRow.killPoints,
+    totalPoints: boardRow.totalPoints,
+    avgPlacement: boardRow.avgPlacement,
+    formScore: Number(fallbackFormScore.toFixed(2)),
+    formLabel: getFallbackFormLabel(boardRow.matches, fallbackFormScore),
+    currentRoster: [],
+    rosterHistory: [],
+    recentPlacements: [],
+    recentPoints: boardRow.trend,
+    recentKills: [],
+    recentMatches: [],
+    mapStats: [],
+    eventStats: [],
+  };
+}
+
+function mergePublicPlayerWithBoardRow(
+  player: PubgHubPlayer,
+  boardRow: PubgPlayerBoardRow,
+  publicTeamLookup: Map<string, PubgHubTeam>
+): PubgHubPlayer {
+  const currentTeam = boardRow.teamId ? publicTeamLookup.get(boardRow.teamId) ?? null : null;
+  const recentTrend = boardRow.trend.length > 0 ? boardRow.trend : player.recentTrend;
+  const recentDamageTrend = player.recentDamageTrend.length > 0 ? player.recentDamageTrend : [];
+  const fallbackFormScore =
+    recentTrend.reduce((sum, value) => sum + value, 0) / Math.max(recentTrend.length, 1);
+
+  return {
+    ...player,
+    slug: player.slug || boardRow.slug,
+    pubgName: player.pubgName || boardRow.pubgName,
+    avatarUrl: player.avatarUrl ?? boardRow.avatarUrl ?? null,
+    currentTeamId: boardRow.teamId ?? player.currentTeamId ?? null,
+    currentTeamName: boardRow.teamName ?? player.currentTeamName ?? null,
+    currentTeamTag: currentTeam?.tag ?? player.currentTeamTag ?? null,
+    currentTeamLogoUrl: currentTeam?.logoUrl ?? player.currentTeamLogoUrl ?? null,
+    matches: boardRow.matches,
+    wins: boardRow.wins,
+    kills: boardRow.kills,
+    assists: boardRow.assists,
+    knocks: boardRow.knocks,
+    damage: boardRow.damage,
+    avgKills: boardRow.avgKills,
+    avgDamage: boardRow.avgDamage,
+    formScore: player.formScore > 0 ? player.formScore : Number(fallbackFormScore.toFixed(2)),
+    formLabel: player.formLabel || getFallbackFormLabel(boardRow.matches, fallbackFormScore),
+    bestMatch: player.bestMatch ?? boardRow.bestMatch ?? null,
+    recentTrend,
+    recentMatches: player.recentMatches.length > 0 ? player.recentMatches : boardRow.bestMatch ? [boardRow.bestMatch] : [],
+    recentDamageTrend,
+  };
+}
+
+function createPublicPlayerFromBoardRow(
+  boardRow: PubgPlayerBoardRow,
+  publicTeamLookup: Map<string, PubgHubTeam>
+): PubgHubPlayer {
+  const currentTeam = boardRow.teamId ? publicTeamLookup.get(boardRow.teamId) ?? null : null;
+  const fallbackFormScore =
+    boardRow.trend.reduce((sum, value) => sum + value, 0) / Math.max(boardRow.trend.length, 1);
+
+  return {
+    id: boardRow.playerId,
+    slug: boardRow.slug || slugify(boardRow.pubgName),
+    pubgName: boardRow.pubgName,
+    avatarUrl: boardRow.avatarUrl ?? null,
+    currentTeamId: boardRow.teamId ?? null,
+    currentTeamName: boardRow.teamName ?? null,
+    currentTeamTag: currentTeam?.tag ?? null,
+    currentTeamLogoUrl: currentTeam?.logoUrl ?? null,
+    active: true,
+    matches: boardRow.matches,
+    kills: boardRow.kills,
+    assists: boardRow.assists,
+    knocks: boardRow.knocks,
+    damage: boardRow.damage,
+    avgKills: boardRow.avgKills,
+    avgDamage: boardRow.avgDamage,
+    wins: boardRow.wins,
+    mvpCount: 0,
+    formScore: Number(fallbackFormScore.toFixed(2)),
+    formLabel: getFallbackFormLabel(boardRow.matches, fallbackFormScore),
+    bestMatch: boardRow.bestMatch ?? null,
+    recentTrend: boardRow.trend,
+    recentDamageTrend: [],
+    recentMatches: boardRow.bestMatch ? [boardRow.bestMatch] : [],
+    previousTeams: [],
+    eventStats: [],
+    mapStats: [],
+  };
+}
+
+export function getPublicPubgTeams(dataset: PubgHubDataset) {
+  const rankedTeams = getRankedTeams(dataset.teams);
+  const boardRows = buildPubgTeamBoardRows(dataset.matches, buildPublicTeamLookup(rankedTeams));
+
+  if (boardRows.length === 0) {
+    return rankedTeams;
+  }
+
+  const boardRowsById = new Map(boardRows.map((row) => [row.teamId, row] as const));
+  const mergedTeams = rankedTeams.map((team) => {
+    const boardRow = boardRowsById.get(team.id);
+    return boardRow ? mergePublicTeamWithBoardRow(team, boardRow) : team;
+  });
+  const knownTeamIds = new Set(mergedTeams.map((team) => team.id));
+
+  for (const boardRow of boardRows) {
+    if (knownTeamIds.has(boardRow.teamId)) {
+      continue;
+    }
+
+    mergedTeams.push(createPublicTeamFromBoardRow(boardRow));
+  }
+
+  return getRankedTeams(mergedTeams);
+}
+
+export function getPublicPubgPlayers(dataset: PubgHubDataset, publicTeams = getPublicPubgTeams(dataset)) {
+  const rankedPlayers = getRankedPlayers(dataset.players);
+  const publicTeamLookup = buildPublicTeamLookup(publicTeams);
+  const boardRows = buildPubgPlayerBoardRows(dataset.matches, buildPublicPlayerLookup(rankedPlayers));
+
+  if (boardRows.length === 0) {
+    return rankedPlayers;
+  }
+
+  const boardRowsById = new Map(boardRows.map((row) => [row.playerId, row] as const));
+  const mergedPlayers = rankedPlayers.map((player) => {
+    const boardRow = boardRowsById.get(player.id);
+    return boardRow ? mergePublicPlayerWithBoardRow(player, boardRow, publicTeamLookup) : player;
+  });
+  const knownPlayerIds = new Set(mergedPlayers.map((player) => player.id));
+
+  for (const boardRow of boardRows) {
+    if (knownPlayerIds.has(boardRow.playerId)) {
+      continue;
+    }
+
+    mergedPlayers.push(createPublicPlayerFromBoardRow(boardRow, publicTeamLookup));
+  }
+
+  return getRankedPlayers(mergedPlayers);
+}
+
+export function findPublicPubgTeam(dataset: PubgHubDataset, teamIdOrSlug: string) {
+  const normalizedValue = teamIdOrSlug.trim().toLowerCase();
+  return getPublicPubgTeams(dataset).find((team) => team.id === teamIdOrSlug || team.slug.toLowerCase() === normalizedValue) ?? null;
+}
+
+export function findPublicPubgPlayer(dataset: PubgHubDataset, playerIdOrSlug: string) {
+  const normalizedValue = playerIdOrSlug.trim().toLowerCase();
+  return (
+    getPublicPubgPlayers(dataset).find((player) => player.id === playerIdOrSlug || player.slug.toLowerCase() === normalizedValue) ?? null
+  );
+}
+
 export async function getPubgTeamById(teamIdOrSlug: string) {
   const dataset = await getPubgHubDataset();
-  const normalizedValue = teamIdOrSlug.trim().toLowerCase();
-  return dataset.teams.find((team) => team.id === teamIdOrSlug || team.slug.toLowerCase() === normalizedValue) ?? null;
+  return findPublicPubgTeam(dataset, teamIdOrSlug);
 }
 
 export async function getPubgPlayerById(playerIdOrSlug: string) {
   const dataset = await getPubgHubDataset();
-  const normalizedValue = playerIdOrSlug.trim().toLowerCase();
-  return dataset.players.find((player) => player.id === playerIdOrSlug || player.slug.toLowerCase() === normalizedValue) ?? null;
+  return findPublicPubgPlayer(dataset, playerIdOrSlug);
 }

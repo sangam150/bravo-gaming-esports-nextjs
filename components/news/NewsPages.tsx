@@ -202,9 +202,9 @@ export function NewsIndexPage({
           badge="News"
           title={
             <>
-              Published stories,
+              Latest news
               <br />
-              updates, and match-adjacent coverage
+              and official updates
             </>
           }
           description={
@@ -223,9 +223,9 @@ export function NewsIndexPage({
           stats={
             hasNews
               ? [
-                  { label: "Published Posts", value: hub.news.length, tone: "blue" as const },
+                  { label: "Stories", value: hub.news.length, tone: "blue" as const },
                   { label: "Featured", value: hub.news.filter((article) => article.featured).length, tone: "green" as const },
-                  { label: "Categories", value: categories.length, tone: "yellow" as const },
+                  { label: "Topics", value: categories.length, tone: "yellow" as const },
                   { label: "Breaking", value: hub.news.filter((article) => article.breaking).length, tone: "red" as const },
                 ]
               : undefined
@@ -233,14 +233,14 @@ export function NewsIndexPage({
           aside={hasNews ? (
             <div className="space-y-4">
               <div>
-                <p className="section-title">News Desk</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Public coverage only</h2>
+                <p className="section-title">Official Updates</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Bravo news desk</h2>
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
-                Only approved public stories and tournament updates appear in this feed.
+                Tournament announcements, published results, and community updates appear here after review.
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
-                Breaking announcements and event stories are published here as they go live.
+                Breaking announcements and event stories are posted here as they go live.
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
                 Use Discord and the events board for immediate match-day updates.
@@ -251,7 +251,7 @@ export function NewsIndexPage({
 
         {!hasNews ? (
           <EmptyState
-            title="No official news has been published yet"
+            title="Latest news coming soon"
             description="Announcements, tournament updates, and community stories will appear here soon."
             action={
               <div className="flex flex-wrap justify-center gap-2">

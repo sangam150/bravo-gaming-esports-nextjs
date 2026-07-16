@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { PubgTeamProfileShowcasePage } from "@/components/pubg/PubgShowcasePages";
-import { getPubgHubDataset, getPubgTeamById } from "@/lib/pubg-hub";
+import { findPublicPubgTeam, getPubgHubDataset, getPubgTeamById } from "@/lib/pubg-hub";
 
 type PageProps = {
   params: Promise<{ teamId: string }>;
@@ -19,9 +19,7 @@ async function resolveTeam(teamId: string) {
 async function resolveTeamDataset(teamId: string) {
   try {
     const dataset = await getPubgHubDataset();
-    const normalizedTeamId = teamId.trim().toLowerCase();
-    const team =
-      dataset.teams.find((item) => item.id === teamId || item.slug.toLowerCase() === normalizedTeamId) ?? null;
+    const team = findPublicPubgTeam(dataset, teamId);
     return { dataset, team };
   } catch {
     return { dataset: null, team: null };

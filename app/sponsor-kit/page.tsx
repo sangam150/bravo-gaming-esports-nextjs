@@ -131,7 +131,7 @@ export default async function SponsorKitPage() {
       detail: "Bravo uses the contact route below for partner follow-up, package discussion, and next-step coordination.",
     },
     {
-      title: "Support Routing",
+      title: "Contact & Support",
       timeline: "Public support route always available",
       detail: "Community, team, sponsor, and tournament requests can escalate through the public contact page and official Discord.",
     },
@@ -150,8 +150,8 @@ export default async function SponsorKitPage() {
     return {
       name: event.name,
       date: formatDateRangeLabel(event.startDate, event.endDate),
-      teams: event.teamsCount > 0 ? formatNumberValue(event.teamsCount) : "Available on request",
-      matches: event.matchesCount > 0 ? formatNumberValue(event.matchesCount) : "Available on request",
+      teams: event.teamsCount > 0 ? formatNumberValue(event.teamsCount) : "Pending",
+      matches: event.matchesCount > 0 ? formatNumberValue(event.matchesCount) : "Pending",
       winner: event.topTeamName ?? "Published in official standings",
       sponsors: relatedSponsors.length > 0 ? relatedSponsors.join(", ") : "No public sponsor profile linked yet",
     };
@@ -160,22 +160,22 @@ export default async function SponsorKitPage() {
   const audienceCards = [
     {
       label: "Community Reach",
-      value: stats.communityMembers > 0 ? formatNumberValue(stats.communityMembers) : "Available upon request",
+      value: stats.communityMembers > 0 ? formatNumberValue(stats.communityMembers) : "Shared Directly",
       detail: "Public community scale pulled from Bravo site stats when available.",
     },
     {
       label: "Teams Registered",
-      value: stats.teamsRegistered > 0 ? formatNumberValue(stats.teamsRegistered) : "Available upon request",
+      value: stats.teamsRegistered > 0 ? formatNumberValue(stats.teamsRegistered) : "Shared Directly",
       detail: "Registered team count shown only when the site stats record has live numbers.",
     },
     {
       label: "Matches Hosted",
-      value: stats.matchesHosted > 0 ? formatNumberValue(stats.matchesHosted) : "Available upon request",
+      value: stats.matchesHosted > 0 ? formatNumberValue(stats.matchesHosted) : "Shared Directly",
       detail: "Live operational total across published Bravo competition coverage.",
     },
     {
       label: "YouTube / Stream Reach",
-      value: hasMeaningfulText(stats.youtubeViews) ? stats.youtubeViews : "Available upon request",
+      value: hasMeaningfulText(stats.youtubeViews) ? stats.youtubeViews : "Shared Directly",
       detail: "Broadcast and content reach can be supplied directly when a campaign needs exact figures.",
     },
   ] as const;
@@ -224,13 +224,13 @@ export default async function SponsorKitPage() {
                   ))
                 ) : (
                   <span className="inline-flex rounded-full border border-white/10 bg-bg-primary px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-white">
-                    Audience stats available upon request
+                    Sponsor-ready formats
                   </span>
                 )}
               </div>
               <p className="mt-5 text-sm leading-7 text-text-muted">
                 Average live stream viewers and combined social reach are not hard-coded here when the public stat set
-                is incomplete. Audience stats available upon request.
+                is incomplete. Detailed audience stats are available upon request.
               </p>
             </div>
           </div>
@@ -245,6 +245,8 @@ export default async function SponsorKitPage() {
             </div>
           ))}
         </section>
+
+        <p className="text-sm text-text-muted">Detailed audience stats are available upon request.</p>
 
         <section className="space-y-4">
           <div>
@@ -298,7 +300,7 @@ export default async function SponsorKitPage() {
                     </div>
                     <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Viewership / Social Reach</p>
-                      <p className="mt-2 text-white">Audience stats available upon request.</p>
+                      <p className="mt-2 text-white">Shared directly with sponsors during planning.</p>
                     </div>
                   </div>
                 </div>

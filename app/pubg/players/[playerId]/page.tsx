@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { PubgPlayerProfileShowcasePage } from "@/components/pubg/PubgShowcasePages";
-import { getPubgHubDataset, getPubgPlayerById } from "@/lib/pubg-hub";
+import { findPublicPubgPlayer, getPubgHubDataset, getPubgPlayerById } from "@/lib/pubg-hub";
 
 type PageProps = {
   params: Promise<{ playerId: string }>;
@@ -19,9 +19,7 @@ async function resolvePlayer(playerId: string) {
 async function resolvePlayerDataset(playerId: string) {
   try {
     const dataset = await getPubgHubDataset();
-    const normalizedPlayerId = playerId.trim().toLowerCase();
-    const player =
-      dataset.players.find((item) => item.id === playerId || item.slug.toLowerCase() === normalizedPlayerId) ?? null;
+    const player = findPublicPubgPlayer(dataset, playerId);
     return { dataset, player };
   } catch {
     return { dataset: null, player: null };

@@ -9,7 +9,7 @@ import {
   sanitizePublicAssetUrl,
   sanitizePublicCopy,
 } from "./public-content";
-import type { SponsorKind } from "./types";
+import type { SponsorItem, SponsorKind } from "./types";
 
 export type PlatformGameStatus = "flagship" | "active" | "building" | "planned";
 export type PlatformEventStatus = "live" | "upcoming" | "completed" | "planned";
@@ -224,7 +224,7 @@ const GAME_BLUEPRINTS = [
     shortName: "PUBG",
     tagline: "Flagship stats hub for Nepal PUBG coverage",
     summary:
-      "Bravo's strongest section today with events, teams, players, results, rankings, compare, and role-aware access routes.",
+      "Official Bravo PUBG coverage with events, teams, players, results, rankings, and public match data in one place.",
     status: "flagship",
     flagship: true,
     heroLabel: "Flagship Coverage",
@@ -314,6 +314,123 @@ const ARTICLE_SEEDS: PlatformArticle[] = [];
 const ORGANIZATION_SEEDS: PlatformOrganization[] = [];
 
 const MEDIA_SEEDS: PlatformMediaItem[] = [];
+
+const PUBLIC_FALLBACK_EVENTS: PlatformEvent[] = [
+  {
+    id: "public-fallback-pubg-mahasangram-2-0",
+    slug: "pubg-mahasangram-2-0",
+    name: "PUBG Mahasangram 2.0",
+    gameSlug: "pubg-pc",
+    gameName: "PUBG PC",
+    type: "Tournament",
+    status: "upcoming",
+    state: "published",
+    featured: true,
+    region: "Nepal",
+    organizerName: "Bravo Gaming Esports",
+    prizePool: "TBD",
+    teamsCount: 24,
+    matchesCount: 0,
+    startDate: "2026-08-02",
+    endDate: "2026-08-03",
+    bannerUrl: null,
+    summary:
+      "Official event page for PUBG Mahasangram 2.0 with registration updates, rules, and schedule status from Bravo Gaming Esports.",
+    analyticsHref: undefined,
+    streamHref: "/live-stream",
+    topTeamName: null,
+    topPlayerName: null,
+    sponsorName: "HUKUT Store",
+    pointSystemName: "Bravo PUBG",
+    tabs: ["Overview", "Schedule", "Registration", "Rules", "Sponsors"],
+    updatedAt: "2026-07-16T00:00:00.000Z",
+  },
+  {
+    id: "public-fallback-bravo-daily-scrims-day-4",
+    slug: "bravo-daily-scrims-day-4",
+    name: "Bravo Daily Scrims Day 4",
+    gameSlug: "pubg-pc",
+    gameName: "PUBG PC",
+    type: "Daily Scrims",
+    status: "completed",
+    state: "published",
+    featured: true,
+    region: "Nepal",
+    organizerName: "Bravo Gaming Esports",
+    prizePool: "TBD",
+    teamsCount: 20,
+    matchesCount: 4,
+    startDate: "2026-07-12",
+    endDate: "2026-07-12",
+    bannerUrl: null,
+    summary:
+      "Official Bravo Daily Scrims Day 4 event page with published match count, registration links for future events, and verified status updates.",
+    analyticsHref: "/pubg/results",
+    streamHref: "/live-stream",
+    topTeamName: null,
+    topPlayerName: null,
+    sponsorName: "HUKUT Store",
+    pointSystemName: "Bravo PUBG",
+    tabs: ["Overview", "Schedule", "Registration", "Rules", "Sponsors"],
+    updatedAt: "2026-07-16T00:00:00.000Z",
+  },
+  {
+    id: "public-fallback-bravo-weekend-showdown",
+    slug: "bravo-weekend-showdown",
+    name: "Bravo Weekend Showdown",
+    gameSlug: "pubg-pc",
+    gameName: "PUBG PC",
+    type: "Weekend Tournament",
+    status: "completed",
+    state: "published",
+    featured: false,
+    region: "Nepal",
+    organizerName: "Bravo Gaming Esports",
+    prizePool: "TBD",
+    teamsCount: 16,
+    matchesCount: 0,
+    startDate: "2026-06-28",
+    endDate: "2026-06-28",
+    bannerUrl: null,
+    summary:
+      "Official Bravo Weekend Showdown page with results status, event rules, and registration guidance for the next Bravo competition window.",
+    analyticsHref: undefined,
+    streamHref: "/live-stream",
+    topTeamName: null,
+    topPlayerName: null,
+    sponsorName: "HUKUT Store",
+    pointSystemName: "Bravo PUBG",
+    tabs: ["Overview", "Schedule", "Registration", "Rules", "Sponsors"],
+    updatedAt: "2026-07-16T00:00:00.000Z",
+  },
+];
+
+const PUBLIC_FALLBACK_SPONSOR_ITEMS: SponsorItem[] = [
+  {
+    id: "public-fallback-hukut-store",
+    slug: "hukut-store",
+    name: "HUKUT Store",
+    kind: "partner",
+    tier: "Official Partner",
+    description: "Official partner supporting Bravo Gaming Esports broadcasts, scrims, and public tournament coverage.",
+    supportedEvents: ["PUBG Mahasangram 2.0", "Bravo Daily Scrims Day 4"],
+    eventSlugs: ["pubg-mahasangram-2-0", "bravo-daily-scrims-day-4", "bravo-weekend-showdown"],
+    partnershipHistory: ["Official public event partner for Bravo Gaming Esports."],
+    visible: true,
+    featured: true,
+    published: true,
+    showOnHomepage: true,
+    showOnSponsorsPage: true,
+    showOnEventPage: true,
+    showOnPubgPage: true,
+    createdAt: "2026-07-16T00:00:00.000Z",
+    updatedAt: "2026-07-16T00:00:00.000Z",
+  },
+];
+
+const PUBLIC_FALLBACK_EVENTS_BY_SLUG = new Map(
+  PUBLIC_FALLBACK_EVENTS.map((event) => [event.slug.toLowerCase(), event] as const)
+);
 
 function slugify(value: string) {
   return value
@@ -433,6 +550,20 @@ function compareEventsForPublicDisplay(firstEvent: PlatformEvent, secondEvent: P
   }
 
   return compareByDateDesc(firstEvent, secondEvent);
+}
+
+function mergeFallbackItems<T>(fallbackItems: T[], liveItems: T[], getKey: (item: T) => string) {
+  const itemsByKey = new Map<string, T>();
+
+  for (const item of fallbackItems) {
+    itemsByKey.set(getKey(item), item);
+  }
+
+  for (const item of liveItems) {
+    itemsByKey.set(getKey(item), item);
+  }
+
+  return Array.from(itemsByKey.values());
 }
 
 function selectOrderedItems<T>(items: T[], orderedKeys: string[], getKey: (item: T) => string) {
@@ -788,11 +919,20 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     updatedAt: event.updatedAt ?? event.startDate,
   }));
 
-  const events = [...pubgEvents, ...(managedEvents.length > 0 ? managedEvents : PLANNED_EVENTS)]
+  const baseEvents = [...pubgEvents, ...(managedEvents.length > 0 ? managedEvents : PLANNED_EVENTS)]
     .map((event) => sanitizeEventForPublicDisplay(event))
-    .filter((event): event is PlatformEvent => Boolean(event))
-    .sort(compareEventsForPublicDisplay);
-  const sponsorProfiles = buildSponsorProfiles(sponsors, events)
+    .filter((event): event is PlatformEvent => Boolean(event));
+  const events = mergeFallbackItems(PUBLIC_FALLBACK_EVENTS, baseEvents, (event) => event.slug.toLowerCase()).sort(
+    compareEventsForPublicDisplay
+  );
+  const sponsorProfiles = buildSponsorProfiles(
+    mergeFallbackItems(
+      PUBLIC_FALLBACK_SPONSOR_ITEMS,
+      sponsors,
+      (sponsor) => (sponsor.slug ?? sponsor.name).trim().toLowerCase()
+    ),
+    events
+  )
     .map((sponsor) => sanitizeSponsorProfileForPublicDisplay(sponsor))
     .filter((sponsor): sponsor is PlatformSponsorProfile => Boolean(sponsor));
 
@@ -1009,7 +1149,11 @@ export async function getPlatformArticleBySlug(slug: string) {
 
 export async function getPlatformEventBySlug(slug: string) {
   const hub = await getPlatformHubData();
-  return hub.events.find((event) => event.slug === slug) ?? null;
+  return hub.events.find((event) => event.slug === slug) ?? getPlatformFallbackEventBySlug(slug);
+}
+
+export function getPlatformFallbackEventBySlug(slug: string) {
+  return PUBLIC_FALLBACK_EVENTS_BY_SLUG.get(slug.trim().toLowerCase()) ?? null;
 }
 
 export async function getPlatformMatchById(id: string) {

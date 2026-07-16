@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PlatformEventDetailPage } from "@/components/platform/PlatformPages";
 import { buildContentMetadata } from "@/lib/metadata";
-import { getPlatformEventBySlug, getPlatformHubData } from "@/lib/platform-hub";
+import { getPlatformEventBySlug, getPlatformFallbackEventBySlug, getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 
 type PageProps = {
@@ -33,6 +33,7 @@ export default async function EventDetailPage({ params }: PageProps) {
     hub.events.find((item) => item.slug === slug) ??
     hub.home.featuredEvents.find((item) => item.slug === slug) ??
     hub.home.upcomingEvents.find((item) => item.slug === slug) ??
+    getPlatformFallbackEventBySlug(slug) ??
     null;
 
   if (!event) {

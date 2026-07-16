@@ -1,11 +1,12 @@
 import Link from "next/link";
 import TeamAvatar from "@/components/ui/TeamAvatar";
-import type {
-  PubgHubDataset,
-  PubgHubMatch,
-  PubgHubPlayer,
-  PubgHubRecentMatch,
-  PubgHubTeam,
+import {
+  findPublicPubgTeam,
+  type PubgHubDataset,
+  type PubgHubMatch,
+  type PubgHubPlayer,
+  type PubgHubRecentMatch,
+  type PubgHubTeam,
 } from "@/lib/pubg-hub";
 import {
   buildHref,
@@ -852,7 +853,7 @@ export function PubgPlayerProfileShowcasePage({
   const eventId = readSearchParam(searchParams.event, "all");
   const filteredMatches = eventId === "all" ? player.recentMatches : player.recentMatches.filter((match) => match.eventId === eventId);
   const filteredEventStats = eventId === "all" ? player.eventStats : player.eventStats.filter((item) => item.eventId === eventId);
-  const currentTeam = player.currentTeamId ? dataset.teams.find((team) => team.id === player.currentTeamId) ?? null : null;
+  const currentTeam = player.currentTeamId ? findPublicPubgTeam(dataset, player.currentTeamId) ?? null : null;
 
   return (
     <main className="page-shell pb-12 pt-6">

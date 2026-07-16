@@ -59,7 +59,7 @@ export default async function StreamSchedulePage() {
               </div>
             ) : (
               <p className="mt-4 text-sm text-text-muted">
-                No featured broadcast is currently scheduled. Please check back later for upcoming live streams and featured broadcasts.
+                Official broadcasts and tournament streams will appear here once the next Bravo live window is scheduled.
               </p>
             )}
           </div>

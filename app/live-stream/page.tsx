@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getLiveStreamFeed, getStreams, getVideos } from "@/lib/data";
+import { BRAVO_DISCORD_URL, BRAVO_YOUTUBE_URL } from "@/lib/brand-links";
 import { buildContentMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = buildContentMetadata({
@@ -16,6 +17,8 @@ export default async function LiveStreamPage() {
   const [liveFeed, streams, videos] = await Promise.all([getLiveStreamFeed(), getStreams(), getVideos()]);
   const hasStreams = streams.length > 0;
   const hasVideos = videos.length > 0;
+  const hasFeaturedBroadcast = hasStreams && Boolean(liveFeed.embedUrl);
+  const watchOnYouTubeHref = liveFeed.channelUrl || BRAVO_YOUTUBE_URL;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -29,7 +32,7 @@ export default async function LiveStreamPage() {
             {liveFeed.viewers && <span className="font-mono-stat text-sm text-text-muted">{liveFeed.viewers}</span>}
           </div>
           <div className="overflow-hidden rounded-card border border-white/[0.08] bg-black">
-            {hasStreams ? (
+            {hasFeaturedBroadcast ? (
               <iframe
                 className="aspect-video w-full"
                 src={liveFeed.embedUrl}
@@ -38,23 +41,43 @@ export default async function LiveStreamPage() {
                 allowFullScreen
               />
             ) : (
-              <div className="flex aspect-video items-center justify-center p-8 text-center text-sm text-text-muted">
-                No featured broadcast is currently scheduled. Please check back later for upcoming live streams and featured broadcasts.
+              <div className="flex aspect-video flex-col items-center justify-center gap-4 p-8 text-center">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Bravo Gaming Live</p>
+                  <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Stream coverage returns here</h2>
+                  <p className="mt-3 max-w-2xl text-sm text-text-muted">
+                    Official broadcasts and tournament streams will appear here once the next Bravo live window is scheduled.
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <a href={watchOnYouTubeHref} target="_blank" rel="noreferrer" className="btn-primary">
+                    Watch on YouTube
+                  </a>
+                  <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+                    Join Discord
+                  </a>
+                  <Link href="/events" className="btn-secondary">
+                    View Events
+                  </Link>
+                </div>
               </div>
             )}
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="font-display text-xl font-bold text-white">{liveFeed.title}</h1>
+              <h1 className="font-display text-xl font-bold text-white">{hasFeaturedBroadcast ? liveFeed.title : "Bravo Gaming Live"}</h1>
               <p className="text-sm text-text-muted">{liveFeed.description}</p>
             </div>
             <div className="flex gap-2">
-              <a href={liveFeed.channelUrl} target="_blank" rel="noreferrer" className="btn-primary">
-                {liveFeed.isLive ? "Watch on YouTube" : "Subscribe"}
+              <a href={watchOnYouTubeHref} target="_blank" rel="noreferrer" className="btn-primary">
+                Watch on YouTube
               </a>
-              <a href={liveFeed.supportUrl} target="_blank" rel="noreferrer" className="btn-discord">
-                Support
+              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+                Join Discord
               </a>
+              <Link href="/events" className="btn-secondary">
+                View Events
+              </Link>
             </div>
           </div>
         </div>
@@ -78,7 +101,9 @@ export default async function LiveStreamPage() {
               ))}
             </div>
           ) : (
-            <p className="mt-4 text-sm text-text-muted">No featured broadcast is currently scheduled. Please check back later for upcoming live streams and featured broadcasts.</p>
+            <div className="mt-4 rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-text-muted">
+              Upcoming broadcasts will appear here after the next official stream is scheduled.
+            </div>
           )}
         </aside>
       </div>
