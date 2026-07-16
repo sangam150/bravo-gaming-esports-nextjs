@@ -1,0 +1,987 @@
+{
+  "generatedAt": "2026-07-16T03:49:32.050Z",
+  "smoke": [
+    {
+      "route": "/",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/",
+      "title": "Bravo Gaming Esports | PUBG PC Scrims & Tournaments in Nepal",
+      "h1": "Nepal's Home of Competitive PUBG PC Esports",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/login?_rsc=5CB68i4pnAekjehf",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/teams/register?_rsc=5CB68i4pnAekjehf",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/results?_rsc=5CB68i4pnAekjehf",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/teams/register?_rsc=tXyZJ52UQVBCVsD3",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/results?_rsc=tXyZJ52UQVBCVsD3",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login BRAVO GAMING ESPORTS NEPAL'S HOME OF COMPETITIVE PUBG PC ESPORTS Daily scrims, tournaments, leaderboards, match results, and team registration for Nepal PUBG PC competition. Register Team View Schedule View Results AFTER REGISTRATION, OUR ADMIN TEAM REVIEWS YOUR TEAM DETAILS AND CONFIRMS YOUR SLOT THROUGH OFFICIAL CHANNELS. UP NEXT TOURNAMENT LAUNCH Bravo Daily Scrims Schedule TBA"
+    },
+    {
+      "route": "/pubg",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/pubg",
+      "title": "PUBG Hub | Bravo Gaming Esports",
+      "h1": "Daily scrims, results, standings, and player output in one hub",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=tXyZJ52UQVBCVsD3",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg?_rsc=ndax3atF87APQFqC",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg?_rsc=o_1zOis7EKSZ_Ouh",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/?_rsc=8nTjltbQWvg6NcbE",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/events?_rsc=lNDmfu1ypz__hgBZ",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/login?_rsc=lNDmfu1ypz__hgBZ",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login BRAVO GAMING PUBG PC DAILY SCRIMS, RESULTS, STANDINGS, AND PLAYER OUTPUT IN ONE HUB Official PUBG match results, standings, events, and player coverage will appear here as soon as they are published. JOIN DISCORD View Events CURRENT STATUS NO LIVE SCRIM Next room updates will be announced in Discord. COVERAGE SCHEDULE TBA Match results and standings publish here after verification"
+    },
+    {
+      "route": "/events",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/events",
+      "title": "Events | Bravo Gaming Esports",
+      "h1": "Events",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=lNDmfu1ypz__hgBZ",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/teams?_rsc=lNDmfu1ypz__hgBZ",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=P-H0u8lsibt8NhEH",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login EVENTS EVENTS No official events are published yet. Tournament registration and scrim schedules will appear here soon. Join Discord Register Team EVENT BOARD NO OFFICIAL EVENTS ARE PUBLISHED YET Tournament registration and scrim schedules will appear here soon. Join Discord Register Team BRAVO GAMING ESPORTS NEPAL'S PUBG PC HOME BASE Daily scrims, tournament coverage, team registr"
+    },
+    {
+      "route": "/teams/register",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/teams/register",
+      "title": "Register Team | Bravo Gaming Esports",
+      "h1": "Register Your Squad",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/media?_rsc=YOAhSj08-Y8dsjxP",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/news?_rsc=YOAhSj08-Y8dsjxP",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?_rsc=YOAhSj08-Y8dsjxP",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?_rsc=WREmYeWqzYo7QXD1",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/login?_rsc=TcB21sOkvczg_MLu",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/teams/register?_rsc=TcB21sOkvczg_MLu",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=TcB21sOkvczg_MLu",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/teams?_rsc=TcB21sOkvczg_MLu",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login TEAM REGISTRATION REGISTER YOUR SQUAD Submit your roster for Bravo Gaming Esports scrims and tournaments. Admins verify event eligibility, logo assets, and team details before confirming slots. REGISTRATION STATUS WHAT HAPPENS AFTER YOU SUBMIT SUBMITTED Your roster, logo, and event entry are received by Bravo. UNDER REVIEW Admins verify roster details, event eligibility, and brand"
+    },
+    {
+      "route": "/sponsors",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/sponsors",
+      "title": "Sponsors | Bravo Gaming Esports",
+      "h1": "Sponsors & Partners",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login SPONSORS SPONSORS & PARTNERS Official partners supporting Bravo Gaming Esports, PUBG PC scrims, tournaments, broadcasts, and community events. View Sponsor Kit Tournament Partners Contact Bravo PARTNER LINEUP COMING SOON Official partner cards will include website and profile links once announcements go live. WHY PARTNER WITH BRAVO? WHY PARTNER WITH BRAVO? The sponsor page should "
+    },
+    {
+      "route": "/sponsor-kit",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/sponsor-kit",
+      "title": "Sponsor Kit | Bravo Gaming Esports",
+      "h1": "Sponsor-readyBravo overview",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/login?_rsc=Rh9h9_ShmaEXZcWg",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/about?_rsc=cJSHFHavh3RZkAz6",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/about?_rsc=biCQESIKeaCg_b12",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/teams/register?_rsc=Rh9h9_ShmaEXZcWg",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=SDwsHGg5fFBKq6YC",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/login?_rsc=YSZHo8qddeQkkBmx",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/teams/register?_rsc=YSZHo8qddeQkkBmx",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=YSZHo8qddeQkkBmx",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login SPONSOR KIT SPONSOR-READY BRAVO OVERVIEW Use this page for a clean public read on Bravo Gaming Esports partnership options, real event proof, and tournament support standards. Where exact audience numbers are not yet published, we state that clearly instead of filling the gap with estimates. Contact Bravo Tournament Partners JOIN DISCORD CURRENT PUBLIC FORMATS AUDIENCE STATS AVAIL"
+    },
+    {
+      "route": "/tournament-partners",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/tournament-partners",
+      "title": "Tournament Partners | Bravo Gaming Esports",
+      "h1": "Organizer trustand event operations",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/events?_rsc=YSZHo8qddeQkkBmx",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/teams/register?_rsc=bF0TCjEHmWp57jnd",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=bF0TCjEHmWp57jnd",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?_rsc=bF0TCjEHmWp57jnd",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/teams/register?_rsc=mSBqmla3iJQVAk6x",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=mSBqmla3iJQVAk6x",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?_rsc=mSBqmla3iJQVAk6x",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/teams?_rsc=mSBqmla3iJQVAk6x",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/events?_rsc=mSBqmla3iJQVAk6x",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login TOURNAMENT PARTNERS ORGANIZER TRUST AND EVENT OPERATIONS This page is built for sponsors, organizers, and operational partners who need more than a highlight reel. It outlines how Bravo handles rules governance, review gates, disputes, anti-cheat, and public event support. Contact Bravo View Sponsor Kit OFFICIAL DISCORD PROCESS SNAPSHOT 1. Registration is submitted and checked aga"
+    },
+    {
+      "route": "/rules",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/rules",
+      "title": "Bravo Gaming Esports Rules",
+      "h1": "Official BravoRules & Conduct",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/login?_rsc=e9Y1lzaA5AaGHEpw",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/login?_rsc=zy7g2Gi66twr8XPW",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=zy7g2Gi66twr8XPW",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/teams?_rsc=zy7g2Gi66twr8XPW",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?_rsc=zy7g2Gi66twr8XPW",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login COMPETITION RULES OFFICIAL BRAVO RULES & CONDUCT Review the core public rules for Bravo PUBG PC scrims and tournaments. Event-specific instructions, schedules, and roster limits published on official event pages or in Discord always take priority. View Events JOIN DISCORD Contact Bravo BEFORE YOU QUEUE Register the correct team roster before match day. Monitor official Discord not"
+    },
+    {
+      "route": "/anti-cheat",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/anti-cheat",
+      "title": "Bravo Gaming Esports Anti-Cheat Policy",
+      "h1": "Bravo Anti-CheatPolicy",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/teams/register?_rsc=qVbP08vRyn0vBbq6",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=qVbP08vRyn0vBbq6",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/teams/register?_rsc=A-BLsGx2S9Rm9Goy",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=A-BLsGx2S9Rm9Goy",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?_rsc=A-BLsGx2S9Rm9Goy",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/events?_rsc=A-BLsGx2S9Rm9Goy",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login COMPETITIVE INTEGRITY BRAVO ANTI-CHEAT POLICY Bravo PUBG PC scrims and tournaments are built around fair play, evidence-backed review, and strong competitive integrity standards. Every player and team is expected to comply fully. Review Rules JOIN DISCORD Report an Issue ZERO TOLERANCE AREAS Unauthorized software, macros, cheats, or exploit abuse. Account sharing, false identity, "
+    },
+    {
+      "route": "/contact",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/contact",
+      "title": "Contact Bravo Gaming Esports",
+      "h1": "Contact BravoGaming Esports",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/results?_rsc=h2vb-LAkAGynSY5z",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/events?_rsc=h2vb-LAkAGynSY5z",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login 10. CONTACT PAGE CONTACT BRAVO GAMING ESPORTS Have questions about tournaments, scrims, sponsorship opportunities, or partnerships? Get in touch with Bravo Gaming Esports. TOURNAMENT & COMMUNITY INQUIRIES bravoxgaming473@gmail.com DISCORD discord.gg/kHRZXbMwK5 INSTAGRAM @bravo_esport SPONSORSHIP Partner replies target within 2 business days SEND MESSAGE Use the form for tournament"
+    },
+    {
+      "route": "/admin/login",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/admin",
+      "title": "Admin | Bravo Gaming Esports | Bravo Gaming Esports",
+      "h1": "Admin Login",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/media?_rsc=mTa8tpfUvA8h8GpF",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/teams?_rsc=mTa8tpfUvA8h8GpF",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?_rsc=mTa8tpfUvA8h8GpF",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=mTa8tpfUvA8h8GpF",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/events?_rsc=mTa8tpfUvA8h8GpF",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "STAFF ONLY ADMIN LOGIN Sign in with your authorized Supabase admin account. Sign In Need help with your password? Password recovery"
+    },
+    {
+      "route": "/team/login",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/team/login",
+      "title": "Team Login | Bravo Gaming Esports",
+      "h1": "Open the Bravo team workspace",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/login?_rsc=G35KBIcmX2a24VoR",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/results?_rsc=G35KBIcmX2a24VoR",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login TEAM LOGIN OPEN THE BRAVO TEAM WORKSPACE Use your Supabase coach, team manager, or team IGL account to manage roster requests, uploads, and team operations. Login Hub EMAIL LOGIN SIGN IN Use the same Supabase credentials assigned to your Bravo role. Open Team Workspace Need help with your password? Password recovery BRAVO GAMING ESPORTS NEPAL'S PUBG PC HOME BASE Daily scrims, tour"
+    },
+    {
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards",
+      "title": "PUBG Leaderboards | Bravo Gaming Esports",
+      "h1": "Team and player boardsbuilt from published results",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/media?_rsc=n1WENJQoV6oWkzcK",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/news?_rsc=n1WENJQoV6oWkzcK",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/results?_rsc=n1WENJQoV6oWkzcK",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/events?_rsc=n1WENJQoV6oWkzcK",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?_rsc=n1WENJQoV6oWkzcK",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?view=teams&_rsc=cyX-Pknj-e1n-2Cf",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?view=players&_rsc=cyX-Pknj-e1n-2Cf",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/login?_rsc=cyX-Pknj-e1n-2Cf",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=cyX-Pknj-e1n-2Cf",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?view=players&_rsc=FmrHQ2ZX8DVrF_kn",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/results?_rsc=FmrHQ2ZX8DVrF_kn",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/login?_rsc=FmrHQ2ZX8DVrF_kn",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login PUBG LEADERBOARDS TEAM AND PLAYER BOARDS BUILT FROM PUBLISHED RESULTS Leaderboards update from the current published results set, with a shared ranking model that keeps the homepage, hub, directories, and full boards aligned. Browse Teams Match activity FILTERED MATCHES 0 TEAM ROWS 0 PLAYER ROWS 0 MAPS IN LENS 0 BOARD LENS TEAM AND PLAYER SWITCHES TEAM BOARD PLAYER BOARD Coverage "
+    },
+    {
+      "route": "/live-stream",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/live-stream",
+      "title": "Live Stream | Bravo Gaming Esports",
+      "h1": "Bravo Gaming Esports Live Feed",
+      "hasErrorUi": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg?_rsc=yRu4eFr1gaaiBsuq",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/events?_rsc=FmrHQ2ZX8DVrF_kn",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards?_rsc=FmrHQ2ZX8DVrF_kn",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://bravo-gaming-esports.vercel.app/pubg/players?_rsc=FmrHQ2ZX8DVrF_kn",
+          "method": "GET",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "bodySnippet": "BRAVO GAMING ESPORTS NEPAL HOME PUBG EVENTS LEADERBOARDS TEAMS PLAYERS SPONSORS ABOUT Register Team Watch Live Login CHANNEL FEED No featured broadcast is currently scheduled. Please check back later for upcoming live streams and featured broadcasts. Bravo Gaming Esports Live Feed No featured broadcast is currently scheduled. Please check back later for upcoming live streams and featured broadcasts. Subscribe SUPPORT UPCOMING STREAMS No featured broadcast is currently scheduled. Please check bac"
+    }
+  ],
+  "mobile": [
+    {
+      "width": 360,
+      "route": "/",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1175.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 360,
+      "route": "/teams/register",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/teams/register",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1175.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 360,
+      "route": "/sponsors",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/sponsors",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1175.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 360,
+      "route": "/events",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/events",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1175.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 360,
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1175.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 390,
+      "route": "/",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1175.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 390,
+      "route": "/teams/register",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/teams/register",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1175.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 390,
+      "route": "/sponsors",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/sponsors",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1175.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 390,
+      "route": "/events",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/events",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1175.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 390,
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1175.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 430,
+      "route": "/",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1135.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 430,
+      "route": "/teams/register",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/teams/register",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1135.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 430,
+      "route": "/sponsors",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/sponsors",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1135.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 430,
+      "route": "/events",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/events",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1135.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 430,
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 1135.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 768,
+      "route": "/",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 704,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 768,
+      "route": "/teams/register",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/teams/register",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 704,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 768,
+      "route": "/sponsors",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/sponsors",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 704,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 768,
+      "route": "/events",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/events",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 704,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 768,
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 704,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 1024,
+      "route": "/",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 1024,
+      "clientWidth": 1024,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 704,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 1024,
+      "route": "/teams/register",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/teams/register",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 1024,
+      "clientWidth": 1024,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 704,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 1024,
+      "route": "/sponsors",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/sponsors",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 1024,
+      "clientWidth": 1024,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 704,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 1024,
+      "route": "/events",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/events",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 1024,
+      "clientWidth": 1024,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 704,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 1024,
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 1024,
+      "clientWidth": 1024,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 704,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 1440,
+      "route": "/",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 363.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 1440,
+      "route": "/teams/register",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/teams/register",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 363.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 1440,
+      "route": "/sponsors",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/sponsors",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 363.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 1440,
+      "route": "/events",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/events",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 363.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    },
+    {
+      "width": 1440,
+      "route": "/pubg/leaderboards",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/pubg/leaderboards",
+      "consoleErrors": [],
+      "pageErrors": [],
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "footerHeight": 363.5,
+      "cutoffButtons": [],
+      "stickyStyle": "sticky"
+    }
+  ],
+  "eventDetail": {
+    "blocked": true,
+    "reason": "No visible /events/[slug] links found on live /events page."
+  }
+}

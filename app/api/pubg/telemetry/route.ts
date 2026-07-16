@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pubgFetch, PUBG_SHARD, extractTelemetryUrl } from "@/lib/pubg";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { logServerError } from "@/lib/server-monitoring";
+import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
 export async function GET(req: NextRequest) {
+  const limited = await enforceRateLimit(req, { key: "pubg-telemetry", maxRequests: 8, windowMs: 60_000 });
+  if (limited) return limited;
+
   try {
     const matchId = req.nextUrl.searchParams.get("matchId");
     if (!matchId) return NextResponse.json({ error: "Missing ?matchId=MATCH_ID" }, { status: 400 });
@@ -12,7 +18,11 @@ export async function GET(req: NextRequest) {
 
     const events = await fetch(telemetryUrl).then((res) => res.json());
     return NextResponse.json({ matchId, telemetryUrl, events });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    await logServerError("pubg.telemetry", error, req);
+    return jsonErrorResponse(error, {
+      status: 500,
+      fallback: USER_FACING_ERROR_MESSAGES.server,
+    });
   }
 }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getRegistrations, getTournament, getTournamentTeams } from "./data";
+import { getRegistrations, getTournament, getTournamentTeams, getTournaments } from "./data";
 import type { Tournament, TournamentStatus } from "./types";
 import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
@@ -93,6 +93,21 @@ function summarizeRegistrationTarget(tournament: Tournament): RegistrationTarget
   };
 }
 
+function compareRegistrationTargets(firstTarget: RegistrationTargetSummary, secondTarget: RegistrationTargetSummary) {
+  const firstTimestamp = firstTarget.startDate ? Date.parse(firstTarget.startDate) : Number.POSITIVE_INFINITY;
+  const secondTimestamp = secondTarget.startDate ? Date.parse(secondTarget.startDate) : Number.POSITIVE_INFINITY;
+
+  if (Number.isFinite(firstTimestamp) && Number.isFinite(secondTimestamp) && firstTimestamp !== secondTimestamp) {
+    return firstTimestamp - secondTimestamp;
+  }
+
+  if (firstTarget.registrationState !== secondTarget.registrationState) {
+    return firstTarget.registrationState === "open" ? -1 : 1;
+  }
+
+  return firstTarget.title.localeCompare(secondTarget.title);
+}
+
 async function getPublishedEventTournament(idOrSlug: string): Promise<Tournament | null> {
   const value = cleanString(idOrSlug);
   if (!value) {
@@ -162,6 +177,65 @@ export async function getRegistrationTargetSummary(idOrSlug?: string | null): Pr
   }
 
   return summarizeRegistrationTarget(tournament);
+}
+
+export async function listRegistrationTargets(options: { includeClosed?: boolean } = {}): Promise<RegistrationTargetSummary[]> {
+  const targets: RegistrationTargetSummary[] = [];
+
+  if (isSupabaseServiceRoleConfigured()) {
+    const client = getSupabaseServiceRoleClient();
+    const { data, error } = await client
+      .from("events")
+      .select("*")
+      .eq("published", true)
+      .is("deleted_at", null)
+      .order("start_date", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    for (const row of (data ?? []) as Tables<"events">[]) {
+      targets.push(
+        summarizeRegistrationTarget({
+          id: row.id,
+          title: row.name ?? row.title,
+          tier: row.tier ?? "OPEN",
+          status: toTournamentStatus(row),
+          prizePool: row.prize_pool ?? "TBD",
+          teamCount: row.team_count ?? 0,
+          maxTeams: row.max_teams ?? 32,
+          startDate: row.start_date ?? "",
+          endDate: row.end_date ?? undefined,
+          format: row.mode ?? "Squad",
+          mode: row.game,
+          server: row.server ?? row.region ?? "Global",
+          perspective: row.perspective ?? undefined,
+          description: row.description ?? undefined,
+          rules: row.rules ?? undefined,
+          schedule: row.schedule ?? undefined,
+          mapRotation: Array.isArray(row.map_rotation) ? (row.map_rotation as string[]) : [],
+          bannerUrl: row.banner_url ?? undefined,
+          seasonId: row.season_id ?? undefined,
+          seasonDayNumber: row.season_day_number ?? undefined,
+          dayNumber: row.season_day_number ?? undefined,
+          matchCount: row.match_count ?? undefined,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        })
+      );
+    }
+  } else {
+    const tournaments = await getTournaments();
+    targets.push(...tournaments.map((tournament) => summarizeRegistrationTarget(tournament)));
+  }
+
+  const dedupedTargets = Array.from(new Map(targets.map((target) => [target.id, target])).values());
+  const visibleTargets = options.includeClosed
+    ? dedupedTargets
+    : dedupedTargets.filter((target) => target.registrationState === "open");
+
+  return visibleTargets.sort(compareRegistrationTargets);
 }
 
 export function isValidDiscordHandle(value: string) {

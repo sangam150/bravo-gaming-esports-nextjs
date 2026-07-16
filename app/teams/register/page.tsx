@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import TeamRegistrationPageClient from "@/components/team/TeamRegistrationPageClient";
 import { buildContentMetadata } from "@/lib/metadata";
-import { getRegistrationTargetSummary } from "@/lib/team-registration";
+import { getRegistrationTargetSummary, listRegistrationTargets } from "@/lib/team-registration";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -18,12 +18,19 @@ export default async function TeamRegisterPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const requestedTournamentId =
     typeof resolvedSearchParams.tournament === "string" ? resolvedSearchParams.tournament.trim() : "";
-  const selectedTournament = requestedTournamentId
-    ? await getRegistrationTargetSummary(requestedTournamentId).catch(() => null)
-    : null;
+  const [selectedTournament, availableTournaments] = await Promise.all([
+    requestedTournamentId ? getRegistrationTargetSummary(requestedTournamentId).catch(() => null) : Promise.resolve(null),
+    listRegistrationTargets().catch(() => []),
+  ]);
+
+  const visibleTournaments =
+    selectedTournament && !availableTournaments.some((tournament) => tournament.id === selectedTournament.id)
+      ? [selectedTournament, ...availableTournaments]
+      : availableTournaments;
 
   return (
     <TeamRegistrationPageClient
+      availableTournaments={visibleTournaments}
       hasEventQuery={Boolean(requestedTournamentId)}
       selectedTournament={selectedTournament}
     />

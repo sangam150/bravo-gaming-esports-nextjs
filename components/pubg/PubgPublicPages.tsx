@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ManagedImage from "@/components/ui/ManagedImage";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import type { PlatformHubData, PlatformSponsorProfile } from "@/lib/platform-hub";
 import type {
@@ -544,10 +545,12 @@ function PartnerRailCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
     <div className="rounded-[22px] border border-white/[0.08] bg-[#0b1521] p-4">
       <div className="flex items-center gap-3">
         {visualAsset ? (
-          <img
+          <ManagedImage
             src={visualAsset}
             alt={sponsor.name}
-            className="h-14 w-14 rounded-[18px] border border-white/10 bg-black/20 object-contain p-2"
+            sizes="56px"
+            wrapperClassName="h-14 w-14 rounded-[18px] border border-white/10 bg-black/20"
+            className="object-contain p-2"
           />
         ) : (
           <div className="flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/10 bg-black/20 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
@@ -711,7 +714,7 @@ export function PubgDashboardPage({
                   { title: "Join Discord", detail: "Get room updates, scrim timing, and official match announcements.", href: BRAVO_DISCORD_URL, external: true },
                   { title: "Rules", detail: "Review the current public competition and conduct rules.", href: "/rules", external: false },
                   { title: "Anti-Cheat Policy", detail: "Read the competitive integrity and anti-cheat expectations.", href: "/anti-cheat", external: false },
-                  { title: "Sponsor Inquiry", detail: "Contact Bravo for event sponsorship and partner opportunities.", href: "/about/sponsor-us", external: false },
+                { title: "Sponsor Inquiry", detail: "Contact Bravo for event sponsorship and partner opportunities.", href: "/sponsor-kit", external: false },
                 ].map((item) =>
                   item.external ? (
                     <a
@@ -2001,7 +2004,7 @@ export function PubgEventDetailPage({
           }
         />
 
-        <section className="esports-card p-6">
+        <section className="sticky top-20 z-20 rounded-[28px] border border-white/[0.08] bg-[#09111b]/95 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
           <EventNavigation slug={event.slug} currentTab={tab} target={target} map={map} />
         </section>
 

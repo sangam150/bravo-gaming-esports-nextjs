@@ -1,3 +1,5 @@
+import ManagedImage from "@/components/ui/ManagedImage";
+
 export default function LogoBadge({
   label,
   size = "md",
@@ -15,12 +17,12 @@ export default function LogoBadge({
 
   if (imageUrl) {
     return (
-      <img
+      <ManagedImage
         src={imageUrl}
         alt={label}
-        loading="lazy"
-        decoding="async"
-        className={`shrink-0 border border-white/10 bg-bg-primary object-cover shadow-[0_12px_24px_rgba(0,0,0,0.22)] ${sizes[size]}`}
+        sizes={size === "lg" ? "64px" : size === "md" ? "48px" : "36px"}
+        wrapperClassName={`shrink-0 border border-white/10 bg-bg-primary shadow-[0_12px_24px_rgba(0,0,0,0.22)] ${sizes[size]}`}
+        className="object-contain p-1"
       />
     );
   }

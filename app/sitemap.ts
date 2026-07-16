@@ -20,9 +20,11 @@ const staticRoutes = [
   "/pubg/leaderboards",
   "/results",
   "/rules",
+  "/sponsor-kit",
   "/sponsors",
   "/teams/register",
   "/terms",
+  "/tournament-partners",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

@@ -22,6 +22,26 @@ type UploadedRegistrationLogo = {
   url: string;
 };
 
+function formatRegistrationTargetOption(target: RegistrationTargetSummary) {
+  if (!target.startDate) {
+    return target.title;
+  }
+
+  const parsedDate = new Date(target.startDate);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return target.title;
+  }
+
+  const formattedDate = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "Asia/Kathmandu",
+  }).format(parsedDate);
+
+  return `${target.title} • ${formattedDate}`;
+}
+
 function RegistrationStatusFlow() {
   const steps = [
     {
@@ -65,9 +85,11 @@ function RegistrationStatusFlow() {
 }
 
 export default function TeamRegistrationPageClient({
+  availableTournaments,
   hasEventQuery,
   selectedTournament,
 }: {
+  availableTournaments: RegistrationTargetSummary[];
   hasEventQuery: boolean;
   selectedTournament: RegistrationTargetSummary | null;
 }) {
@@ -78,6 +100,7 @@ export default function TeamRegistrationPageClient({
   const [captainName, setCaptainName] = useState("");
   const [captainDiscord, setCaptainDiscord] = useState("");
   const [playerNames, setPlayerNames] = useState(["", "", "", ""]);
+  const [selectedEventId, setSelectedEventId] = useState(selectedTournament?.id ?? "");
   const [uploadedLogo, setUploadedLogo] = useState<UploadedRegistrationLogo | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -88,8 +111,11 @@ export default function TeamRegistrationPageClient({
   const [error, setError] = useState<string | null>(null);
 
   const teamLogoMaxSize = formatUploadSize(getUploadMaxBytes("team_logo"));
-  const invalidTournamentSelection = hasEventQuery && !selectedTournament;
-  const tournamentClosed = selectedTournament?.registrationState && selectedTournament.registrationState !== "open";
+  const selectedTarget =
+    availableTournaments.find((tournament) => tournament.id === selectedEventId) ??
+    (selectedTournament?.id === selectedEventId ? selectedTournament : null);
+  const invalidTournamentSelection = hasEventQuery && !selectedTournament && !selectedTarget;
+  const tournamentClosed = selectedTarget?.registrationState && selectedTarget.registrationState !== "open";
   const submitBlocked = loading || logoUploading || invalidTournamentSelection || Boolean(tournamentClosed);
 
   useEffect(() => {
@@ -99,6 +125,12 @@ export default function TeamRegistrationPageClient({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (selectedTournament?.id) {
+      setSelectedEventId(selectedTournament.id);
+    }
+  }, [selectedTournament?.id]);
 
   function clearLogoPreviewObjectUrl() {
     if (!logoPreviewUrlRef.current) return;
@@ -205,7 +237,7 @@ export default function TeamRegistrationPageClient({
           captainName,
           captainDiscord,
           playerNames: playerNames.filter(Boolean),
-          tournamentId: selectedTournament?.id || undefined,
+          tournamentId: selectedTarget?.id || undefined,
           logoUploadId: uploadedLogo.id,
           logoPath: uploadedLogo.path,
           logoUrl: uploadedLogo.url,
@@ -244,8 +276,8 @@ export default function TeamRegistrationPageClient({
           Bravo admins will review your team details and confirm your slot through official channels.
         </p>
         <p className="mt-2 text-sm text-slate-400">Expected review time: within 24 hours.</p>
-        {selectedTournament?.title ? (
-          <p className="mt-2 text-sm text-accent-blue-light">Selected event: {selectedTournament.title}</p>
+        {selectedTarget?.title ? (
+          <p className="mt-2 text-sm text-accent-blue-light">Selected event: {selectedTarget.title}</p>
         ) : null}
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/contact" className="btn-secondary">
@@ -276,21 +308,42 @@ export default function TeamRegistrationPageClient({
         <RegistrationStatusFlow />
 
         <form onSubmit={handleSubmit} className="esports-card space-y-6 p-8">
-          {selectedTournament ? (
+          {selectedTarget ? (
             <div className="rounded-2xl border border-accent-blue/25 bg-accent-blue/10 px-5 py-4">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Selected Event</p>
-              <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">{selectedTournament.title}</h2>
-              <p className="mt-2 text-sm text-slate-300">{selectedTournament.registrationMessage}</p>
+              <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">{selectedTarget.title}</h2>
+              <p className="mt-2 text-sm text-slate-300">{selectedTarget.registrationMessage}</p>
             </div>
           ) : hasEventQuery ? (
             <div className="rounded-2xl border border-bravoRed/25 bg-bravoRed/10 px-5 py-4 text-sm text-bravoRed">
-              The selected event is unavailable or no longer open for public registration.
+              The event linked from the URL is unavailable. Choose an open public event below and try again.
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-sm text-slate-300">
-              No event was preselected. You can still submit a general team registration and Bravo admins will place it in the correct review queue.
+              Choose an open Bravo event by name below, or leave it as a general review submission if you need a manual placement.
             </div>
           )}
+
+          <div>
+            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+              Event Selection
+            </label>
+            <select
+              className="input-esports"
+              value={selectedEventId}
+              onChange={(event) => setSelectedEventId(event.target.value)}
+            >
+              <option value="">General Bravo review queue</option>
+              {availableTournaments.map((tournament) => (
+                <option key={tournament.id} value={tournament.id}>
+                  {formatRegistrationTargetOption(tournament)}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-slate-500">
+              Public events are listed by name only. Bravo validates the final event selection again on the server before submission is accepted.
+            </p>
+          </div>
 
           <div>
             <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">

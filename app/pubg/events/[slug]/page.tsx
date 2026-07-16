@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PubgEventDetailPage } from "@/components/pubg/PubgPublicPages";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPubgEventBySlug, getPubgHubDataset } from "@/lib/pubg-hub";
 
 type PageProps = {
@@ -34,10 +35,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "PUBG Event Not Found" };
   }
 
-  return {
-    title: `${event.name} Event`,
+  return buildContentMetadata({
+    title: `${event.name} | Bravo Gaming Esports`,
     description: `Track ${event.name} on Bravo with standings, player stats, match lists, map splits, and approval state.`,
-  };
+    path: `/pubg/events/${event.slug}`,
+    imageUrl: event.bannerUrl,
+    type: "website",
+  });
 }
 
 export const revalidate = 300;

@@ -26,6 +26,21 @@ const ruleSections = [
   },
 ] as const;
 
+const operationsTimeline = [
+  {
+    title: "Registration Review",
+    detail: "Target: within 24 hours after the full team submission is received.",
+  },
+  {
+    title: "Dispute Response",
+    detail: "Initial response target: within 12 hours after the required evidence is submitted.",
+  },
+  {
+    title: "Prize / Payment",
+    detail: "Target: within 7 business days after final result verification unless an event page states otherwise.",
+  },
+] as const;
+
 export const metadata: Metadata = buildContentMetadata({
   title: "Bravo Gaming Esports Rules",
   description: "Official Bravo Gaming Esports competition, conduct, and participation rules for PUBG PC scrims and tournaments.",
@@ -90,6 +105,16 @@ export default function RulesPage() {
           ))}
         </section>
 
+        <section className="grid gap-4 md:grid-cols-3">
+          {operationsTimeline.map((item) => (
+            <div key={item.title} className="esports-card p-6">
+              <p className="section-title">Public Timeline</p>
+              <h2 className="mt-3 font-display text-xl font-black uppercase text-white">{item.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-text-muted">{item.detail}</p>
+            </div>
+          ))}
+        </section>
+
         <section className="esports-card p-6">
           <p className="section-title">Final Note</p>
           <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Public rules support a fair competitive standard</h2>
@@ -102,7 +127,7 @@ export default function RulesPage() {
             <Link href="/anti-cheat" className="btn-secondary">
               Anti-Cheat Policy
             </Link>
-            <Link href="/about/sponsor-us" className="btn-primary">
+            <Link href="/sponsor-kit" className="btn-primary">
               Sponsor Inquiry
             </Link>
           </div>

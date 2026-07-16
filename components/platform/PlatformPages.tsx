@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ManagedImage from "@/components/ui/ManagedImage";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import type { PubgHubDataset } from "@/lib/pubg-hub";
 import type {
@@ -367,9 +368,13 @@ function NewsCard({ article }: { article: PlatformArticle }) {
   return (
     <Link href={`/news/${article.slug}`} className="block rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
       {article.imageUrl ? (
-        <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08]">
-          <img src={article.imageUrl} alt={article.title} className="h-44 w-full object-cover" />
-        </div>
+        <ManagedImage
+          src={article.imageUrl}
+          alt={article.title}
+          sizes="(min-width: 1280px) 30vw, (min-width: 768px) 45vw, 100vw"
+          wrapperClassName="mb-4 h-44 rounded-card border border-white/[0.08]"
+          className="object-cover"
+        />
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <CategoryPill label={article.category} />
@@ -398,7 +403,13 @@ function EventCard({ event }: { event: PlatformEvent }) {
     <article className="flex h-full flex-col rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
       <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
         {event.bannerUrl ? (
-          <img src={event.bannerUrl} alt={event.name} className="h-36 w-full object-cover" />
+          <ManagedImage
+            src={event.bannerUrl}
+            alt={event.name}
+            sizes="(min-width: 1280px) 320px, (min-width: 768px) 45vw, 100vw"
+            wrapperClassName="h-36 w-full"
+            className="object-cover"
+          />
         ) : (
           <div className="h-36 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.2),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))]" />
         )}
@@ -551,7 +562,13 @@ function SponsorCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
     <article className="flex h-full flex-col rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
       <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
         {primaryAsset ? (
-          <img src={primaryAsset} alt={sponsor.name} className="h-40 w-full object-cover" />
+          <ManagedImage
+            src={primaryAsset}
+            alt={sponsor.name}
+            sizes="(min-width: 1280px) 320px, (min-width: 768px) 45vw, 100vw"
+            wrapperClassName="h-40 w-full"
+            className="object-cover"
+          />
         ) : (
           <div className="flex h-40 items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.18),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] font-display text-4xl font-black uppercase tracking-[0.14em] text-white">
             {initials}
@@ -560,7 +577,13 @@ function SponsorCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
       </div>
       <div className="flex items-center gap-4">
         {sponsor.logoUrl ? (
-          <img src={sponsor.logoUrl} alt={sponsor.name} className="h-16 w-16 rounded-card border border-white/10 bg-bg-primary object-contain p-2" />
+          <ManagedImage
+            src={sponsor.logoUrl}
+            alt={sponsor.name}
+            sizes="64px"
+            wrapperClassName="h-16 w-16 rounded-card border border-white/10 bg-bg-primary"
+            className="object-contain p-2"
+          />
         ) : (
           <div className="flex h-16 w-16 items-center justify-center rounded-card border border-white/10 bg-bg-primary font-display text-lg font-black uppercase text-white">
             {initials}
@@ -878,9 +901,13 @@ export function PlatformHomePage({
             {featuredTournament ? (
               <div className="mt-5 space-y-4">
                 {featuredTournament.bannerUrl ? (
-                  <div className="overflow-hidden rounded-card border border-white/[0.08]">
-                    <img src={featuredTournament.bannerUrl} alt={featuredTournament.name} className="h-52 w-full object-cover" />
-                  </div>
+                  <ManagedImage
+                    src={featuredTournament.bannerUrl}
+                    alt={featuredTournament.name}
+                    sizes="(min-width: 1280px) 40vw, 100vw"
+                    wrapperClassName="h-52 rounded-card border border-white/[0.08]"
+                    className="object-cover"
+                  />
                 ) : null}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <MetricCard label="Date" value={formatDateRange(featuredTournament.startDate, featuredTournament.endDate)} compact tone="yellow" />
@@ -1041,9 +1068,13 @@ export function PlatformHomePage({
               {hub.home.featuredMedia.map((item) => (
                 <div key={item.id} className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
                   {item.imageUrl ? (
-                    <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08]">
-                      <img src={item.imageUrl} alt={item.title} loading="lazy" className="h-36 w-full object-cover" />
-                    </div>
+                    <ManagedImage
+                      src={item.imageUrl}
+                      alt={item.title}
+                      sizes="(min-width: 1280px) 30vw, (min-width: 768px) 45vw, 100vw"
+                      wrapperClassName="mb-4 h-36 rounded-card border border-white/[0.08]"
+                      className="object-cover"
+                    />
                   ) : null}
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -1249,9 +1280,14 @@ export function PlatformNewsDetailPage({
 
         <section className="esports-card p-8">
           {article.imageUrl ? (
-            <div className="mb-6 overflow-hidden rounded-card border border-white/[0.08]">
-              <img src={article.imageUrl} alt={article.title} className="h-72 w-full object-cover" />
-            </div>
+            <ManagedImage
+              src={article.imageUrl}
+              alt={article.title}
+              priority
+              sizes="(min-width: 1280px) 960px, 100vw"
+              wrapperClassName="mb-6 h-72 rounded-card border border-white/[0.08]"
+              className="object-cover"
+            />
           ) : null}
           <div className="flex flex-wrap gap-2">
             {article.tags.map((tag) => (
@@ -1613,7 +1649,14 @@ export function PlatformEventsPage({
           <section className="overflow-hidden rounded-[32px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))]">
             <div className="grid gap-0 xl:grid-cols-[0.92fr,1.08fr]">
               {featuredEvent.bannerUrl ? (
-                <img src={featuredEvent.bannerUrl} alt={featuredEvent.name} className="h-72 w-full object-cover xl:h-full" />
+                <ManagedImage
+                  src={featuredEvent.bannerUrl}
+                  alt={featuredEvent.name}
+                  priority
+                  sizes="(min-width: 1280px) 40vw, 100vw"
+                  wrapperClassName="h-72 w-full xl:h-full"
+                  className="object-cover"
+                />
               ) : (
                 <div className="h-72 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.22),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] xl:h-full" />
               )}
@@ -1818,6 +1861,14 @@ export function PlatformEventDetailPage({
       (sponsor.eventSlugs.includes(event.slug) || (event.sponsorName ? sponsor.name === event.sponsorName : false)) &&
       (sponsor.showOnEventPage || (event.sponsorName ? sponsor.name === event.sponsorName : false))
   );
+  const eventQuickLinks = [
+    { label: "Overview", href: "#overview" },
+    { label: "Schedule", href: "#schedule" },
+    { label: "Registration", href: "#registration" },
+    { label: "Trust", href: "#trust" },
+    pubgEvent ? { label: "Standings", href: "#standings" } : null,
+    relatedSponsors.length > 0 ? { label: "Sponsors", href: "#sponsors" } : null,
+  ].filter((item): item is { label: string; href: string } => Boolean(item));
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -1867,9 +1918,13 @@ export function PlatformEventDetailPage({
           aside={
             <div className="space-y-4">
               {event.bannerUrl ? (
-                <div className="overflow-hidden rounded-card border border-white/[0.08] bg-black/20">
-                  <img src={event.bannerUrl} alt={event.name} className="h-40 w-full object-cover" />
-                </div>
+                <ManagedImage
+                  src={event.bannerUrl}
+                  alt={event.name}
+                  sizes="(min-width: 1280px) 360px, 100vw"
+                  wrapperClassName="h-40 rounded-card border border-white/[0.08] bg-black/20"
+                  className="object-cover"
+                />
               ) : null}
               <div>
                 <p className="section-title">Event Status</p>
@@ -1901,8 +1956,22 @@ export function PlatformEventDetailPage({
           updatedAt={event.updatedAt ?? event.startDate}
         />
 
+        <nav className="sticky top-20 z-20 xl:hidden">
+          <div className="flex gap-2 overflow-x-auto rounded-[24px] border border-white/[0.08] bg-[#09111b]/95 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur">
+            {eventQuickLinks.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="shrink-0 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted transition hover:border-accent-blue/30 hover:bg-accent-blue/10 hover:text-accent-blue"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </nav>
+
         <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
-          <div className="esports-card p-6">
+          <div id="overview" className="esports-card scroll-mt-32 p-6">
             <SectionHeader eyebrow="Overview" title="Event summary and schedule" description="Schedule, status, and public event context stay visible in one place." />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <MetricCard label="Start" value={formatDate(event.startDate)} compact tone="blue" />
@@ -1913,7 +1982,7 @@ export function PlatformEventDetailPage({
             <p className="mt-5 text-sm leading-relaxed text-text-muted">{event.summary}</p>
           </div>
 
-          <div className="esports-card p-6">
+          <div id="schedule" className="esports-card scroll-mt-32 p-6">
             <SectionHeader eyebrow="Schedule" title="Match and broadcast context" description="These details anchor the event even when some deeper modules are still planned." />
             <div className="mt-5 space-y-3">
               {relatedMatches.slice(0, 4).map((match) => (
@@ -1937,7 +2006,7 @@ export function PlatformEventDetailPage({
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
-          <div className="esports-card p-6">
+          <div id="registration" className="esports-card scroll-mt-32 p-6">
             <SectionHeader eyebrow="Registration" title="Register and stay tournament-ready" description="Public registration stays simple, visible, and linked to the same event promoted across the homepage and event board." />
             <div className="mt-5 rounded-card border border-white/[0.08] bg-bg-primary p-5">
               <p className="text-sm leading-7 text-text-muted">
@@ -1957,7 +2026,7 @@ export function PlatformEventDetailPage({
             </div>
           </div>
 
-          <div className="esports-card p-6">
+          <div id="trust" className="esports-card scroll-mt-32 p-6">
             <SectionHeader eyebrow="Trust" title="Rules, support, and official channels" description="Teams should not have to hunt for the core trust and support links around a tournament detail page." />
             <div className="mt-5 flex flex-wrap gap-2">
               <Link href="/rules" className="btn-secondary">
@@ -1966,7 +2035,7 @@ export function PlatformEventDetailPage({
               <Link href="/anti-cheat" className="btn-secondary">
                 Anti-Cheat
               </Link>
-              <Link href="/about/sponsor-us" className="btn-secondary">
+              <Link href="/sponsor-kit" className="btn-secondary">
                 Sponsor Inquiry
               </Link>
               <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
@@ -1977,7 +2046,7 @@ export function PlatformEventDetailPage({
         </section>
 
         {pubgEvent ? (
-          <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
+          <section id="standings" className="grid scroll-mt-32 gap-6 xl:grid-cols-[1fr,1fr]">
             <div className="esports-card p-6">
               <SectionHeader eyebrow="Standings Preview" title="Flagship event standings" description="PUBG events link back into the deeper Bravo analytics layer while still showing key public context here." />
               <div className="mt-5 space-y-3">
@@ -2035,19 +2104,29 @@ export function PlatformEventDetailPage({
         )}
 
         {relatedSponsors.length > 0 ? (
-          <section className="esports-card p-6">
+          <section id="sponsors" className="esports-card scroll-mt-32 p-6">
             <SectionHeader eyebrow="Sponsor Context" title="Assigned sponsors and partners" description="Event-level sponsor visibility is now part of the core public information model." />
             <div className="mt-5 grid gap-4 xl:grid-cols-2">
               {relatedSponsors.map((sponsor) => (
                 <div key={sponsor.id} className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
                   {sponsor.bannerUrl ?? sponsor.designAssetUrl ? (
-                    <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08]">
-                      <img src={sponsor.bannerUrl ?? sponsor.designAssetUrl ?? undefined} alt={sponsor.name} className="h-36 w-full object-cover" />
-                    </div>
+                    <ManagedImage
+                      src={sponsor.bannerUrl ?? sponsor.designAssetUrl ?? ""}
+                      alt={sponsor.name}
+                      sizes="(min-width: 1280px) 40vw, 100vw"
+                      wrapperClassName="mb-4 h-36 rounded-card border border-white/[0.08]"
+                      className="object-cover"
+                    />
                   ) : null}
                   <div className="flex items-center gap-3">
                     {sponsor.logoUrl ? (
-                      <img src={sponsor.logoUrl} alt={sponsor.name} className="h-14 w-14 rounded-card border border-white/10 bg-black/20 object-contain p-2" />
+                      <ManagedImage
+                        src={sponsor.logoUrl}
+                        alt={sponsor.name}
+                        sizes="56px"
+                        wrapperClassName="h-14 w-14 rounded-card border border-white/10 bg-black/20"
+                        className="object-contain p-2"
+                      />
                     ) : null}
                     <div>
                       <div className="flex flex-wrap gap-2">
@@ -3061,7 +3140,13 @@ export function PlatformMediaPage({
             <div key={item.id} className="esports-card flex h-full flex-col p-5">
               <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08]">
                 {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.title} loading="lazy" className="h-44 w-full object-cover" />
+                  <ManagedImage
+                    src={item.imageUrl}
+                    alt={item.title}
+                    sizes="(min-width: 1280px) 30vw, (min-width: 768px) 45vw, 100vw"
+                    wrapperClassName="h-44 w-full"
+                    className="object-cover"
+                  />
                 ) : (
                   <div className="h-44 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.2),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))]" />
                 )}
@@ -3210,9 +3295,14 @@ export function PlatformMediaDetailPage({
         <section className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
           <div className="esports-card p-6">
             {item.imageUrl ? (
-              <div className="mb-5 overflow-hidden rounded-card border border-white/[0.08]">
-                <img src={item.imageUrl} alt={item.title} className="h-72 w-full object-cover" />
-              </div>
+              <ManagedImage
+                src={item.imageUrl}
+                alt={item.title}
+                priority
+                sizes="(min-width: 1280px) 60vw, 100vw"
+                wrapperClassName="mb-5 h-72 rounded-card border border-white/[0.08]"
+                className="object-cover"
+              />
             ) : null}
             <SectionHeader eyebrow="Summary" title="Published media context" description="Media detail pages keep clips, posters, highlights, and VODs easy to follow." />
             <p className="mt-5 text-sm leading-relaxed text-text-muted">{item.summary}</p>
@@ -3391,14 +3481,14 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
           description="Official partners supporting Bravo Gaming Esports, PUBG PC scrims, tournaments, broadcasts, and community events."
           actions={
             <>
-              <Link href="/about/sponsor-us" className="btn-primary">
-                Become a Sponsor
+              <Link href="/sponsor-kit" className="btn-primary">
+                View Sponsor Kit
+              </Link>
+              <Link href="/tournament-partners" className="btn-secondary">
+                Tournament Partners
               </Link>
               <Link href="/contact" className="btn-secondary">
                 Contact Bravo
-              </Link>
-              <Link href="/media" className="btn-secondary">
-                Media Center
               </Link>
             </>
           }
@@ -3408,7 +3498,14 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
           <section className="overflow-hidden rounded-[32px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))]">
             <div className="grid gap-0 xl:grid-cols-[0.92fr,1.08fr]">
               {sponsorPrimaryAsset(leadSponsor) ? (
-                <img src={sponsorPrimaryAsset(leadSponsor) ?? undefined} alt={leadSponsor.name} className="h-72 w-full object-cover xl:h-full" />
+                <ManagedImage
+                  src={sponsorPrimaryAsset(leadSponsor) ?? ""}
+                  alt={leadSponsor.name}
+                  priority
+                  sizes="(min-width: 1280px) 40vw, 100vw"
+                  wrapperClassName="h-72 w-full xl:h-full"
+                  className="object-cover"
+                />
               ) : (
                 <div className="flex h-72 items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.22),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] font-display text-4xl font-black uppercase tracking-[0.14em] text-white xl:h-full">
                   {buildInitials(leadSponsor.name)}
@@ -3484,8 +3581,11 @@ export function PlatformSponsorsPage({ hub }: { hub: PlatformHubData }) {
               <Link href="/contact" className="btn-primary">
                 Contact Bravo
               </Link>
-              <Link href="/about/sponsor-us" className="btn-secondary">
-                Sponsor Inquiry
+              <Link href="/sponsor-kit" className="btn-secondary">
+                Sponsor Kit
+              </Link>
+              <Link href="/tournament-partners" className="btn-secondary">
+                Tournament Partners
               </Link>
               <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
                 Official Discord
@@ -3567,19 +3667,31 @@ export function PlatformSponsorDetailPage({
             <SectionHeader eyebrow="Assets and Placement" title="Brand assets and placement" description="Official logos, banners, and design visuals used across Bravo public coverage." />
             <div className="mt-5 space-y-4">
               {sponsor.bannerUrl ? (
-                <div className="overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
-                  <img src={sponsor.bannerUrl} alt={`${sponsor.name} banner`} className="h-44 w-full object-cover" />
-                </div>
+                <ManagedImage
+                  src={sponsor.bannerUrl}
+                  alt={`${sponsor.name} banner`}
+                  sizes="(min-width: 1280px) 50vw, 100vw"
+                  wrapperClassName="h-44 rounded-card border border-white/[0.08] bg-bg-primary"
+                  className="object-cover"
+                />
               ) : null}
               {sponsor.designAssetUrl ? (
-                <div className="overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary">
-                  <img src={sponsor.designAssetUrl} alt={`${sponsor.name} design asset`} className="h-44 w-full object-cover" />
-                </div>
+                <ManagedImage
+                  src={sponsor.designAssetUrl}
+                  alt={`${sponsor.name} design asset`}
+                  sizes="(min-width: 1280px) 50vw, 100vw"
+                  wrapperClassName="h-44 rounded-card border border-white/[0.08] bg-bg-primary"
+                  className="object-cover"
+                />
               ) : null}
               {sponsor.logoUrl ? (
-                <div className="overflow-hidden rounded-card border border-white/[0.08] bg-bg-primary p-4">
-                  <img src={sponsor.logoUrl} alt={sponsor.name} className="h-24 w-full object-contain" />
-                </div>
+                <ManagedImage
+                  src={sponsor.logoUrl}
+                  alt={sponsor.name}
+                  sizes="320px"
+                  wrapperClassName="h-24 rounded-card border border-white/[0.08] bg-bg-primary"
+                  className="object-contain p-4"
+                />
               ) : null}
               <div className="flex flex-wrap gap-2">
                 {placements.map((placement) => (

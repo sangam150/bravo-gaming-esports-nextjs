@@ -24,7 +24,7 @@ const supportLinks = [
   { label: "Rules", href: "/rules" },
   { label: "Anti-Cheat", href: "/anti-cheat" },
   { label: "Contact", href: "/contact" },
-  { label: "Sponsor Inquiry", href: "/about/sponsor-us" },
+  { label: "Sponsor Inquiry", href: "/sponsor-kit" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
 ] as const;

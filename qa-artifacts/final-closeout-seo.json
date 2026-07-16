@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2026-07-16T03:58:05.338Z",
+  "routes": [
+    {
+      "route": "/",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/",
+      "title": "Bravo Gaming Esports | PUBG PC Scrims &amp; Tournaments in Nepal",
+      "description": "Nepal&#x27;s competitive PUBG PC esports platform featuring daily scrims, tournaments, live leaderboards, player statistics, team rankings, and community events.",
+      "canonical": "https://bravo-gaming-esports.vercel.app",
+      "ogTitle": "Bravo Gaming Esports - Nepal&#x27;s PUBG PC Esports Platform",
+      "ogDescription": "Join daily scrims, tournaments, and the competitive PUBG PC community in Nepal.",
+      "ogUrl": "https://bravo-gaming-esports.vercel.app",
+      "twitterCard": "summary_large_image",
+      "robots": "index, follow"
+    },
+    {
+      "route": "/events",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/events",
+      "title": "Events | Bravo Gaming Esports",
+      "description": "Browse Bravo Gaming Esports scrims, tournaments, leagues, seasons, and featured public event pages.",
+      "canonical": "https://bravo-gaming-esports.vercel.app/events",
+      "ogTitle": "Events | Bravo Gaming Esports",
+      "ogDescription": "Browse Bravo Gaming Esports scrims, tournaments, leagues, seasons, and featured public event pages.",
+      "ogUrl": "https://bravo-gaming-esports.vercel.app/events",
+      "twitterCard": "summary_large_image",
+      "robots": "index, follow"
+    },
+    {
+      "route": "/teams/register",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/teams/register",
+      "title": "Register Team | Bravo Gaming Esports",
+      "description": "Register your PUBG PC team for Bravo Gaming Esports scrims and tournaments in Nepal.",
+      "canonical": "https://bravo-gaming-esports.vercel.app/teams/register",
+      "ogTitle": "Register Team | Bravo Gaming Esports",
+      "ogDescription": "Register your PUBG PC team for Bravo Gaming Esports scrims and tournaments in Nepal.",
+      "ogUrl": "https://bravo-gaming-esports.vercel.app/teams/register",
+      "twitterCard": "summary_large_image",
+      "robots": "index, follow"
+    },
+    {
+      "route": "/sponsors",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/sponsors",
+      "title": "Sponsors | Bravo Gaming Esports",
+      "description": "Explore Bravo Gaming Esports sponsor, partner, and design profiles with event context and inquiry routes.",
+      "canonical": "https://bravo-gaming-esports.vercel.app/sponsors",
+      "ogTitle": "Sponsors | Bravo Gaming Esports",
+      "ogDescription": "Explore Bravo Gaming Esports sponsor, partner, and design profiles with event context and inquiry routes.",
+      "ogUrl": "https://bravo-gaming-esports.vercel.app/sponsors",
+      "twitterCard": "summary_large_image",
+      "robots": "index, follow"
+    },
+    {
+      "route": "/admin/login",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/admin",
+      "title": "Admin | Bravo Gaming Esports | Bravo Gaming Esports",
+      "description": "Bravo Gaming Esports is Nepal&#x27;s premier esports platform for games, events, matches, teams, players, rankings, media, sponsors, and community coverage.",
+      "canonical": "https://bravo-gaming-esports.vercel.app",
+      "ogTitle": "Bravo Gaming Esports | Nepal&#x27;s Premier Esports Platform",
+      "ogDescription": "Follow games, events, matches, teams, players, rankings, media, sponsors, and community coverage from Nepal&#x27;s premier esports platform.",
+      "ogUrl": "https://bravo-gaming-esports.vercel.app",
+      "twitterCard": "summary_large_image",
+      "robots": "noindex, nofollow"
+    },
+    {
+      "route": "/team/login",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/team/login",
+      "title": "Team Login | Bravo Gaming Esports",
+      "description": "Supabase team login for Bravo Gaming Esports coaches, team managers, and team IGLs.",
+      "canonical": "https://bravo-gaming-esports.vercel.app",
+      "ogTitle": "Bravo Gaming Esports | Nepal&#x27;s Premier Esports Platform",
+      "ogDescription": "Follow games, events, matches, teams, players, rankings, media, sponsors, and community coverage from Nepal&#x27;s premier esports platform.",
+      "ogUrl": "https://bravo-gaming-esports.vercel.app",
+      "twitterCard": "summary_large_image",
+      "robots": "noindex, nofollow"
+    },
+    {
+      "route": "/live-stream",
+      "status": 200,
+      "finalUrl": "https://bravo-gaming-esports.vercel.app/live-stream",
+      "title": "Live Stream | Bravo Gaming Esports",
+      "description": "Watch Bravo Gaming Esports live coverage, upcoming PUBG streams, and recent video highlights.",
+      "canonical": "https://bravo-gaming-esports.vercel.app/live-stream",
+      "ogTitle": "Live Stream | Bravo Gaming Esports",
+      "ogDescription": "Watch Bravo Gaming Esports live coverage, upcoming PUBG streams, and recent video highlights.",
+      "ogUrl": "https://bravo-gaming-esports.vercel.app/live-stream",
+      "twitterCard": "summary_large_image",
+      "robots": "index, follow"
+    }
+  ],
+  "robots": {
+    "status": 200,
+    "body": "User-Agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/admin\nDisallow: /api/auth\nDisallow: /api/cron\n\nHost: https://bravo-gaming-esports.vercel.app\nSitemap: https://bravo-gaming-esports.vercel.app/sitemap.xml\n"
+  },
+  "sitemap": {
+    "status": 200,
+    "hasUrlset": true,
+    "urlCount": 20,
+    "bodySnippet": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n<url>\n<loc>https://bravo-gaming-esports.vercel.app</loc>\n<lastmod>2026-07-16T03:32:51.407Z</lastmod>\n<changefreq>daily</changefreq>\n<priority>1</priority>\n</url>\n<url>\n<loc>https://bravo-gaming-esports.vercel.app/stats</loc>\n<lastmod>2026-07-16T03:32:51.407Z</lastmod>\n<changefreq>weekly</changefreq>\n<priority>0.7</priority>\n</url>\n<url>\n<loc>https://bravo-gaming-esports.vercel.app/about</loc>\n<lastmod>2026-07-16T03:32:51.407Z</lastmod>\n<changefreq>weekly</changefreq>\n<priority>0.7</priority>\n</url>\n<url>\n<loc>https://bravo-gaming-esports.vercel.app/anti-cheat</loc>\n<lastmod>2026-07-16T03:32:51.407Z</lastmod>\n<changefreq>weekly</changefreq>\n<priority>0.7</priority>\n</url>\n<url>\n<loc>https://bravo-gaming-esports.vercel.app/contact</loc>\n<lastmod>2026-07-16T03:32:51.407Z</lastmod>\n<changefreq>weekly</changefreq>\n<priority>0.7</priority>\n</url>\n<url>\n<loc>https://bravo-gaming-esports.vercel.app/events</loc>\n<lastmod>2026-07-16T03:32:51.407Z</lastmod>\n<changefreq>weekly</changefreq>\n<priority>0.7</priority>\n</url>\n<url>\n<loc>https://bravo-gaming-esports.vercel.app/live-stream</loc>\n<lastm"
+  }
+}

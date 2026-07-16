@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ManagedImage from "@/components/ui/ManagedImage";
 import {
   EmptyState,
   PageHero,
@@ -77,9 +78,13 @@ function NewsCard({ article }: { article: PlatformArticle }) {
       className="flex h-full flex-col rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-green/25 hover:bg-bg-hover"
     >
       {article.imageUrl ? (
-        <div className="mb-4 overflow-hidden rounded-card border border-white/[0.08]">
-          <img src={article.imageUrl} alt={article.title} className="h-48 w-full object-cover" />
-        </div>
+        <ManagedImage
+          src={article.imageUrl}
+          alt={article.title}
+          sizes="(min-width: 1280px) 30vw, (min-width: 768px) 45vw, 100vw"
+          wrapperClassName="mb-4 h-48 rounded-card border border-white/[0.08]"
+          className="object-cover"
+        />
       ) : (
         <div className="mb-4 h-48 rounded-card border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.18),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))]" />
       )}
@@ -350,9 +355,14 @@ export function NewsArticlePage({
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr),340px]">
           <article className="esports-card p-6 sm:p-8">
             {article.imageUrl ? (
-              <div className="mb-6 overflow-hidden rounded-card border border-white/[0.08]">
-                <img src={article.imageUrl} alt={article.title} className="h-72 w-full object-cover sm:h-[26rem]" />
-              </div>
+              <ManagedImage
+                src={article.imageUrl}
+                alt={article.title}
+                priority
+                sizes="(min-width: 1280px) 960px, 100vw"
+                wrapperClassName="mb-6 h-72 rounded-card border border-white/[0.08] sm:h-[26rem]"
+                className="object-cover"
+              />
             ) : null}
 
             <div className="flex flex-wrap items-center gap-2">

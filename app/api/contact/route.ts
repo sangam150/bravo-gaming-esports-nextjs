@@ -1,4 +1,5 @@
 import { createContactMessage } from "@/lib/contact-messages";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import {
   jsonErrorResponse,
@@ -6,6 +7,9 @@ import {
 } from "@/lib/user-facing-errors";
 
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit(request, { key: "public-contact", maxRequests: 5, windowMs: 60_000 });
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const kind = body.kind === "feedback" ? "feedback" : "contact";

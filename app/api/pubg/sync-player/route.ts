@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchPubgPlayerRecentMatches } from "@/lib/pubg";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { logServerError } from "@/lib/server-monitoring";
+import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
 export async function GET(req: NextRequest) {
+  const limited = await enforceRateLimit(req, { key: "pubg-sync-player", maxRequests: 12, windowMs: 60_000 });
+  if (limited) return limited;
+
   try {
     const name = req.nextUrl.searchParams.get("name");
     if (!name) return NextResponse.json({ error: "Missing ?name=PLAYER_NAME" }, { status: 400 });
@@ -14,7 +20,11 @@ export async function GET(req: NextRequest) {
       player: { id: lookup.playerId, name: lookup.playerName, shardId: lookup.shardId },
       latestMatch,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    await logServerError("pubg.sync-player", error, req);
+    return jsonErrorResponse(error, {
+      status: 500,
+      fallback: USER_FACING_ERROR_MESSAGES.server,
+    });
   }
 }

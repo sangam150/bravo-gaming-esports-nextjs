@@ -1,24 +1,24 @@
 {
-  "generatedAt": "2026-06-30T19:13:46.125Z",
+  "generatedAt": "2026-07-16T05:35:11.516Z",
   "env": {
     "hasSupabaseUrl": true,
     "hasPublishableKey": true,
-    "hasAnonKey": false,
-    "hasSecretKey": true,
-    "hasServiceRoleKey": false,
+    "hasAnonKey": true,
+    "hasSecretKey": false,
+    "hasServiceRoleKey": true,
     "publicKeySource": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-    "restKeySource": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-    "serviceKeySource": "SUPABASE_SECRET_KEY",
-    "publishableKeyPreview": "sb_p...0R5q",
-    "anonKeyPreview": null,
-    "secretKeyPreview": "sb_s...����",
-    "serviceRoleKeyPreview": null,
+    "restKeySource": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "serviceKeySource": "SUPABASE_SERVICE_ROLE_KEY",
+    "publishableKeyPreview": "sb_p...2tOB",
+    "anonKeyPreview": "eyJh...BKfc",
+    "secretKeyPreview": null,
+    "serviceRoleKeyPreview": "eyJh...3Kqc",
     "serviceRoleKeyShape": {
-      "segmentCount": 0,
-      "signatureLength": 0,
+      "segmentCount": 3,
+      "signatureLength": 43,
       "looksSupabaseSecret": false,
       "looksSupabasePublishable": false,
-      "looksLikeJwt": false,
+      "looksLikeJwt": true,
       "looksMalformedJwt": false
     },
     "serviceRoleKeyWarning": null,
@@ -27,16 +27,16 @@
   },
   "auth": {
     "publishableStatus": 200,
-    "anonStatus": null,
-    "serviceRoleStatus": "ERR",
+    "anonStatus": 200,
+    "serviceRoleStatus": 200,
     "disableSignup": false,
-    "mailerAutoconfirm": false,
+    "mailerAutoconfirm": true,
     "phoneAutoconfirm": false,
     "emailProviderEnabled": true,
     "siteUrl": null
   },
   "storage": {
-    "bucketListStatus": "ERR",
+    "bucketListStatus": 200,
     "existingBuckets": [],
     "requiredBucketGroups": [
       {
@@ -171,162 +171,189 @@
     "criticalTables": [
       {
         "table": "users",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "profiles",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "seasons",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "days",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "teams",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "players",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "events",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "matches",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "match_players",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "match_results",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "event_teams",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "pending_imports",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "import_logs",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "team_roster_history",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "roster_requests",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "match_team_results",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "match_player_results",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "moss_submissions",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "uploads",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "audit_logs",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "announcements",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "sponsors",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "videos",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "settings",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "point_systems",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       },
       {
         "table": "app_documents",
-        "status": 200,
-        "ok": true,
-        "missingFromSchemaCache": false
+        "status": 404,
+        "ok": false,
+        "missingFromSchemaCache": true
       }
     ],
-    "missingCriticalTables": [],
+    "missingCriticalTables": [
+      "users",
+      "profiles",
+      "seasons",
+      "days",
+      "teams",
+      "players",
+      "events",
+      "matches",
+      "match_players",
+      "match_results",
+      "event_teams",
+      "pending_imports",
+      "import_logs",
+      "team_roster_history",
+      "roster_requests",
+      "match_team_results",
+      "match_player_results",
+      "moss_submissions",
+      "uploads",
+      "audit_logs",
+      "announcements",
+      "sponsors",
+      "videos",
+      "settings",
+      "point_systems",
+      "app_documents"
+    ],
     "launchCompatibilityTables": [
       {
         "table": "user_profiles",
@@ -430,7 +457,7 @@
       "platformGames",
       "platformEvents"
     ],
-    "documentStoreTableReady": true,
+    "documentStoreTableReady": false,
     "documentStoreNote": "Homepage content, news articles, contact messages, media records, platform pages, and several admin-managed entities live inside app_documents collections rather than dedicated SQL tables."
   }
 }

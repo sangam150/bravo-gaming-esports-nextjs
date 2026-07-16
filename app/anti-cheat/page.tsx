@@ -26,6 +26,21 @@ const policySections = [
   },
 ] as const;
 
+const reviewTimeline = [
+  {
+    title: "Evidence Intake",
+    detail: "Initial acknowledgement target: within 12 hours after the required files or links are submitted.",
+  },
+  {
+    title: "Case Review",
+    detail: "Case update target: within 48 hours once POV files, screenshots, and verification details are complete.",
+  },
+  {
+    title: "Enforcement Follow-up",
+    detail: "Result updates, match corrections, or wider restrictions are communicated through official Bravo channels after review.",
+  },
+] as const;
+
 export const metadata: Metadata = buildContentMetadata({
   title: "Bravo Gaming Esports Anti-Cheat Policy",
   description: "Official Bravo Gaming Esports anti-cheat, integrity, investigation, and enforcement policy for PUBG PC scrims and tournaments.",
@@ -90,6 +105,16 @@ export default function AntiCheatPage() {
           ))}
         </section>
 
+        <section className="grid gap-4 md:grid-cols-3">
+          {reviewTimeline.map((item) => (
+            <div key={item.title} className="esports-card p-6">
+              <p className="section-title">Review Timeline</p>
+              <h2 className="mt-3 font-display text-xl font-black uppercase text-white">{item.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-text-muted">{item.detail}</p>
+            </div>
+          ))}
+        </section>
+
         <section className="esports-card p-6">
           <p className="section-title">Appeals & Updates</p>
           <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Integrity notices may be updated as events scale</h2>
@@ -102,7 +127,7 @@ export default function AntiCheatPage() {
             <Link href="/events" className="btn-secondary">
               Browse Events
             </Link>
-            <Link href="/about/sponsor-us" className="btn-primary">
+            <Link href="/sponsor-kit" className="btn-primary">
               Sponsor Inquiry
             </Link>
           </div>

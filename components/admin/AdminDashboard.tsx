@@ -2918,7 +2918,7 @@ export default function AdminDashboard({
                             </p>
                           ) : null}
                           {r.tournamentId ? (
-                            <p className="mt-1 text-sm text-slate-300">Tournament: {r.tournamentTitle ?? r.tournamentId}</p>
+                            <p className="mt-1 text-sm text-slate-300">Tournament: {r.tournamentTitle ?? "Published event linked"}</p>
                           ) : null}
                           {r.approvedTeamId ? (
                             <p className="mt-1 text-sm text-accent-green">Published team: {r.approvedTeamId}</p>

@@ -1,3 +1,5 @@
+import ManagedImage from "@/components/ui/ManagedImage";
+
 export default function TeamAvatar({
   name,
   size = "md",
@@ -16,12 +18,12 @@ export default function TeamAvatar({
 
   if (imageUrl) {
     return (
-      <img
+      <ManagedImage
         src={imageUrl}
         alt={name}
-        loading="lazy"
-        decoding="async"
-        className={`shrink-0 rounded-[18px] border border-white/10 bg-bg-primary object-cover shadow-[0_14px_28px_rgba(0,0,0,0.24)] ${sizes[size]}`}
+        sizes={size === "lg" ? "56px" : size === "md" ? "40px" : "36px"}
+        wrapperClassName={`shrink-0 rounded-[18px] border border-white/10 bg-bg-primary shadow-[0_14px_28px_rgba(0,0,0,0.24)] ${sizes[size]}`}
+        className="object-cover"
       />
     );
   }

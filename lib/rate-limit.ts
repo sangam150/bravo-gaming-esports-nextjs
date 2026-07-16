@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash } from "crypto";
+import { logServerError } from "./server-monitoring";
 import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 
@@ -150,7 +151,11 @@ export async function enforceRateLimit(request: Request, options: RateLimitOptio
   if (isSupabaseServiceRoleConfigured()) {
     try {
       return await enforceSharedRateLimit(identifier, options);
-    } catch {
+    } catch (error) {
+      await logServerError("rate-limit.shared-store", error, request, {
+        key: options.key,
+        strategy: "in-memory-fallback",
+      });
       return enforceInMemoryRateLimit(identifier, options);
     }
   }

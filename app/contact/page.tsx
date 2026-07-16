@@ -7,7 +7,7 @@ const contactChannels = [
   { label: "Tournament & Community Inquiries", value: "bravoxgaming473@gmail.com", href: "mailto:bravoxgaming473@gmail.com" },
   { label: "Discord", value: "discord.gg/kHRZXbMwK5", href: BRAVO_DISCORD_URL },
   { label: "Instagram", value: "@bravo_esport", href: BRAVO_INSTAGRAM_URL },
-  { label: "Sponsorship", value: "Partnerships and brand collaboration inquiries welcome", href: "" },
+  { label: "Sponsorship", value: "Partner replies target within 2 business days", href: "/sponsor-kit" },
 ] as const;
 
 export const metadata: Metadata = buildContentMetadata({
@@ -49,7 +49,7 @@ export default function ContactPage() {
                       <a
                         href={channel.href}
                         target={channel.href.startsWith("http") ? "_blank" : undefined}
-                        rel="noreferrer"
+                        rel={channel.href.startsWith("http") ? "noreferrer" : undefined}
                         className="mt-2 block text-sm text-white transition hover:text-accent-blue-light"
                       >
                         {channel.value}

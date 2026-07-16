@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import HomeCommunityBanner from "@/components/home/HomeCommunityBanner";
 import BravoLogo from "@/components/ui/BravoLogo";
+import ManagedImage from "@/components/ui/ManagedImage";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
@@ -237,7 +239,13 @@ function SponsorLogoBadge({
       )}
     >
       {visualUrl ? (
-        <img src={visualUrl} alt={sponsor.name} className={joinClasses("w-auto object-contain", imageClassName)} />
+        <ManagedImage
+          src={visualUrl}
+          alt={sponsor.name}
+          sizes="(min-width: 1280px) 320px, (min-width: 768px) 240px, 50vw"
+          wrapperClassName="h-full w-full"
+          className={joinClasses("object-contain", imageClassName)}
+        />
       ) : (
         <span className={joinClasses("font-display font-black uppercase tracking-[0.14em] text-white", initialsClassName)}>
           {getSponsorInitials(sponsor.name)}
@@ -388,10 +396,13 @@ function HeroSection({
                   <p className="mt-1 text-sm text-text-muted">{liveCard.detail}</p>
                   <p className="mt-1 text-sm text-text-muted">{liveCard.subdetail}</p>
                 </div>
-                <img
+                <Image
                   src="/images/hero-character.svg"
                   alt=""
                   aria-hidden="true"
+                  width={176}
+                  height={224}
+                  unoptimized
                   className="hidden h-56 w-auto object-contain opacity-95 sm:block"
                 />
               </div>
@@ -457,7 +468,7 @@ function SponsorStrip({
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <ActionLink href="/about/sponsor-us">Become a Sponsor</ActionLink>
+          <ActionLink href="/sponsor-kit">Become a Sponsor</ActionLink>
           <ActionLink href="/contact" variant="secondary">
             Sponsor Inquiry
           </ActionLink>
@@ -933,7 +944,14 @@ function UpcomingEvents({ events }: { events: PlatformEvent[] }) {
             <article className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))] shadow-[0_24px_80px_rgba(0,0,0,0.34)]">
               <div className="grid gap-0 lg:grid-cols-[0.94fr,1.06fr]">
                 {featuredEvent.bannerUrl ? (
-                  <img src={featuredEvent.bannerUrl} alt={featuredEvent.name} className="h-56 w-full object-cover lg:h-full" />
+                  <ManagedImage
+                    src={featuredEvent.bannerUrl}
+                    alt={featuredEvent.name}
+                    priority
+                    sizes="(min-width: 1024px) 40vw, 100vw"
+                    wrapperClassName="h-56 w-full lg:h-full"
+                    className="object-cover"
+                  />
                 ) : (
                   <div className="h-56 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.22),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))] lg:h-full" />
                 )}
@@ -1076,7 +1094,7 @@ function TrustStrip({ watchLiveHref }: { watchLiveHref: string }) {
             <Link href="/contact" className="transition hover:text-white">
               Contact
             </Link>
-            <Link href="/about/sponsor-us" className="transition hover:text-white">
+            <Link href="/sponsor-kit" className="transition hover:text-white">
               Sponsor Inquiry
             </Link>
             <a href={watchLiveHref} className="transition hover:text-white">
@@ -1235,7 +1253,15 @@ function NewsUpdateCard({ article }: { article: PlatformArticle }) {
       href={`/news/${article.slug}`}
       className="block overflow-hidden rounded-[20px] border border-white/[0.06] bg-black/15 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
     >
-      {article.imageUrl ? <img src={article.imageUrl} alt={article.title} className="h-44 w-full object-cover" /> : null}
+      {article.imageUrl ? (
+        <ManagedImage
+          src={article.imageUrl}
+          alt={article.title}
+          sizes="(min-width: 1280px) 320px, (min-width: 768px) 50vw, 100vw"
+          wrapperClassName="h-44 w-full"
+          className="object-cover"
+        />
+      ) : null}
       <div className="p-4">
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">{article.category}</p>
         <h3 className="mt-3 font-display text-lg font-black uppercase text-white">{article.title}</h3>
@@ -1260,7 +1286,13 @@ function VideoUpdateCard({ item }: { item: PlatformMediaItem }) {
     >
       <div className="relative">
         {item.imageUrl ? (
-          <img src={item.imageUrl} alt={item.title} className="h-44 w-full object-cover" />
+          <ManagedImage
+            src={item.imageUrl}
+            alt={item.title}
+            sizes="(min-width: 1280px) 320px, (min-width: 768px) 50vw, 100vw"
+            wrapperClassName="h-44 w-full"
+            className="object-cover"
+          />
         ) : (
           <div className="h-44 bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.2),transparent_30%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))]" />
         )}
@@ -1378,7 +1410,7 @@ function CommunityStrip() {
               <Link href="/anti-cheat" className="transition hover:text-white">
                 Anti-Cheat Policy
               </Link>
-              <Link href="/about/sponsor-us" className="transition hover:text-white">
+              <Link href="/sponsor-kit" className="transition hover:text-white">
                 Sponsor Inquiry
               </Link>
             </div>
