@@ -165,7 +165,12 @@ export async function searchPlatformContent(rawQuery: string): Promise<SearchRes
     ...hub.matches.map((match) => ({
       kind: "match" as const,
       title: `${match.eventName} · ${match.stageLabel}`,
-      href: match.gameSlug === "pubg-pc" ? `/pubg/matches/${match.id}` : `/matches/${match.id}`,
+      href:
+        match.gameSlug === "pubg-pc"
+          ? match.eventSlug
+            ? `/pubg/events/${match.eventSlug}?tab=matches`
+            : "/pubg/results"
+          : `/matches/${match.id}`,
       description: `${match.teamA} vs ${match.teamB}${match.winnerName ? ` · Winner: ${match.winnerName}` : ""}`,
       subtitle: `${match.gameName} · ${match.mapLabel} · ${match.status}`,
       badge: "Match",

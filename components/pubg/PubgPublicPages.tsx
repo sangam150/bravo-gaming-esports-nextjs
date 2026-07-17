@@ -65,21 +65,6 @@ type PubgDashboardSeasonSummary = {
   currentTournamentTitle?: string | null;
 };
 
-const dashboardNavItems = [
-  { label: "Overview", href: "#overview" },
-  { label: "Tournaments", href: "#tournaments" },
-  { label: "Scrims", href: "#scrims" },
-  { label: "Seasons", href: "/pubg/seasons/current" },
-  { label: "Matches", href: "#matches" },
-  { label: "Results", href: "/pubg/results" },
-  { label: "Leaderboards", href: "/pubg/leaderboards" },
-  { label: "Community", href: "/pubg/community" },
-  { label: "Teams", href: "/pubg/teams" },
-  { label: "Players", href: "/pubg/players" },
-  { label: "Stats", href: "#stats" },
-  { label: "Hall of Fame", href: "/pubg/hall-of-fame" },
-] as const;
-
 function buildTeamLookup(dataset: PubgHubDataset) {
   return new Map(dataset.teams.map((team) => [team.id, team] as const));
 }
@@ -330,22 +315,44 @@ function PlacementFormStrip({ placements }: { placements: number[] }) {
   );
 }
 
-function DashboardSubnav() {
-  return (
-    <nav className="sticky top-20 z-20 overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#09111b]/95 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur">
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {dashboardNavItems.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className="shrink-0 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted transition hover:border-accent-blue/30 hover:bg-accent-blue/10 hover:text-accent-blue"
-          >
-            {item.label}
-          </Link>
-        ))}
-      </div>
-    </nav>
-  );
+function getMatchStatusMeta(match: PubgHubMatch) {
+  if (match.status === "published") {
+    return {
+      label: "Published",
+      className: "border-accent-green/30 bg-accent-green/10 text-accent-green",
+    };
+  }
+
+  if (match.eventStatus === "ongoing") {
+    return {
+      label: "Live",
+      className: "border-accent-red/30 bg-accent-red/10 text-white",
+    };
+  }
+
+  if (match.eventStatus === "finished") {
+    return {
+      label: "Completed",
+      className: "border-accent-blue/30 bg-accent-blue/10 text-accent-blue-light",
+    };
+  }
+
+  return {
+    label: "Recent",
+    className: "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow",
+  };
+}
+
+function getEventScheduleLabel(event: PubgHubEvent) {
+  return event.matchCount > 0 ? `${formatNumber(event.matchCount)} matches` : "Schedule Pending";
+}
+
+function getEventWinnerLabel(event: PubgHubEvent, winnerName?: string | null) {
+  if (event.status === "finished") {
+    return winnerName ?? "Results Pending";
+  }
+
+  return event.status === "ongoing" ? "Live board in progress" : "Winner locks after completion";
 }
 
 function HubMatchCard({
@@ -356,11 +363,8 @@ function HubMatchCard({
   playerLookup: Map<string, PubgHubPlayer>;
 }) {
   const topFragger = buildTopFragger(match, playerLookup);
-  const matchStatusLabel = match.status === "published" ? "Published" : match.eventStatus === "finished" ? "Completed" : "Current";
-  const matchStatusClass =
-    match.status === "published" || match.eventStatus === "finished"
-      ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
-      : "border-accent-red/30 bg-accent-red/10 text-white";
+  const matchStatus = getMatchStatusMeta(match);
+  const matchHref = match.eventSlug ? buildHref(`/pubg/events/${match.eventSlug}`, { tab: "matches" }) : "/pubg/results";
 
   return (
     <div className="rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-4">
@@ -372,8 +376,8 @@ function HubMatchCard({
           <h3 className="mt-2 font-display text-lg font-black uppercase text-white">{match.eventName}</h3>
           <p className="mt-2 text-sm text-text-muted">{formatDateTime(match.startTime)}</p>
         </div>
-        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${matchStatusClass}`}>
-          {matchStatusLabel}
+        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${matchStatus.className}`}>
+          {matchStatus.label}
         </span>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -390,10 +394,10 @@ function HubMatchCard({
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <HeaderStatCell label="Total Kills" value={match.totalKills} />
         <HeaderStatCell label="Teams" value={match.teamResults.length} />
-        <HeaderStatCell label="Published" value={match.status === "published" ? "Yes" : "Pending"} />
+        <HeaderStatCell label="Status" value={matchStatus.label} />
         <div className="flex items-end justify-end">
-          <Link href={`/pubg/matches/${match.id}`} className="btn-primary h-11 w-full justify-center">
-            View Match
+          <Link href={matchHref} className="btn-primary h-11 w-full justify-center">
+            View Results
           </Link>
         </div>
       </div>
@@ -424,13 +428,11 @@ function HubEventCard({
         <HeaderStatCell label="Date" value={formatDateRange(event.startDate, event.endDate)} />
         <HeaderStatCell label="Prize Pool" value={event.prizePool || "TBD"} />
         <HeaderStatCell label="Teams" value={event.teamCount} />
-        <HeaderStatCell label="Matches" value={event.matchCount} />
+        <HeaderStatCell label="Schedule" value={getEventScheduleLabel(event)} />
       </div>
       <div className="mt-4 rounded-[20px] border border-white/[0.08] bg-black/20 p-3">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Winner</p>
-        <p className="mt-2 font-semibold text-white">
-          {event.status === "finished" ? winnerName ?? "Winner TBD" : "Winner will lock after completion"}
-        </p>
+        <p className="mt-2 font-semibold text-white">{getEventWinnerLabel(event, winnerName)}</p>
       </div>
       <div className="mt-4 flex justify-end">
         <Link href={`/pubg/events/${event.slug}`} className="btn-secondary">
@@ -621,185 +623,182 @@ function PartnerRailCard({ sponsor }: { sponsor: PlatformSponsorProfile }) {
   );
 }
 
+function PubgPartnerStrip({ partners }: { partners: PlatformSponsorProfile[] }) {
+  if (partners.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))] px-5 py-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+      <div className="flex justify-center">
+        <span className="inline-flex rounded-full border border-white/[0.08] bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
+          Official Partners
+        </span>
+      </div>
+      <div className={`mt-5 grid gap-3 ${partners.length === 1 ? "mx-auto max-w-sm grid-cols-1" : "sm:grid-cols-2 xl:grid-cols-4"}`}>
+        {partners.map((partner) => {
+          const visualAsset = partner.logoUrl ?? partner.bannerUrl ?? partner.designAssetUrl ?? null;
+
+          return (
+            <Link
+              key={partner.id}
+              href={`/sponsors/${partner.slug}`}
+              className="flex min-h-[92px] items-center justify-center rounded-[22px] border border-white/[0.08] bg-black/20 px-5 py-4 text-center transition hover:border-accent-blue/30 hover:bg-accent-blue/5"
+            >
+              {visualAsset ? (
+                <ManagedImage
+                  src={visualAsset}
+                  alt={partner.name}
+                  sizes="200px"
+                  wrapperClassName="flex h-12 w-full items-center justify-center"
+                  className="max-h-12 w-auto object-contain"
+                />
+              ) : (
+                <div>
+                  <p className="font-display text-xl font-black uppercase text-white">{partner.name}</p>
+                  <p className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">{partner.tier}</p>
+                </div>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function PubgDashboardPage({
   dataset,
   activeSeason,
   recentMatches,
   recentEvents,
-  topPlayers,
-  topTeams,
   activeEvents,
-  mapPulse,
   partners,
 }: {
   dataset: Awaited<ReturnType<typeof import("@/lib/pubg-hub").getPubgDashboardData>>;
   activeSeason: PubgDashboardSeasonSummary | null;
   recentMatches: PubgHubMatch[];
   recentEvents: PubgHubEvent[];
-  topPlayers: PubgHubPlayer[];
-  topTeams: PubgHubTeam[];
   activeEvents: PubgHubEvent[];
-  mapPulse: PubgHubTeam["mapStats"];
   partners: PlatformSponsorProfile[];
 }) {
   const playerLookup = buildPlayerLookup(dataset);
-  const teamLookup = buildTeamLookup(dataset);
   const hasSupabaseDataset = dataset.source === "supabase";
   const publishedMatches = hasSupabaseDataset ? recentMatches.filter((match) => match.status === "published").slice(0, 4) : [];
   const rankedTeams = getPublicPubgTeams(dataset);
   const rankedPlayers = getPublicPubgPlayers(dataset, rankedTeams);
-  const leaderboardTeams = hasSupabaseDataset ? rankedTeams.slice(0, 6) : [];
-  const leaderboardPlayers = hasSupabaseDataset ? rankedPlayers.slice(0, 6) : [];
-  const featuredEvents = hasSupabaseDataset ? recentEvents.slice(0, 3) : [];
-  const scrimEvents = hasSupabaseDataset
-    ? dataset.events.filter((event) => event.status !== "finished" && /scrim/i.test(event.type)).slice(0, 3)
+  const leaderboardTeams = hasSupabaseDataset ? rankedTeams.slice(0, 5) : [];
+  const leaderboardPlayers = hasSupabaseDataset ? rankedPlayers.slice(0, 5) : [];
+  const featuredEvent =
+    hasSupabaseDataset
+      ? activeEvents.find((event) => event.status === "ongoing") ??
+        activeEvents[0] ??
+        recentEvents.find((event) => event.status !== "finished") ??
+        recentEvents[0] ??
+        null
+      : null;
+  const upcomingEvents = hasSupabaseDataset
+    ? Array.from(
+        new Map(
+          [...activeEvents, ...recentEvents]
+            .filter((event) => event.id !== featuredEvent?.id && event.status !== "finished")
+            .map((event) => [event.id, event] as const)
+        ).values()
+      ).slice(0, 4)
     : [];
-  const upcomingScrims = scrimEvents.length > 0 ? scrimEvents : featuredEvents.filter((event) => event.status !== "finished").slice(0, 3);
-  const featuredTeams = hasSupabaseDataset ? getRankedTeams(topTeams).slice(0, 4) : [];
-  const sidebarTeams = hasSupabaseDataset ? getRankedTeams(topTeams).slice(0, 3) : [];
-  const sidebarPlayers = hasSupabaseDataset ? getRankedPlayers(topPlayers).slice(0, 3) : [];
-  const spotlightEvent = hasSupabaseDataset ? activeEvents[0] ?? recentEvents[0] ?? null : null;
-  const latestWinner = publishedMatches[0]?.winnerTeamName ?? null;
-  const mostWinsTeam = leaderboardTeams.length > 0 ? [...leaderboardTeams].sort((a, b) => b.wins - a.wins || b.totalPoints - a.totalPoints)[0] : null;
-  const mostKillsPlayer = leaderboardPlayers.length > 0 ? [...leaderboardPlayers].sort((a, b) => b.kills - a.kills || b.damage - a.damage)[0] : null;
-  const highestDamagePlayer = leaderboardPlayers.length > 0 ? [...leaderboardPlayers].sort((a, b) => b.damage - a.damage || b.kills - a.kills)[0] : null;
-  const bestAveragePlacementTeam =
-    leaderboardTeams.length > 0
-      ? [...leaderboardTeams].filter((team) => team.matches > 0).sort((a, b) => a.avgPlacement - b.avgPlacement || b.totalPoints - a.totalPoints)[0] ?? null
-      : null;
-  const mostConsistentTeam =
-    leaderboardTeams.length > 0
-      ? [...leaderboardTeams].filter((team) => team.matches > 2).sort((a, b) => b.formScore - a.formScore || a.avgPlacement - b.avgPlacement)[0] ?? null
-      : null;
-  const spotlightSeasonLabel = activeSeason?.title ?? "Current season";
-  const latestMatchLabel = publishedMatches[0] ? `Match ${publishedMatches[0].matchNumber}` : "Awaiting result";
-  const fallbackCurrentDayLabel =
-    activeSeason?.currentDay && activeSeason.currentDay > 0
-      ? `Day ${activeSeason.currentDay}`
-      : spotlightEvent?.name ?? publishedMatches[0]?.eventName ?? "Published results";
-  const matchesPlayed = activeSeason?.matchesPlayed && activeSeason.matchesPlayed > 0 ? activeSeason.matchesPlayed : dataset.matches.length;
-  const teamsTracked = activeSeason?.teamsTracked && activeSeason.teamsTracked > 0 ? activeSeason.teamsTracked : rankedTeams.length;
-  const playersTracked = activeSeason?.playersTracked && activeSeason.playersTracked > 0 ? activeSeason.playersTracked : rankedPlayers.length;
+  const publishedMatchCount = dataset.matches.filter((match) => match.status === "published").length;
+  const rankedTeamCount = rankedTeams.filter((team) => team.matches > 0 || team.totalPoints > 0 || team.kills > 0).length || rankedTeams.length;
+  const rankedPlayerCount =
+    rankedPlayers.filter((player) => player.matches > 0 || player.kills > 0 || player.damage > 0 || player.assists > 0).length ||
+    rankedPlayers.length;
+  const upcomingEventCount = dataset.events.filter((event) => event.status !== "finished").length;
   const hasPublishedCompetitionData =
     publishedMatches.length > 0 ||
     leaderboardTeams.some((team) => team.matches > 0 || team.totalPoints > 0 || team.kills > 0) ||
     leaderboardPlayers.some((player) => player.kills > 0 || player.damage > 0 || player.mvpCount > 0) ||
     Boolean(activeSeason && activeSeason.matchesPlayed > 0);
   const showAnalyticsDashboard = hasSupabaseDataset && hasPublishedCompetitionData;
+  const seasonHeadline = activeSeason?.currentTournamentTitle ?? featuredEvent?.name ?? "Bravo PUBG PC";
+  const latestPublishedDetail = publishedMatches[0]
+    ? `${publishedMatches[0].eventName} | ${formatDateTime(publishedMatches[0].startTime)}`
+    : "Published results, standings, and team form update here after verification.";
 
   if (!showAnalyticsDashboard) {
     return (
       <main className="page-shell overflow-x-hidden pb-12 pt-6">
         <div className="page-stack overflow-x-hidden">
-          <section className="relative overflow-hidden rounded-[36px] border border-white/[0.08] bg-[#050910] px-6 py-7 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:px-8">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_14%,rgba(29,155,240,0.16),transparent_28%),radial-gradient(circle_at_86%_18%,rgba(255,180,0,0.12),transparent_26%),linear-gradient(140deg,rgba(4,8,14,0.98),rgba(8,15,24,0.94))]" />
-            <div className="relative z-10 space-y-6">
-              <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-                <div className="max-w-4xl">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-accent-blue">Bravo Gaming PUBG PC</p>
-                  <h1 className="mt-3 font-display text-4xl font-black uppercase tracking-tight text-white sm:text-5xl">
-                    Daily scrims, results, standings, and player output in one hub
-                  </h1>
-                  <p className="mt-4 text-sm leading-7 text-text-muted sm:text-base sm:leading-8">
-                    Official PUBG match results, standings, events, and player coverage will appear here as soon as they are published.
-                  </p>
+          <PageHero
+            badge="PUBG Competition Hub"
+            title={
+              <>
+                Bravo PUBG PC coverage
+                <br />
+                is ready for the next publish
+              </>
+            }
+            description="Event cards, rules, anti-cheat policy, and registration links stay live even before the first published results board locks in."
+            actions={
+              <>
+                <Link href="/teams/register" className="btn-primary">
+                  Register Team
+                </Link>
+                <Link href="/events" className="btn-secondary">
+                  View Events
+                </Link>
+                <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+                  Join Discord
+                </a>
+              </>
+            }
+            stats={[
+              { label: "Upcoming Events", value: dataset.events.filter((event) => event.status !== "finished").length, tone: "blue" },
+              { label: "Rules Ready", value: "Yes", tone: "green" },
+              { label: "Anti-Cheat", value: "Live", tone: "yellow" },
+              { label: "Support", value: "Discord + Contact", tone: "red" },
+            ]}
+            aside={
+              <div className="space-y-4">
+                <div>
+                  <p className="section-title">Launch Status</p>
+                  <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">One clean public fallback</h2>
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-white">
+                  Official PUBG results and standings will appear here as soon as Bravo publishes the first verified board.
+                </div>
+                <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-text-muted">
+                  Until then, teams can register, watch for schedule updates, review rules, and stay synced through Discord.
+                </div>
+              </div>
+            }
+          />
+
+          <section className="mx-auto max-w-5xl">
+            <EmptyState
+              title="No published PUBG match data yet"
+              description="Official results, leaderboards, player spotlights, and event coverage will appear here after the first verified results set is published."
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Link href="/teams/register" className="btn-primary">
+                    Register Team
+                  </Link>
+                  <Link href="/events" className="btn-secondary">
+                    View Events
+                  </Link>
+                  <Link href="/rules" className="btn-secondary">
+                    Rules
+                  </Link>
+                  <Link href="/anti-cheat" className="btn-secondary">
+                    Anti-Cheat
+                  </Link>
                   <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
                     Join Discord
                   </a>
-                  <Link href="/events" className="btn-primary">
-                    View Events
-                  </Link>
                 </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <HeaderStatCell label="Current Status" value="No Live Scrim" detail="Next room updates will be announced in Discord." />
-                <HeaderStatCell label="Coverage" value="Schedule TBA" detail="Match results and standings publish here after verification." />
-                <HeaderStatCell label="Register" value="Team Signups Open" detail="Register your roster to stay ready for the next lobby." />
-                <HeaderStatCell label="Support" value="Contact Bravo" detail="Reach out for rules, sponsor inquiry, or event support." />
-              </div>
-            </div>
+              }
+            />
           </section>
 
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-            <DashboardSection
-              eyebrow="Current Status"
-              title="Official PUBG coverage is coming online"
-              description="Official PUBG match data will appear here after results are published."
-            >
-              <EmptyState
-                title="No published PUBG match data yet"
-                description="Official results, standings, player rankings, and event coverage will appear here after publication."
-                action={
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
-                      Join Discord
-                    </a>
-                    <Link href="/events" className="btn-secondary">
-                      View Events
-                    </Link>
-                    <Link href="/teams/register" className="btn-primary">
-                      Register Team
-                    </Link>
-                  </div>
-                }
-              />
-            </DashboardSection>
-
-            <DashboardSection
-              eyebrow="Tournament Ready"
-              title="Stay ready for the next lobby"
-              description="Register, review policy links, and keep the public event board one click away."
-            >
-              <div className="grid gap-3">
-                {[
-                  { title: "Register Team", detail: "Open the roster registration flow before the next scrim or tournament window.", href: "/teams/register", external: false },
-                  { title: "Join Discord", detail: "Get room updates, scrim timing, and official match announcements.", href: BRAVO_DISCORD_URL, external: true },
-                  { title: "Rules", detail: "Review the current public competition and conduct rules.", href: "/rules", external: false },
-                  { title: "Anti-Cheat Policy", detail: "Read the competitive integrity and anti-cheat expectations.", href: "/anti-cheat", external: false },
-                { title: "Sponsor Inquiry", detail: "Contact Bravo for event sponsorship and partner opportunities.", href: "/sponsor-kit", external: false },
-                ].map((item) =>
-                  item.external ? (
-                    <a
-                      key={item.title}
-                      href={item.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover"
-                    >
-                      <p className="font-display text-sm font-black uppercase text-white">{item.title}</p>
-                      <p className="mt-2 text-sm text-text-muted">{item.detail}</p>
-                    </a>
-                  ) : (
-                    <Link
-                      key={item.title}
-                      href={item.href}
-                      className="rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover"
-                    >
-                      <p className="font-display text-sm font-black uppercase text-white">{item.title}</p>
-                      <p className="mt-2 text-sm text-text-muted">{item.detail}</p>
-                    </Link>
-                  )
-                )}
-              </div>
-            </DashboardSection>
-          </section>
-
-          {partners.length > 0 ? (
-            <DashboardSection
-              eyebrow="Partners"
-              title="Official partner support"
-              description="Official sponsor and partner profiles."
-            >
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                {partners.slice(0, 4).map((partner) => (
-                  <PartnerRailCard key={partner.id} sponsor={partner} />
-                ))}
-              </div>
-            </DashboardSection>
-          ) : null}
+          <PubgPartnerStrip partners={partners.slice(0, 4)} />
         </div>
       </main>
     );
@@ -808,399 +807,227 @@ export function PubgDashboardPage({
   return (
     <main className="page-shell overflow-x-hidden pb-12 pt-6">
       <div className="page-stack overflow-x-hidden">
-        <section className="relative overflow-hidden rounded-[36px] border border-white/[0.08] bg-[#050910] px-6 py-7 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:px-8">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_14%,rgba(29,155,240,0.16),transparent_28%),radial-gradient(circle_at_86%_18%,rgba(255,180,0,0.12),transparent_26%),linear-gradient(140deg,rgba(4,8,14,0.98),rgba(8,15,24,0.94))]" />
-          <div className="relative z-10 space-y-6">
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-              <div className="max-w-4xl">
-                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-accent-blue">Bravo Gaming PUBG PC</p>
-                <h1 className="mt-3 font-display text-4xl font-black uppercase tracking-tight text-white sm:text-5xl">
-                  Daily scrims, results, standings, and player output in one hub
-                </h1>
-                <p className="mt-4 text-sm font-semibold uppercase tracking-[0.22em] text-text-muted">
-                  Daily Scrims | Tournaments | Teams | Players | Rankings | Results
-                </p>
+        <PageHero
+          badge="PUBG Competition Hub"
+          title={
+            <>
+              Official PUBG competition hub
+              <br />
+              for Bravo Gaming Esports
+            </>
+          }
+          description={`Track featured tournaments, published results, leaderboard leaders, and registration windows around ${seasonHeadline}.`}
+          actions={
+            <>
+              <Link href="/teams/register" className="btn-primary">
+                Register Team
+              </Link>
+              <Link href="/events" className="btn-secondary">
+                View Events
+              </Link>
+              <Link href="/pubg/leaderboards" className="btn-secondary">
+                Official Leaderboards
+              </Link>
+            </>
+          }
+          stats={[
+            { label: "Published Matches", value: publishedMatchCount, tone: "blue" },
+            { label: "Ranked Teams", value: rankedTeamCount, tone: "green" },
+            { label: "Ranked Players", value: rankedPlayerCount, tone: "yellow" },
+            { label: "Upcoming Events", value: upcomingEventCount, tone: "red" },
+          ]}
+          aside={
+            <div className="space-y-4">
+              <div>
+                <p className="section-title">Current Focus</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">{seasonHeadline}</h2>
               </div>
-              <div className="flex flex-wrap gap-3">
-                <Link href="/pubg/leaderboards" className="btn-primary">
-                  View Leaderboards
-                </Link>
-                <Link href="/pubg/results" className="btn-secondary">
-                  Latest Results
-                </Link>
+              <div className="rounded-card border border-white/[0.08] bg-black/20 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Coverage Mode</p>
+                <p className="mt-2 text-sm text-white">{sourceLabel(dataset.source)}</p>
+              </div>
+              <div className="rounded-card border border-white/[0.08] bg-black/20 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Last Published Update</p>
+                <p className="mt-2 text-sm text-white">{latestPublishedDetail}</p>
               </div>
             </div>
+          }
+        />
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-              <HeaderStatCell
-                label="Active Season"
-                value={spotlightSeasonLabel}
-                detail={activeSeason?.currentTournamentTitle ?? "Current PUBG season board"}
-              />
-              <HeaderStatCell label="Matches Tracked" value={showAnalyticsDashboard ? dataset.summary.trackedMatches : 0} />
-              <HeaderStatCell label="Teams" value={showAnalyticsDashboard ? dataset.teams.length : 0} />
-              <HeaderStatCell label="Players" value={showAnalyticsDashboard ? dataset.players.length : 0} />
-              <HeaderStatCell
-                label="Latest Match"
-                value={latestMatchLabel}
-                detail={publishedMatches[0] ? `${publishedMatches[0].mapName} | ${formatDateTime(publishedMatches[0].startTime)}` : "Awaiting first published result"}
-              />
+        <DashboardSection
+          eyebrow="Featured Event"
+          title={featuredEvent?.name ?? "Next featured PUBG event"}
+          description="The current tournament focus stays front and center with clear schedule, status, and registration context."
+        >
+          {featuredEvent ? (
+            <div className="grid gap-4 xl:grid-cols-[1.1fr,0.9fr]">
+              <div className="rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">Featured Event</p>
+                    <h3 className="mt-2 font-display text-2xl font-black uppercase text-white">{featuredEvent.name}</h3>
+                    <p className="mt-3 text-sm leading-7 text-text-muted">
+                      {featuredEvent.description ?? "Official PUBG tournament coverage with standings, schedule, teams, and public results."}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <StatusPill status={featuredEvent.status} />
+                    <StatePill state={featuredEvent.state} />
+                  </div>
+                </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <HeaderStatCell label="Date" value={formatDateRange(featuredEvent.startDate, featuredEvent.endDate)} />
+                  <HeaderStatCell label="Prize Pool" value={featuredEvent.prizePool || "TBD"} />
+                  <HeaderStatCell label="Teams" value={featuredEvent.teamCount} />
+                  <HeaderStatCell label="Schedule" value={getEventScheduleLabel(featuredEvent)} />
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-5">
+                <div className="space-y-4">
+                  <div className="rounded-[20px] border border-white/[0.08] bg-black/20 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Winner Status</p>
+                    <p className="mt-2 font-semibold text-white">{getEventWinnerLabel(featuredEvent, featuredEvent.standings[0]?.teamName ?? null)}</p>
+                  </div>
+                  <div className="rounded-[20px] border border-white/[0.08] bg-black/20 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Registration</p>
+                    <p className="mt-2 text-sm text-white">
+                      {featuredEvent.status === "finished"
+                        ? "Registration has closed for this published event."
+                        : "Team registration and public event updates stay connected through Bravo channels."}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Link href={`/pubg/events/${featuredEvent.slug}`} className="btn-primary">
+                      View Event
+                    </Link>
+                    <Link href="/events" className="btn-secondary">
+                      Browse Events
+                    </Link>
+                    <Link href="/live-stream" className="btn-secondary">
+                      Watch Live
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <EmptyState title="No featured event is scheduled yet" description="Upcoming PUBG tournaments and registration windows will appear here once they are announced." />
+          )}
+        </DashboardSection>
+
+        <DashboardSection
+          eyebrow="Latest Results"
+          title="Published match results"
+          description="Recent verified matches from official Bravo PUBG tournaments and scrims."
+          action={
+            <Link href="/pubg/results" className="btn-secondary">
+              View All Results
+            </Link>
+          }
+        >
+          {publishedMatches.length > 0 ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {publishedMatches.map((match) => (
+                <HubMatchCard key={match.id} match={match} playerLookup={playerLookup} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No match results have been published yet" description="Results will appear once they are officially verified." />
+          )}
+        </DashboardSection>
+
+        <DashboardSection
+          eyebrow="Team Leaderboard Preview"
+          title="Top teams from published results"
+          description="The same official team order used on the full leaderboard appears here on the hub preview."
+          action={
+            <Link href="/pubg/leaderboards?view=teams" className="btn-secondary">
+              View Full Team Board
+            </Link>
+          }
+        >
+          {leaderboardTeams.length > 0 ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {leaderboardTeams.slice(0, 4).map((team, index) => (
+                <HubTeamCard key={team.id} team={team} rank={index + 1} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="Team standings are not available yet" description="Official team standings will appear here after published results go live." />
+          )}
+        </DashboardSection>
+
+        <DashboardSection
+          eyebrow="Player Leaderboard Preview"
+          title="Top fraggers and damage leaders"
+          description="The same official player order used on the full leaderboard stays aligned on this preview."
+          action={
+            <Link href="/pubg/leaderboards?view=players" className="btn-secondary">
+              View Full Player Board
+            </Link>
+          }
+        >
+          {leaderboardPlayers.length > 0 ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {leaderboardPlayers.slice(0, 4).map((player, index) => (
+                <HubPlayerCard key={player.id} player={player} rank={index + 1} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="Player standings are not available yet" description="Official player rankings will appear here after published results go live." />
+          )}
+        </DashboardSection>
+
+        <DashboardSection
+          eyebrow="Upcoming Events"
+          title="Next tournaments and scrims"
+          description="Keep the next registration windows visible without mixing in zeroed internal-style stats."
+          action={
+            <Link href="/events" className="btn-secondary">
+              Browse All Events
+            </Link>
+          }
+        >
+          {upcomingEvents.length > 0 ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {upcomingEvents.map((event) => (
+                <HubEventCard key={event.id} event={event} winnerName={event.standings[0]?.teamName ?? null} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No upcoming PUBG events are posted yet" description="The next tournament window will appear here once the schedule is confirmed." />
+          )}
+        </DashboardSection>
+
+        <PubgPartnerStrip partners={partners.slice(0, 4)} />
+
+        <section className="overflow-hidden rounded-[30px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.98))] p-6 sm:p-7">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+            <div className="max-w-3xl">
+              <p className="section-title">Ready For The Next Lobby?</p>
+              <h2 className="mt-2 font-display text-3xl font-black uppercase text-white">Stay tournament-ready with Bravo PUBG</h2>
+              <p className="mt-4 text-sm leading-7 text-text-muted">
+                Registration, events, official rules, anti-cheat policy, and Discord updates stay visible so teams can move quickly when the next room opens.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3 xl:max-w-[34rem] xl:justify-end">
+              <Link href="/teams/register" className="btn-primary">
+                Register Team
+              </Link>
+              <Link href="/events" className="btn-secondary">
+                View Events
+              </Link>
+              <Link href="/rules" className="btn-secondary">
+                Rules
+              </Link>
+              <Link href="/anti-cheat" className="btn-secondary">
+                Anti-Cheat
+              </Link>
+              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+                Join Discord
+              </a>
             </div>
           </div>
-        </section>
-
-        <DashboardSubnav />
-
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.66fr)_320px]">
-          <div className="min-w-0 space-y-6">
-            <DashboardSection
-              id="overview"
-              eyebrow="Overview"
-              title="Active season and current event focus"
-              description="Season status, featured event details, and the current public PUBG focus."
-            >
-              {activeSeason || spotlightEvent ? (
-                <div className="grid gap-4 xl:grid-cols-[1.05fr,0.95fr]">
-                  <div className="rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">Active Season</p>
-                        <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">{spotlightSeasonLabel}</h2>
-                      </div>
-                      {activeSeason ? (
-                        <Link href={`/pubg/seasons/${activeSeason.slug}`} className="btn-secondary">
-                          Open Season
-                        </Link>
-                      ) : null}
-                    </div>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                      <HeaderStatCell label="Current Day" value={fallbackCurrentDayLabel} />
-                      <HeaderStatCell label="Matches Played" value={matchesPlayed} />
-                      <HeaderStatCell label="Teams Tracked" value={teamsTracked} />
-                      <HeaderStatCell label="Players Tracked" value={playersTracked} />
-                    </div>
-                    <div className="mt-5 rounded-[20px] border border-white/[0.08] bg-black/20 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Current Focus</p>
-                      <p className="mt-2 text-sm text-white">
-                        {activeSeason?.currentTournamentTitle ?? spotlightEvent?.name ?? "The next scheduled PUBG event will appear here once it is announced."}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[24px] border border-white/[0.08] bg-[#0b1521] p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-blue">Featured Event</p>
-                        <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">{spotlightEvent?.name ?? "Featured event"}</h2>
-                      </div>
-                      {spotlightEvent ? (
-                        <div className="flex flex-wrap gap-2">
-                          <StatusPill status={spotlightEvent.status} />
-                          <StatePill state={spotlightEvent.state} />
-                        </div>
-                      ) : null}
-                    </div>
-                    {spotlightEvent ? (
-                      <>
-                        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                          <HeaderStatCell label="Date" value={formatDateRange(spotlightEvent.startDate, spotlightEvent.endDate)} />
-                          <HeaderStatCell label="Prize Pool" value={spotlightEvent.prizePool || "TBD"} />
-                          <HeaderStatCell label="Teams" value={spotlightEvent.teamCount} />
-                          <HeaderStatCell label="Matches" value={spotlightEvent.matchCount} />
-                        </div>
-                        <div className="mt-5 flex flex-wrap gap-3">
-                          <Link href={`/pubg/events/${spotlightEvent.slug}`} className="btn-primary">
-                            View Event
-                          </Link>
-                          <Link href="/pubg/results" className="btn-secondary">
-                            Latest Results
-                          </Link>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="mt-5">
-                        <EmptyState title="No events scheduled right now" description="Upcoming PUBG tournaments and registration windows will be posted here soon." />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <EmptyState title="No active season has been published yet" description="Leaderboard data will be available once matches have been completed and officially published." />
-              )}
-            </DashboardSection>
-
-            <DashboardSection
-              id="matches"
-              eyebrow="Results"
-              title="Latest published match results"
-              description="Official published match results from Bravo scrims and tournaments."
-            >
-              {publishedMatches.length > 0 ? (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {publishedMatches.map((match) => (
-                    <HubMatchCard key={match.id} match={match} playerLookup={playerLookup} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState title="No match results have been published yet" description="Results will appear once they are officially verified." />
-              )}
-            </DashboardSection>
-
-            <DashboardSection
-              id="leaderboards"
-              eyebrow="Leaderboards"
-              title="Team leaderboard"
-              description="Current standings from verified match data."
-            >
-              {leaderboardTeams.length > 0 ? (
-                <div className="table-scroll">
-                  <table className="data-table min-w-full">
-                    <thead style={{ position: "static" }}>
-                      <tr>
-                        <th>Rank</th>
-                        <th>Logo</th>
-                        <th>Team</th>
-                        <th>Matches</th>
-                        <th>WWCD</th>
-                        <th>Kills</th>
-                        <th>Placement Points</th>
-                        <th>Total Points</th>
-                        <th>Form</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leaderboardTeams.map((team, index) => (
-                        <tr key={team.id}>
-                          <td>
-                            <RankBadge rank={index + 1} />
-                          </td>
-                          <td>
-                            <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="sm" />
-                          </td>
-                          <td>
-                            <Link href={`/pubg/teams/${team.slug || team.id}`} className="font-semibold text-white hover:text-accent-blue">
-                              {team.name}
-                            </Link>
-                          </td>
-                          <td>{formatNumber(team.matches)}</td>
-                          <td>{formatNumber(team.wins)}</td>
-                          <td>{formatNumber(team.kills)}</td>
-                          <td>{formatNumber(team.placementPoints)}</td>
-                          <td className="points-cell">{formatNumber(team.totalPoints)}</td>
-                          <td className="min-w-40">
-                            <PlacementFormStrip placements={team.recentPlacements} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <EmptyState title="Leaderboard data is not available yet" description="Leaderboard data will be available once matches have been completed and officially published." />
-              )}
-            </DashboardSection>
-
-            <DashboardSection
-              eyebrow="Players"
-              title="Player leaderboard"
-              description="Top players based on official published results."
-            >
-              {leaderboardPlayers.length > 0 ? (
-                <div className="table-scroll">
-                  <table className="data-table min-w-full">
-                    <thead>
-                      <tr>
-                        <th>Rank</th>
-                        <th>Player</th>
-                        <th>Team</th>
-                        <th>Kills</th>
-                        <th>Assists</th>
-                        <th>Knocks</th>
-                        <th>Damage</th>
-                        <th>MVP</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leaderboardPlayers.map((player, index) => (
-                        <tr key={player.id}>
-                          <td>
-                            <RankBadge rank={index + 1} />
-                          </td>
-                          <td>
-                            <Link href={`/pubg/players/${player.slug || player.id}`} className="font-semibold text-white hover:text-accent-blue">
-                              {player.pubgName}
-                            </Link>
-                          </td>
-                          <td>
-                            {player.currentTeamId ? (
-                              <Link href={`/pubg/teams/${teamLookup.get(player.currentTeamId)?.slug ?? player.currentTeamId}`} className="text-white hover:text-accent-blue">
-                                {player.currentTeamName ?? "Team TBD"}
-                              </Link>
-                            ) : (
-                              player.currentTeamName ?? "Team TBD"
-                            )}
-                          </td>
-                          <td>{formatNumber(player.kills)}</td>
-                          <td>{formatNumber(player.assists)}</td>
-                          <td>{formatNumber(player.knocks)}</td>
-                          <td>{formatNumber(player.damage)}</td>
-                          <td>{formatNumber(player.mvpCount)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
-              )}
-            </DashboardSection>
-
-            <DashboardSection
-              id="tournaments"
-              eyebrow="Tournaments"
-              title="Event and tournament cards"
-              description="Published and upcoming PUBG events."
-            >
-              {featuredEvents.length > 0 ? (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {featuredEvents.map((event) => (
-                    <HubEventCard key={event.id} event={event} winnerName={event.standings[0]?.teamName ?? null} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState title="No events scheduled right now" description="Upcoming PUBG tournaments and registration windows will be posted here soon." />
-              )}
-            </DashboardSection>
-
-            <DashboardSection
-              eyebrow="Teams"
-              title="Top team cards"
-              description="Leading teams from the current verified results window."
-            >
-              {featuredTeams.length > 0 ? (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {featuredTeams.map((team, index) => (
-                    <HubTeamCard key={team.id} team={team} rank={index + 1} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState title="Team statistics are not available yet" description="Statistics will appear after official match data is published." />
-              )}
-            </DashboardSection>
-
-            <DashboardSection
-              id="stats"
-              eyebrow="Stats"
-              title="PUBG hub snapshot"
-              description="Verified performance highlights from the published results set."
-            >
-              {showAnalyticsDashboard ? (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  <MetricCard label="Most WWCD" value={mostWinsTeam?.name ?? "TBA"} detail={mostWinsTeam ? `${formatNumber(mostWinsTeam.wins)} WWCD` : undefined} tone="green" />
-                  <MetricCard label="Most Kills" value={mostKillsPlayer?.pubgName ?? "TBA"} detail={mostKillsPlayer ? `${formatNumber(mostKillsPlayer.kills)} kills` : undefined} tone="blue" />
-                  <MetricCard label="Highest Damage" value={highestDamagePlayer?.pubgName ?? "TBA"} detail={highestDamagePlayer ? `${formatNumber(highestDamagePlayer.damage)} damage` : undefined} tone="red" />
-                  <MetricCard label="Best Avg Placement" value={bestAveragePlacementTeam?.name ?? "TBA"} detail={bestAveragePlacementTeam ? `${formatDecimal(bestAveragePlacementTeam.avgPlacement, 2)} avg place` : undefined} tone="yellow" />
-                  <MetricCard label="Latest Winner" value={latestWinner ?? "TBA"} detail={publishedMatches[0] ? `${publishedMatches[0].mapName} | ${formatDate(publishedMatches[0].startTime)}` : undefined} tone="green" />
-                  <MetricCard label="Most Consistent Team" value={mostConsistentTeam?.name ?? "TBA"} detail={mostConsistentTeam ? `${mostConsistentTeam.formLabel} form` : undefined} tone="blue" />
-                </div>
-              ) : (
-                <EmptyState title="MVP rankings are not available yet" description="MVP rankings will be generated after sufficient match data becomes available." />
-              )}
-            </DashboardSection>
-
-            {mapPulse.length > 0 ? (
-              <MapStatsTable
-                stats={mapPulse}
-                title="Map pulse"
-                description="Map-by-map kills, wins, damage, and total points from the published PUBG result set."
-              />
-            ) : null}
-          </div>
-
-          <aside className="min-w-0 space-y-6">
-            <DashboardSection
-              id="scrims"
-              eyebrow="Upcoming Scrims"
-              title="Immediate lobby schedule"
-              description="Upcoming scrim windows and lobby schedule."
-            >
-              {upcomingScrims.length > 0 ? (
-                <div className="space-y-3">
-                  {upcomingScrims.map((event) => (
-                    <div key={event.id} className="rounded-[22px] border border-white/[0.08] bg-[#0b1521] p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold uppercase text-white">{event.name}</p>
-                        <StatusPill status={event.status} />
-                      </div>
-                      <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{event.type || "PUBG Event"}</p>
-                      <p className="mt-3 text-sm text-text-muted">{formatDateRange(event.startDate, event.endDate)}</p>
-                      <div className="mt-4 flex justify-between gap-3 text-sm">
-                        <span className="text-text-muted">Teams: <span className="font-semibold text-white">{formatNumber(event.teamCount)}</span></span>
-                        <span className="text-text-muted">Matches: <span className="font-semibold text-white">{formatNumber(event.matchCount)}</span></span>
-                      </div>
-                      <div className="mt-4 flex justify-end">
-                        <Link href={`/pubg/events/${event.slug}`} className="btn-secondary">
-                          View Event
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState title="No scrims scheduled" description="No scrim sessions are scheduled at the moment. Please check back later for the next session." />
-              )}
-            </DashboardSection>
-
-            <DashboardSection eyebrow="Top Teams" title="Sidebar team standings" description="Current team leaderboard snapshot.">
-              {sidebarTeams.length > 0 ? (
-                <div className="space-y-3">
-                  {sidebarTeams.map((team, index) => (
-                    <SidebarTeamRow key={team.id} team={team} rank={index + 1} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState title="Team statistics are not available yet" description="Statistics will appear after official match data is published." />
-              )}
-            </DashboardSection>
-
-            <DashboardSection eyebrow="Top Fraggers" title="Player spotlight cards" description="Top player snapshot from published results.">
-              {sidebarPlayers.length > 0 ? (
-                <div className="space-y-3">
-                  {sidebarPlayers.map((player, index) => (
-                    <SidebarPlayerRow key={player.id} player={player} rank={index + 1} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
-              )}
-            </DashboardSection>
-
-            <DashboardSection eyebrow="Partners" title="PUBG partner support" description="Official sponsor and partner profiles.">
-              {partners.length > 0 ? (
-                <div className="space-y-3">
-                  {partners.slice(0, 4).map((partner) => (
-                    <PartnerRailCard key={partner.id} sponsor={partner} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  title="Official partner support remains available"
-                  description="Approved partner cards will appear here once they are published. In the meantime, Bravo can still route sponsor conversations through the contact and sponsor-kit flows."
-                  action={
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <Link href="/sponsor-kit" className="btn-secondary">
-                        Sponsor Kit
-                      </Link>
-                      <Link href="/contact" className="btn-primary">
-                        Contact Bravo
-                      </Link>
-                    </div>
-                  }
-                />
-              )}
-            </DashboardSection>
-
-          </aside>
         </section>
       </div>
     </main>

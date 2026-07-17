@@ -654,7 +654,7 @@ export function RecentMatchCards({
           : match.winnerTeamId
             ? teamLookup?.get(match.winnerTeamId)?.logoUrl ?? null
             : null;
-        const href = `/pubg/matches/${isRecentMatch ? match.matchId : match.id}`;
+        const href = buildHref(`/pubg/events/${match.eventSlug}`, { tab: "matches" });
 
         return (
           <Link

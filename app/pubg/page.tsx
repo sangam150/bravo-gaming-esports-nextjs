@@ -50,10 +50,7 @@ export default async function PubgPage() {
       activeSeason={activeSeason}
       recentMatches={dashboard.recentMatches}
       recentEvents={dashboard.recentEvents}
-      topPlayers={dashboard.topPlayers}
-      topTeams={dashboard.topTeams}
       activeEvents={dashboard.activeEvents}
-      mapPulse={dashboard.mapPulse}
       partners={partners}
     />
   );

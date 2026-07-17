@@ -105,6 +105,7 @@ export interface PubgHubEventPlayerRow {
   avgDamage: number;
   mvpCount: number;
   trend: number[];
+  sourceRank?: number | null;
 }
 
 export interface PubgHubTeamEventStat {
@@ -241,6 +242,7 @@ export interface PubgHubPlayer {
   previousTeams: string[];
   eventStats: PubgHubPlayerEventStat[];
   mapStats: PubgHubMapStat[];
+  sourceRank?: number | null;
 }
 
 export interface PubgHubEvent {
@@ -338,6 +340,16 @@ type BasePlayerRow = {
   avatarUrl?: string | null;
   teamId?: string | null;
   active: boolean;
+  matches: number;
+  kills: number;
+  assists: number;
+  knocks: number;
+  damage: number;
+  wins: number;
+  avgKills: number;
+  avgDamage: number;
+  sourceRank?: number | null;
+  sourceTournamentId?: string | null;
 };
 
 type BaseRosterRow = {
@@ -755,6 +767,16 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
         avatarUrl: buildPlayerAvatar(playerName, team),
         teamId: team.id,
         active: true,
+        matches: 0,
+        kills: 0,
+        assists: 0,
+        knocks: 0,
+        damage: 0,
+        wins: 0,
+        avgKills: 0,
+        avgDamage: 0,
+        sourceRank: null,
+        sourceTournamentId: null,
       });
       rosterHistory.push({
         teamId: team.id,
@@ -780,6 +802,16 @@ function buildFallbackSeedBaseDataset(): BaseDataset {
       pubgName: entry.pubgName,
       teamId: null,
       active: false,
+      matches: 0,
+      kills: 0,
+      assists: 0,
+      knocks: 0,
+      damage: 0,
+      wins: 0,
+      avgKills: 0,
+      avgDamage: 0,
+      sourceRank: null,
+      sourceTournamentId: null,
     });
     rosterHistory.push({
       teamId: entry.teamId,
@@ -1165,6 +1197,16 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
         avatarUrl: toOptionalText(row.avatar_url ?? row.photo_url),
         teamId: toOptionalText(row.current_team_id),
         active: toBoolean(row.is_active, true) && !Boolean(toOptionalText(row.deleted_at)),
+        matches: 0,
+        kills: 0,
+        assists: 0,
+        knocks: 0,
+        damage: 0,
+        wins: 0,
+        avgKills: 0,
+        avgDamage: 0,
+        sourceRank: null,
+        sourceTournamentId: null,
       };
     }).filter((player): player is BasePlayerRow => Boolean(player?.id && player.pubgName));
 
@@ -1316,7 +1358,7 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
     ]);
 
     const teams: BaseTeamRow[] = teamsDocs
-      .filter((team) => team.id && team.name && team.scope !== "tournament")
+      .filter((team) => team.id && team.name)
       .map((team) => ({
         id: team.id,
         slug: team.slug ?? slugify(team.name),
@@ -1329,7 +1371,7 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
       }));
 
     const players: BasePlayerRow[] = playersDocs
-      .filter((player) => player.id && player.name && player.scope !== "tournament")
+      .filter((player) => player.id && player.name)
       .map((player) => ({
         id: player.id,
         slug: player.slug ?? slugify(player.pubgName ?? player.inGameName ?? player.name),
@@ -1337,6 +1379,21 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
         avatarUrl: player.avatarUrl ?? player.avatar ?? null,
         teamId: player.teamId ?? null,
         active: (player.playerStatus ?? "active") !== "inactive",
+        matches: toNumber(player.matches, 0),
+        kills: toNumber(player.kills, 0),
+        assists: toNumber(player.assists, 0),
+        knocks: toNumber(player.knocks, 0),
+        damage: toNumber(player.damage, 0),
+        wins: toNumber(player.chickenDinners, 0),
+        avgKills: Number((toNumber(player.kills, 0) / Math.max(toNumber(player.matches, 0), 1)).toFixed(2)),
+        avgDamage: Number(
+          (
+            toOptionalNumber(player.averageDamage) ??
+            toNumber(player.damage, 0) / Math.max(toNumber(player.matches, 0), 1)
+          ).toFixed(2)
+        ),
+        sourceRank: toOptionalNumber(player.sourceRank),
+        sourceTournamentId: toOptionalText(player.sourceTournamentId),
       }));
 
     const tournaments = tournamentDocs.filter((tournament) => tournament.id && tournament.title);
@@ -1609,6 +1666,39 @@ function aggregateMapStats(values: Array<{ mapName: string; placement: number; k
       damage: value.damage,
     }))
     .sort((firstValue, secondValue) => secondValue.points - firstValue.points || firstValue.avgPlacement - secondValue.avgPlacement);
+}
+
+function buildAggregateEventPlayerRows(
+  players: readonly BasePlayerRow[],
+  eventId: string,
+  teamsById: ReadonlyMap<string, BaseTeamRow>
+) {
+  return getRankedPlayers(
+    players
+      .filter((player) => player.sourceTournamentId === eventId && player.matches > 0)
+      .map((player) => ({
+        rank: 0,
+        id: player.id,
+        playerId: player.id,
+        pubgName: player.pubgName,
+        teamId: player.teamId ?? null,
+        teamName: player.teamId ? teamsById.get(player.teamId)?.name ?? null : null,
+        avatarUrl: player.avatarUrl ?? null,
+        matches: player.matches,
+        kills: player.kills,
+        assists: player.assists,
+        knocks: player.knocks,
+        damage: player.damage,
+        avgKills: player.avgKills,
+        avgDamage: player.avgDamage,
+        mvpCount: 0,
+        trend: [],
+        sourceRank: player.sourceRank ?? null,
+      } satisfies PubgHubEventPlayerRow & { id: string }))
+  ).map((row, index) => ({
+    ...row,
+    rank: index + 1,
+  }));
 }
 
 function isPublicMatchStatus(status: string) {
@@ -1907,7 +1997,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
           rank: index + 1,
         }));
 
-      const playerTable = Array.from(playerMap.values())
+      const matchDerivedPlayerTable = Array.from(playerMap.values())
         .map((value) => ({
           rank: 0,
           playerId: value.playerId,
@@ -1952,6 +2042,9 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
           ...value,
           rank: index + 1,
         }));
+      const fallbackPlayerTable =
+        matchDerivedPlayerTable.length > 0 ? [] : buildAggregateEventPlayerRows(base.players, event.id, teamsById);
+      const playerTable = matchDerivedPlayerTable.length > 0 ? matchDerivedPlayerTable : fallbackPlayerTable;
 
       const derivedTeamIds = Array.from(eventTeamIds.get(event.id) ?? new Set<string>());
       const teamCount = derivedTeamIds.length > 0 ? derivedTeamIds.length : standings.length;
@@ -2404,7 +2497,9 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
   const players = getRankedPlayers(
     Array.from(playerSummaryMap.values())
     .map((value) => {
-      const team = value.teamId ? teamsById.get(value.teamId) : null;
+      const basePlayer = playersById.get(value.id);
+      const resolvedTeamId = value.teamId ?? basePlayer?.teamId ?? null;
+      const team = resolvedTeamId ? teamsById.get(resolvedTeamId) : null;
       const eventStats = events
         .map((event) => {
           const row = event.playerTable.find((playerRow) => playerRow.playerId === value.id);
@@ -2434,39 +2529,78 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
           );
         });
 
-      const recentKills = value.recentTrend.slice(0, 6).reverse();
+      const aggregateEventFallback = eventStats.reduce(
+        (summary, eventStat) => {
+          summary.matches += eventStat.matches;
+          summary.kills += eventStat.kills;
+          summary.assists += eventStat.assists;
+          summary.knocks += eventStat.knocks;
+          summary.damage += eventStat.damage;
+          summary.recentKills.push(eventStat.kills);
+          summary.recentDamage.push(eventStat.damage);
+          return summary;
+        },
+        {
+          matches: 0,
+          kills: 0,
+          assists: 0,
+          knocks: 0,
+          damage: 0,
+          recentKills: [] as number[],
+          recentDamage: [] as number[],
+        }
+      );
+      const shouldUseAggregateFallback = value.matches === 0 && aggregateEventFallback.matches > 0;
+      const matches = shouldUseAggregateFallback ? aggregateEventFallback.matches : value.matches;
+      const kills = shouldUseAggregateFallback ? aggregateEventFallback.kills : value.kills;
+      const assists = shouldUseAggregateFallback ? aggregateEventFallback.assists : value.assists;
+      const knocks = shouldUseAggregateFallback ? aggregateEventFallback.knocks : value.knocks;
+      const damage = shouldUseAggregateFallback ? aggregateEventFallback.damage : value.damage;
+      const recentKills =
+        value.recentTrend.length > 0
+          ? value.recentTrend.slice(0, 6).reverse()
+          : shouldUseAggregateFallback
+            ? aggregateEventFallback.recentKills.slice(0, 6).reverse()
+            : [];
+      const recentDamageTrend =
+        value.recentDamageTrend.length > 0
+          ? value.recentDamageTrend.slice(0, 6).reverse()
+          : shouldUseAggregateFallback
+            ? aggregateEventFallback.recentDamage.slice(0, 6).reverse()
+            : [];
       const formScore =
         recentKills.reduce((sum, currentValue) => sum + currentValue, 0) / Math.max(recentKills.length, 1) * 1.8 +
-        value.recentDamageTrend.slice(0, 6).reduce((sum, currentValue) => sum + currentValue, 0) / Math.max(recentKills.length, 1) / 260;
+        recentDamageTrend.reduce((sum, currentValue) => sum + currentValue, 0) / Math.max(recentKills.length, 1) / 260;
 
       return {
         id: value.id,
         slug: playersById.get(value.id)?.slug ?? slugify(value.pubgName),
         pubgName: value.pubgName,
         avatarUrl: value.avatarUrl ?? null,
-        currentTeamId: value.teamId ?? null,
-        currentTeamName: value.teamName ?? null,
+        currentTeamId: resolvedTeamId,
+        currentTeamName: value.teamName ?? team?.name ?? null,
         currentTeamTag: team?.tag ?? null,
         currentTeamLogoUrl: team?.logoUrl ?? null,
         active: playersById.get(value.id)?.active ?? true,
-        matches: value.matches,
-        kills: value.kills,
-        assists: value.assists,
-        knocks: value.knocks,
-        damage: value.damage,
-        avgKills: Number((value.kills / Math.max(value.matches, 1)).toFixed(2)),
-        avgDamage: Number((value.damage / Math.max(value.matches, 1)).toFixed(2)),
+        matches,
+        kills,
+        assists,
+        knocks,
+        damage,
+        avgKills: Number((kills / Math.max(matches, 1)).toFixed(2)),
+        avgDamage: Number((damage / Math.max(matches, 1)).toFixed(2)),
         wins: value.wins,
         mvpCount: playerMvpById.get(value.id) ?? 0,
         formScore: Number(formScore.toFixed(2)),
         formLabel: getFormLabel(formScore / 2),
         bestMatch: value.bestMatch ?? null,
         recentTrend: recentKills,
-        recentDamageTrend: value.recentDamageTrend.slice(0, 6).reverse(),
+        recentDamageTrend,
         recentMatches: value.recentMatches.slice(0, 10),
         previousTeams: Array.from(value.previousTeams.values()),
         eventStats,
         mapStats: aggregateMapStats(value.mapInputs),
+        sourceRank: basePlayer?.sourceRank ?? eventStats[0]?.rank ?? null,
       } satisfies PubgHubPlayer;
     })
   );
@@ -2634,7 +2768,12 @@ function sanitizePubgDatasetForPublicDisplay(dataset: PubgHubDataset): PubgHubDa
         return false;
       }
 
-      return hasVisiblePlayerActivity(player, visibleMatchPlayerIds) || Boolean(player.currentTeamId && teamIds.has(player.currentTeamId) && hasVisiblePlayerProfile(player));
+      return (
+        hasVisiblePlayerActivity(player, visibleMatchPlayerIds) ||
+        player.eventStats.length > 0 ||
+        player.matches > 0 ||
+        Boolean(player.currentTeamId && teamIds.has(player.currentTeamId) && hasVisiblePlayerProfile(player))
+      );
     })
     .map((player) => ({
       ...player,

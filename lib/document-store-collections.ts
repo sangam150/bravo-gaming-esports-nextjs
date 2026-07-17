@@ -27,4 +27,5 @@ export const COLLECTIONS = {
   contactMessages: "contactMessages",
   platformGames: "platformGames",
   platformEvents: "platformEvents",
+  importAudits: "importAudits",
 } as const;

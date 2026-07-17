@@ -130,7 +130,11 @@ export default function ResultsPageClient({
                     ) : (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {day.matches.map((match, matchIndex) => (
-                          <Link key={match.id} href={`/pubg/matches/${match.id}`} className="btn-secondary">
+                          <Link
+                            key={match.id}
+                            href={match.eventSlug ? `/pubg/events/${match.eventSlug}?tab=matches` : "/pubg/results"}
+                            className="btn-secondary"
+                          >
                             Match {match.sequenceNumber ?? matchIndex + 1}
                           </Link>
                         ))}

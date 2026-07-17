@@ -1057,7 +1057,12 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       type: "Match",
       status: match.status,
       gameSlug: match.gameSlug,
-      href: match.gameSlug === "pubg-pc" ? `/pubg/matches/${match.id}` : `/matches/${match.id}`,
+      href:
+        match.gameSlug === "pubg-pc"
+          ? match.eventSlug
+            ? `/pubg/events/${match.eventSlug}?tab=matches`
+            : "/pubg/results"
+          : `/matches/${match.id}`,
     })),
   ].sort(compareByDateDesc);
 

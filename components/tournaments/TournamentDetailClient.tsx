@@ -242,7 +242,10 @@ export default function TournamentDetailClient({
                         <div>
                           <p className="text-label uppercase text-accent-blue">{match.map}</p>
                           <p className="mt-1 font-semibold text-white">Winner: {match.winner}</p>
-                          <Link href={`/pubg/matches/${match.id}`} className="mt-2 inline-flex text-sm font-semibold text-accent-blue hover:underline">
+                          <Link
+                            href={match.eventSlug ? `/pubg/events/${match.eventSlug}?tab=matches` : "/pubg/results"}
+                            className="mt-2 inline-flex text-sm font-semibold text-accent-blue hover:underline"
+                          >
                             Open Match Page
                           </Link>
                         </div>

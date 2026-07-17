@@ -9,6 +9,7 @@ type TeamRankShape = {
   placementPoints: number;
   avgPlacement: number;
   slotNumber?: number | null;
+  sourceRank?: number | null;
 };
 
 type PlayerRankShape = {
@@ -19,6 +20,7 @@ type PlayerRankShape = {
   knocks: number;
   assists: number;
   avgKills: number;
+  sourceRank?: number | null;
 };
 
 export interface PubgTeamBoardRow extends TeamRankShape {
@@ -53,6 +55,7 @@ export function comparePubgTeams<T extends TeamRankShape>(firstValue: T, secondV
     secondValue.kills - firstValue.kills ||
     secondValue.wins - firstValue.wins ||
     secondValue.placementPoints - firstValue.placementPoints ||
+    (firstValue.sourceRank ?? Number.MAX_SAFE_INTEGER) - (secondValue.sourceRank ?? Number.MAX_SAFE_INTEGER) ||
     firstValue.avgPlacement - secondValue.avgPlacement ||
     (firstValue.slotNumber ?? Number.MAX_SAFE_INTEGER) - (secondValue.slotNumber ?? Number.MAX_SAFE_INTEGER) ||
     firstValue.name.localeCompare(secondValue.name) ||
@@ -67,6 +70,7 @@ export function comparePubgPlayers<T extends PlayerRankShape>(firstValue: T, sec
     secondValue.knocks - firstValue.knocks ||
     secondValue.assists - firstValue.assists ||
     secondValue.avgKills - firstValue.avgKills ||
+    (firstValue.sourceRank ?? Number.MAX_SAFE_INTEGER) - (secondValue.sourceRank ?? Number.MAX_SAFE_INTEGER) ||
     firstValue.pubgName.localeCompare(secondValue.pubgName) ||
     firstValue.id.localeCompare(secondValue.id)
   );

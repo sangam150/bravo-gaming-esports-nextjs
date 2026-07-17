@@ -178,7 +178,9 @@ export interface Team {
   seasonDayNumbers?: number[];
   sourceTournamentId?: string;
   sourceTournamentTitle?: string;
+  sourceTeamId?: string;
   sourceTeamName?: string;
+  sourceRank?: number;
   sourceProvider?: string;
   deletedAt?: string;
   createdAt?: string;
@@ -224,6 +226,7 @@ export interface Player {
   sourceTournamentId?: string;
   sourceTournamentTitle?: string;
   sourcePlayerId?: string;
+  sourceRank?: number;
   sourceProvider?: string;
   deletedAt?: string;
   createdAt?: string;
@@ -287,6 +290,7 @@ export interface TournamentStanding {
   scope?: "tournament" | "season";
   sourceTournamentId?: string;
   sourceTournamentTitle?: string;
+  sourceRank?: number;
   sourceProvider?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -566,6 +570,29 @@ export interface ErrorLogRecord {
   search?: string;
   createdAt: string;
   details?: Record<string, unknown>;
+}
+
+export type ImportReviewStatus = "needs_review" | "approved" | "published" | "rejected";
+
+export interface SourceImportAuditRecord {
+  id: string;
+  sourceUrl: string;
+  sourceTournamentId: string;
+  sourceProvider: string;
+  fetchedAt: string;
+  importerVersion: string;
+  checksum?: string;
+  checksumAlgorithm?: string;
+  importStatus: ImportReviewStatus;
+  importedBy: string;
+  rawHtml?: string;
+  rawJson?: Record<string, unknown> | null;
+  normalizedImportJson: Record<string, unknown>;
+  previousState?: Record<string, unknown> | null;
+  reviewNotes?: string[];
+  localArtifactPaths?: string[];
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface PubgMatchImport {

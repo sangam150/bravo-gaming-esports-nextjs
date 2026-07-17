@@ -2,7 +2,13 @@ import Link from "next/link";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
-import { buildPubgPlayerBoardRows, buildPubgTeamBoardRows, type PubgPlayerBoardRow, type PubgTeamBoardRow } from "@/lib/pubg-rankings";
+import {
+  buildPubgPlayerBoardRows,
+  buildPubgTeamBoardRows,
+  comparePubgPlayers,
+  type PubgPlayerBoardRow,
+  type PubgTeamBoardRow,
+} from "@/lib/pubg-rankings";
 import {
   buildHref,
   EmptyState,
@@ -43,6 +49,63 @@ function filterMatches(dataset: PubgHubDataset, options: { eventSlug?: string; m
 
     return true;
   });
+}
+
+function buildAggregatePlayerBoard(dataset: PubgHubDataset, eventSlug: string) {
+  type AggregatePlayerBoardRow = PubgPlayerBoardRow & { sourceRank?: number | null };
+
+  return dataset.players
+    .map<AggregatePlayerBoardRow | null>((player) => {
+      const scopedEventStats =
+        eventSlug === "all"
+          ? player.eventStats
+          : player.eventStats.filter((eventStat) => eventStat.eventSlug === eventSlug);
+
+      if (scopedEventStats.length === 0) {
+        return null;
+      }
+
+      const totals = scopedEventStats.reduce(
+        (summary, eventStat) => {
+          summary.matches += eventStat.matches;
+          summary.kills += eventStat.kills;
+          summary.assists += eventStat.assists;
+          summary.knocks += eventStat.knocks;
+          summary.damage += eventStat.damage;
+          return summary;
+        },
+        { matches: 0, kills: 0, assists: 0, knocks: 0, damage: 0 }
+      );
+
+      return {
+        id: player.id,
+        rank: 0,
+        playerId: player.id,
+        slug: player.slug,
+        pubgName: player.pubgName,
+        avatarUrl: player.avatarUrl ?? null,
+        teamId: player.currentTeamId ?? null,
+        teamName: player.currentTeamName ?? null,
+        matches: totals.matches,
+        wins: player.wins,
+        kills: totals.kills,
+        assists: totals.assists,
+        knocks: totals.knocks,
+        damage: totals.damage,
+        avgKills: Number((totals.kills / Math.max(totals.matches, 1)).toFixed(2)),
+        avgDamage: Number((totals.damage / Math.max(totals.matches, 1)).toFixed(2)),
+        trend: player.recentTrend.length > 0 ? player.recentTrend : scopedEventStats.map((eventStat) => eventStat.kills).slice(-6),
+        bestMatch:
+          player.bestMatch && (eventSlug === "all" || player.bestMatch.eventSlug === eventSlug) ? player.bestMatch : null,
+        sourceRank: scopedEventStats[0]?.rank ?? player.sourceRank ?? null,
+      } satisfies AggregatePlayerBoardRow;
+    })
+    .filter((row): row is AggregatePlayerBoardRow => Boolean(row))
+    .sort(comparePubgPlayers)
+    .map((row, index) => ({
+      ...row,
+      rank: index + 1,
+    }));
 }
 
 function getLatestFilteredMatch(matches: PubgHubMatch[]) {
@@ -261,9 +324,15 @@ export function PubgLeaderboardsRoute({
     ? `After published Match ${latestFilteredMatch.matchNumber} on ${latestFilteredMatch.mapName}`
     : "Generated from the current published results set";
   const teamBoard = buildPubgTeamBoardRows(filteredMatches, teamLookup);
-  const playerBoard = buildPubgPlayerBoardRows(filteredMatches, playerLookup);
+  const playerBoardFromMatches = buildPubgPlayerBoardRows(filteredMatches, playerLookup);
+  const playerBoard =
+    playerBoardFromMatches.length > 0 || mapName !== "all"
+      ? playerBoardFromMatches
+      : buildAggregatePlayerBoard(dataset, eventSlug);
   const fullTeamBoard = buildPubgTeamBoardRows(dataset.matches, teamLookup);
-  const fullPlayerBoard = buildPubgPlayerBoardRows(dataset.matches, playerLookup);
+  const fullPlayerBoardFromMatches = buildPubgPlayerBoardRows(dataset.matches, playerLookup);
+  const fullPlayerBoard =
+    fullPlayerBoardFromMatches.length > 0 ? fullPlayerBoardFromMatches : buildAggregatePlayerBoard(dataset, "all");
   const mapOptions = dedupeMaps(dataset.matches);
   const hasLeaderboardCoverage = dataset.matches.length > 0 && (fullTeamBoard.length > 0 || fullPlayerBoard.length > 0);
 
@@ -275,15 +344,13 @@ export function PubgLeaderboardsRoute({
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="PUBG Leaderboards"
+          badge="Official PUBG Leaderboards"
           title={
             <>
-              Team and player boards
-              <br />
-              built from published results
+              Official PUBG Leaderboards
             </>
           }
-          description="Leaderboards update from the current published results set, with a shared ranking model that keeps the homepage, hub, directories, and full boards aligned."
+          description="Track team standings, top fraggers, damage leaders, and published tournament results."
           actions={
             <>
               <Link href={view === "teams" ? "/pubg/teams" : "/pubg/players"} className="btn-primary">
@@ -303,8 +370,8 @@ export function PubgLeaderboardsRoute({
           aside={
             <div className="space-y-4">
               <div>
-                <p className="section-title">Board Lens</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Team and player switches</h2>
+                <p className="section-title">Leaderboard View</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Switch between teams and players</h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Link href={buildHref("/pubg/leaderboards", { view: "teams", event: eventSlug === "all" ? undefined : eventSlug, map: mapName === "all" ? undefined : mapName })} className={`rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${view === "teams" ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue" : "border-white/10 bg-bg-primary text-text-muted"}`}>
@@ -315,10 +382,10 @@ export function PubgLeaderboardsRoute({
                 </Link>
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4 text-sm text-text-muted">
-                Coverage mode: {sourceLabel(dataset.source)}
+                {sourceLabel(dataset.source)}
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Current Event</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Current Lens</p>
                 <p className="mt-2 text-sm font-semibold text-white">{leaderboardLensLabel}</p>
                 <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Last Updated</p>
                 <p className="mt-2 text-sm text-white">{leaderboardUpdatedLabel}</p>
@@ -357,10 +424,10 @@ export function PubgLeaderboardsRoute({
             </select>
           </FilterField>
           <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
-            Team order follows one official rule set everywhere: total points, kills, WWCD, placement points, then average placement.
+            Team rankings stay aligned with the official Bravo order used across the hub and the full event boards.
           </div>
           <div className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-text-muted">
-            Player order follows the same shared default across homepage, hub previews, and the full player board.
+            Player rankings stay aligned with the same published order used on the hub previews and event results.
           </div>
         </FilterBar>
 
@@ -428,7 +495,7 @@ export function PubgLeaderboardsRoute({
               </div>
             </section>
           )
-        ) : filteredMatches.length === 0 ? (
+        ) : playerBoard.length === 0 ? (
           <section className="esports-card p-6">
             <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
           </section>

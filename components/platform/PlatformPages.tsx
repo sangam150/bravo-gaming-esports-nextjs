@@ -500,7 +500,12 @@ function EventCard({ event }: { event: PlatformEvent }) {
 }
 
 function MatchCard({ match }: { match: PlatformMatch }) {
-  const href = match.gameSlug === "pubg-pc" ? `/pubg/matches/${match.id}` : `/matches/${match.id}`;
+  const href =
+    match.gameSlug === "pubg-pc" && match.eventSlug
+      ? buildHref(`/pubg/events/${match.eventSlug}`, { tab: "matches" })
+      : match.gameSlug === "pubg-pc"
+        ? "/pubg/results"
+        : `/matches/${match.id}`;
 
   return (
     <Link href={href} className="block rounded-card border border-white/[0.08] bg-bg-card p-5 transition hover:border-accent-blue/30 hover:bg-bg-hover">
@@ -897,7 +902,13 @@ export function PlatformHomePage({
               {spotlightMatches.map((match) => (
                 <Link
                   key={match.id}
-                  href={match.gameSlug === "pubg-pc" ? `/pubg/matches/${match.id}` : `/matches/${match.id}`}
+                  href={
+                    match.gameSlug === "pubg-pc" && match.eventSlug
+                      ? buildHref(`/pubg/events/${match.eventSlug}`, { tab: "matches" })
+                      : match.gameSlug === "pubg-pc"
+                        ? "/pubg/results"
+                        : `/matches/${match.id}`
+                  }
                   className="block rounded-card border border-white/[0.08] bg-bg-primary p-4 transition hover:border-accent-blue/30 hover:bg-bg-hover"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1890,10 +1901,10 @@ export function PlatformEventDetailPage({
   const eventQuickLinks = [
     { label: "Overview", href: "#overview" },
     { label: "Schedule", href: "#schedule" },
-    { label: "Registration", href: "#registration" },
-    { label: "Trust", href: "#trust" },
     pubgEvent ? { label: "Standings", href: "#standings" } : null,
-    relatedSponsors.length > 0 ? { label: "Sponsors", href: "#sponsors" } : null,
+    { label: "Teams", href: "#teams" },
+    { label: "Rules", href: "#rules" },
+    { label: "Stream", href: "#stream" },
   ].filter((item): item is { label: string; href: string } => Boolean(item));
 
   return (
@@ -1953,17 +1964,17 @@ export function PlatformEventDetailPage({
                 />
               ) : null}
               <div>
-                <p className="section-title">Event Status</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Public event board</h2>
+                <p className="section-title">Tournament Overview</p>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Clean public event page</h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 <PlatformStatusPill status={event.status} />
               </div>
               <div className="rounded-card border border-white/[0.08] bg-black/20 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Available sections</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Quick navigation</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {event.tabs.map((tab) => (
-                    <CategoryPill key={tab} label={tab} />
+                  {eventQuickLinks.map((item) => (
+                    <CategoryPill key={item.label} label={item.label} />
                   ))}
                 </div>
               </div>
@@ -2039,12 +2050,26 @@ export function PlatformEventDetailPage({
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
-          <div id="registration" className="esports-card scroll-mt-32 p-6">
-            <SectionHeader eyebrow="Registration" title="Register and stay tournament-ready" description="Public registration stays simple, visible, and linked to the same event promoted across the homepage and event board." />
+          <div id="teams" className="esports-card scroll-mt-32 p-6">
+            <SectionHeader eyebrow="Teams" title="Registration and team access" description="Registration, confirmed teams, and contact support stay visible in one clean tournament section." />
             <div className="mt-5 rounded-card border border-white/[0.08] bg-bg-primary p-5">
               <p className="text-sm leading-7 text-text-muted">
                 After registration, our admin team reviews your team details and confirms your slot through official channels.
               </p>
+              {pubgEvent?.standings.length ? (
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {pubgEvent.standings.slice(0, 6).map((row) => (
+                    <div key={row.teamId} className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3">
+                      <p className="font-semibold text-white">
+                        #{row.rank} {row.teamName}
+                      </p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.16em] text-text-muted">
+                        {formatNumber(row.totalPoints)} pts | {formatNumber(row.kills)} kills
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link href={getEventRegistrationHref(event)} className="btn-primary">
                   Register Team
@@ -2059,8 +2084,8 @@ export function PlatformEventDetailPage({
             </div>
           </div>
 
-          <div id="trust" className="esports-card scroll-mt-32 p-6">
-            <SectionHeader eyebrow="Trust" title="Rules, support, and official channels" description="Teams should not have to hunt for the core trust and support links around a tournament detail page." />
+          <div id="rules" className="esports-card scroll-mt-32 p-6">
+            <SectionHeader eyebrow="Rules" title="Rules, anti-cheat, and support" description="Core competition links stay visible without crowding the event page with internal-style labels." />
             <div className="mt-5 flex flex-wrap gap-2">
               <Link href="/rules" className="btn-secondary">
                 Rules
@@ -2075,6 +2100,26 @@ export function PlatformEventDetailPage({
                 Official Discord
               </a>
             </div>
+          </div>
+        </section>
+
+        <section id="stream" className="esports-card scroll-mt-32 p-6">
+          <SectionHeader eyebrow="Stream" title="Watch live coverage and follow updates" description="Broadcast, Discord, and results links stay ready whether the lobby is upcoming, live, or completed." />
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link href={event.streamHref ?? "/live-stream"} className="btn-primary">
+              Watch Live
+            </Link>
+            {event.analyticsHref ? (
+              <Link href={event.analyticsHref} className="btn-secondary">
+                View Results
+              </Link>
+            ) : null}
+            <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
+              Join Discord
+            </a>
+            <Link href="/events" className="btn-secondary">
+              Browse Events
+            </Link>
           </div>
         </section>
 

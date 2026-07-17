@@ -19,6 +19,7 @@ import {
   getPublicPubgPlayers,
   getPublicPubgTeams,
   type PubgHubDataset,
+  type PubgHubEvent,
   type PubgHubPlayer,
   type PubgHubTeam,
 } from "@/lib/pubg-hub";
@@ -509,6 +510,78 @@ function CompetitionPulseSection({
   );
 }
 
+function LatestCompletedTournamentSection({ event }: { event: PubgHubEvent }) {
+  const champion = event.standings[0] ?? null;
+  const topThree = event.standings.slice(0, 3);
+
+  return (
+    <section className="light-card p-5">
+      <SectionHeading icon={<Trophy className="h-4 w-4" />} title="Latest Completed Tournament" />
+      <div className="grid gap-4 xl:grid-cols-[1.15fr,0.85fr]">
+        <div className="rounded-[24px] border border-accent-yellow/18 bg-[linear-gradient(180deg,rgba(24,20,12,0.96),rgba(11,13,20,0.98))] p-5">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-yellow">First Official Tournament</p>
+          <h3 className="mt-3 font-display text-3xl font-black uppercase leading-tight text-white">{event.name}</h3>
+          <p className="mt-4 text-sm leading-7 text-text-secondary">
+            Official results are now live from Bravo&apos;s first imported tournament dataset, with verified standings,
+            team output, and player totals.
+          </p>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="stat-pill !p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Champion</p>
+              <p className="mt-2 font-display text-lg font-black uppercase text-white">{champion?.teamName ?? "Pending"}</p>
+            </div>
+            <div className="stat-pill !p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Matches</p>
+              <p className="mt-2 font-mono-stat text-lg text-white">{formatNumber(event.matchCount)}</p>
+            </div>
+            <div className="stat-pill !p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Teams</p>
+              <p className="mt-2 font-mono-stat text-lg text-white">{formatNumber(event.teamCount)}</p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <ActionLink href={`/pubg/events/${event.slug}`} className="min-w-[10.5rem] justify-center">
+              View Results
+            </ActionLink>
+            <ActionLink href={`/events/${event.slug}`} variant="secondary" className="min-w-[10.5rem] justify-center">
+              View Event
+            </ActionLink>
+          </div>
+        </div>
+
+        <div className="rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(8,13,26,0.98))] p-5">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Top 3 Teams</p>
+          <div className="mt-4 grid gap-3">
+            {topThree.map((row) => (
+              <Link
+                key={row.teamId}
+                href={`/pubg/teams/${row.teamId}`}
+                className="flex items-center justify-between gap-3 rounded-[18px] border border-white/[0.08] bg-black/20 px-4 py-3 transition hover:border-accent-blue/30 hover:bg-accent-blue/5"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-[12px] border border-accent-blue/20 bg-accent-blue/10 font-mono-stat text-sm text-accent-blue-light">
+                    {row.rank}
+                  </span>
+                  <TeamAvatar name={row.teamName} imageUrl={row.logoUrl ?? undefined} size="sm" />
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-white">{row.teamName}</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-text-muted">
+                      {formatNumber(row.kills)} kills • {formatNumber(row.matches)} matches
+                    </p>
+                  </div>
+                </div>
+                <span className="font-mono-stat text-base text-white">{formatNumber(row.totalPoints)} PTS</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
   const rankedTeams = teams.slice(0, 5);
 
@@ -967,6 +1040,18 @@ export default function HomeDashboard({
   const featuredEvent = homepageEvents.find((event) => canRegisterForEvent(event)) ?? homepageEvents[0] ?? null;
   const publicTeams = getPublicPubgTeams(pubg);
   const publicPlayers = getPublicPubgPlayers(pubg, publicTeams);
+  const latestCompletedTournament =
+    [...pubg.events]
+      .filter((event) => event.status === "finished" && event.standings.length > 0)
+      .sort((firstEvent, secondEvent) => {
+        const firstTimestamp = Date.parse(firstEvent.endDate ?? firstEvent.startDate);
+        const secondTimestamp = Date.parse(secondEvent.endDate ?? secondEvent.startDate);
+        if (Number.isFinite(firstTimestamp) && Number.isFinite(secondTimestamp) && firstTimestamp !== secondTimestamp) {
+          return secondTimestamp - firstTimestamp;
+        }
+
+        return (secondEvent.endDate ?? secondEvent.startDate).localeCompare(firstEvent.endDate ?? firstEvent.startDate);
+      })[0] ?? null;
   const updates = resolveHomepageUpdates(hub);
 
   return (
@@ -975,6 +1060,7 @@ export default function HomeDashboard({
         <HeroSection featuredEvent={featuredEvent} />
         <SponsorLogoStrip sponsors={homepageSponsors} />
         <CompetitionPulseSection pubg={pubg} teamCount={publicTeams.length} playerCount={publicPlayers.length} />
+        {latestCompletedTournament ? <LatestCompletedTournamentSection event={latestCompletedTournament} /> : null}
 
         <section className="grid gap-4 xl:grid-cols-[1.5fr,1fr,1fr]">
           <CurrentStandings teams={publicTeams} />
