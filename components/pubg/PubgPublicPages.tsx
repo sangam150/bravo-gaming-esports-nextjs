@@ -249,6 +249,39 @@ function DashboardSection({
   );
 }
 
+function PubgDirectoryLaunchState({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <main className="page-shell pb-12 pt-6">
+      <div className="page-stack">
+        <section className="overflow-hidden rounded-[32px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.16),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.98))] p-6 sm:p-8">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">{eyebrow}</p>
+          <h1 className="mt-3 font-display text-3xl font-black uppercase text-white sm:text-4xl">{title}</h1>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-text-muted">{description}</p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/events" className="btn-secondary">
+              View Events
+            </Link>
+            <Link href="/teams/register" className="btn-primary">
+              Register Team
+            </Link>
+            <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+              Join Discord
+            </a>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
 function HeaderStatCell({
   label,
   value,
@@ -2144,6 +2177,17 @@ export function PubgTeamsPage({
     region: region === "all" ? undefined : region,
     page: String(page + 1),
   });
+  const hasTeamDirectoryData = rankedTeams.length > 0;
+
+  if (!hasTeamDirectoryData) {
+    return (
+      <PubgDirectoryLaunchState
+        eyebrow="PUBG Teams"
+        title="Official team profiles will appear here after published results go live"
+        description="Team cards, tags, roster snapshots, and leaderboard context will open here once Bravo publishes the first verified PUBG result set."
+      />
+    );
+  }
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -2629,6 +2673,17 @@ export function PubgPlayersPage({
     minMatches: minMatches > 0 ? String(minMatches) : undefined,
     page: String(page + 1),
   });
+  const hasPlayerDirectoryData = rankedPlayers.length > 0;
+
+  if (!hasPlayerDirectoryData) {
+    return (
+      <PubgDirectoryLaunchState
+        eyebrow="PUBG Players"
+        title="Official player profiles will appear here after published results go live"
+        description="Player cards, fragging output, team links, and public scouting context will unlock here once Bravo publishes the first verified PUBG result set."
+      />
+    );
+  }
 
   return (
     <main className="page-shell pb-12 pt-6">

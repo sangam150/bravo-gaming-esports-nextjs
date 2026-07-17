@@ -51,18 +51,18 @@ function isActive(pathname: string, prefixes: string[]) {
 
 function desktopNavClasses(active: boolean) {
   if (active) {
-    return "bg-accent-blue/14 text-accent-blue border-accent-blue/30";
+    return "text-white after:absolute after:bottom-0 after:left-3 after:right-3 after:h-[2px] after:rounded-full after:bg-accent-blue";
   }
 
-  return "border-transparent text-text-muted hover:border-white/10 hover:bg-white/[0.04] hover:text-white";
+  return "text-text-muted hover:text-white after:absolute after:bottom-0 after:left-3 after:right-3 after:h-[2px] after:rounded-full after:bg-accent-blue/0 hover:after:bg-accent-blue/40";
 }
 
 function utilityClasses(primary = false) {
   if (primary) {
-    return "btn-primary h-11 px-4";
+    return "btn-primary !h-11 rounded-[14px] px-4";
   }
 
-  return "btn-secondary h-11 px-3.5";
+  return "btn-secondary !h-11 rounded-[14px] px-3.5";
 }
 
 type SiteHeaderClientProps = {
@@ -199,16 +199,16 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
       <header
         className={`sticky top-0 z-[80] border-b transition duration-200 ${
           isScrolled
-            ? "border-white/[0.08] bg-bg-secondary/85 shadow-[0_12px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl"
-            : "border-transparent bg-transparent"
+            ? "border-white/[0.08] bg-bg-secondary/92 shadow-[0_12px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+            : "border-white/[0.06] bg-bg-secondary/78 backdrop-blur-xl"
         }`}
       >
         <div className="page-inner px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex h-[72px] items-center gap-3 rounded-[22px] border border-white/[0.06] bg-white/[0.03] px-3 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+          <div className="flex h-[72px] items-center gap-3 rounded-[20px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(10,16,30,0.98),rgba(7,12,24,0.98))] px-3 py-2 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
             <Link href="/" className="flex min-w-0 items-center gap-3">
               <BravoLogo size={44} />
               <div className="hidden min-w-0 md:block">
-                <p className="truncate font-display text-[14px] font-black uppercase tracking-[0.16em] text-white">
+                <p className="truncate font-display text-[1rem] font-black uppercase tracking-[0.08em] text-white">
                   Bravo Gaming
                 </p>
                 <p className="truncate font-display text-[10px] uppercase tracking-[0.22em] text-text-muted">
@@ -226,7 +226,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                     key={item.label}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`rounded-[14px] border px-3 py-2 font-display text-[10px] font-black uppercase tracking-[0.14em] transition ${desktopNavClasses(
+                    className={`relative px-3 py-2 font-display text-[12px] font-semibold tracking-[0.02em] transition ${desktopNavClasses(
                       active
                     )}`}
                   >
@@ -240,7 +240,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
               <Link href="/teams/register" className={utilityClasses(true)}>
                 Register Team
               </Link>
-              <Link href={watchLiveHref || "/live-stream"} className="btn-watch-live">
+              <Link href={watchLiveHref || "/live-stream"} className="btn-secondary !h-11 rounded-[14px]">
                 <span className="live-dot h-1.5 w-1.5" />
                 Watch Live
               </Link>

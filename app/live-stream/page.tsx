@@ -19,6 +19,34 @@ export default async function LiveStreamPage() {
   const hasVideos = videos.length > 0;
   const hasFeaturedBroadcast = hasStreams && Boolean(liveFeed.embedUrl);
   const watchOnYouTubeHref = liveFeed.channelUrl || BRAVO_YOUTUBE_URL;
+  const showSingleFallback = !hasFeaturedBroadcast && !hasStreams && !hasVideos;
+
+  if (showSingleFallback) {
+    return (
+      <main className="page-shell pb-12 pt-6">
+        <div className="page-stack">
+          <section className="overflow-hidden rounded-[32px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.16),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.98))] p-6 sm:p-8">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Channel Feed</p>
+            <h1 className="mt-3 font-display text-3xl font-black uppercase text-white sm:text-4xl">Bravo Gaming Live</h1>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-text-muted">
+              Official broadcasts and tournament streams will appear here.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <a href={watchOnYouTubeHref} target="_blank" rel="noreferrer" className="btn-primary">
+                Watch on YouTube
+              </a>
+              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+                Join Discord
+              </a>
+              <Link href="/events" className="btn-secondary">
+                View Events
+              </Link>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -64,21 +92,30 @@ export default async function LiveStreamPage() {
             )}
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="font-display text-xl font-bold text-white">{hasFeaturedBroadcast ? liveFeed.title : "Bravo Gaming Live"}</h1>
-              <p className="text-sm text-text-muted">{liveFeed.description}</p>
-            </div>
-            <div className="flex gap-2">
-              <a href={watchOnYouTubeHref} target="_blank" rel="noreferrer" className="btn-primary">
-                Watch on YouTube
-              </a>
-              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
-                Join Discord
-              </a>
-              <Link href="/events" className="btn-secondary">
-                View Events
-              </Link>
-            </div>
+            {hasFeaturedBroadcast ? (
+              <>
+                <div>
+                  <h1 className="font-display text-xl font-bold text-white">{liveFeed.title}</h1>
+                  <p className="text-sm text-text-muted">{liveFeed.description}</p>
+                </div>
+                <div className="flex gap-2">
+                  <a href={watchOnYouTubeHref} target="_blank" rel="noreferrer" className="btn-primary">
+                    Watch on YouTube
+                  </a>
+                  <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+                    Join Discord
+                  </a>
+                  <Link href="/events" className="btn-secondary">
+                    View Events
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <div>
+                <h1 className="font-display text-xl font-bold text-white">Bravo Gaming Live</h1>
+                <p className="text-sm text-text-muted">Official broadcasts and tournament streams will appear here after the next Bravo live window is scheduled.</p>
+              </div>
+            )}
           </div>
         </div>
 

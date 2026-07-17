@@ -74,11 +74,11 @@ export default function Footer() {
   return (
     <footer className="px-4 pb-6 pt-4 sm:px-6 lg:px-8">
       <div className="page-inner">
-        <div className="rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(7,12,24,0.98),rgba(4,8,16,0.98))] px-5 py-6 shadow-[0_24px_70px_rgba(0,0,0,0.32)] sm:px-6">
-          <div className="grid gap-8 xl:grid-cols-[1.1fr,1.6fr,0.7fr]">
-            <section className="min-w-0">
+        <div className="rounded-[26px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(6,10,18,0.98),rgba(3,6,12,0.98))] px-5 py-7 shadow-[0_20px_60px_rgba(0,0,0,0.28)] sm:px-6">
+          <div className="grid gap-8 xl:grid-cols-[1.15fr,0.9fr,0.9fr,0.9fr,0.75fr]">
+            <section className="min-w-0 xl:pr-4">
               <div className="flex items-center gap-3">
-                <BravoLogo size={58} />
+                <BravoLogo size={54} />
                 <div>
                   <p className="font-display text-xl font-black uppercase text-white">Bravo Gaming</p>
                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-text-muted">Esports Nepal</p>
@@ -92,9 +92,15 @@ export default function Footer() {
               </p>
             </section>
 
-            <section className="grid gap-6 sm:grid-cols-3">
+            <section>
               <FooterColumn title="Quick Links" links={quickLinks} />
+            </section>
+
+            <section>
               <FooterColumn title="Competition" links={competitionLinks} />
+            </section>
+
+            <section>
               <FooterColumn title="Support" links={supportLinks} />
             </section>
 

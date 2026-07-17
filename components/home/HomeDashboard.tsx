@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowRight,
   CalendarDays,
   ChevronRight,
   Crosshair,
@@ -287,10 +288,13 @@ function resolveHomepageUpdates(hub: PlatformHubData): HomepageUpdateCard[] {
 
 function HeroSection({ featuredEvent }: { featuredEvent: PlatformEvent | null }) {
   return (
-    <section className="relative overflow-hidden rounded-[30px] border border-white/[0.08] bg-[#050910] shadow-[0_28px_90px_rgba(0,0,0,0.4)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_20%,rgba(30,123,255,0.18),transparent_28%),radial-gradient(circle_at_88%_22%,rgba(30,123,255,0.1),transparent_24%),linear-gradient(180deg,rgba(4,8,14,0.94),rgba(6,10,18,0.98))]" />
-      <div className="absolute inset-x-0 bottom-0 top-0 hidden lg:block">
-        <div className="relative mx-auto h-full max-w-[26rem] opacity-[0.22]">
+    <section className="relative overflow-hidden rounded-[30px] border border-white/[0.08] bg-[#050910] shadow-[0_32px_90px_rgba(0,0,0,0.42)]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_20%,rgba(30,123,255,0.18),transparent_28%),radial-gradient(circle_at_86%_26%,rgba(30,123,255,0.1),transparent_24%),linear-gradient(180deg,rgba(4,8,14,0.9),rgba(3,7,14,0.98))]" />
+      <div className="absolute inset-y-0 left-0 right-[34%] hidden lg:block">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_26%,rgba(30,123,255,0.08),transparent_18%),radial-gradient(circle_at_48%_74%,rgba(255,112,40,0.06),transparent_12%)]" />
+      </div>
+      <div className="absolute inset-y-0 right-[19%] hidden lg:block lg:w-[28rem]">
+        <div className="relative h-full w-full opacity-[0.32]">
           <Image
             src="/images/hero-character.svg"
             alt=""
@@ -302,59 +306,59 @@ function HeroSection({ featuredEvent }: { featuredEvent: PlatformEvent | null })
         </div>
       </div>
 
-      <div className="relative grid gap-5 px-5 py-6 sm:px-7 sm:py-7 xl:grid-cols-[1.1fr,0.9fr]">
-        <div className="min-w-0 xl:pr-8">
+      <div className="relative grid gap-5 px-5 py-6 sm:px-7 sm:py-7 xl:grid-cols-[minmax(0,1.34fr)_minmax(20rem,25.75rem)]">
+        <div className="min-w-0 xl:pr-6">
           <span className="inline-flex rounded-full border border-accent-green/25 bg-accent-green/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-accent-green">
             Represent Nepal
           </span>
-          <h1 className="mt-5 max-w-[12ch] font-display text-[2.9rem] font-black uppercase leading-[0.9] tracking-[0.01em] text-white sm:text-[3.5rem] xl:text-[4.25rem]">
+          <h1 className="mt-5 max-w-[10.6ch] font-display text-[2.9rem] font-black uppercase leading-[0.92] tracking-[0.01em] text-white sm:text-[3.35rem] xl:text-[4.05rem]">
             Nepal&apos;s Home of Competitive <span className="text-accent-blue-light">PUBG PC</span> Esports
           </h1>
-          <p className="mt-5 max-w-[42rem] text-base leading-8 text-text-secondary">
+          <p className="mt-5 max-w-[36rem] text-[1rem] leading-8 text-text-secondary">
             Compete in the best scrims and tournaments, track standings, earn glory, and become part of Nepal&apos;s growing PUBG PC esports community.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <ActionLink href={getEventRegistrationHref(featuredEvent)} className="min-w-[11rem] justify-center">
+            <ActionLink href={getEventRegistrationHref(featuredEvent)} className="min-w-[10.75rem] justify-center">
               Register Team
             </ActionLink>
-            <ActionLink href="/events" variant="secondary" className="min-w-[11rem] justify-center">
+            <ActionLink href="/events" variant="secondary" className="min-w-[10.75rem] justify-center">
               View Schedule
             </ActionLink>
-            <ActionLink href="/pubg/results" variant="secondary" className="min-w-[11rem] justify-center">
+            <ActionLink href="/pubg/results" variant="secondary" className="min-w-[10.75rem] justify-center">
               View Results
             </ActionLink>
           </div>
         </div>
 
         <div className="min-w-0">
-          <div className="rounded-[26px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(7,12,24,0.98),rgba(5,9,18,0.98))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.36)] sm:p-6">
+          <div className="rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(7,12,24,0.98),rgba(5,9,18,0.98))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.36)] sm:p-6">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Next Featured Event</p>
             <div className="mt-4 flex items-center gap-3">
-              <BravoLogo size={48} />
+              <BravoLogo size={44} />
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
                 PUBG PC
               </span>
             </div>
-            <h2 className="mt-5 font-display text-3xl font-black uppercase leading-tight text-white">
+            <h2 className="mt-5 font-display text-[2rem] font-black uppercase leading-tight text-white">
               {featuredEvent?.name ?? "PUBG Mahasangram 2.0"}
             </h2>
 
-            <div className="mt-6 grid gap-3">
-              <div className="flex items-center justify-between gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+            <div className="mt-6 space-y-3 border-y border-white/[0.08] py-5">
+              <div className="flex items-center justify-between gap-4">
                 <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">Date</span>
                 <span className="text-right text-sm text-white">{getEventDateLabel(featuredEvent)}</span>
               </div>
-              <div className="flex items-center justify-between gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+              <div className="flex items-center justify-between gap-4">
                 <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">Format</span>
                 <span className="text-right text-sm text-white">{getEventFormatLabel(featuredEvent)}</span>
               </div>
-              <div className="flex items-center justify-between gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+              <div className="flex items-center justify-between gap-4">
                 <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">Slots</span>
                 <span className="text-right text-sm text-white">{getEventSlotsLabel(featuredEvent)}</span>
               </div>
             </div>
 
-            <div className="mt-5 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+            <div className="mt-5 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3.5">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">Registration Status</p>
               <span className={cx("mt-3 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]", getEventStatusTone(featuredEvent))}>
                 {getEventRegistrationLabel(featuredEvent)}
@@ -377,18 +381,20 @@ function SponsorLogoStrip({ sponsors }: { sponsors: PlatformSponsorProfile[] }) 
   }
 
   return (
-    <section className="overflow-hidden rounded-[26px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(10,16,30,0.96),rgba(6,10,20,0.96))] px-4 py-4 shadow-[0_14px_40px_rgba(0,0,0,0.2)] sm:px-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="shrink-0 text-center lg:text-left">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">Official Partners</p>
-        </div>
-        <div className={cx("grid flex-1 gap-3", sponsors.length === 1 ? "grid-cols-1" : "grid-cols-2 lg:grid-cols-5")}>
-          {sponsors.map((sponsor) => {
-            const visualUrl = getSponsorVisualUrl(sponsor);
-            const href = getSponsorHref(sponsor);
-            const cardClassName =
-              "flex min-h-[74px] items-center justify-center rounded-[18px] border border-white/[0.08] bg-black/20 px-4 py-3 transition hover:border-accent-blue/30 hover:bg-accent-blue/5";
-            const content = visualUrl ? (
+    <section className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(10,16,30,0.96),rgba(6,10,20,0.96))] px-4 py-4 shadow-[0_14px_40px_rgba(0,0,0,0.2)] sm:px-6">
+      <div className="flex justify-center">
+        <span className="inline-flex rounded-full border border-white/[0.08] bg-[#08111e] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
+          Official Partners
+        </span>
+      </div>
+      <div className={cx("mt-4 grid gap-3", sponsors.length === 1 ? "mx-auto max-w-[24rem] grid-cols-1" : "grid-cols-2 lg:grid-cols-5")}>
+        {sponsors.map((sponsor) => {
+          const visualUrl = getSponsorVisualUrl(sponsor);
+          const href = getSponsorHref(sponsor);
+          const cardClassName =
+            "flex min-h-[74px] flex-col items-center justify-center rounded-[18px] border border-white/[0.08] bg-black/20 px-4 py-3 text-center transition hover:border-accent-blue/30 hover:bg-accent-blue/5";
+          const content = visualUrl ? (
+            <>
               <ManagedImage
                 src={visualUrl}
                 alt={sponsor.name}
@@ -396,27 +402,33 @@ function SponsorLogoStrip({ sponsors }: { sponsors: PlatformSponsorProfile[] }) 
                 wrapperClassName="flex h-10 w-full items-center justify-center"
                 className="max-h-10 w-auto object-contain"
               />
-            ) : (
-              <span className="font-display text-xl font-black uppercase tracking-[0.1em] text-white">
+              <span className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">{sponsor.tier}</span>
+            </>
+          ) : (
+            <>
+              <span className="font-display text-[1.65rem] font-black uppercase tracking-[0.08em] text-white">
                 {sponsor.name}
               </span>
-            );
+              <span className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-accent-green">
+                {sponsor.tier}
+              </span>
+            </>
+          );
 
-            if (isExternalHref(href)) {
-              return (
-                <a key={sponsor.id} href={href} target="_blank" rel="noreferrer" className={cardClassName}>
-                  {content}
-                </a>
-              );
-            }
-
+          if (isExternalHref(href)) {
             return (
-              <Link key={sponsor.id} href={href} className={cardClassName}>
+              <a key={sponsor.id} href={href} target="_blank" rel="noreferrer" className={cardClassName}>
                 {content}
-              </Link>
+              </a>
             );
-          })}
-        </div>
+          }
+
+          return (
+            <Link key={sponsor.id} href={href} className={cardClassName}>
+              {content}
+            </Link>
+          );
+        })}
       </div>
     </section>
   );
@@ -440,7 +452,7 @@ function CompetitionPulseSection({
     return (
       <section className="light-card p-5">
         <SectionHeading icon={<Radio className="h-4 w-4" />} title="Competition Pulse" />
-        <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 px-5 py-8 text-center">
+        <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(13,20,36,0.94),rgba(8,12,24,0.94))] px-5 py-8 text-center">
           <p className="mx-auto max-w-3xl text-sm leading-7 text-text-muted">
             Official competition stats will appear after verified match results are published.
           </p>
@@ -504,7 +516,7 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
     <section className="light-card p-5 xl:col-span-1">
       <SectionHeading icon={<Trophy className="h-4 w-4" />} title="Current Standings" href="/pubg/leaderboards?view=teams" hrefLabel="View Full Leaderboard" />
       {rankedTeams.length === 0 ? (
-        <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 px-5 py-8 text-center">
+        <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(13,20,36,0.94),rgba(8,12,24,0.94))] px-5 py-8 text-center">
           <p className="text-sm leading-7 text-text-muted">
             Official standings will appear after verified match results are published.
           </p>
@@ -593,33 +605,38 @@ function TopTeamsCard({ teams }: { teams: PubgHubTeam[] }) {
 
   return (
     <section className="light-card p-5">
-      <SectionHeading icon={<Users className="h-4 w-4" />} title="Top Teams" href="/pubg/teams" hrefLabel="View All Teams" />
+      <SectionHeading icon={<Users className="h-4 w-4" />} title="Top Teams" />
       {topTeams.length === 0 ? (
-        <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 px-5 py-8 text-center">
+        <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(13,20,36,0.94),rgba(8,12,24,0.94))] px-5 py-8 text-center">
           <p className="text-sm leading-7 text-text-muted">Top team rankings will appear after official standings are published.</p>
         </div>
       ) : (
-        <div className="grid gap-3">
-          {topTeams.map((team, index) => (
-            <Link
-              key={team.id}
-              href={`/pubg/teams/${team.slug ?? team.id}`}
-              className="flex items-center justify-between gap-3 rounded-[18px] border border-white/[0.08] bg-black/20 px-4 py-3 transition hover:border-accent-blue/30 hover:bg-accent-blue/5"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-[12px] border border-accent-blue/20 bg-accent-blue/10 font-mono-stat text-sm text-accent-blue-light">
-                  {index + 1}
-                </span>
-                <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="sm" />
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-white">{team.name}</p>
-                  <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{team.tag ? `[${team.tag}]` : "PUBG Team"}</p>
+        <>
+          <div className="grid gap-3">
+            {topTeams.map((team, index) => (
+              <Link
+                key={team.id}
+                href={`/pubg/teams/${team.slug ?? team.id}`}
+                className="flex items-center justify-between gap-3 rounded-[18px] border border-white/[0.08] bg-black/20 px-4 py-3 transition hover:border-accent-blue/30 hover:bg-accent-blue/5"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-[12px] border border-accent-blue/20 bg-accent-blue/10 font-mono-stat text-sm text-accent-blue-light">
+                    {index + 1}
+                  </span>
+                  <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="sm" />
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-white">{team.name}</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-text-muted">{team.tag ? `[${team.tag}]` : "PUBG Team"}</p>
+                  </div>
                 </div>
-              </div>
-              <span className="font-mono-stat text-base text-white">{formatNumber(team.totalPoints)} PTS</span>
-            </Link>
-          ))}
-        </div>
+                <span className="font-mono-stat text-base text-white">{formatNumber(team.totalPoints)} PTS</span>
+              </Link>
+            ))}
+          </div>
+          <ActionLink href="/pubg/teams" variant="secondary" className="mt-4 w-full justify-center">
+            View All Teams
+          </ActionLink>
+        </>
       )}
     </section>
   );
@@ -630,42 +647,61 @@ function TopPlayersCard({ players }: { players: PubgHubPlayer[] }) {
 
   return (
     <section className="light-card p-5">
-      <SectionHeading icon={<Crosshair className="h-4 w-4" />} title="Top Players" href="/pubg/players" hrefLabel="View All Players" />
+      <SectionHeading icon={<Crosshair className="h-4 w-4" />} title="Top Players" />
       {topPlayers.length === 0 ? (
-        <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 px-5 py-8 text-center">
+        <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(13,20,36,0.94),rgba(8,12,24,0.94))] px-5 py-8 text-center">
           <p className="text-sm leading-7 text-text-muted">Player rankings will appear after official match stats are published.</p>
         </div>
       ) : (
-        <div className="grid gap-3">
-          {topPlayers.map((player, index) => (
-            <Link
-              key={player.id}
-              href={`/pubg/players/${player.slug ?? player.id}`}
-              className="flex items-center justify-between gap-3 rounded-[18px] border border-white/[0.08] bg-black/20 px-4 py-3 transition hover:border-accent-blue/30 hover:bg-accent-blue/5"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-[12px] border border-accent-blue/20 bg-accent-blue/10 font-mono-stat text-sm text-accent-blue-light">
-                  {index + 1}
-                </span>
-                <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="sm" />
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-white">{player.pubgName}</p>
-                  <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
+        <>
+          <div className="grid gap-3">
+            {topPlayers.map((player, index) => (
+              <Link
+                key={player.id}
+                href={`/pubg/players/${player.slug ?? player.id}`}
+                className="flex items-center justify-between gap-3 rounded-[18px] border border-white/[0.08] bg-black/20 px-4 py-3 transition hover:border-accent-blue/30 hover:bg-accent-blue/5"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-[12px] border border-accent-blue/20 bg-accent-blue/10 font-mono-stat text-sm text-accent-blue-light">
+                    {index + 1}
+                  </span>
+                  <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="sm" />
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-white">{player.pubgName}</p>
+                    <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
+                  </div>
                 </div>
-              </div>
-              <span className="font-mono-stat text-base text-white">{formatNumber(player.kills)} KILLS</span>
-            </Link>
-          ))}
-        </div>
+                <span className="font-mono-stat text-base text-white">{formatNumber(player.kills)} KILLS</span>
+              </Link>
+            ))}
+          </div>
+          <ActionLink href="/pubg/players" variant="secondary" className="mt-4 w-full justify-center">
+            View All Players
+          </ActionLink>
+        </>
       )}
     </section>
   );
 }
 
 function UpcomingEventsSection({ events }: { events: PlatformEvent[] }) {
-  const visibleEvents = (events.filter((event) => event.status !== "completed").slice(0, 3).length > 0
-    ? events.filter((event) => event.status !== "completed").slice(0, 3)
-    : events.slice(0, 3));
+  const visibleEvents = [...events]
+    .sort((firstValue, secondValue) => {
+      const score = (event: PlatformEvent) => {
+        if (event.status === "live") return 0;
+        if (event.status === "upcoming") return 1;
+        if (event.status === "planned") return 2;
+        return 3;
+      };
+
+      const scoreDiff = score(firstValue) - score(secondValue);
+      if (scoreDiff !== 0) {
+        return scoreDiff;
+      }
+
+      return (secondValue.startDate ?? "").localeCompare(firstValue.startDate ?? "");
+    })
+    .slice(0, 3);
 
   return (
     <section className="light-card p-5">
@@ -686,10 +722,17 @@ function UpcomingEventsSection({ events }: { events: PlatformEvent[] }) {
         </div>
       ) : (
         <div className="grid gap-4 xl:grid-cols-3">
-          {visibleEvents.map((event) => (
+          {visibleEvents.map((event, index) => (
             <div
               key={event.id}
-              className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(8,13,26,0.96))] p-5"
+              className={cx(
+                "overflow-hidden rounded-[24px] border p-5",
+                event.status === "completed"
+                  ? "border-accent-yellow/20 bg-[linear-gradient(180deg,rgba(24,20,12,0.96),rgba(15,12,8,0.96))]"
+                  : index === 0
+                    ? "border-accent-blue/20 bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(8,13,26,0.96))]"
+                    : "border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(8,13,26,0.96))]"
+              )}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -763,19 +806,30 @@ function HowItWorksSection() {
   return (
     <section className="light-card p-5">
       <SectionHeading icon={<Trophy className="h-4 w-4" />} title="How It Works" />
-      <div className="grid gap-3 xl:grid-cols-3">
-        {steps.map((step) => (
-          <div key={step.number} className="rounded-[22px] border border-white/[0.08] bg-black/20 p-5">
-            <div className="flex items-center gap-4">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-accent-blue/25 bg-accent-blue/10 font-display text-lg font-black text-white">
-                {step.number}
-              </span>
-              <span className="text-accent-blue-light">{step.icon}</span>
+      <div className="overflow-hidden rounded-[22px] border border-white/[0.08] bg-black/20">
+        <div className="grid gap-px bg-white/[0.06] xl:grid-cols-3">
+          {steps.map((step, index) => (
+            <div key={step.number} className="relative bg-[#0b1222] p-5">
+              <div className="flex items-start gap-4">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-accent-blue/25 bg-accent-blue/10 font-display text-lg font-black text-white">
+                  {step.number}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="text-accent-blue-light">{step.icon}</span>
+                    <h3 className="font-display text-lg font-black uppercase text-white">{step.title}</h3>
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-text-muted">{step.detail}</p>
+                </div>
+              </div>
+              {index < steps.length - 1 ? (
+                <span className="absolute right-4 top-1/2 hidden -translate-y-1/2 text-text-muted xl:inline-flex">
+                  <ArrowRight className="h-4 w-4" />
+                </span>
+              ) : null}
             </div>
-            <h3 className="mt-5 font-display text-xl font-black uppercase text-white">{step.title}</h3>
-            <p className="mt-3 text-sm leading-7 text-text-muted">{step.detail}</p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -851,7 +905,7 @@ function LatestUpdatesSection({ updates }: { updates: HomepageUpdateCard[] }) {
     <section className="light-card p-5">
       <SectionHeading icon={<Newspaper className="h-4 w-4" />} title="Latest Updates" href="/news" hrefLabel="View All News" />
       {updates.length === 0 ? (
-        <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 px-5 py-8 text-center">
+        <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(13,20,36,0.94),rgba(8,12,24,0.94))] px-5 py-8 text-center">
           <p className="mx-auto max-w-3xl text-sm leading-7 text-text-muted">
             Official news, highlights, and announcements will appear here after publication.
           </p>
@@ -873,14 +927,19 @@ function CommunityBanner() {
       <div className="relative px-5 py-6 sm:px-7">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_20%,rgba(30,123,255,0.22),transparent_30%),radial-gradient(circle_at_88%_20%,rgba(30,123,255,0.1),transparent_24%)]" />
         <div className="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Community</p>
-            <h2 className="mt-3 font-display text-3xl font-black uppercase text-white">
-              Be Part of Nepal&apos;s PUBG PC Esports Community
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-text-secondary">
-              Join our Discord server, register your team, get updates, and never miss a match.
-            </p>
+          <div className="flex max-w-3xl items-start gap-4">
+            <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-accent-blue/20 bg-accent-blue/10 text-accent-blue-light">
+              <Users className="h-7 w-7" />
+            </span>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Community</p>
+              <h2 className="mt-3 font-display text-3xl font-black uppercase text-white">
+                Be Part of Nepal&apos;s PUBG PC Esports Community
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-text-secondary">
+                Join our Discord server, register your team, get updates, and never miss a match.
+              </p>
+            </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <ActionLink href={BRAVO_DISCORD_URL} className="min-w-[11rem] justify-center">

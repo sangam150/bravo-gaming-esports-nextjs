@@ -1,5 +1,6 @@
 import Link from "next/link";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
 import { buildPubgPlayerBoardRows, buildPubgTeamBoardRows, type PubgPlayerBoardRow, type PubgTeamBoardRow } from "@/lib/pubg-rankings";
 import {
@@ -149,6 +150,36 @@ function ActiveFilterSummary({
   );
 }
 
+function LeaderboardsLaunchState() {
+  return (
+    <main className="page-shell pb-12 pt-6">
+      <div className="page-stack">
+        <section className="overflow-hidden rounded-[32px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.16),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.98))] p-6 sm:p-8">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">PUBG Leaderboards</p>
+          <h1 className="mt-3 font-display text-3xl font-black uppercase text-white sm:text-4xl">
+            Official leaderboards will appear here after published results go live
+          </h1>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-text-muted">
+            Team and player boards unlock after Bravo publishes the first verified PUBG result set. Until then,
+            use the public event board, team registration, and Discord updates to stay ready for the next lobby.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/events" className="btn-secondary">
+              View Events
+            </Link>
+            <Link href="/teams/register" className="btn-primary">
+              Register Team
+            </Link>
+            <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
+              Join Discord
+            </a>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
 function TeamLeaderboardMobileCard({ row }: { row: PubgTeamBoardRow }) {
   return (
     <Link href={`/pubg/teams/${row.slug}`} className={`block rounded-[24px] border p-4 ${getLeaderboardSurface(row.rank)}`}>
@@ -231,7 +262,14 @@ export function PubgLeaderboardsRoute({
     : "Generated from the current published results set";
   const teamBoard = buildPubgTeamBoardRows(filteredMatches, teamLookup);
   const playerBoard = buildPubgPlayerBoardRows(filteredMatches, playerLookup);
+  const fullTeamBoard = buildPubgTeamBoardRows(dataset.matches, teamLookup);
+  const fullPlayerBoard = buildPubgPlayerBoardRows(dataset.matches, playerLookup);
   const mapOptions = dedupeMaps(dataset.matches);
+  const hasLeaderboardCoverage = dataset.matches.length > 0 && (fullTeamBoard.length > 0 || fullPlayerBoard.length > 0);
+
+  if (!hasLeaderboardCoverage) {
+    return <LeaderboardsLaunchState />;
+  }
 
   return (
     <main className="page-shell pb-12 pt-6">
