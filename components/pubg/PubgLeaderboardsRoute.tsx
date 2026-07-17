@@ -295,10 +295,10 @@ export function PubgLeaderboardsRoute({
             </>
           }
           stats={[
-            { label: "Filtered Matches", value: filteredMatches.length, tone: "blue" },
-            { label: "Team Rows", value: teamBoard.length, tone: "green" },
-            { label: "Player Rows", value: playerBoard.length, tone: "yellow" },
-            { label: "Maps In Lens", value: mapName === "all" ? mapOptions.length : 1, tone: "red" },
+            { label: "Matches In View", value: filteredMatches.length, tone: "blue" },
+            { label: "Ranked Teams", value: teamBoard.length, tone: "green" },
+            { label: "Ranked Players", value: playerBoard.length, tone: "yellow" },
+            { label: "Maps", value: mapName === "all" ? mapOptions.length : 1, tone: "red" },
           ]}
           aside={
             <div className="space-y-4">

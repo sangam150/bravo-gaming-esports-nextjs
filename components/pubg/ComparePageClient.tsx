@@ -585,7 +585,7 @@ export default function ComparePageClient({
             </>
           }
           stats={[
-            { label: "Filtered Matches", value: filteredMatches.length, tone: "blue" },
+            { label: "Matches In View", value: filteredMatches.length, tone: "blue" },
             { label: "Compare Modes", value: "Teams + Players", tone: "green" },
             { label: "Signal Layers", value: "Radar + Trends + Map Edge", tone: "yellow" },
             { label: "Window", value: windowMode === "all" ? "All Time" : `Last ${windowMode} Days`, tone: "red" },

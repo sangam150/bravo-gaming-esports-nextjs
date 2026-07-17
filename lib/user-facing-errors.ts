@@ -1,6 +1,13 @@
 const TECHNICAL_MESSAGE_PATTERN =
   /supabase|firebase|postgres|database|relation|column|schema|query|pgrst|row-level|rls|jwt|token|failed to fetch|networkerror|typeerror|syntaxerror|stack|env|api key|not configured|unexpected|internal server|status \d{3}|request failed|permission denied|unauthorized|forbidden/i;
 
+const LOGIN_INVALID_CREDENTIALS_PATTERN =
+  /invalid login credentials|invalid email or password|email or password is invalid|invalid credentials|invalid grant|user not found|email not confirmed/i;
+const LOGIN_RATE_LIMIT_PATTERN =
+  /rate limit|too many requests|too many attempts|retry after|over.*rate|429/i;
+const LOGIN_BACKEND_UNAVAILABLE_PATTERN =
+  /failed to fetch|network request failed|load failed|networkerror|service unavailable|temporarily unavailable|dns|timeout|not configured|connection|fetch failed|supabase/i;
+
 export const USER_FACING_ERROR_MESSAGES = {
   network: "We're having trouble connecting to our servers. Please refresh the page or try again shortly.",
   server: "Something went wrong on our end. Please try again shortly while we work on a fix.",
@@ -15,6 +22,31 @@ export const USER_FACING_ERROR_MESSAGES = {
   playerProfile: "We couldn't update your player profile right now. Please try again shortly.",
   teamWorkspace: "We couldn't load the team workspace right now. Please refresh the page or try again shortly.",
 } as const;
+
+export const LOGIN_ERROR_MESSAGES = {
+  missingCredentials: "Please enter your email and password.",
+  invalidCredentials: "Invalid email or password. Please check your details and try again.",
+  backendUnavailable: "Login service is temporarily unavailable. Please try again later or contact Bravo support.",
+  rateLimited: "Too many login attempts. Please wait a moment and try again.",
+  adminRoleMismatch: "This account does not have admin access.",
+  teamRoleMismatch: "This account does not have team access.",
+} as const;
+
+export type LoginAccessVariant = "admin" | "team" | "hub";
+export type LoginErrorStage = "credentials" | "session" | "role" | "provider";
+export type LoginFailureCategory =
+  | "missing_credentials"
+  | "invalid_credentials"
+  | "backend_unavailable"
+  | "rate_limited"
+  | "role_mismatch";
+
+export type LoginFailureDetails = {
+  message: string;
+  category: LoginFailureCategory;
+  status: number | null;
+  code: string | null;
+};
 
 export const USER_FACING_LABELS = {
   teamPendingConfirmation: "Team pending confirmation",
@@ -46,6 +78,29 @@ function getRawErrorMessage(error: unknown) {
     return error.message.trim();
   }
   return "";
+}
+
+function getErrorStatus(error: unknown) {
+  if (typeof error === "object" && error && "status" in error) {
+    const status = (error as { status?: unknown }).status;
+    return typeof status === "number" && Number.isFinite(status) ? status : null;
+  }
+
+  return null;
+}
+
+function getErrorCode(error: unknown) {
+  if (typeof error === "object" && error) {
+    const code =
+      "code" in error && typeof error.code === "string"
+        ? error.code
+        : "error_code" in error && typeof error.error_code === "string"
+          ? error.error_code
+          : null;
+    return code?.trim() || null;
+  }
+
+  return null;
 }
 
 function isSafePublicMessage(message: string) {
@@ -90,6 +145,86 @@ export function toUserFacingErrorMessage(
   }
 
   return getStatusFallback(options.status, options.fallback);
+}
+
+export function getRoleAccessErrorMessage(variant: Exclude<LoginAccessVariant, "hub">) {
+  return variant === "admin" ? LOGIN_ERROR_MESSAGES.adminRoleMismatch : LOGIN_ERROR_MESSAGES.teamRoleMismatch;
+}
+
+export function validateLoginCredentials(email: string, password: string) {
+  if (!email.trim() || password.length === 0) {
+    return LOGIN_ERROR_MESSAGES.missingCredentials;
+  }
+
+  return null;
+}
+
+export function createRoleAccessError(variant: Exclude<LoginAccessVariant, "hub">) {
+  return new Error(getRoleAccessErrorMessage(variant));
+}
+
+export function getLoginFailureDetails(
+  error: unknown,
+  options: {
+    variant: LoginAccessVariant;
+    stage?: LoginErrorStage;
+  }
+): LoginFailureDetails {
+  const rawMessage = getRawErrorMessage(error);
+  const normalizedMessage = rawMessage.toLowerCase();
+  const status = getErrorStatus(error);
+  const code = getErrorCode(error);
+  const roleMessage = options.variant === "hub" ? null : getRoleAccessErrorMessage(options.variant);
+
+  if (roleMessage && rawMessage === roleMessage) {
+    return {
+      message: roleMessage,
+      category: "role_mismatch",
+      status,
+      code,
+    };
+  }
+
+  if (status === 429 || LOGIN_RATE_LIMIT_PATTERN.test(normalizedMessage) || code === "over_request_rate_limit") {
+    return {
+      message: LOGIN_ERROR_MESSAGES.rateLimited,
+      category: "rate_limited",
+      status,
+      code,
+    };
+  }
+
+  if (
+    LOGIN_INVALID_CREDENTIALS_PATTERN.test(normalizedMessage) ||
+    (options.stage !== "session" && (status === 400 || status === 401))
+  ) {
+    return {
+      message: LOGIN_ERROR_MESSAGES.invalidCredentials,
+      category: "invalid_credentials",
+      status,
+      code,
+    };
+  }
+
+  if (
+    options.stage === "session" ||
+    (typeof status === "number" && status >= 500) ||
+    LOGIN_BACKEND_UNAVAILABLE_PATTERN.test(normalizedMessage)
+  ) {
+    return {
+      message: LOGIN_ERROR_MESSAGES.backendUnavailable,
+      category: "backend_unavailable",
+      status,
+      code,
+    };
+  }
+
+  return {
+    message: LOGIN_ERROR_MESSAGES.invalidCredentials,
+    category: "invalid_credentials",
+    status,
+    code,
+  };
 }
 
 export function getResponseErrorMessage(

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { NewsIndexPage } from "@/components/news/NewsPages";
+import { NewsLandingPage } from "@/components/public/PublicLandingPages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 
@@ -19,5 +19,5 @@ export const revalidate = 60;
 
 export default async function NewsPage({ searchParams }: PageProps) {
   const [hub, resolvedSearchParams] = await Promise.all([getPlatformHubData(), searchParams]);
-  return <NewsIndexPage hub={hub} searchParams={resolvedSearchParams} />;
+  return <NewsLandingPage hub={hub} searchParams={resolvedSearchParams} />;
 }

@@ -3,8 +3,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { isAdminRole } from "@/lib/authz";
+import {
+  clearBravoSession,
+  createBravoSession,
+  performPasswordLogin,
+} from "@/lib/login-client";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import {
+  getLoginFailureDetails,
+  LOGIN_ERROR_MESSAGES,
+  validateLoginCredentials,
+} from "@/lib/user-facing-errors";
 
 type AuthContextValue = {
   user: User | null;
@@ -17,6 +27,20 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function buildSessionUser(user?: {
+  uid?: string;
+  email?: string;
+} | null): User | null {
+  if (!user?.uid) {
+    return null;
+  }
+
+  return {
+    id: user.uid,
+    email: user.email ?? "",
+  } as User;
+}
 
 export function useAdminAuth() {
   const ctx = useContext(AuthContext);
@@ -31,23 +55,35 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const configured = isSupabaseConfigured();
 
   const establishSession = useCallback(async (accessToken: string) => {
-    const response = await fetch("/api/auth/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessToken }),
-      credentials: "include",
-    });
-    return response.json().catch(() => ({ success: false })) as Promise<{
-      success?: boolean;
-      user?: {
-        role?: string;
-        isAdmin?: boolean;
-      };
-    }>;
+    const { data } = await createBravoSession(accessToken);
+    return data;
   }, []);
 
   const clearSession = useCallback(async () => {
-    await fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
+    await clearBravoSession();
+  }, []);
+
+  const hydrateFromCookieSession = useCallback(async () => {
+    const response = await fetch("/api/auth/me", {
+      method: "GET",
+      credentials: "include",
+    });
+    const data = (await response.json().catch(() => ({}))) as {
+      authenticated?: boolean;
+      user?: {
+        uid?: string;
+        email?: string;
+        role?: string;
+      };
+    };
+
+    if (!response.ok || !data.authenticated || !data.user?.uid) {
+      return false;
+    }
+
+    setUser(buildSessionUser(data.user));
+    setRole(data.user.role ?? null);
+    return true;
   }, []);
 
   useEffect(() => {
@@ -63,14 +99,15 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (!active) return;
 
       if (error) {
+        await hydrateFromCookieSession().catch(() => false);
         setLoading(false);
         return;
       }
 
       const nextUser = data.session?.user ?? null;
-      setUser(nextUser);
 
       if (data.session?.access_token) {
+        setUser(nextUser);
         try {
           const sessionData = await establishSession(data.session.access_token);
           setRole(sessionData.user?.role ?? null);
@@ -79,7 +116,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           setRole(null);
         }
       } else {
-        setRole(null);
+        const hydrated = await hydrateFromCookieSession().catch(() => false);
+        if (!hydrated) {
+          setUser(null);
+          setRole(null);
+        }
       }
 
       setLoading(false);
@@ -94,15 +135,24 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
       try {
         if (session?.access_token) {
+          setUser(session.user ?? null);
           const sessionData = await establishSession(session.access_token);
           setRole(sessionData.user?.role ?? null);
         } else {
           await clearSession();
-          setRole(null);
+          const hydrated = await hydrateFromCookieSession().catch(() => false);
+          if (!hydrated) {
+            setUser(null);
+            setRole(null);
+          }
         }
       } catch {
         /* cookie sync failure should not crash the auth provider */
-        setRole(null);
+        const hydrated = await hydrateFromCookieSession().catch(() => false);
+        if (!hydrated) {
+          setUser(null);
+          setRole(null);
+        }
       }
 
       setLoading(false);
@@ -112,49 +162,59 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       active = false;
       subscription.unsubscribe();
     };
-  }, [configured, establishSession]);
+  }, [configured, establishSession, clearSession, hydrateFromCookieSession]);
 
   const login = useCallback(
     async (email: string, password: string) => {
       if (!configured) throw new Error("Supabase is not configured");
 
+      const credentialError = validateLoginCredentials(email, password);
+      if (credentialError) {
+        throw new Error(credentialError);
+      }
+
       const supabase = getSupabaseBrowserClient();
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { response, data } = await performPasswordLogin({
         email,
         password,
+        variant: "admin",
       });
 
-      if (error) {
-        throw error;
+      if (!response.ok || !data.success) {
+        const details = getLoginFailureDetails(
+          data.error
+            ? {
+                message: data.error,
+                status: data.status ?? response.status,
+              }
+            : { status: data.status ?? response.status },
+          {
+          variant: "admin",
+          stage: "credentials",
+          }
+        );
+        throw new Error(details.message);
       }
 
-      if (!data.session?.access_token || !data.user) {
-        throw new Error("Admin login failed");
+      if (!data.accessToken || !data.refreshToken) {
+        const details = getLoginFailureDetails(new Error("Unable to establish your session."), {
+          variant: "admin",
+          stage: "session",
+        });
+        throw new Error(details.message);
       }
 
-      const sessionResponse = await fetch("/api/auth/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: data.session.access_token }),
-        credentials: "include",
-      });
-      const sessionData = await sessionResponse.json().catch(() => ({}));
+      await supabase.auth
+        .setSession({
+          access_token: data.accessToken,
+          refresh_token: data.refreshToken,
+        })
+        .catch(() => undefined);
 
-      if (!sessionResponse.ok) {
-        await supabase.auth.signOut();
-        throw new Error(sessionData.error || "Admin login failed");
-      }
-
-      if (!sessionData.user?.isAdmin) {
-        await clearSession();
-        await supabase.auth.signOut();
-        throw new Error("This account does not have admin access.");
-      }
-
-      setUser(data.user);
-      setRole(sessionData.user?.role ?? null);
+      setUser(buildSessionUser(data.user));
+      setRole(data.user?.role ?? null);
     },
-    [configured, clearSession]
+    [configured]
   );
 
   const logout = useCallback(async () => {

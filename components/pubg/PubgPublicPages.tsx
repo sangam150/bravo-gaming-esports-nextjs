@@ -1415,8 +1415,8 @@ export function PubgCommunityPage({
           stats={
             hasCommunityData
               ? [
-                  { label: "Tracked Teams", value: rankedTeams.length, tone: "blue" as const },
-                  { label: "Tracked Players", value: rankedPlayers.length, tone: "green" as const },
+                  { label: "Published Teams", value: rankedTeams.length, tone: "blue" as const },
+                  { label: "Published Players", value: rankedPlayers.length, tone: "green" as const },
                   { label: "Published Matches", value: dataset.matches.length, tone: "yellow" as const },
                   { label: "Announcements", value: hub.news.length, tone: "red" as const },
                 ]
@@ -2213,7 +2213,7 @@ export function PubgTeamsPage({
             </>
           }
           stats={[
-            { label: "Tracked Teams", value: rankedTeams.length, tone: "blue" },
+            { label: "Published Teams", value: rankedTeams.length, tone: "blue" },
             { label: "Active Rosters", value: rankedTeams.filter((team) => team.currentRoster.length > 0).length, tone: "green" },
             { label: "Regions", value: teamRegions.length, tone: "yellow" },
             { label: "Ranked Cards", value: filteredTeams.length, tone: "red" },
@@ -2709,10 +2709,10 @@ export function PubgPlayersPage({
             </>
           }
           stats={[
-            { label: "Tracked Players", value: rankedPlayers.length, tone: "blue" },
+            { label: "Published Players", value: rankedPlayers.length, tone: "blue" },
             { label: "MVP-Level", value: rankedPlayers.filter((player) => player.mvpCount > 0).length, tone: "green" },
             { label: "Teams Represented", value: new Set(rankedPlayers.map((player) => player.currentTeamId).filter(Boolean)).size, tone: "yellow" },
-            { label: "Visible Cards", value: sortedPlayers.length, tone: "red" },
+            { label: "Players In View", value: sortedPlayers.length, tone: "red" },
           ]}
           aside={
             <div className="space-y-4">
@@ -3122,7 +3122,7 @@ export function PubgResultsPage({
           stats={[
             { label: "Published Matches", value: dataset.matches.filter((match) => match.status === "published").length, tone: "green" },
             { label: "Awaiting Approval", value: dataset.matches.filter((match) => match.status !== "published").length, tone: "yellow" },
-            { label: "Tracked Maps", value: mapOptions.length, tone: "blue" },
+            { label: "Maps Covered", value: mapOptions.length, tone: "blue" },
             { label: "Events Covered", value: new Set(dataset.matches.map((match) => match.eventId)).size, tone: "red" },
           ]}
           aside={
@@ -3388,10 +3388,10 @@ export function PubgLeaderboardsPage({
             </>
           }
           stats={[
-            { label: "Filtered Matches", value: filteredMatches.length, tone: "blue" },
-            { label: "Team Rows", value: teamBoard.length, tone: "green" },
-            { label: "Player Rows", value: playerBoard.length, tone: "yellow" },
-            { label: "Maps In Lens", value: mapName === "all" ? mapOptions.length : 1, tone: "red" },
+            { label: "Matches In View", value: filteredMatches.length, tone: "blue" },
+            { label: "Ranked Teams", value: teamBoard.length, tone: "green" },
+            { label: "Ranked Players", value: playerBoard.length, tone: "yellow" },
+            { label: "Maps", value: mapName === "all" ? mapOptions.length : 1, tone: "red" },
           ]}
           aside={
             <div className="space-y-4">
@@ -3621,7 +3621,7 @@ export function PubgFantasyPage({ dataset }: { dataset: PubgHubDataset }) {
           stats={[
             { label: "Fantasy Status", value: dataset.fantasy.enabled ? "Enabled" : "Coming Soon", tone: dataset.fantasy.enabled ? "green" : "yellow" },
             { label: "Preview Events", value: dataset.fantasy.events.length, tone: "blue" },
-            { label: "Top Player Rows", value: dataset.fantasy.leaderboard.length, tone: "red" },
+            { label: "Fantasy Entries", value: dataset.fantasy.leaderboard.length, tone: "red" },
             { label: "Squad Size", value: 5, tone: "green" },
           ]}
           aside={

@@ -737,12 +737,12 @@ export function PlatformHomePage({
   const communityCount = new Set(pubg.teams.map((team) => team.region).filter(Boolean)).size;
   const liveEventCount = hub.events.filter((event) => event.status === "live").length;
   const platformPulse = [
-    { label: "Tracked Teams", value: pubg.teams.length, detail: "Verified public profiles with roster, form, and event history.", tone: "green" as const },
-    { label: "Tracked Players", value: pubg.players.length, detail: "Fraggers, IGLs, support players, and rising talent in one hub.", tone: "blue" as const },
+    { label: "Published Teams", value: pubg.teams.length, detail: "Verified public profiles with roster, form, and event history.", tone: "green" as const },
+    { label: "Published Players", value: pubg.players.length, detail: "Fraggers, IGLs, support players, and rising talent in one hub.", tone: "blue" as const },
     { label: "Tracked Matches", value: pubg.matches.length, detail: "Real match cards, standings, and player output powering the flagship section.", tone: "yellow" as const },
     { label: "Communities Active", value: communityCount, detail: "Kathmandu, Pokhara, Chitwan, and more scenes represented in the hub.", tone: "red" as const },
     { label: "Published News", value: hub.news.length, detail: "Editorial coverage makes the platform feel alive beyond tournament operations.", tone: "blue" as const },
-    { label: "Partner Profiles", value: hub.sponsors.filter((sponsor) => sponsor.showOnSponsorsPage).length, detail: "Official partners supporting Bravo events, media, and competitive coverage.", tone: "green" as const },
+    { label: "Official Partners", value: hub.sponsors.filter((sponsor) => sponsor.showOnSponsorsPage).length, detail: "Official partners supporting Bravo events, media, and competitive coverage.", tone: "green" as const },
   ];
 
   return (

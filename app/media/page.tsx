@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PlatformMediaPage } from "@/components/platform/PlatformPages";
+import { MediaCenterLandingPage } from "@/components/public/PublicLandingPages";
 import { getPlatformHubData } from "@/lib/platform-hub";
 
 type PageProps = {
@@ -15,5 +15,5 @@ export const revalidate = 300;
 
 export default async function MediaPage({ searchParams }: PageProps) {
   const [hub, resolvedSearchParams] = await Promise.all([getPlatformHubData(), searchParams]);
-  return <PlatformMediaPage hub={hub} searchParams={resolvedSearchParams} />;
+  return <MediaCenterLandingPage hub={hub} searchParams={resolvedSearchParams} />;
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { PubgLeaderboardsLaunchPage } from "@/components/public/PublicLandingPages";
 import { PubgLeaderboardsRoute } from "@/components/pubg/PubgLeaderboardsRoute";
 import { buildContentMetadata } from "@/lib/metadata";
+import { getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 
 type PageProps = {
@@ -17,6 +19,11 @@ export const metadata: Metadata = buildContentMetadata({
 export const revalidate = 300;
 
 export default async function PubgLeaderboardsIndexPage({ searchParams }: PageProps) {
-  const [dataset, resolvedSearchParams] = await Promise.all([getPubgHubDataset(), searchParams]);
+  const [dataset, hub, resolvedSearchParams] = await Promise.all([getPubgHubDataset(), getPlatformHubData(), searchParams]);
+
+  if (dataset.matches.length === 0) {
+    return <PubgLeaderboardsLaunchPage hub={hub} />;
+  }
+
   return <PubgLeaderboardsRoute dataset={dataset} searchParams={resolvedSearchParams} />;
 }

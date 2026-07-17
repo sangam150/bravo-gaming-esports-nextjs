@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PubgHubLaunchPage } from "@/components/public/PublicLandingPages";
 import { PubgDashboardPage } from "@/components/pubg/PubgPublicPages";
 import { getCurrentSeasonOverview } from "@/lib/data";
 import { buildContentMetadata } from "@/lib/metadata";
@@ -32,6 +33,16 @@ export default async function PubgPage() {
         currentTournamentTitle: seasonOverview.currentTournament?.title ?? null,
       }
     : null;
+  const hasPublishedPubgData =
+    dashboard.matches.length > 0 ||
+    dashboard.teams.length > 0 ||
+    dashboard.players.length > 0 ||
+    dashboard.topTeams.length > 0 ||
+    dashboard.topPlayers.length > 0;
+
+  if (!hasPublishedPubgData) {
+    return <PubgHubLaunchPage hub={hub} partners={partners} />;
+  }
 
   return (
     <PubgDashboardPage

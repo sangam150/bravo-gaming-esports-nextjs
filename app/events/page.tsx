@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PlatformEventsPage } from "@/components/platform/PlatformPages";
+import { EventsLandingPage } from "@/components/public/PublicLandingPages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 
@@ -18,5 +18,5 @@ export const revalidate = 300;
 
 export default async function EventsPage({ searchParams }: PageProps) {
   const [hub, resolvedSearchParams] = await Promise.all([getPlatformHubData(), searchParams]);
-  return <PlatformEventsPage hub={hub} searchParams={resolvedSearchParams} />;
+  return <EventsLandingPage hub={hub} searchParams={resolvedSearchParams} />;
 }

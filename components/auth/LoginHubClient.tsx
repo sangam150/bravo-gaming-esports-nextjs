@@ -4,22 +4,19 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
+import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { buildDiscordAuthCallbackUrl } from "@/lib/discord-auth";
+import {
+  performPasswordLogin,
+  reportLoginFailure,
+} from "@/lib/login-client";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
-  getResponseErrorMessage,
-  toUserFacingErrorMessage,
-  USER_FACING_ERROR_MESSAGES,
+  getLoginFailureDetails,
+  LOGIN_ERROR_MESSAGES,
+  validateLoginCredentials,
 } from "@/lib/user-facing-errors";
-
-type SessionResponse = {
-  user?: {
-    role?: string;
-    isAdmin?: boolean;
-  };
-  error?: string;
-};
 
 type LoginVariant = "hub" | "team";
 
@@ -63,73 +60,78 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!configured) return;
+    const requestVariant = variant === "team" ? "team" : "hub";
+
+    const credentialError = validateLoginCredentials(email, password);
+    if (credentialError) {
+      await reportLoginFailure({
+        variant: requestVariant,
+        category: "missing_credentials",
+        stage: "credentials",
+      });
+      setError(credentialError);
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
       const supabase = getSupabaseBrowserClient();
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { response, data } = await performPasswordLogin({
         email,
         password,
+        variant: requestVariant,
       });
 
-      if (signInError) {
-        throw signInError;
-      }
-
-      if (!data.session?.access_token) {
-        throw new Error("Unable to establish your session.");
-      }
-
-      const sessionResponse = await fetch("/api/auth/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: data.session.access_token }),
-        credentials: "include",
-      });
-      const sessionData = (await sessionResponse.json().catch(() => ({}))) as SessionResponse;
-
-      if (!sessionResponse.ok) {
-        throw new Error(
-          getResponseErrorMessage(sessionResponse, sessionData.error, {
-            fallback: USER_FACING_ERROR_MESSAGES.session,
-          })
+      if (!response.ok || !data.success) {
+        const details = getLoginFailureDetails(
+          data.error
+            ? {
+                message: data.error,
+                status: data.status ?? response.status,
+              }
+            : { status: data.status ?? response.status },
+          {
+          variant: requestVariant,
+          stage: "credentials",
+          }
         );
+        throw new Error(details.message);
       }
 
-      const isTeamUser = hasTeamWorkspaceAccess(sessionData.user?.role, sessionData.user?.isAdmin);
-
-      if (variant === "team" && !isTeamUser) {
-        await fetch("/api/auth/session", { method: "DELETE", credentials: "include" }).catch(() => undefined);
-        await supabase.auth.signOut().catch(() => undefined);
-        throw new Error("This account does not have team workspace access.");
+      if (!data.accessToken || !data.refreshToken) {
+        const details = getLoginFailureDetails(new Error("Unable to establish your session."), {
+          variant: requestVariant,
+          stage: "session",
+        });
+        throw new Error(details.message);
       }
 
-      if (!sessionData.user?.isAdmin && !isTeamUser) {
-        await fetch("/api/auth/session", { method: "DELETE", credentials: "include" }).catch(() => undefined);
-        await supabase.auth.signOut().catch(() => undefined);
-        throw new Error("This account does not have Bravo admin or team access.");
-      }
+      await supabase.auth
+        .setSession({
+          access_token: data.accessToken,
+          refresh_token: data.refreshToken,
+        })
+        .catch(() => undefined);
+
+      const isTeamUser = hasTeamWorkspaceAccess(data.user?.role, data.user?.isAdmin);
+      const isAdminUser = Boolean(data.user?.isAdmin);
 
       const redirectTarget =
-        searchParams.get("redirect") ||
-        (variant === "team"
+        variant === "team"
           ? "/team"
-          : sessionData.user?.isAdmin
-            ? "/admin"
-            : isTeamUser
-              ? "/team"
-              : "/login");
+          : searchParams.get("redirect") ||
+            (isAdminUser
+              ? "/admin"
+              : isTeamUser
+                ? "/team"
+                : "/login");
 
       router.push(redirectTarget);
       router.refresh();
     } catch (submissionError: unknown) {
-      setError(
-        toUserFacingErrorMessage(submissionError, {
-          fallback: USER_FACING_ERROR_MESSAGES.login,
-        })
-      );
+      setError(submissionError instanceof Error ? submissionError.message : LOGIN_ERROR_MESSAGES.invalidCredentials);
     } finally {
       setLoading(false);
     }
@@ -156,14 +158,21 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
       });
 
       if (oauthError) {
-        throw oauthError;
+        const details = getLoginFailureDetails(oauthError, {
+          variant: "team",
+          stage: "provider",
+        });
+        await reportLoginFailure({
+          variant: "team",
+          category: details.category,
+          stage: "provider",
+          status: details.status,
+          code: details.code,
+        });
+        throw new Error(details.message);
       }
     } catch (submissionError: unknown) {
-      setError(
-        toUserFacingErrorMessage(submissionError, {
-          fallback: USER_FACING_ERROR_MESSAGES.login,
-        })
-      );
+      setError(submissionError instanceof Error ? submissionError.message : LOGIN_ERROR_MESSAGES.backendUnavailable);
       setDiscordLoading(false);
     }
   }
@@ -178,7 +187,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
               <span className="brand-badge">{content.badge}</span>
               <h1 className="hero-h1 mt-5">Sign-in is temporarily unavailable</h1>
               <p className="mt-4 text-sm leading-relaxed text-text-muted">
-                Bravo login will return here automatically once Supabase authentication is fully connected for this environment.
+                {LOGIN_ERROR_MESSAGES.backendUnavailable}
               </p>
             </div>
           </section>
@@ -224,7 +233,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="rounded-card border border-white/[0.08] bg-bg-primary/75 p-6">
+            <form onSubmit={handleSubmit} noValidate className="rounded-card border border-white/[0.08] bg-bg-primary/75 p-6">
               <p className="section-title">Email Login</p>
               <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Sign in</h2>
               <p className="mt-3 text-sm text-text-muted">
@@ -283,6 +292,19 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                 <Link href="/reset-password" className="text-accent-blue transition hover:text-white hover:underline">
                   Password recovery
                 </Link>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-text-muted">
+                <p className="font-semibold text-white">Need help logging in?</p>
+                <p className="mt-2">Contact Bravo Admin or join Discord for support.</p>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <Link href="/contact" className="text-accent-blue transition hover:text-white hover:underline">
+                    Contact Bravo Admin
+                  </Link>
+                  <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="text-accent-blue transition hover:text-white hover:underline">
+                    Join Discord
+                  </a>
+                </div>
               </div>
             </form>
           </div>
