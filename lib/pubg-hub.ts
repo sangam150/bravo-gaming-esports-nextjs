@@ -182,7 +182,7 @@ export interface PubgHubMatch {
   winnerTeamId?: string;
   winnerTeamName?: string;
   totalKills: number;
-  totalDamage: number;
+  totalDamage: number | null;
 }
 
 export interface PubgHubTeam {
@@ -1821,7 +1821,10 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         winnerTeamId: winner?.teamId,
         winnerTeamName: winner?.teamName,
         totalKills: teamResults.reduce((sum, currentValue) => sum + currentValue.kills, 0),
-        totalDamage: playerResults.reduce((sum, currentValue) => sum + currentValue.damage, 0),
+        totalDamage:
+          playerResults.length > 0
+            ? playerResults.reduce((sum, currentValue) => sum + currentValue.damage, 0)
+            : null,
       } satisfies PubgHubMatch;
     })
     .sort(sortByNewest);
@@ -2829,7 +2832,10 @@ function sanitizePubgDatasetForPublicDisplay(dataset: PubgHubDataset): PubgHubDa
           playerResults.length > 0
             ? playerResults.reduce((sum, playerResult) => sum + playerResult.kills, 0)
             : teamResults.reduce((sum, teamResult) => sum + teamResult.kills, 0),
-        totalDamage: playerResults.reduce((sum, playerResult) => sum + playerResult.damage, 0),
+        totalDamage:
+          playerResults.length > 0
+            ? playerResults.reduce((sum, playerResult) => sum + playerResult.damage, 0)
+            : null,
       };
     })
     .filter((match): match is NonNullable<typeof match> => Boolean(match));

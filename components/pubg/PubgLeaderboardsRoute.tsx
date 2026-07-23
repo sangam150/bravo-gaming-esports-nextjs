@@ -253,7 +253,17 @@ export function PubgLeaderboardsRoute({
   searchParams: SearchParamDictionary;
 }) {
   const view = readSearchParam(searchParams.view, "teams");
-  const eventSlug = readSearchParam(searchParams.event, "all");
+  const latestPublishedTournamentSlug =
+    [...dataset.events]
+      .filter((event) => event.type === "tournament" && event.matchCount > 0)
+      .sort((firstEvent, secondEvent) =>
+        (secondEvent.endDate ?? secondEvent.startDate).localeCompare(firstEvent.endDate ?? firstEvent.startDate)
+      )[0]?.slug ?? "all";
+  const requestedEventSlug = readSearchParam(searchParams.event, latestPublishedTournamentSlug);
+  const eventSlug =
+    requestedEventSlug === "all" || dataset.events.some((event) => event.slug === requestedEventSlug)
+      ? requestedEventSlug
+      : latestPublishedTournamentSlug;
   const mapName = readSearchParam(searchParams.map, "all");
   const teamLookup = buildTeamLookup(dataset);
   const playerLookup = buildPlayerLookup(dataset);

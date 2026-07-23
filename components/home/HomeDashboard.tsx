@@ -214,6 +214,17 @@ function resolveHomepageSponsors(hub: PlatformHubData) {
     .slice(0, 5);
 }
 
+function getFeaturedEventLabel(event: PlatformEvent | null) {
+  if (!event) return "Featured Event";
+
+  const startTime = Date.parse(event.startDate);
+  if (event.status === "upcoming" && Number.isFinite(startTime) && startTime > Date.now()) {
+    return "Next Featured Event";
+  }
+
+  return event.type.toLowerCase().includes("scrim") ? "Latest Scrims Event" : "Featured Event";
+}
+
 type HomepageUpdateCard =
   | {
       id: string;
@@ -333,7 +344,7 @@ function HeroSection({ featuredEvent }: { featuredEvent: PlatformEvent | null })
 
         <div className="min-w-0">
           <div className="rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(7,12,24,0.98),rgba(5,9,18,0.98))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.36)] sm:p-6">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Next Featured Event</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">{getFeaturedEventLabel(featuredEvent)}</p>
             <div className="mt-4 flex items-center gap-3">
               <BravoLogo size={44} />
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
@@ -341,7 +352,7 @@ function HeroSection({ featuredEvent }: { featuredEvent: PlatformEvent | null })
               </span>
             </div>
             <h2 className="mt-5 font-display text-[2rem] font-black uppercase leading-tight text-white">
-              {featuredEvent?.name ?? "PUBG Mahasangram 2.0"}
+              {featuredEvent?.name ?? "Featured PUBG Event"}
             </h2>
 
             <div className="mt-6 space-y-3 border-y border-white/[0.08] py-5">
@@ -782,7 +793,7 @@ function UpcomingEventsSection({ events }: { events: PlatformEvent[] }) {
       {visibleEvents.length === 0 ? (
         <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(8,13,26,0.96))] p-6">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Next Registration Window</p>
-          <h3 className="mt-3 font-display text-2xl font-black uppercase text-white">PUBG Mahasangram 2.0</h3>
+          <h3 className="mt-3 font-display text-2xl font-black uppercase text-white">Upcoming event to be announced</h3>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-text-muted">
             Registration will appear here as soon as the next official Bravo event is published.
           </p>

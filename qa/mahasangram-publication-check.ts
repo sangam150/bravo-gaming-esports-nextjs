@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { getPlatformHubData } from "../lib/platform-hub";
-import { getPubgHubDataset } from "../lib/pubg-hub";
+import { getPubgHubDataset, getPubgPlayerById, getPubgTeamById } from "../lib/pubg-hub";
 
 async function main() {
   const canonicalSlug = "pubg-mahasangram-53821";
@@ -18,6 +18,17 @@ async function main() {
   assert.match(pubgEvent.standings[2]?.teamName ?? "", /Near Edge Protocol|N3P/i);
   assert.equal(pubgEvent.playerTable[0]?.pubgName, "TommyVercettio_o");
   assert.equal(pubgEvent.playerTable[0]?.kills, 53);
+  assert.ok(
+    pubgEvent.matches.every((match) => match.playerResults.length === 0 && match.totalDamage === null),
+    "Unavailable per-match player damage must remain null instead of being presented as zero."
+  );
+
+  const [topTeamProfile, topPlayerProfile] = await Promise.all([
+    getPubgTeamById(pubg.teams[0].slug),
+    getPubgPlayerById(pubg.players[0].slug),
+  ]);
+  assert.ok(topTeamProfile, "Published team profile lookup failed.");
+  assert.ok(topPlayerProfile, "Published player profile lookup failed.");
 
   console.log("Mahasangram publication QA passed.");
 }

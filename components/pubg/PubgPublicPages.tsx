@@ -1760,13 +1760,15 @@ function EventMatchesBoard({
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <MetricCard label="Winner" value={winnerTeam} compact />
               <MetricCard label="Total Kills" value={match.totalKills} compact tone="blue" />
-              <MetricCard label="Damage" value={match.totalDamage} compact tone="green" />
+              {match.totalDamage !== null ? <MetricCard label="Damage" value={match.totalDamage} compact tone="green" /> : null}
             </div>
-            <div className="mt-4 rounded-card border border-white/[0.08] bg-bg-primary p-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Top fragger</p>
-              <p className="mt-2 font-semibold text-white">{topFragger?.pubgName ?? "Pending player stats"}</p>
-              <p className="mt-1 text-sm text-text-muted">{topFragger?.currentTeamName ?? "Team TBD"}</p>
-            </div>
+            {topFragger ? (
+              <div className="mt-4 rounded-card border border-white/[0.08] bg-bg-primary p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Top fragger</p>
+                <p className="mt-2 font-semibold text-white">{topFragger.pubgName}</p>
+                <p className="mt-1 text-sm text-text-muted">{topFragger.currentTeamName ?? "Team TBD"}</p>
+              </div>
+            ) : null}
             <div className="mt-4 table-scroll">
               <table className="data-table min-w-full">
                 <thead>
@@ -3025,7 +3027,7 @@ export function PubgResultsPage({
                 <div className="mt-5 grid gap-3 sm:grid-cols-4">
                   <MetricCard label="Winner" value={match.winnerTeamName ?? "Pending"} compact tone="green" />
                   <MetricCard label="Kills" value={match.totalKills} compact tone="blue" />
-                  <MetricCard label="Damage" value={match.totalDamage} compact tone="yellow" />
+                  {match.totalDamage !== null ? <MetricCard label="Damage" value={match.totalDamage} compact tone="yellow" /> : null}
                   <MetricCard label="Event" value={match.eventStatus} compact tone="red" />
                 </div>
                 <div className="mt-5 grid gap-5 xl:grid-cols-[1fr,0.95fr]">
@@ -3061,21 +3063,25 @@ export function PubgResultsPage({
                       </table>
                     </div>
                   </div>
-                  <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Top fragger</p>
-                    {topFragger ? (
+                  {topFragger ? (
+                    <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Top fragger</p>
                       <div className="mt-3">
                         <PlayerIdentity player={topFragger} href={`/pubg/players/${topFragger.id}`} />
                       </div>
-                    ) : (
-                      <p className="mt-3 text-sm text-text-muted">Top-fragger data will appear here after results are published.</p>
-                    )}
-                    <div className="mt-4">
+                      <div className="mt-4">
+                        <Link href={`/pubg/events/${match.eventSlug}?tab=matches`} className="btn-secondary">
+                          Open event board
+                        </Link>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-end">
                       <Link href={`/pubg/events/${match.eventSlug}?tab=matches`} className="btn-secondary">
                         Open event board
                       </Link>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             );
