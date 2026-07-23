@@ -8,7 +8,7 @@
     "dev:webpack": "next dev --webpack",
     "lint": "next typegen && tsc --noEmit",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "npm run qa:pubg-rankings",
+    "test": "npm run qa:pubg-rankings && npm run qa:mahasangram",
     "build": "next build --webpack",
     "start": "next start",
     "import:first-tournament": "node --conditions=react-server --import tsx ./scripts/import-first-official-tournament.ts",
@@ -19,7 +19,8 @@
     "clear:demo": "tsx scripts/clear-demo-data.ts",
     "qa:visual:seed": "node scripts/qa-visual-seed.mjs",
     "qa:visual:cleanup": "node scripts/qa-visual-cleanup.mjs",
-    "qa:pubg-rankings": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/pubg-rankings-check.ts"
+    "qa:pubg-rankings": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/pubg-rankings-check.ts",
+    "qa:mahasangram": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/mahasangram-publication-check.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",
