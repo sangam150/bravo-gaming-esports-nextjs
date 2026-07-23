@@ -32,6 +32,7 @@ const output = execFileSync(
     cwd,
     encoding: "utf8",
     env: process.env,
+    shell: process.platform === "win32",
     maxBuffer: 8 * 1024 * 1024,
   }
 );

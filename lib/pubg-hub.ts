@@ -2702,7 +2702,16 @@ function hasVisiblePlayerActivity(player: PubgHubPlayer, visibleMatchPlayerIds: 
 
 function sanitizePubgDatasetForPublicDisplay(dataset: PubgHubDataset): PubgHubDataset {
   const candidateEvents = dataset.events.filter(
-    (event) => !hasPublicDemoMarker(event.name, event.slug, event.region, event.type)
+    (event) =>
+      !hasPublicDemoMarker(
+        event.id,
+        event.name,
+        event.slug,
+        event.region,
+        event.type,
+        event.description ?? undefined,
+        event.rules ?? undefined
+      )
   );
   const visibleEventIds = new Set(candidateEvents.map((event) => event.id));
   const visibleEventTeamIds = new Set<string>();

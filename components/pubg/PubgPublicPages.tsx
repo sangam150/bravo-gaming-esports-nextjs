@@ -352,7 +352,7 @@ function getEventWinnerLabel(event: PubgHubEvent, winnerName?: string | null) {
     return winnerName ?? "Results Pending";
   }
 
-  return event.status === "ongoing" ? "Live board in progress" : "Winner locks after completion";
+  return event.status === "ongoing" ? "Results in progress" : "Winner confirmed after completion";
 }
 
 function HubMatchCard({

@@ -21,7 +21,10 @@ import type {
   Tournament,
   TournamentMatch,
 } from "./types";
-import type { Json, Tables, TablesInsert, TablesUpdate, Views } from "@/types/database.types";
+import type { Database, Json, Tables, TablesInsert, TablesUpdate } from "@/types/database.types";
+
+type PublicViewName = keyof Database["public"]["Views"];
+type Views<ViewName extends PublicViewName> = Database["public"]["Views"][ViewName]["Row"];
 
 type MatchSnapshot = Partial<TournamentMatch> & {
   teamResults?: TeamMatchResult[];

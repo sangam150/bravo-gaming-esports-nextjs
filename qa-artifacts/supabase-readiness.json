@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-16T05:35:11.516Z",
+  "generatedAt": "2026-07-23T07:03:27.718Z",
   "env": {
     "hasSupabaseUrl": true,
     "hasPublishableKey": true,
@@ -37,15 +37,36 @@
   },
   "storage": {
     "bucketListStatus": 200,
-    "existingBuckets": [],
+    "existingBuckets": [
+      "team-logos",
+      "player-avatars",
+      "player-photos",
+      "event-banners",
+      "sponsor-logos",
+      "sponsor-assets",
+      "result-screenshots",
+      "scoreboard-images",
+      "match-media",
+      "media-assets",
+      "media-uploads",
+      "hero-slides",
+      "news-images",
+      "posters",
+      "stream-assets",
+      "moss-files",
+      "sensitive-review-files",
+      "private-team-documents"
+    ],
     "requiredBucketGroups": [
       {
         "label": "team-logos",
         "bucketNames": [
           "team-logos"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "team-logos"
+        ],
+        "ok": true
       },
       {
         "label": "player-assets",
@@ -53,16 +74,21 @@
           "player-avatars",
           "player-photos"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "player-avatars",
+          "player-photos"
+        ],
+        "ok": true
       },
       {
         "label": "event-banners",
         "bucketNames": [
           "event-banners"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "event-banners"
+        ],
+        "ok": true
       },
       {
         "label": "sponsor-assets",
@@ -70,32 +96,41 @@
           "sponsor-logos",
           "sponsor-assets"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "sponsor-logos",
+          "sponsor-assets"
+        ],
+        "ok": true
       },
       {
         "label": "result-screenshots",
         "bucketNames": [
           "result-screenshots"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "result-screenshots"
+        ],
+        "ok": true
       },
       {
         "label": "scoreboard-images",
         "bucketNames": [
           "scoreboard-images"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "scoreboard-images"
+        ],
+        "ok": true
       },
       {
         "label": "match-media",
         "bucketNames": [
           "match-media"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "match-media"
+        ],
+        "ok": true
       },
       {
         "label": "media-assets",
@@ -103,331 +138,291 @@
           "media-assets",
           "media-uploads"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "media-assets",
+          "media-uploads"
+        ],
+        "ok": true
       },
       {
         "label": "hero-slides",
         "bucketNames": [
           "hero-slides"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "hero-slides"
+        ],
+        "ok": true
       }
     ],
-    "missingBuckets": [
-      "team-logos",
-      "player-assets",
-      "event-banners",
-      "sponsor-assets",
-      "result-screenshots",
-      "scoreboard-images",
-      "match-media",
-      "media-assets",
-      "hero-slides"
-    ],
+    "missingBuckets": [],
     "recommendedLaunchBucketGroups": [
       {
         "label": "news-images",
         "bucketNames": [
           "news-images"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "news-images"
+        ],
+        "ok": true
       },
       {
         "label": "posters",
         "bucketNames": [
           "posters"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "posters"
+        ],
+        "ok": true
       },
       {
         "label": "stream-assets",
         "bucketNames": [
           "stream-assets"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "stream-assets"
+        ],
+        "ok": true
       },
       {
         "label": "moss-files",
         "bucketNames": [
           "moss-files"
         ],
-        "matchedBuckets": [],
-        "ok": false
+        "matchedBuckets": [
+          "moss-files"
+        ],
+        "ok": true
       }
     ],
-    "missingRecommendedBuckets": [
-      "news-images",
-      "posters",
-      "stream-assets",
-      "moss-files"
-    ]
+    "missingRecommendedBuckets": []
   },
   "schema": {
     "criticalTables": [
       {
         "table": "users",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "profiles",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "seasons",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "days",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "teams",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "players",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "events",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "matches",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "match_players",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "match_results",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "event_teams",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "pending_imports",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "import_logs",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "team_roster_history",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "roster_requests",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "match_team_results",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "match_player_results",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "moss_submissions",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "uploads",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "audit_logs",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "announcements",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "sponsors",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "videos",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "settings",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "point_systems",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "app_documents",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       }
     ],
-    "missingCriticalTables": [
-      "users",
-      "profiles",
-      "seasons",
-      "days",
-      "teams",
-      "players",
-      "events",
-      "matches",
-      "match_players",
-      "match_results",
-      "event_teams",
-      "pending_imports",
-      "import_logs",
-      "team_roster_history",
-      "roster_requests",
-      "match_team_results",
-      "match_player_results",
-      "moss_submissions",
-      "uploads",
-      "audit_logs",
-      "announcements",
-      "sponsors",
-      "videos",
-      "settings",
-      "point_systems",
-      "app_documents"
-    ],
+    "missingCriticalTables": [],
     "launchCompatibilityTables": [
       {
         "table": "user_profiles",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "season_days",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "season_standings",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "standings",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "player_season_stats",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "alltime_standings",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "media",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "homepage_content",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "contact_messages",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       },
       {
         "table": "site_settings",
-        "status": 404,
-        "ok": false,
-        "missingFromSchemaCache": true
+        "status": 200,
+        "ok": true,
+        "missingFromSchemaCache": false
       }
     ],
-    "missingLaunchCompatibilityTables": [
-      "user_profiles",
-      "season_days",
-      "season_standings",
-      "standings",
-      "player_season_stats",
-      "alltime_standings",
-      "media",
-      "homepage_content",
-      "contact_messages",
-      "site_settings"
-    ],
+    "missingLaunchCompatibilityTables": [],
     "documentStoreCollections": [
       "seasons",
       "tournaments",
@@ -457,7 +452,7 @@
       "platformGames",
       "platformEvents"
     ],
-    "documentStoreTableReady": false,
+    "documentStoreTableReady": true,
     "documentStoreNote": "Homepage content, news articles, contact messages, media records, platform pages, and several admin-managed entities live inside app_documents collections rather than dedicated SQL tables."
   }
 }

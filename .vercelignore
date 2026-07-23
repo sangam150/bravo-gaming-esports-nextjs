@@ -1,5 +1,8 @@
 .codex-screens
+.codex-*
+.next
 qa-artifacts
+tmp
 playwright-report
 test-results
 blob-report

@@ -3,9 +3,9 @@ import TeamAvatar from "@/components/ui/TeamAvatar";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
 import {
+  buildPubgAggregatePlayerBoardRows,
   buildPubgPlayerBoardRows,
   buildPubgTeamBoardRows,
-  comparePubgPlayers,
   type PubgPlayerBoardRow,
   type PubgTeamBoardRow,
 } from "@/lib/pubg-rankings";
@@ -49,63 +49,6 @@ function filterMatches(dataset: PubgHubDataset, options: { eventSlug?: string; m
 
     return true;
   });
-}
-
-function buildAggregatePlayerBoard(dataset: PubgHubDataset, eventSlug: string) {
-  type AggregatePlayerBoardRow = PubgPlayerBoardRow & { sourceRank?: number | null };
-
-  return dataset.players
-    .map<AggregatePlayerBoardRow | null>((player) => {
-      const scopedEventStats =
-        eventSlug === "all"
-          ? player.eventStats
-          : player.eventStats.filter((eventStat) => eventStat.eventSlug === eventSlug);
-
-      if (scopedEventStats.length === 0) {
-        return null;
-      }
-
-      const totals = scopedEventStats.reduce(
-        (summary, eventStat) => {
-          summary.matches += eventStat.matches;
-          summary.kills += eventStat.kills;
-          summary.assists += eventStat.assists;
-          summary.knocks += eventStat.knocks;
-          summary.damage += eventStat.damage;
-          return summary;
-        },
-        { matches: 0, kills: 0, assists: 0, knocks: 0, damage: 0 }
-      );
-
-      return {
-        id: player.id,
-        rank: 0,
-        playerId: player.id,
-        slug: player.slug,
-        pubgName: player.pubgName,
-        avatarUrl: player.avatarUrl ?? null,
-        teamId: player.currentTeamId ?? null,
-        teamName: player.currentTeamName ?? null,
-        matches: totals.matches,
-        wins: player.wins,
-        kills: totals.kills,
-        assists: totals.assists,
-        knocks: totals.knocks,
-        damage: totals.damage,
-        avgKills: Number((totals.kills / Math.max(totals.matches, 1)).toFixed(2)),
-        avgDamage: Number((totals.damage / Math.max(totals.matches, 1)).toFixed(2)),
-        trend: player.recentTrend.length > 0 ? player.recentTrend : scopedEventStats.map((eventStat) => eventStat.kills).slice(-6),
-        bestMatch:
-          player.bestMatch && (eventSlug === "all" || player.bestMatch.eventSlug === eventSlug) ? player.bestMatch : null,
-        sourceRank: scopedEventStats[0]?.rank ?? player.sourceRank ?? null,
-      } satisfies AggregatePlayerBoardRow;
-    })
-    .filter((row): row is AggregatePlayerBoardRow => Boolean(row))
-    .sort(comparePubgPlayers)
-    .map((row, index) => ({
-      ...row,
-      rank: index + 1,
-    }));
 }
 
 function getLatestFilteredMatch(matches: PubgHubMatch[]) {
@@ -328,11 +271,13 @@ export function PubgLeaderboardsRoute({
   const playerBoard =
     playerBoardFromMatches.length > 0 || mapName !== "all"
       ? playerBoardFromMatches
-      : buildAggregatePlayerBoard(dataset, eventSlug);
+      : buildPubgAggregatePlayerBoardRows(dataset.players, eventSlug);
   const fullTeamBoard = buildPubgTeamBoardRows(dataset.matches, teamLookup);
   const fullPlayerBoardFromMatches = buildPubgPlayerBoardRows(dataset.matches, playerLookup);
   const fullPlayerBoard =
-    fullPlayerBoardFromMatches.length > 0 ? fullPlayerBoardFromMatches : buildAggregatePlayerBoard(dataset, "all");
+    fullPlayerBoardFromMatches.length > 0
+      ? fullPlayerBoardFromMatches
+      : buildPubgAggregatePlayerBoardRows(dataset.players);
   const mapOptions = dedupeMaps(dataset.matches);
   const hasLeaderboardCoverage = dataset.matches.length > 0 && (fullTeamBoard.length > 0 || fullPlayerBoard.length > 0);
 

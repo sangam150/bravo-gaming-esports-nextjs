@@ -310,3 +310,65 @@ export function buildPubgPlayerBoardRows(matches: readonly PubgHubMatch[], playe
     rank: index + 1,
   }));
 }
+
+export function buildPubgAggregatePlayerBoardRows(
+  players: readonly PubgHubPlayer[],
+  eventSlug = "all"
+) {
+  return getRankedPlayers(
+    players
+      .map((player) => {
+        const scopedEventStats =
+          eventSlug === "all"
+            ? player.eventStats
+            : player.eventStats.filter((eventStat) => eventStat.eventSlug === eventSlug);
+
+        if (scopedEventStats.length === 0) {
+          return null;
+        }
+
+        const totals = scopedEventStats.reduce(
+          (summary, eventStat) => ({
+            matches: summary.matches + eventStat.matches,
+            kills: summary.kills + eventStat.kills,
+            assists: summary.assists + eventStat.assists,
+            knocks: summary.knocks + eventStat.knocks,
+            damage: summary.damage + eventStat.damage,
+          }),
+          { matches: 0, kills: 0, assists: 0, knocks: 0, damage: 0 }
+        );
+
+        return {
+          id: player.id,
+          rank: 0,
+          playerId: player.id,
+          slug: player.slug,
+          pubgName: player.pubgName,
+          avatarUrl: player.avatarUrl ?? null,
+          teamId: player.currentTeamId ?? null,
+          teamName: player.currentTeamName ?? null,
+          matches: totals.matches,
+          wins: player.wins,
+          kills: totals.kills,
+          assists: totals.assists,
+          knocks: totals.knocks,
+          damage: totals.damage,
+          avgKills: Number((totals.kills / Math.max(totals.matches, 1)).toFixed(2)),
+          avgDamage: Number((totals.damage / Math.max(totals.matches, 1)).toFixed(2)),
+          trend:
+            player.recentTrend.length > 0
+              ? player.recentTrend
+              : scopedEventStats.map((eventStat) => eventStat.kills).slice(-6),
+          bestMatch:
+            player.bestMatch && (eventSlug === "all" || player.bestMatch.eventSlug === eventSlug)
+              ? player.bestMatch
+              : null,
+          sourceRank: scopedEventStats[0]?.rank ?? player.sourceRank ?? null,
+        } satisfies PubgPlayerBoardRow;
+      })
+      .filter((row): row is NonNullable<typeof row> => Boolean(row))
+  ).map((row, index) => ({
+    ...row,
+    rank: index + 1,
+  }));
+}

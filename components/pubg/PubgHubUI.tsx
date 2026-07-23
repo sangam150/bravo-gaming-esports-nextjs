@@ -110,7 +110,7 @@ export function formatDateRange(startDate?: string | null, endDate?: string | nu
 }
 
 export function sourceLabel(source: PubgHubSource) {
-  return source === "supabase" ? "Verified live data" : "Verified results archive";
+  return source === "supabase" ? "Official published results" : "Published results archive";
 }
 
 export function SectionHeader({

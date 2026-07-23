@@ -197,7 +197,16 @@ function filterPublicSeasons(seasons: Season[]) {
 }
 
 function isPubliclyVisibleTournament(tournament: Tournament) {
-  return !hasPublicDemoMarker(tournament.title, tournament.seasonTitle);
+  return !hasPublicDemoMarker(
+    tournament.id,
+    tournament.title,
+    tournament.seasonTitle,
+    tournament.description,
+    tournament.rules,
+    tournament.schedule,
+    tournament.sourceProvider,
+    tournament.sourceUrl
+  );
 }
 
 function sanitizePublicTournament(tournament: Tournament): Tournament {

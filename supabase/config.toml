@@ -20,6 +20,8 @@ schema_paths = [
   "./migrations/012_fix_security_invoker_leaderboard_views.sql",
   "./migrations/013_add_demo_seed_tag_columns.sql",
   "./migrations/014_shared_rate_limits.sql",
+  "./migrations/015_production_security_reconciliation.sql",
+  "./migrations/016_view_and_rate_limit_security.sql",
 ]
 
 [db.seed]

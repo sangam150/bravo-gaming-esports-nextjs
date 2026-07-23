@@ -663,7 +663,7 @@ aggregated as (
     player_name,
     team_id,
     team_name,
-    count(*)::int filter (where match_mvp_rank = 1) as mvp_awards,
+    (count(*) filter (where match_mvp_rank = 1))::int as mvp_awards,
     sum(kills)::int as total_kills,
     sum(damage)::numeric(12,2) as total_damage,
     sum(assists)::int as total_assists,

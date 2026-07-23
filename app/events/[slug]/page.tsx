@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { PlatformEventDetailPage } from "@/components/platform/PlatformPages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformEventBySlug, getPlatformFallbackEventBySlug, getPlatformHubData } from "@/lib/platform-hub";
@@ -28,7 +28,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export const revalidate = 300;
 
 export default async function EventDetailPage({ params }: PageProps) {
-  const [{ slug }, hub, pubg] = await Promise.all([params, getPlatformHubData(), getPubgHubDataset()]);
+  const { slug } = await params;
+  if (slug === "pubg-mahasangram-2-0") {
+    permanentRedirect("/events/pubg-mahasangram-53821");
+  }
+
+  const [hub, pubg] = await Promise.all([getPlatformHubData(), getPubgHubDataset()]);
   const event =
     hub.events.find((item) => item.slug === slug) ??
     hub.home.featuredEvents.find((item) => item.slug === slug) ??

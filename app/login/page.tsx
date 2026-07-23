@@ -30,8 +30,10 @@ export default async function LoginPage() {
           <div className="page-stack">
             <section className="hero-banner p-8">
               <span className="brand-badge">Login</span>
-              <h1 className="hero-h1 mt-5">Loading access hub</h1>
-              <p className="mt-4 text-sm text-text-muted">Preparing your Bravo Gaming login workspace.</p>
+              <h1 className="hero-h1 mt-5">Sign in to Bravo Gaming</h1>
+              <p className="mt-4 text-sm text-text-muted">
+                The secure sign-in form is loading. If it does not appear, refresh the page or contact Bravo support.
+              </p>
             </section>
           </div>
         </main>

@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { getPubgDashboardData, getPubgHubDataset } from "../lib/pubg-hub";
-import { buildPubgPlayerBoardRows, buildPubgTeamBoardRows, comparePubgPlayers, comparePubgTeams, getRankedPlayers, getRankedTeams } from "../lib/pubg-rankings";
+import {
+  buildPubgAggregatePlayerBoardRows,
+  buildPubgPlayerBoardRows,
+  buildPubgTeamBoardRows,
+  comparePubgPlayers,
+  comparePubgTeams,
+  getRankedPlayers,
+  getRankedTeams,
+} from "../lib/pubg-rankings";
 
 function assertSequentialRanks(label: string, ranks: number[]) {
   ranks.forEach((rank, index) => {
@@ -36,7 +44,9 @@ async function main() {
   const rankedTeams = getRankedTeams(dataset.teams);
   const rankedPlayers = getRankedPlayers(dataset.players);
   const teamBoard = buildPubgTeamBoardRows(dataset.matches, teamLookup);
-  const playerBoard = buildPubgPlayerBoardRows(dataset.matches, playerLookup);
+  const matchPlayerBoard = buildPubgPlayerBoardRows(dataset.matches, playerLookup);
+  const playerBoard =
+    matchPlayerBoard.length > 0 ? matchPlayerBoard : buildPubgAggregatePlayerBoardRows(dataset.players);
 
   assert.deepEqual(
     dataset.teams.map((team) => team.id),
