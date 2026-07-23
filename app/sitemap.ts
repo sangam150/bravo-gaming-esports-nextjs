@@ -11,6 +11,7 @@ const staticRoutes = [
   "/anti-cheat",
   "/contact",
   "/events",
+  "/events/pubg-mahasangram-53821",
   "/live-stream",
   "/media",
   "/news",
