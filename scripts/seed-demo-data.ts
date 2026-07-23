@@ -338,7 +338,7 @@ async function uploadSharedAssets(teams: DemoTeam[], players: DemoPlayer[]) {
       backgroundColor: "#111827",
       fileName: "event-banner",
       folder: "events",
-      label: "PUBG Mahasangram 2.0",
+      label: "PUBG Mahasangram",
     }),
     uploadDemoSvgAsset(r2, {
       accentColor: "#22c55e",
@@ -756,9 +756,9 @@ async function run() {
   const tournamentRow = {
     id: tournamentEventId,
     season_id: seasonId,
-    title: "PUBG Mahasangram 2.0",
-    name: "PUBG Mahasangram 2.0",
-    slug: "pubg-mahasangram-2-0",
+    title: "Bravo Gaming Esports Presents PUBG MAHASANGRAM",
+    name: "Bravo Gaming Esports Presents PUBG MAHASANGRAM",
+    slug: "pubg-mahasangram-53821",
     event_type: "tournament",
     type: "tournament",
     game: "PUBG PC",
@@ -952,8 +952,8 @@ async function run() {
       id: "demo-news-pubg-mahasangram-2-coming-soon",
       imageUrl: assets.bannerUrl,
       state: "published",
-      summary: "PUBG Mahasangram 2.0 is now visible with registrations, banners, and sponsor placements for preview.",
-      title: "PUBG Mahasangram 2.0 Coming Soon",
+      summary: "PUBG MAHASANGRAM is now visible with registrations, banners, and sponsor placements for preview.",
+      title: "PUBG MAHASANGRAM Coming Soon",
     },
     {
       category: "Statistics",
@@ -1050,7 +1050,7 @@ async function run() {
         published === true
           ? "Demo sponsor profile seeded for homepage, PUBG hub, and sponsor detail QA."
           : "Inactive sponsor record kept hidden for public visibility QA.",
-      eventSlugs: ["pubg-mahasangram-2-0"],
+      eventSlugs: ["pubg-mahasangram-53821"],
       featured: index < 2,
       id: `demo-sponsor-${index + 1}`,
       kind: "partner",
@@ -1064,7 +1064,7 @@ async function run() {
       slug: `${slugify(name)}-launch-preview`,
       socialUrl: published ? `https://instagram.com/${slugify(name)}` : undefined,
       source: DEMO_SOURCE,
-      supportedEvents: ["PUBG Mahasangram 2.0", "Bravo Daily Scrims Season 1"],
+      supportedEvents: ["Bravo Gaming Esports Presents PUBG MAHASANGRAM", "Bravo Daily Scrims Season 1"],
       tier,
       updatedAt: nowIso,
       visible: published,
@@ -1076,7 +1076,7 @@ async function run() {
   const videoDocuments = [
     ["Community Scrims Highlights", "Highlights"],
     ["Top Fraggers Breakdown", "Analysis"],
-    ["Mahasangram 2.0 Trailer", "Trailer"],
+    ["Mahasangram Trailer", "Trailer"],
     ["Day 1 Winning Pushes", "Highlights"],
     ["Miramar Clutch Montage", "Gallery"],
     ["Roster Spotlight: Team HAKU", "Feature"],
@@ -1137,7 +1137,7 @@ async function run() {
         {
           badge: "Upcoming Major",
           description:
-            "PUBG Mahasangram 2.0 is seeded with sponsor support, banner assets, and public registration context.",
+            "PUBG MAHASANGRAM is seeded with sponsor support, banner assets, and public registration context.",
           id: "demo-hero-2",
           imageUrl: assets.bannerUrl,
           primaryHref: `/pubg/events/${tournamentRow.slug}`,
