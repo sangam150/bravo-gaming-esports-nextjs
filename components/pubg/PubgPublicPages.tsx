@@ -2027,7 +2027,7 @@ export function PubgTeamsPage({
             <>
               Team profiles with roster,
               <br />
-              rank, roster, and map splits
+              rank, recent form, and map splits
             </>
           }
           description="Every tracked Bravo squad gets one official ranking card with roster preview, core scoring stats, recent output, and direct routes into the full team profile."

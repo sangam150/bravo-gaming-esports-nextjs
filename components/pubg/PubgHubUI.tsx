@@ -194,16 +194,16 @@ export function PageHero({
   return (
     <section className="hero-banner">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(47,152,255,0.18),transparent_28%),radial-gradient(circle_at_86%_18%,rgba(20,126,245,0.14),transparent_24%)]" />
-      <div className="relative grid gap-6 xl:grid-cols-[1.25fr,0.75fr]">
+      <div className="relative grid gap-5 xl:grid-cols-[1.25fr,0.75fr]">
         <div className="min-w-0">
           <span className="brand-badge">{badge}</span>
-          <h1 className="hero-h1 mt-5">{title}</h1>
-          <p className="mt-5 max-w-3xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
+          <h1 className="hero-h1 mt-4">{title}</h1>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
             {description}
           </p>
-          {actions ? <div className="mt-6 flex flex-wrap gap-3">{actions}</div> : null}
+          {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
           {stats?.length ? (
-            <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {stats.map((stat) => (
                 <MetricCard key={stat.label} label={stat.label} value={stat.value} tone={stat.tone} compact />
               ))}
@@ -211,7 +211,7 @@ export function PageHero({
           ) : null}
         </div>
         {aside ? (
-          <div className="rounded-[24px] border border-white/[0.06] bg-black/24 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+          <div className="rounded-[24px] border border-white/[0.08] bg-black/20 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
             {aside}
           </div>
         ) : null}

@@ -1,11 +1,15 @@
 import Link from "next/link";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
-import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
 import {
-  buildPubgAggregatePlayerBoardRows,
-  buildPubgPlayerBoardRows,
-  buildPubgTeamBoardRows,
+  getPublicPubgPlayers,
+  getPublicPubgTeams,
+  type PubgHubDataset,
+  type PubgHubMatch,
+  type PubgHubPlayer,
+  type PubgHubTeam,
+} from "@/lib/pubg-hub";
+import {
   type PubgPlayerBoardRow,
   type PubgTeamBoardRow,
 } from "@/lib/pubg-rankings";
@@ -25,12 +29,12 @@ import {
 
 type SearchParamDictionary = Record<string, string | string[] | undefined>;
 
-function buildTeamLookup(dataset: PubgHubDataset) {
-  return new Map(dataset.teams.map((team) => [team.id, team] as const));
+function buildTeamLookup(teams: readonly PubgHubTeam[]) {
+  return new Map(teams.map((team) => [team.id, team] as const));
 }
 
-function buildPlayerLookup(dataset: PubgHubDataset) {
-  return new Map(dataset.players.map((player) => [player.id, player] as const));
+function buildPlayerLookup(players: readonly PubgHubPlayer[]) {
+  return new Map(players.map((player) => [player.id, player] as const));
 }
 
 function dedupeMaps(matches: PubgHubMatch[]) {
@@ -62,6 +66,55 @@ function getLatestFilteredMatch(matches: PubgHubMatch[]) {
 
     return secondValue.matchNumber - firstValue.matchNumber;
   })[0] ?? null;
+}
+
+function toTeamBoardRow(team: PubgHubTeam, rank: number): PubgTeamBoardRow {
+  return {
+    rank,
+    id: team.id,
+    teamId: team.id,
+    slug: team.slug,
+    name: team.name,
+    tag: team.tag ?? null,
+    logoUrl: team.logoUrl ?? null,
+    slotNumber: team.slotNumber ?? null,
+    matches: team.matches,
+    wins: team.wins,
+    kills: team.kills,
+    damage: team.damage,
+    placementPoints: team.placementPoints,
+    killPoints: team.killPoints,
+    totalPoints: team.totalPoints,
+    avgPlacement: team.avgPlacement,
+    trend: team.recentPoints.slice(-6),
+  };
+}
+
+function toPlayerBoardRow(player: PubgHubPlayer, rank: number): PubgPlayerBoardRow {
+  return {
+    rank,
+    id: player.id,
+    playerId: player.id,
+    slug: player.slug,
+    pubgName: player.pubgName,
+    avatarUrl: player.avatarUrl ?? null,
+    teamId: player.currentTeamId ?? null,
+    teamName: player.currentTeamName ?? null,
+    matches: player.matches,
+    wins: player.wins,
+    kills: player.kills,
+    assists: player.assists,
+    knocks: player.knocks,
+    damage: player.damage,
+    avgKills: player.avgKills,
+    avgDamage: player.avgDamage,
+    trend: player.recentTrend.slice(-6),
+    bestMatch: player.bestMatch ?? null,
+  };
+}
+
+function formatDamageValue(value: number) {
+  return value > 0 ? formatNumber(value) : "Pending";
 }
 
 function getLeaderboardLensLabel(dataset: PubgHubDataset, eventSlug: string, latestMatch: PubgHubMatch | null) {
@@ -200,7 +253,7 @@ function TeamLeaderboardMobileCard({ row }: { row: PubgTeamBoardRow }) {
       <p className="mt-4 font-mono-stat text-xl text-accent-blue-light">{formatNumber(row.totalPoints)} Total Points</p>
       <p className="mt-2 text-sm text-text-muted">{formatNumber(row.kills)} Kills • {formatNumber(row.wins)} WWCD</p>
       <p className="mt-2 text-sm text-text-muted">{formatNumber(row.matches)} Matches • {formatNumber(row.placementPoints)} Placement Points</p>
-      <p className="mt-2 text-sm text-text-muted">Damage: {formatNumber(row.damage)}</p>
+      <p className="mt-2 text-sm text-text-muted">Damage: {formatDamageValue(row.damage)}</p>
     </Link>
   );
 }
@@ -216,7 +269,7 @@ function PlayerLeaderboardMobileCard({ row }: { row: PubgPlayerBoardRow }) {
           <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team TBD"}</p>
         </div>
       </div>
-      <p className="mt-4 text-sm text-text-muted">{formatNumber(row.kills)} Kills • {formatNumber(row.damage)} Damage</p>
+      <p className="mt-4 text-sm text-text-muted">{formatNumber(row.kills)} Kills • {formatDamageValue(row.damage)} Damage</p>
       <p className="mt-2 text-sm text-text-muted">{formatNumber(row.assists)} Assists • {formatNumber(row.knocks)} Knocks</p>
       <p className="mt-2 text-sm text-text-muted">Avg Kills: {formatDecimal(row.avgKills, 2)}</p>
       <p className="mt-2 text-sm text-text-muted">Best Match: {row.bestMatch ? `${row.bestMatch.kills}K on ${row.bestMatch.mapName}` : "Pending"}</p>
@@ -238,7 +291,7 @@ function PlayerLeaderboardMobileSummaryCard({ row }: { row: PubgPlayerBoardRow }
       <p className="mt-4 text-sm text-text-muted">
         {formatNumber(row.kills)} Kills • {formatNumber(row.assists)} Assists • {formatNumber(row.knocks)} Knocks
       </p>
-      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.damage)} Damage</p>
+      <p className="mt-2 text-sm text-text-muted">{formatDamageValue(row.damage)} Damage</p>
       <p className="mt-2 text-sm text-text-muted">Avg Kills: {formatDecimal(row.avgKills, 2)}</p>
       <p className="mt-2 text-sm text-text-muted">Best Match: {row.bestMatch ? `${row.bestMatch.kills}K on ${row.bestMatch.mapName}` : "Pending"}</p>
     </Link>
@@ -253,20 +306,13 @@ export function PubgLeaderboardsRoute({
   searchParams: SearchParamDictionary;
 }) {
   const view = readSearchParam(searchParams.view, "teams");
-  const latestPublishedTournamentSlug =
-    [...dataset.events]
-      .filter((event) => event.type === "tournament" && event.matchCount > 0)
-      .sort((firstEvent, secondEvent) =>
-        (secondEvent.endDate ?? secondEvent.startDate).localeCompare(firstEvent.endDate ?? firstEvent.startDate)
-      )[0]?.slug ?? "all";
-  const requestedEventSlug = readSearchParam(searchParams.event, latestPublishedTournamentSlug);
-  const eventSlug =
-    requestedEventSlug === "all" || dataset.events.some((event) => event.slug === requestedEventSlug)
-      ? requestedEventSlug
-      : latestPublishedTournamentSlug;
+  const requestedEventSlug = readSearchParam(searchParams.event, "all");
+  const eventSlug = requestedEventSlug === "all" || dataset.events.some((event) => event.slug === requestedEventSlug) ? requestedEventSlug : "all";
   const mapName = readSearchParam(searchParams.map, "all");
-  const teamLookup = buildTeamLookup(dataset);
-  const playerLookup = buildPlayerLookup(dataset);
+  const publicTeams = getPublicPubgTeams(dataset);
+  const publicPlayers = getPublicPubgPlayers(dataset, publicTeams);
+  const teamLookup = buildTeamLookup(publicTeams);
+  const playerLookup = buildPlayerLookup(publicPlayers);
   const filteredMatches = filterMatches(dataset, {
     eventSlug: eventSlug === "all" ? undefined : eventSlug,
     mapName,
@@ -276,20 +322,14 @@ export function PubgLeaderboardsRoute({
   const leaderboardUpdatedLabel = latestFilteredMatch
     ? `After published Match ${latestFilteredMatch.matchNumber} on ${latestFilteredMatch.mapName}`
     : "Generated from the current published results set";
-  const teamBoard = buildPubgTeamBoardRows(filteredMatches, teamLookup);
-  const playerBoardFromMatches = buildPubgPlayerBoardRows(filteredMatches, playerLookup);
-  const playerBoard =
-    playerBoardFromMatches.length > 0 || mapName !== "all"
-      ? playerBoardFromMatches
-      : buildPubgAggregatePlayerBoardRows(dataset.players, eventSlug);
-  const fullTeamBoard = buildPubgTeamBoardRows(dataset.matches, teamLookup);
-  const fullPlayerBoardFromMatches = buildPubgPlayerBoardRows(dataset.matches, playerLookup);
-  const fullPlayerBoard =
-    fullPlayerBoardFromMatches.length > 0
-      ? fullPlayerBoardFromMatches
-      : buildPubgAggregatePlayerBoardRows(dataset.players);
+  const filteredPublicTeams = eventSlug === "all" ? publicTeams : publicTeams.filter((team) => team.eventStats.some((eventStat) => eventStat.eventSlug === eventSlug));
+  const filteredPublicPlayers = eventSlug === "all" ? publicPlayers : publicPlayers.filter((player) => player.eventStats.some((eventStat) => eventStat.eventSlug === eventSlug));
+  const teamBoardSource = filteredPublicTeams.length > 0 ? filteredPublicTeams : publicTeams;
+  const playerBoardSource = filteredPublicPlayers.length > 0 ? filteredPublicPlayers : publicPlayers;
+  const teamBoard = teamBoardSource.map((team, index) => toTeamBoardRow(team, index + 1));
+  const playerBoard = playerBoardSource.map((player, index) => toPlayerBoardRow(player, index + 1));
   const mapOptions = dedupeMaps(dataset.matches);
-  const hasLeaderboardCoverage = dataset.matches.length > 0 && (fullTeamBoard.length > 0 || fullPlayerBoard.length > 0);
+  const hasLeaderboardCoverage = teamBoard.length > 0 || playerBoard.length > 0;
 
   if (!hasLeaderboardCoverage) {
     return <LeaderboardsLaunchState />;
@@ -395,7 +435,7 @@ export function PubgLeaderboardsRoute({
         />
 
         {view === "teams" ? (
-          filteredMatches.length === 0 ? (
+          teamBoard.length === 0 ? (
             <section className="esports-card p-6">
               <EmptyState title="Leaderboard data is not available yet" description="Leaderboard data will be available once matches have been completed and officially published." />
             </section>
@@ -439,7 +479,7 @@ export function PubgLeaderboardsRoute({
                       <span className="text-right font-mono-stat text-white">{formatNumber(row.wins)}</span>
                       <span className="text-right font-mono-stat text-white">{formatNumber(row.placementPoints)}</span>
                       <span className="text-right font-mono-stat text-white">{formatNumber(row.kills)}</span>
-                      <span className="text-right font-mono-stat text-white">{formatNumber(row.damage)}</span>
+                      <span className="text-right font-mono-stat text-white">{formatDamageValue(row.damage)}</span>
                       <span className="text-right font-mono-stat text-accent-blue-light">{formatNumber(row.totalPoints)}</span>
                       <div className="justify-self-end min-w-[110px]">
                         <TrendBars values={row.trend} tone="green" />
@@ -504,7 +544,7 @@ export function PubgLeaderboardsRoute({
                       )}
                     </div>
                     <span className="text-right font-mono-stat text-white">{formatNumber(row.kills)}</span>
-                    <span className="text-right font-mono-stat text-white">{formatNumber(row.damage)}</span>
+                    <span className="text-right font-mono-stat text-white">{formatDamageValue(row.damage)}</span>
                     <span className="text-right font-mono-stat text-white">{formatNumber(row.assists)}</span>
                     <span className="text-right font-mono-stat text-white">{formatNumber(row.knocks)}</span>
                     <span className="text-right font-mono-stat text-accent-blue-light">{formatDecimal(row.avgKills, 2)}</span>

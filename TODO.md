@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- Overall progress: about 45%
+- Overall progress: about 55%
 - UI foundation: mostly done
 - Firebase + admin foundation: partially done
-- Real PUBG tournament operations: not complete yet
+- Real PUBG tournament operations: in progress
 
 This document replaces the older placeholder TODO and reflects the real remaining production work.
 
@@ -30,33 +30,33 @@ These must be completed before the platform can run real Bravo scrim/tournament 
 
 ### Priority 1 — PUBG Import Workflow
 
-- [ ] Split import into two steps: preview first, save second
-- [ ] Allow admin to enter PUBG player/account name and fetch recent matches
-- [ ] Allow manual match ID entry as fallback
-- [ ] Allow assigning selected matches to:
-  - [ ] Season
-  - [ ] Tournament
-  - [ ] Scrim
-  - [ ] Day number
-- [ ] Build import preview UI showing:
-  - [ ] Match ID
-  - [ ] Map
-  - [ ] Match date/time
-  - [ ] Match duration
-  - [ ] Teams detected
-  - [ ] Players detected
-  - [ ] Placements
-  - [ ] Kills
-  - [ ] Damage
-  - [ ] Assists
-  - [ ] Survival time
-- [ ] Highlight in preview:
-  - [ ] New teams
-  - [ ] Existing teams
-  - [ ] New players
-  - [ ] Existing players
-- [ ] Save only after admin confirms preview
-- [ ] Return detailed import summary after save
+- [x] Split import into two steps: preview first, save second
+- [x] Allow admin to enter PUBG player/account name and fetch recent matches
+- [x] Allow manual match ID entry as fallback
+- [x] Allow assigning selected matches to:
+  - [x] Season
+  - [x] Tournament
+  - [x] Scrim
+  - [x] Day number
+- [x] Build import preview UI showing:
+  - [x] Match ID
+  - [x] Map
+  - [x] Match date/time
+  - [x] Match duration
+  - [x] Teams detected
+  - [x] Players detected
+  - [x] Placements
+  - [x] Kills
+  - [x] Damage
+  - [x] Assists
+  - [x] Survival time
+- [x] Highlight in preview:
+  - [x] New teams
+  - [x] Existing teams
+  - [x] New players
+  - [x] Existing players
+- [x] Save only after admin confirms preview
+- [x] Return detailed import summary after save
 
 Acceptance:
 - Admin can fetch, preview, select, assign, confirm, and save PUBG matches without touching Firestore manually.

@@ -2200,8 +2200,8 @@ export default function PubgImportManager({
                 <div>
                   <p className="section-heading !text-sm">Import Preview</p>
                   <p className="mt-1 text-sm text-text-muted">
-                    Verify every fetched match before publishing. Match metadata, teams, players, placements, kills,
-                    and points can be corrected here.
+                      Step 1: verify every fetched match. Step 2: save the reviewed draft to pending imports. Step 3: publish the draft when ready.
+                      Match metadata, teams, players, placements, kills, and points can be corrected here.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -2230,7 +2230,7 @@ export default function PubgImportManager({
                     disabled={queueingPending || hasEditedMatchIds}
                     className="btn-secondary"
                   >
-                    {queueingPending ? "Saving..." : "Save Draft"}
+                    {queueingPending ? "Saving..." : "Save Preview"}
                   </button>
                   <button
                     type="button"
@@ -2238,7 +2238,7 @@ export default function PubgImportManager({
                     disabled={importing || hasEditedMatchIds}
                     className={btnPrimary}
                   >
-                    {importing ? "Saving..." : "Publish"}
+                    {importing ? "Importing..." : "Import Draft"}
                   </button>
                   <button
                     type="button"
@@ -2286,7 +2286,7 @@ export default function PubgImportManager({
 
               {hasEditedMatchIds && (
                 <div className="mt-4 rounded-card border border-accent-yellow/30 bg-accent-yellow/10 px-4 py-3 text-sm text-white">
-                  Match IDs were edited. Refresh the preview before importing so PUBG data is fetched again for those IDs.
+                  Match IDs were edited. Refresh the preview before saving or importing so PUBG data is fetched again for those IDs.
                 </div>
               )}
 
