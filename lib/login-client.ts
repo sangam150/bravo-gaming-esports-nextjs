@@ -14,6 +14,7 @@ export type LoginSessionResponse = {
     email?: string;
     role?: string;
     isAdmin?: boolean;
+    teamId?: string | null;
   };
   error?: string;
 };
@@ -34,11 +35,11 @@ export async function performPasswordLogin(request: {
   return { response, data };
 }
 
-export async function createBravoSession(accessToken: string) {
+export async function createBravoSession(accessToken: string, refreshToken?: string) {
   const response = await fetch("/api/auth/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accessToken }),
+    body: JSON.stringify({ accessToken, refreshToken }),
     credentials: "include",
   });
   const data = (await response.json().catch(() => ({}))) as LoginSessionResponse;

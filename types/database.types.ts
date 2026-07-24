@@ -1143,10 +1143,17 @@ export type Database = {
           auth_user_id: string
           created_at: string
           discord_user_id: string | null
+          discord_guild_id: string | null
+          discord_mapped_roles: string[]
+          discord_role_ids: string[]
+          discord_role_synced_at: string | null
           display_name: string | null
           email: string
           id: string
+          is_active: boolean
+          player_id: string | null
           role: Database["public"]["Enums"]["user_role"]
+          role_source: string
           team_id: string | null
           updated_at: string
         }
@@ -1154,10 +1161,17 @@ export type Database = {
           auth_user_id: string
           created_at?: string
           discord_user_id?: string | null
+          discord_guild_id?: string | null
+          discord_mapped_roles?: string[]
+          discord_role_ids?: string[]
+          discord_role_synced_at?: string | null
           display_name?: string | null
           email: string
           id?: string
+          is_active?: boolean
+          player_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          role_source?: string
           team_id?: string | null
           updated_at?: string
         }
@@ -1165,10 +1179,17 @@ export type Database = {
           auth_user_id?: string
           created_at?: string
           discord_user_id?: string | null
+          discord_guild_id?: string | null
+          discord_mapped_roles?: string[]
+          discord_role_ids?: string[]
+          discord_role_synced_at?: string | null
           display_name?: string | null
           email?: string
           id?: string
+          is_active?: boolean
+          player_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          role_source?: string
           team_id?: string | null
           updated_at?: string
         }
@@ -2362,6 +2383,7 @@ export type Database = {
         | "organizer"
         | "team_manager"
         | "coach"
+        | "player"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2525,6 +2547,7 @@ export const Constants = {
         "organizer",
         "team_manager",
         "coach",
+        "player",
       ],
     },
   },

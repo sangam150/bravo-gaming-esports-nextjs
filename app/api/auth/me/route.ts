@@ -3,7 +3,10 @@ import { getRequestSession } from "@/lib/admin-auth";
 export async function GET(request: Request) {
   const session = await getRequestSession(request);
   if (!session) {
-    return Response.json({ authenticated: false });
+    return Response.json(
+      { authenticated: false },
+      { headers: { "Cache-Control": "private, no-store" } }
+    );
   }
   return Response.json({
     authenticated: true,
@@ -25,5 +28,5 @@ export async function GET(request: Request) {
       displayName: session.displayName,
       isAdmin: session.isAdmin,
     },
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }

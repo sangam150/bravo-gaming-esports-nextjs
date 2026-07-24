@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowRight,
   CalendarDays,
   ChevronRight,
   Crosshair,
@@ -865,60 +864,6 @@ function UpcomingEventsSection({ events }: { events: PlatformEvent[] }) {
   );
 }
 
-function HowItWorksSection() {
-  const steps = [
-    {
-      number: "1",
-      title: "Register Team",
-      detail: "Create your team and complete the registration.",
-      icon: <Users className="h-6 w-6" />,
-    },
-    {
-      number: "2",
-      title: "Play Matches",
-      detail: "Compete in official matches and earn points.",
-      icon: <Crosshair className="h-6 w-6" />,
-    },
-    {
-      number: "3",
-      title: "Climb Leaderboards",
-      detail: "Top the standings and become legends.",
-      icon: <Trophy className="h-6 w-6" />,
-    },
-  ];
-
-  return (
-    <section className="light-card p-5">
-      <SectionHeading icon={<Trophy className="h-4 w-4" />} title="How It Works" />
-      <div className="overflow-hidden rounded-[22px] border border-white/[0.08] bg-black/20">
-        <div className="grid gap-px bg-white/[0.06] xl:grid-cols-3">
-          {steps.map((step, index) => (
-            <div key={step.number} className="relative bg-[#0b1222] p-5">
-              <div className="flex items-start gap-4">
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-accent-blue/25 bg-accent-blue/10 font-display text-lg font-black text-white">
-                  {step.number}
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-3">
-                    <span className="text-accent-blue-light">{step.icon}</span>
-                    <h3 className="font-display text-lg font-black uppercase text-white">{step.title}</h3>
-                  </div>
-                  <p className="mt-3 text-sm leading-7 text-text-muted">{step.detail}</p>
-                </div>
-              </div>
-              {index < steps.length - 1 ? (
-                <span className="absolute right-4 top-1/2 hidden -translate-y-1/2 text-text-muted xl:inline-flex">
-                  <ArrowRight className="h-4 w-4" />
-                </span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function UpdateCard({ item }: { item: HomepageUpdateCard }) {
   const external = isExternalHref(item.href);
   const cardContent = (
@@ -1080,7 +1025,6 @@ export default function HomeDashboard({
         </section>
 
         <UpcomingEventsSection events={homepageEvents} />
-        <HowItWorksSection />
         <LatestUpdatesSection updates={updates} />
         <CommunityBanner />
       </div>

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
-import { buildDiscordAuthCallbackUrl } from "@/lib/discord-auth";
+import DiscordLoginButton from "@/components/auth/DiscordLoginButton";
 import {
-  performPasswordLogin,
+  clearBravoSession,
+  createBravoSession,
   reportLoginFailure,
 } from "@/lib/login-client";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
@@ -47,13 +48,11 @@ function getVariantContent(variant: LoginVariant) {
 
 export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps) {
   const configured = isSupabaseConfigured();
-  const discordAuthEnabled = variant === "team" && process.env.NEXT_PUBLIC_DISCORD_AUTH_ENABLED === "true";
-  const router = useRouter();
+  const discordAuthEnabled = true;
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [discordLoading, setDiscordLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const content = getVariantContent(variant);
 
@@ -78,29 +77,20 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
 
     try {
       const supabase = getSupabaseBrowserClient();
-      const { response, data } = await performPasswordLogin({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
-        variant: requestVariant,
       });
 
-      if (!response.ok || !data.success) {
-        const details = getLoginFailureDetails(
-          data.error
-            ? {
-                message: data.error,
-                status: data.status ?? response.status,
-              }
-            : { status: data.status ?? response.status },
-          {
+      if (authError) {
+        const details = getLoginFailureDetails(authError, {
           variant: requestVariant,
           stage: "credentials",
-          }
-        );
+        });
         throw new Error(details.message);
       }
 
-      if (!data.accessToken || !data.refreshToken) {
+      if (!authData.session?.access_token || !authData.session.refresh_token) {
         const details = getLoginFailureDetails(new Error("Unable to establish your session."), {
           variant: requestVariant,
           stage: "session",
@@ -108,15 +98,27 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
         throw new Error(details.message);
       }
 
-      await supabase.auth
-        .setSession({
-          access_token: data.accessToken,
-          refresh_token: data.refreshToken,
-        })
-        .catch(() => undefined);
+      const { response, data } = await createBravoSession(
+        authData.session.access_token,
+        authData.session.refresh_token
+      );
+      if (!response.ok || !data.success) {
+        await supabase.auth.signOut().catch(() => undefined);
+        throw new Error(data.error || LOGIN_ERROR_MESSAGES.backendUnavailable);
+      }
 
       const isTeamUser = hasTeamWorkspaceAccess(data.user?.role, data.user?.isAdmin);
       const isAdminUser = Boolean(data.user?.isAdmin);
+      if (variant === "team" && !isTeamUser) {
+        await clearBravoSession().catch(() => undefined);
+        await supabase.auth.signOut().catch(() => undefined);
+        throw new Error(LOGIN_ERROR_MESSAGES.teamRoleMismatch);
+      }
+      if (variant === "team" && !data.user?.teamId) {
+        await clearBravoSession().catch(() => undefined);
+        await supabase.auth.signOut().catch(() => undefined);
+        throw new Error(LOGIN_ERROR_MESSAGES.teamMembershipMissing);
+      }
 
       const redirectTarget =
         variant === "team"
@@ -128,52 +130,11 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                 ? "/team"
                 : "/login");
 
-      router.push(redirectTarget);
-      router.refresh();
+      window.location.assign(redirectTarget);
     } catch (submissionError: unknown) {
       setError(submissionError instanceof Error ? submissionError.message : LOGIN_ERROR_MESSAGES.invalidCredentials);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleDiscordLogin() {
-    if (!configured || !discordAuthEnabled) {
-      return;
-    }
-
-    setDiscordLoading(true);
-    setError(null);
-
-    try {
-      const supabase = getSupabaseBrowserClient();
-      const redirectTarget = searchParams.get("redirect") || "/team";
-      const redirectTo = buildDiscordAuthCallbackUrl(window.location.origin, redirectTarget);
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "discord",
-        options: {
-          redirectTo,
-          scopes: "identify email",
-        },
-      });
-
-      if (oauthError) {
-        const details = getLoginFailureDetails(oauthError, {
-          variant: "team",
-          stage: "provider",
-        });
-        await reportLoginFailure({
-          variant: "team",
-          category: details.category,
-          stage: "provider",
-          status: details.status,
-          code: details.code,
-        });
-        throw new Error(details.message);
-      }
-    } catch (submissionError: unknown) {
-      setError(submissionError instanceof Error ? submissionError.message : LOGIN_ERROR_MESSAGES.backendUnavailable);
-      setDiscordLoading(false);
     }
   }
 
@@ -247,24 +208,36 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
               ) : null}
 
               <div className="mt-5 space-y-4">
-                <input
-                  className="input-esports"
-                  type="email"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  autoComplete="email"
-                  required
-                />
-                <input
-                  className="input-esports"
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete="current-password"
-                  required
-                />
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                    Email address
+                  </span>
+                  <input
+                    className="input-esports"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="email"
+                    required
+                    aria-invalid={Boolean(error)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                    Password
+                  </span>
+                  <input
+                    className="input-esports"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                    required
+                    aria-invalid={Boolean(error)}
+                  />
+                </label>
                 <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
                   {loading ? "Checking access..." : content.buttonLabel}
                 </button>
@@ -272,18 +245,15 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
 
               {discordAuthEnabled ? (
                 <div className="mt-5 border-t border-white/10 pt-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Discord Team Login</p>
+                  <div className="mb-4 flex items-center gap-3" aria-hidden="true">
+                    <span className="h-px flex-1 bg-white/10" />
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">Or continue with</span>
+                    <span className="h-px flex-1 bg-white/10" />
+                  </div>
                   <p className="mt-2 text-sm text-text-muted">
-                    Use Discord only after a Bravo admin links your Discord user ID to your team-access profile.
+                    Discord verifies your identity; Bravo then checks your official server roles and approved team or player linkage.
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => void handleDiscordLogin()}
-                    disabled={discordLoading}
-                    className="btn-discord mt-4 w-full justify-center disabled:opacity-60"
-                  >
-                    {discordLoading ? "Redirecting to Discord..." : "Continue with Discord"}
-                  </button>
+                  <DiscordLoginButton className="mt-4" />
                 </div>
               ) : null}
 

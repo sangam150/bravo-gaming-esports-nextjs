@@ -1,6 +1,7 @@
 import {
   createSessionCookie,
   getSessionCookieMaxAge,
+  REFRESH_COOKIE,
   SESSION_COOKIE,
   verifyAccessToken,
 } from "@/lib/supabase-auth-server";
@@ -11,6 +12,7 @@ import {
   jsonErrorResponse,
   USER_FACING_ERROR_MESSAGES,
 } from "@/lib/user-facing-errors";
+import { AuthConfigurationError } from "@/lib/auth-errors";
 
 export async function POST(request: Request) {
   const limited = await enforceRateLimit(request, { key: "auth-session", maxRequests: 10, windowMs: 60_000 });
@@ -24,6 +26,7 @@ export async function POST(request: Request) {
         : typeof body.idToken === "string"
           ? body.idToken
           : "";
+    const refreshToken = typeof body.refreshToken === "string" ? body.refreshToken : "";
 
     if (!accessToken) {
       return Response.json(
@@ -51,12 +54,18 @@ export async function POST(request: Request) {
         displayName: decoded.displayName,
         isAdmin: decoded.isAdmin,
       },
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
     const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
     response.headers.append(
       "Set-Cookie",
       `${SESSION_COOKIE}=${sessionCookie}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${sessionCookieMaxAge}${secure}`
     );
+    if (refreshToken) {
+      response.headers.append(
+        "Set-Cookie",
+        `${REFRESH_COOKIE}=${refreshToken}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${60 * 60 * 24 * 5}${secure}`
+      );
+    }
     await writeAuditLogFromRequest(request, {
       action: "login",
       entityType: "session",
@@ -69,6 +78,12 @@ export async function POST(request: Request) {
     });
     return response;
   } catch (error: unknown) {
+    if (error instanceof AuthConfigurationError) {
+      return Response.json(
+        { success: false, error: error.message },
+        { status: 403, headers: { "Cache-Control": "private, no-store" } }
+      );
+    }
     await logServerError("auth.session.create", error, request);
     return jsonErrorResponse(error, {
       status: 401,
@@ -78,10 +93,17 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE() {
-  const response = Response.json({ success: true });
+  const response = Response.json(
+    { success: true },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
   response.headers.append(
     "Set-Cookie",
     `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=0`
+  );
+  response.headers.append(
+    "Set-Cookie",
+    `${REFRESH_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=0`
   );
   return response;
 }

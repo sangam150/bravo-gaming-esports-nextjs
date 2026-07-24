@@ -2,7 +2,8 @@ const TECHNICAL_MESSAGE_PATTERN =
   /supabase|firebase|postgres|database|relation|column|schema|query|pgrst|row-level|rls|jwt|token|failed to fetch|networkerror|typeerror|syntaxerror|stack|env|api key|not configured|unexpected|internal server|status \d{3}|request failed|permission denied|unauthorized|forbidden/i;
 
 const LOGIN_INVALID_CREDENTIALS_PATTERN =
-  /invalid login credentials|invalid email or password|email or password is invalid|invalid credentials|invalid grant|user not found|email not confirmed/i;
+  /invalid login credentials|invalid email or password|email or password is invalid|invalid credentials|invalid grant|user not found/i;
+const LOGIN_EMAIL_UNCONFIRMED_PATTERN = /email not confirmed|email.*unconfirmed|confirm.*email/i;
 const LOGIN_RATE_LIMIT_PATTERN =
   /rate limit|too many requests|too many attempts|retry after|over.*rate|429/i;
 const LOGIN_BACKEND_UNAVAILABLE_PATTERN =
@@ -30,6 +31,11 @@ export const LOGIN_ERROR_MESSAGES = {
   rateLimited: "Too many login attempts. Please wait a moment and try again.",
   adminRoleMismatch: "This account does not have admin access.",
   teamRoleMismatch: "This account does not have team access.",
+  emailUnconfirmed: "Your email address has not been confirmed. Please verify your email before signing in.",
+  profileMissing: "Your account has not been fully configured. Please contact the Bravo owner.",
+  roleMissing: "Your account access has not been configured. Please contact the Bravo owner.",
+  inactiveAccount: "This account is currently inactive. Please contact the Bravo owner.",
+  teamMembershipMissing: "This account is not linked to an active team workspace.",
 } as const;
 
 export type LoginAccessVariant = "admin" | "team" | "hub";
@@ -39,7 +45,12 @@ export type LoginFailureCategory =
   | "invalid_credentials"
   | "backend_unavailable"
   | "rate_limited"
-  | "role_mismatch";
+  | "role_mismatch"
+  | "email_unconfirmed"
+  | "profile_missing"
+  | "role_missing"
+  | "account_inactive"
+  | "team_membership_missing";
 
 export type LoginFailureDetails = {
   message: string;
@@ -180,6 +191,26 @@ export function getLoginFailureDetails(
     return {
       message: roleMessage,
       category: "role_mismatch",
+      status,
+      code,
+    };
+  }
+
+  const controlledMessages = [
+    [LOGIN_ERROR_MESSAGES.profileMissing, "profile_missing"],
+    [LOGIN_ERROR_MESSAGES.roleMissing, "role_missing"],
+    [LOGIN_ERROR_MESSAGES.inactiveAccount, "account_inactive"],
+    [LOGIN_ERROR_MESSAGES.teamMembershipMissing, "team_membership_missing"],
+  ] as const;
+  const controlledMatch = controlledMessages.find(([message]) => rawMessage === message);
+  if (controlledMatch) {
+    return { message: controlledMatch[0], category: controlledMatch[1], status, code };
+  }
+
+  if (LOGIN_EMAIL_UNCONFIRMED_PATTERN.test(normalizedMessage)) {
+    return {
+      message: LOGIN_ERROR_MESSAGES.emailUnconfirmed,
+      category: "email_unconfirmed",
       status,
       code,
     };

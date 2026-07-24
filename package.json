@@ -15,12 +15,16 @@
     "supabase:db:push": "npx supabase db push",
     "supabase:readiness": "node qa/supabase-readiness.mjs",
     "supabase:types": "node scripts/generate-supabase-types.mjs",
+    "admin:provision": "node --env-file=.env.local --conditions=react-server --import tsx ./scripts/provision-admin.ts",
     "seed:demo": "tsx scripts/seed-demo-data.ts",
     "clear:demo": "tsx scripts/clear-demo-data.ts",
     "qa:visual:seed": "node scripts/qa-visual-seed.mjs",
     "qa:visual:cleanup": "node scripts/qa-visual-cleanup.mjs",
     "qa:pubg-rankings": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/pubg-rankings-check.ts",
-    "qa:mahasangram": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/mahasangram-publication-check.ts"
+    "qa:mahasangram": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/mahasangram-publication-check.ts",
+    "qa:auth": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/auth-security-check.ts",
+    "qa:auth:production": "node --env-file=.env.local ./qa/auth-production-e2e.mjs",
+    "qa:discord-roles": "node --import tsx ./qa/discord-role-mapping-check.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",

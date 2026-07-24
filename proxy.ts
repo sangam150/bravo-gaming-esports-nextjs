@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  hasEdgeAdminAccess,
+  hasEdgeTeamAccess,
+  resolveEdgeIdentity,
+} from "@/lib/edge-auth";
 
 const SESSION_COOKIE = "bravo_session";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
@@ -82,20 +87,33 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (!request.nextUrl.pathname.startsWith("/admin")) {
+  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
+  const isTeamRoute = request.nextUrl.pathname === "/team" || request.nextUrl.pathname.startsWith("/team/");
+  if (!isAdminRoute && !isTeamRoute) {
     return NextResponse.next();
   }
 
-  const hasSession = Boolean(request.cookies.get(SESSION_COOKIE)?.value);
-  const isLoginPage = request.nextUrl.pathname === "/admin";
+  const identity = await resolveEdgeIdentity(request);
+  const isAdminLoginPage = request.nextUrl.pathname === "/admin/login";
+  const isTeamLoginPage = request.nextUrl.pathname === "/team/login";
 
-  if (!hasSession && !isLoginPage) {
-    return NextResponse.redirect(new URL("/admin", request.url));
+  if (isAdminRoute && !isAdminLoginPage && !hasEdgeAdminAccess(identity)) {
+    const response = NextResponse.redirect(new URL("/admin/login", request.url));
+    response.cookies.delete(SESSION_COOKIE);
+    return response;
   }
 
-  return NextResponse.next();
+  if (isTeamRoute && !isTeamLoginPage && !hasEdgeTeamAccess(identity)) {
+    const response = NextResponse.redirect(new URL("/team/login?redirect=/team", request.url));
+    if (!identity) response.cookies.delete(SESSION_COOKIE);
+    return response;
+  }
+
+  const response = NextResponse.next();
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*", "/news/:path*", "/pubg/matches/:path*"],
+  matcher: ["/admin", "/admin/:path*", "/team", "/team/:path*", "/news/:path*", "/pubg/matches/:path*"],
 };

@@ -7,6 +7,7 @@ import { useAdminAuth } from "./AuthProvider";
 import BravoLogo from "@/components/ui/BravoLogo";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { reportLoginFailure } from "@/lib/login-client";
+import DiscordLoginButton from "@/components/auth/DiscordLoginButton";
 import {
   LOGIN_ERROR_MESSAGES,
   validateLoginCredentials,
@@ -71,32 +72,45 @@ export default function AdminLogin() {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-300">
+          <div role="alert" aria-live="assertive" className="rounded-xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-300">
             {error}
           </div>
         )}
 
-        <input
-          className="input-esports"
-          type="email"
-          placeholder="Admin email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-        />
-        <input
-          className="input-esports"
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-        />
+        <label className="block">
+          <span className="mb-2 block text-sm text-text-muted">Admin email</span>
+          <input
+            className="input-esports"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            aria-invalid={Boolean(error)}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-sm text-text-muted">Password</span>
+          <input
+            className="input-esports"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            aria-invalid={Boolean(error)}
+          />
+        </label>
         <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
           {loading ? "Checking admin access..." : "Sign In"}
         </button>
+
+        <div className="flex items-center gap-3" aria-hidden="true">
+          <span className="h-px flex-1 bg-white/10" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Or continue with</span>
+          <span className="h-px flex-1 bg-white/10" />
+        </div>
+        <DiscordLoginButton />
 
         <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-4 text-sm">
           <span className="text-text-muted">Need help with your password?</span>

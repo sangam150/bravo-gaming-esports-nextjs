@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { extractDiscordUserId } from "@/lib/discord-auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import {
@@ -22,6 +21,7 @@ type SessionResponse = {
     isAdmin?: boolean;
   };
   error?: string;
+  redirectTo?: string;
 };
 
 type CallbackState =
@@ -111,7 +111,6 @@ function DiscordAuthCallbackContent() {
 
     async function finishDiscordAuth() {
       const supabase = getSupabaseBrowserClient();
-      const nextPath = getSafeNextPath(searchParams.get("next"));
 
       try {
         let {
@@ -141,10 +140,10 @@ function DiscordAuthCallbackContent() {
         } = await supabase.auth.getUser();
         const discordUserId = extractDiscordUserId(user ?? session.user ?? null);
 
-        const sessionResponse = await fetch("/api/auth/session", {
+        const sessionResponse = await fetch("/api/auth/discord/complete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accessToken: session.access_token }),
+          body: JSON.stringify({ accessToken: session.access_token, refreshToken: session.refresh_token }),
           credentials: "include",
         });
         const sessionData = (await sessionResponse.json().catch(() => ({}))) as SessionResponse;
@@ -157,23 +156,7 @@ function DiscordAuthCallbackContent() {
           );
         }
 
-        const teamAccess = hasTeamWorkspaceAccess(
-          sessionData.role ?? sessionData.user?.role,
-          Boolean(sessionData.isAdmin ?? sessionData.user?.isAdmin)
-        );
-
-        if (!teamAccess || Boolean(sessionData.isAdmin ?? sessionData.user?.isAdmin)) {
-          await fetch("/api/auth/session", { method: "DELETE", credentials: "include" }).catch(() => undefined);
-          await supabase.auth.signOut().catch(() => undefined);
-          setState({
-            status: "denied",
-            message: "This Discord account is not linked to a Bravo team-access profile yet.",
-            discordUserId,
-          });
-          return;
-        }
-
-        router.replace(nextPath);
+        router.replace(getSafeNextPath(sessionData.redirectTo ?? null));
         router.refresh();
       } catch (error: unknown) {
         const {

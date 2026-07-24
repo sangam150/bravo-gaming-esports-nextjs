@@ -81,6 +81,12 @@ body::after {
   color: white;
 }
 
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid #38bdf8;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px #05070b;
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -382,10 +388,42 @@ body::after {
 
   .table-scroll {
     @apply w-full overflow-x-auto overflow-y-visible;
+    scrollbar-color: var(--accent-blue) rgba(255, 255, 255, 0.08);
   }
 
   .table-scroll > table {
     @apply min-w-[680px];
+  }
+
+  @media (max-width: 767px) {
+    .table-scroll {
+      background:
+        linear-gradient(90deg, var(--bg-secondary) 30%, transparent) left,
+        linear-gradient(270deg, var(--bg-secondary) 30%, transparent) right,
+        linear-gradient(90deg, rgba(30, 123, 255, 0.28), transparent) left,
+        linear-gradient(270deg, rgba(30, 123, 255, 0.28), transparent) right;
+      background-attachment: local, local, scroll, scroll;
+      background-repeat: no-repeat;
+      background-size: 28px 100%, 28px 100%, 12px 100%, 12px 100%;
+    }
+
+    .table-scroll .data-table th:first-child,
+    .table-scroll .data-table td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: #0b111f;
+      box-shadow: 1px 0 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .table-scroll .data-table thead th:first-child {
+      z-index: 3;
+      background: #05070b;
+    }
+
+    .table-scroll .data-table tbody tr:nth-child(even) td:first-child {
+      background: #101827;
+    }
   }
 
   .points-cell {

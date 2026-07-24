@@ -65,6 +65,7 @@ export default async function LiveStreamPage() {
                 className="aspect-video w-full"
                 src={liveFeed.embedUrl}
                 title={liveFeed.title}
+                loading="lazy"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />

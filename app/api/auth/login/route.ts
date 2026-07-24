@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { after } from "next/server";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -7,6 +8,7 @@ import { requireSupabaseEnv } from "@/lib/supabase/env";
 import {
   createSessionCookie,
   getSessionCookieMaxAge,
+  REFRESH_COOKIE,
   SESSION_COOKIE,
   verifyAccessToken,
 } from "@/lib/supabase-auth-server";
@@ -16,6 +18,7 @@ import {
   getRoleAccessErrorMessage,
   LOGIN_ERROR_MESSAGES,
 } from "@/lib/user-facing-errors";
+import { AuthConfigurationError } from "@/lib/auth-errors";
 
 function readText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -53,8 +56,17 @@ function createLoginErrorResponse(message: string, status: number) {
       error: message,
       status,
     },
-    { status: 200 }
+    { status }
   );
+}
+
+function scheduleLoginFailure(
+  request: Request,
+  payload: Parameters<typeof logLoginFailure>[1]
+) {
+  after(async () => {
+    await logLoginFailure(request, payload);
+  });
 }
 
 export async function POST(request: Request) {
@@ -93,7 +105,7 @@ export async function POST(request: Request) {
         variant,
         stage: "credentials",
       });
-      await logLoginFailure(request, {
+      scheduleLoginFailure(request, {
         variant,
         category: details.category,
         stage: "credentials",
@@ -109,7 +121,7 @@ export async function POST(request: Request) {
         variant,
         stage: "session",
       });
-      await logLoginFailure(request, {
+      scheduleLoginFailure(request, {
         variant,
         category: details.category,
         stage: "session",
@@ -120,6 +132,20 @@ export async function POST(request: Request) {
     }
 
     const verifiedSession = await verifyAccessToken(data.session.access_token);
+    if (
+      variant === "team" &&
+      hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin) &&
+      !verifiedSession.teamId
+    ) {
+      const message = LOGIN_ERROR_MESSAGES.teamMembershipMissing;
+      scheduleLoginFailure(request, {
+        variant,
+        category: "team_membership_missing",
+        stage: "role",
+        status: 403,
+      });
+      return createLoginErrorResponse(message, 403);
+    }
     const hasAllowedAccess =
       variant === "admin"
         ? verifiedSession.isAdmin
@@ -129,7 +155,7 @@ export async function POST(request: Request) {
 
     if (!hasAllowedAccess) {
       const message = buildRoleMismatchMessage(variant);
-      await logLoginFailure(request, {
+      scheduleLoginFailure(request, {
         variant,
         category: "role_mismatch",
         stage: "role",
@@ -159,6 +185,10 @@ export async function POST(request: Request) {
       "Set-Cookie",
       `${SESSION_COOKIE}=${sessionCookie}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${sessionCookieMaxAge}${secure}`
     );
+    response.headers.append(
+      "Set-Cookie",
+      `${REFRESH_COOKIE}=${data.session.refresh_token}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${60 * 60 * 24 * 5}${secure}`
+    );
 
     await writeAuditLogFromRequest(request, {
       action: "login",
@@ -174,6 +204,15 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error: unknown) {
+    if (error instanceof AuthConfigurationError) {
+      scheduleLoginFailure(request, {
+        variant,
+        category: error.category,
+        stage: "role",
+        status: 403,
+      });
+      return createLoginErrorResponse(error.message, 403);
+    }
     await logServerError("auth.login.server", error, request, { variant });
     return createLoginErrorResponse(LOGIN_ERROR_MESSAGES.backendUnavailable, 503);
   }

@@ -7,7 +7,6 @@ import { createPortal } from "react-dom";
 import {
   ChevronRight,
   Menu,
-  Radio,
   X,
 } from "lucide-react";
 import BravoLogo from "@/components/ui/BravoLogo";
@@ -174,17 +173,14 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                     </p>
                     <div className="h-px flex-1 bg-white/10" />
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <Link href="/teams/register" className="btn-primary justify-center">
                       Register Team
                     </Link>
-                    <Link href={watchLiveHref || "/live-stream"} className="btn-watch-live justify-center">
-                      <Radio className="h-3.5 w-3.5" />
-                      Watch Live
+                    <Link href={watchLiveHref || "/live-stream"} className="btn-secondary justify-center">
+                      Live &amp; Videos
                     </Link>
-                    <Link href="/login" className="btn-secondary justify-center">
-                      Login
-                    </Link>
+                    <Link href="/login" className="btn-secondary justify-center sm:col-span-2">Login</Link>
                   </div>
                 </section>
               </div>
@@ -217,7 +213,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
               </div>
             </Link>
 
-            <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 xl:flex">
+            <nav className="hidden min-w-0 flex-1 items-center justify-center xl:flex">
               {NAV_ITEMS.map((item) => {
                 const active = isActive(resolvedPathname, item.prefixes);
 
@@ -226,7 +222,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                     key={item.label}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`relative px-3 py-2 font-display text-[12px] font-semibold tracking-[0.02em] transition ${desktopNavClasses(
+                    className={`relative px-2.5 py-2 font-display text-[11px] font-semibold tracking-[0.01em] transition 2xl:px-3 2xl:text-[12px] ${desktopNavClasses(
                       active
                     )}`}
                   >
@@ -239,13 +235,6 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
             <div className="ml-auto hidden items-center gap-2 xl:flex">
               <Link href="/teams/register" className={utilityClasses(true)}>
                 Register Team
-              </Link>
-              <Link href={watchLiveHref || "/live-stream"} className="btn-secondary !h-11 rounded-[14px]">
-                <span className="live-dot h-1.5 w-1.5" />
-                Watch Live
-              </Link>
-              <Link href="/login" className={utilityClasses()}>
-                Login
               </Link>
             </div>
 
@@ -266,9 +255,6 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
             <div className="flex items-center gap-3">
               <Link href="/teams/register" className="transition hover:text-white">
                 Register Team
-              </Link>
-              <Link href={watchLiveHref || "/live-stream"} className="transition hover:text-white">
-                Watch Live
               </Link>
             </div>
           </div>

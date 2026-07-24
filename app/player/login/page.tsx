@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import LoginHubClient from "@/components/auth/LoginHubClient";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Login Redirect",
@@ -11,5 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default async function PlayerLoginPage() {
-  redirect("/login");
+  return (
+    <Suspense fallback={<main className="page-shell py-16 text-center text-text-muted">Loading player access…</main>}>
+      <LoginHubClient />
+    </Suspense>
+  );
 }

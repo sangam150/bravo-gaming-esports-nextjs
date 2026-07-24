@@ -1,34 +1,17 @@
 import "server-only";
 import { cookies } from "next/headers";
-import type { User } from "@supabase/supabase-js";
 import { isAdminRole as isAdminRoleHelper, isPlatformRole } from "./authz";
 import { extractDiscordUserId } from "./discord-auth";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import type { Tables } from "@/types/database.types";
+import { AuthConfigurationError } from "./auth-errors";
 
 export const SESSION_COOKIE = "bravo_session";
+export const REFRESH_COOKIE = "bravo_refresh";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 5; // 5 days
 
-type ProfileRecord = Pick<Tables<"profiles">, "id" | "role" | "team_id" | "display_name" | "discord_user_id">;
-type LegacyUserRecord = Pick<Tables<"users">, "id" | "role" | "team_id" | "name">;
-type KnownProfileRecord = ProfileRecord | LegacyUserRecord;
-type ResolvedIdentityOverride = {
-  role: string | null;
-  teamId: string | null;
-  playerId: string | null;
-  displayName: string | null;
-};
-type ConfiguredIdentityOverride = {
-  uid?: string;
-  email?: string;
-  role?: string | null;
-  teamId?: string | null;
-  team_id?: string | null;
-  playerId?: string | null;
-  player_id?: string | null;
-  displayName?: string | null;
-  display_name?: string | null;
-  name?: string | null;
+type ProfileRecord = Pick<Tables<"profiles">, "id" | "role" | "team_id" | "player_id" | "display_name" | "discord_user_id"> & {
+  is_active: boolean;
 };
 
 export type VerifiedSession = {
@@ -40,22 +23,11 @@ export type VerifiedSession = {
   playerId: string | null;
   displayName: string | null;
   isAdmin: boolean;
+  accountStatus: "active";
 };
 
 export function isAdminRole(role: string | null | undefined) {
   return isAdminRoleHelper(role);
-}
-
-function isProfileRecord(record: KnownProfileRecord | null): record is ProfileRecord {
-  return Boolean(record && "display_name" in record);
-}
-
-function isLegacyUserRecord(record: KnownProfileRecord | null): record is LegacyUserRecord {
-  return Boolean(record && "name" in record);
-}
-
-function normalizeTextValue(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function getErrorMessage(error: unknown) {
@@ -71,108 +43,11 @@ function getErrorMessage(error: unknown) {
   return String(error);
 }
 
-function extractIdentityOverride(payload: Record<string, unknown> | null | undefined): ResolvedIdentityOverride {
-  if (!payload) {
-    return {
-      role: null,
-      teamId: null,
-      playerId: null,
-      displayName: null,
-    };
-  }
-
-  const role = normalizeTextValue(payload.role);
-  return {
-    role: isPlatformRole(role) ? role : null,
-    teamId: normalizeTextValue(payload.teamId) ?? normalizeTextValue(payload.team_id),
-    playerId: normalizeTextValue(payload.playerId) ?? normalizeTextValue(payload.player_id),
-    displayName:
-      normalizeTextValue(payload.displayName) ??
-      normalizeTextValue(payload.display_name) ??
-      normalizeTextValue(payload.name),
-  };
-}
-
-let cachedConfiguredIdentityOverrides: ConfiguredIdentityOverride[] | null = null;
-
-function getConfiguredIdentityOverrides() {
-  if (cachedConfiguredIdentityOverrides) {
-    return cachedConfiguredIdentityOverrides;
-  }
-
-  const raw = process.env.SUPABASE_AUTH_PROFILE_OVERRIDES_JSON?.trim();
-  if (!raw) {
-    cachedConfiguredIdentityOverrides = [];
-    return cachedConfiguredIdentityOverrides;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) {
-      cachedConfiguredIdentityOverrides = parsed.filter(
-        (value): value is ConfiguredIdentityOverride => typeof value === "object" && value !== null
-      );
-      return cachedConfiguredIdentityOverrides;
-    }
-
-    if (parsed && typeof parsed === "object") {
-      cachedConfiguredIdentityOverrides = Object.entries(parsed).flatMap(([key, value]) => {
-        if (!value || typeof value !== "object") {
-          return [];
-        }
-
-        return [
-          {
-            ...(key.includes("@") ? { email: key } : { uid: key.replace(/^uid:/i, "") }),
-            ...(value as ConfiguredIdentityOverride),
-          },
-        ];
-      });
-      return cachedConfiguredIdentityOverrides;
-    }
-  } catch {
-    /* ignore malformed overrides and continue with profile-backed auth */
-  }
-
-  cachedConfiguredIdentityOverrides = [];
-  return cachedConfiguredIdentityOverrides;
-}
-
-function getConfiguredIdentityOverride(uid: string, email: string) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const match = getConfiguredIdentityOverrides().find((entry) => {
-    const entryUid = entry.uid?.trim();
-    const entryEmail = entry.email?.trim().toLowerCase();
-    return entryUid === uid || entryEmail === normalizedEmail;
-  });
-
-  return extractIdentityOverride(match ? (match as Record<string, unknown>) : null);
-}
-
-function getAuthMetadataOverride(user: User) {
-  const appMetadata = extractIdentityOverride(
-    user.app_metadata && typeof user.app_metadata === "object"
-      ? (user.app_metadata as Record<string, unknown>)
-      : null
-  );
-  const userMetadata =
-    user.user_metadata && typeof user.user_metadata === "object"
-      ? (user.user_metadata as Record<string, unknown>)
-      : null;
-
-  return {
-    role: appMetadata.role,
-    teamId: appMetadata.teamId,
-    playerId: appMetadata.playerId,
-    displayName: appMetadata.displayName ?? normalizeTextValue(userMetadata?.display_name) ?? normalizeTextValue(userMetadata?.name),
-  } satisfies ResolvedIdentityOverride;
-}
-
 async function getProfileFromProfiles(authUserId: string): Promise<ProfileRecord | null> {
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client
     .from("profiles")
-    .select("id,role,team_id,display_name,discord_user_id")
+    .select("id,role,team_id,player_id,display_name,discord_user_id,is_active")
     .eq("auth_user_id", authUserId)
     .maybeSingle();
 
@@ -187,7 +62,7 @@ async function getProfileFromDiscordUserId(discordUserId: string): Promise<Profi
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client
     .from("profiles")
-    .select("id,role,team_id,display_name,discord_user_id")
+    .select("id,role,team_id,player_id,display_name,discord_user_id,is_active")
     .eq("discord_user_id", discordUserId)
     .maybeSingle();
 
@@ -196,21 +71,6 @@ async function getProfileFromDiscordUserId(discordUserId: string): Promise<Profi
   }
 
   return (data ?? null) as ProfileRecord | null;
-}
-
-async function getProfileFromUsers(authUserId: string): Promise<LegacyUserRecord | null> {
-  const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client
-    .from("users")
-    .select("id,role,team_id,name")
-    .eq("auth_user_id", authUserId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? null) as LegacyUserRecord | null;
 }
 
 async function getUserProfileRecord(authUserId: string, discordUserId?: string | null) {
@@ -232,110 +92,7 @@ async function getUserProfileRecord(authUserId: string, discordUserId?: string |
     }
   }
 
-  return getProfileFromUsers(authUserId).catch(() => null);
-}
-
-function normalizeRole(role: string | null | undefined) {
-  if (isPlatformRole(role)) {
-    return role;
-  }
-
-  return "viewer";
-}
-
-function resolveVerifiedSession(input: {
-  user: User;
-  profileRecord: KnownProfileRecord | null;
-}) {
-  const metadataOverride = getAuthMetadataOverride(input.user);
-  const configuredOverride = getConfiguredIdentityOverride(input.user.id, input.user.email ?? "");
-  const role = normalizeRole(metadataOverride.role ?? input.profileRecord?.role ?? null);
-
-  return {
-    profileId: input.profileRecord?.id ?? null,
-    uid: input.user.id,
-    email: input.user.email ?? "",
-    role,
-    teamId: metadataOverride.teamId ?? input.profileRecord?.team_id ?? configuredOverride.teamId ?? null,
-    playerId: metadataOverride.playerId ?? configuredOverride.playerId ?? null,
-    displayName:
-      metadataOverride.displayName ??
-      (isProfileRecord(input.profileRecord)
-        ? input.profileRecord.display_name ?? null
-        : isLegacyUserRecord(input.profileRecord)
-        ? input.profileRecord.name ?? null
-        : configuredOverride.displayName ?? null),
-    isAdmin: isAdminRole(role),
-  } satisfies VerifiedSession;
-}
-
-function canProvisionProfile(user: User, session: VerifiedSession) {
-  return Boolean(
-    !session.profileId &&
-      !extractDiscordUserId(user) &&
-      session.email &&
-      (session.isAdmin || session.role === "coach" || session.role === "team_igl" || session.role === "team_manager")
-  );
-}
-
-async function maybeProvisionProfile(user: User, session: VerifiedSession) {
-  if (!canProvisionProfile(user, session) || !user.email) {
-    return null;
-  }
-
-  const client = getSupabaseServiceRoleClient();
-  const profilePayload = {
-    auth_user_id: user.id,
-    email: user.email,
-    role: session.role as Tables<"profiles">["role"],
-    team_id: session.teamId,
-    display_name: session.displayName,
-    updated_at: new Date().toISOString(),
-  };
-
-  try {
-    const { data, error } = await client
-      .from("profiles")
-      .upsert(
-        profilePayload,
-        { onConflict: "auth_user_id" }
-      )
-      .select("id,role,team_id,display_name,discord_user_id")
-      .maybeSingle();
-
-    if (error) {
-      throw error;
-    }
-
-    return (data ?? null) as ProfileRecord | null;
-  } catch (error: unknown) {
-    const message = getErrorMessage(error);
-    if (!/profiles_id_fkey|auth\.users|table \"users\"/i.test(message)) {
-      return null;
-    }
-
-    try {
-      const { data, error: retryError } = await client
-        .from("profiles")
-        .upsert(
-          {
-            id: user.id,
-            ...profilePayload,
-          },
-          { onConflict: "auth_user_id" }
-        )
-        .select("id,role,team_id,display_name,discord_user_id")
-        .maybeSingle();
-
-      if (retryError) {
-        throw retryError;
-      }
-
-      return (data ?? null) as ProfileRecord | null;
-    } catch {
-      return null;
-    }
-  }
+  return null;
 }
 
 function decodeJwtPayload(accessToken: string) {
@@ -386,16 +143,42 @@ export async function verifyAccessToken(accessToken: string) {
   }
 
   const profileRecord = await getUserProfileRecord(user.id, extractDiscordUserId(user));
-  const resolvedSession = resolveVerifiedSession({
-    user,
-    profileRecord,
-  });
-  const provisionedProfileRecord = await maybeProvisionProfile(user, resolvedSession);
+  if (!profileRecord) {
+    throw new AuthConfigurationError(
+      "profile_missing",
+      "Your account has not been fully configured. Please contact the Bravo owner."
+    );
+  }
+  if (!profileRecord.role) {
+    throw new AuthConfigurationError(
+      "role_missing",
+      "Your account access has not been configured. Please contact the Bravo owner."
+    );
+  }
+  if (!isPlatformRole(profileRecord.role)) {
+    throw new AuthConfigurationError(
+      "role_invalid",
+      "Your account access has not been configured. Please contact the Bravo owner."
+    );
+  }
+  if (!profileRecord.is_active) {
+    throw new AuthConfigurationError(
+      "account_inactive",
+      "This account is currently inactive. Please contact the Bravo owner."
+    );
+  }
 
-  return resolveVerifiedSession({
-    user,
-    profileRecord: provisionedProfileRecord ?? profileRecord,
-  });
+  return {
+    profileId: profileRecord.id,
+    uid: user.id,
+    email: user.email,
+    role: profileRecord.role,
+    teamId: profileRecord.team_id,
+    playerId: profileRecord.player_id,
+    displayName: profileRecord.display_name,
+    isAdmin: isAdminRole(profileRecord.role),
+    accountStatus: "active",
+  } satisfies VerifiedSession;
 }
 
 export async function verifyAdminToken(accessToken: string) {

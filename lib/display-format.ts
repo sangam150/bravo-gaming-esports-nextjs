@@ -14,7 +14,7 @@ function parseDateValue(value?: string | number | Date | null) {
   return null;
 }
 
-export function formatDisplayNumber(value?: number | null, fallback = "0") {
+export function formatDisplayNumber(value?: number | null, fallback = "—") {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback;
   }
