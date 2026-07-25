@@ -90,7 +90,10 @@ try {
 
   const cookies = await desktop.cookies(origin);
   const sessionCookie = cookies.find((cookie) => cookie.name === "bravo_session");
-  assert(sessionCookie?.httpOnly && sessionCookie.secure && sessionCookie.sameSite === "Strict", "Session cookie security attributes are invalid.");
+  assert(
+    sessionCookie?.httpOnly && sessionCookie.secure && sessionCookie.sameSite === "Strict",
+    `Session cookie security attributes are invalid: ${JSON.stringify(sessionCookie ?? null)}`
+  );
 
   await page.reload({ waitUntil: "domcontentloaded" });
   assert(page.url() === `${origin}/admin`, "Admin refresh lost authorization.");

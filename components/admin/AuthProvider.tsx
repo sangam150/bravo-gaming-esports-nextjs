@@ -128,7 +128,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!active) return;
 
       setUser(session?.user ?? null);
@@ -138,8 +138,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           setUser(session.user ?? null);
           const sessionData = await establishSession(session.access_token, session.refresh_token);
           setRole(sessionData.user?.role ?? null);
-        } else {
+        } else if (event === "SIGNED_OUT") {
           await clearSession();
+          setUser(null);
+          setRole(null);
+        } else {
           const hydrated = await hydrateFromCookieSession().catch(() => false);
           if (!hydrated) {
             setUser(null);
