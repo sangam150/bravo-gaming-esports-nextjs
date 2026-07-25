@@ -115,6 +115,8 @@ try {
   assert(page.url() === `${origin}/admin`, "Admin refresh lost authorization.");
   await page.goto(`${origin}/admin/events`, { waitUntil: "domcontentloaded" });
   assert(page.url().startsWith(`${origin}/admin/events`), "Direct admin route navigation failed.");
+  assert(consoleErrors.length === 0, `Authenticated browser console errors were observed: ${JSON.stringify([...new Set(consoleErrors)])}`);
+  page.removeAllListeners("console");
 
   await page.getByRole("button", { name: "Sign Out" }).click();
   await page.getByRole("heading", { name: "Admin Login" }).waitFor({ timeout: 20_000 });
@@ -223,8 +225,6 @@ try {
   ]);
   assert(aliasResponse.status >= 300 && aliasResponse.status < 400, "Owner alias did not protect /admin.");
   assert(rawResponse.status >= 300 && rawResponse.status < 400, "Raw deployment did not protect /admin.");
-  assert(consoleErrors.length === 0, `Browser console errors were observed: ${JSON.stringify([...new Set(consoleErrors)])}`);
-
   console.log("Production browser authentication QA passed: admin login/refresh/direct route/logout, viewer rejection, team isolation, mobile login, reset request, and raw/alias protection.");
 } finally {
   await browser.close();
@@ -239,6 +239,10 @@ try {
     }
   }
   if (temporaryPlayerId) {
-    await admin.from("players").delete().eq("id", temporaryPlayerId).catch(() => undefined);
+    try {
+      await admin.from("players").delete().eq("id", temporaryPlayerId);
+    } catch {
+      // Best-effort cleanup; the primary QA failure remains authoritative.
+    }
   }
 }
