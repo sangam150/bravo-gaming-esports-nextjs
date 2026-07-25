@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import DiscordLoginButton from "@/components/auth/DiscordLoginButton";
@@ -48,11 +48,14 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
   const configured = isSupabaseConfigured();
   const discordAuthEnabled = true;
   const searchParams = useSearchParams();
+  const [hydrated, setHydrated] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const content = getVariantContent(variant);
+
+  useEffect(() => setHydrated(true), []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -212,7 +215,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                     aria-invalid={Boolean(error)}
                   />
                 </label>
-                <button type="submit" disabled={loading} aria-busy={loading} className="btn-primary w-full justify-center disabled:opacity-60">
+                <button type="submit" disabled={!hydrated || loading} aria-busy={loading} className="btn-primary w-full justify-center disabled:opacity-60">
                   {loading ? "Checking access..." : content.buttonLabel}
                 </button>
               </div>
