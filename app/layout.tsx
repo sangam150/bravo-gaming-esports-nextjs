@@ -71,7 +71,7 @@ export const metadata: Metadata = {
     "Bravo Gaming live stream",
   ],
   icons: {
-    icon: "/images/bravo-logo.svg",
+    icon: "/images/bravo-logo.png",
     apple: "/images/bravo-logo.png",
   },
   openGraph: {
