@@ -8,13 +8,11 @@ import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import DiscordLoginButton from "@/components/auth/DiscordLoginButton";
 import {
   clearBravoSession,
-  createBravoSession,
+  performPasswordLogin,
   reportLoginFailure,
 } from "@/lib/login-client";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
-  getLoginFailureDetails,
   LOGIN_ERROR_MESSAGES,
   validateLoginCredentials,
 } from "@/lib/user-facing-errors";
@@ -76,34 +74,12 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
     setError(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const { response, data } = await performPasswordLogin({
         email,
         password,
+        variant: requestVariant,
       });
-
-      if (authError) {
-        const details = getLoginFailureDetails(authError, {
-          variant: requestVariant,
-          stage: "credentials",
-        });
-        throw new Error(details.message);
-      }
-
-      if (!authData.session?.access_token || !authData.session.refresh_token) {
-        const details = getLoginFailureDetails(new Error("Unable to establish your session."), {
-          variant: requestVariant,
-          stage: "session",
-        });
-        throw new Error(details.message);
-      }
-
-      const { response, data } = await createBravoSession(
-        authData.session.access_token,
-        authData.session.refresh_token
-      );
       if (!response.ok || !data.success) {
-        await supabase.auth.signOut().catch(() => undefined);
         throw new Error(data.error || LOGIN_ERROR_MESSAGES.backendUnavailable);
       }
 
@@ -111,12 +87,10 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
       const isAdminUser = Boolean(data.user?.isAdmin);
       if (variant === "team" && !isTeamUser) {
         await clearBravoSession().catch(() => undefined);
-        await supabase.auth.signOut().catch(() => undefined);
         throw new Error(LOGIN_ERROR_MESSAGES.teamRoleMismatch);
       }
       if (variant === "team" && !data.user?.teamId) {
         await clearBravoSession().catch(() => undefined);
-        await supabase.auth.signOut().catch(() => undefined);
         throw new Error(LOGIN_ERROR_MESSAGES.teamMembershipMissing);
       }
 

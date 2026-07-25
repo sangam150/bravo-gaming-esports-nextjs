@@ -111,11 +111,55 @@ export async function POST(request: Request) {
   }
 
   let teamId = typeof body.teamId === "string" ? body.teamId : "";
-  if (action === "approve_create") {
+  if (action === "reject_discord_role") {
+    if (candidate.source_type !== "discord_role") {
+      return Response.json({ error: "Only Discord-role candidates can use this action." }, { status: 400 });
+    }
+    const now = new Date().toISOString();
+    const { error: mappingError } = await client
+      .from("discord_role_mappings")
+      .update({
+        mapping_type: "ignored",
+        application_role: null,
+        team_id: null,
+        enabled: false,
+        mapping_status: "unmapped",
+        updated_at: now,
+      })
+      .eq("discord_role_id", candidate.source_identifier);
+    if (mappingError) return Response.json({ error: mappingError.message }, { status: 500 });
+    const { error: candidateUpdateError } = await client
+      .from("team_reconciliation_candidates")
+      .update({
+        proposed_action: "ignore_non_team_role",
+        review_status: "resolved",
+        owner_note: typeof body.ownerNote === "string" ? body.ownerNote.trim() : null,
+        reviewed_by: actorProfile?.id ?? null,
+        reviewed_at: now,
+        updated_at: now,
+      })
+      .eq("id", candidate.id);
+    if (candidateUpdateError) return Response.json({ error: candidateUpdateError.message }, { status: 500 });
+    await client.from("team_registry_audit").insert({
+      actor_profile_id: actorProfile?.id ?? null,
+      action,
+      candidate_id: candidate.id,
+      previous_value: candidate,
+      new_value: { discordRoleId: candidate.source_identifier, enabled: false, mappingType: "ignored" },
+    });
+    return Response.json({ success: true });
+  }
+
+  const createsOfficialTeam =
+    action === "approve_create" || action === "preserve_historical" || action === "archive";
+  if (createsOfficialTeam) {
     const canonicalName = typeof body.canonicalName === "string" ? body.canonicalName.trim() : "";
     const tag = typeof body.tag === "string" ? body.tag.trim() : "";
     const slug = typeof body.slug === "string" ? body.slug.trim().toLowerCase() : "";
-    const status = body.status === "archived" ? "archived" : "active";
+    const status =
+      action === "preserve_historical" || action === "archive" || body.status === "archived"
+        ? "archived"
+        : "active";
     if (!canonicalName || !tag || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
       return Response.json(
         { error: "Canonical name, tag, and a lowercase URL-safe slug are required." },
@@ -150,7 +194,7 @@ export async function POST(request: Request) {
       const statusCode = teamError.code === "23505" ? 409 : 500;
       return Response.json({ error: teamError.message }, { status: statusCode });
     }
-  } else if (action === "approve_link") {
+  } else if (action === "approve_link" || action === "merge_duplicate") {
     if (!teamId) return Response.json({ error: "An existing relational team is required." }, { status: 400 });
     const { data: targetTeam } = await client.from("teams").select("id").eq("id", teamId).maybeSingle();
     if (!targetTeam) return Response.json({ error: "Relational team not found." }, { status: 404 });
@@ -186,20 +230,28 @@ export async function POST(request: Request) {
     ].filter((value): value is string => Boolean(value)))
   );
   for (const alias of aliasValues) {
-    const { error: aliasError } = await client.from("team_aliases").upsert(
-      {
+    const sourceIdentifier = `${candidate.source_identifier}:${normalizeCanonicalTeamIdentity(alias)}`;
+    const aliasRecord = {
         team_id: teamId,
         alias,
         normalized_alias: normalizeCanonicalTeamIdentity(alias),
         source: candidate.source_type,
-        source_identifier: `${candidate.source_identifier}:${normalizeCanonicalTeamIdentity(alias)}`,
+        source_identifier: sourceIdentifier,
         is_primary: alias === candidate.displayed_name,
         previous_name: alias === candidate.displayed_name ? alias : null,
         previous_tag: alias === candidate.team_tag ? alias : null,
         previous_slug: alias === candidate.slug ? alias : null,
-      },
-      { onConflict: "source,source_identifier" }
-    );
+      };
+    const { data: existingAlias, error: aliasLookupError } = await client
+      .from("team_aliases")
+      .select("id")
+      .eq("source", candidate.source_type)
+      .eq("source_identifier", sourceIdentifier)
+      .maybeSingle();
+    if (aliasLookupError) return Response.json({ error: aliasLookupError.message }, { status: 500 });
+    const { error: aliasError } = existingAlias
+      ? await client.from("team_aliases").update(aliasRecord).eq("id", existingAlias.id)
+      : await client.from("team_aliases").insert(aliasRecord);
     if (aliasError) return Response.json({ error: aliasError.message }, { status: 500 });
   }
 
@@ -207,7 +259,16 @@ export async function POST(request: Request) {
     .from("team_reconciliation_candidates")
     .update({
       proposed_team_id: teamId,
-      proposed_action: action === "approve_create" ? "create_new" : "link_existing",
+      proposed_action:
+        action === "approve_create"
+          ? "create_new"
+          : action === "preserve_historical"
+            ? "historical_only"
+            : action === "archive"
+              ? "archive"
+              : action === "merge_duplicate"
+                ? "merge_candidate"
+                : "link_existing",
       review_status: "resolved",
       owner_note: typeof body.ownerNote === "string" ? body.ownerNote.trim() : null,
       reviewed_by: actorProfile?.id ?? null,

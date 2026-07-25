@@ -13,14 +13,17 @@ Completed in this cutover:
 
 Current architecture:
 
-- Auth: Supabase session + server-side admin verification
+- Auth: Supabase session + shared server-side role verification
 - Document data: `public.app_documents`
 - Media uploads: Supabase Storage
 - Realtime subscriptions: Supabase Realtime on `public.app_documents`
+- Official team identities: relational `teams`, `team_aliases`, and `team_source_links`
+- Discord authorization: numeric role mappings with deny-first resolution
+
+Production migration history is reconciled through migration `021`.
 
 Still worth improving in future slices:
 
 - Replace compatibility naming like `lib/firebase.ts` and `firestore-collections.ts` with Supabase-native names
 - Move high-volume tournament/match persistence from the document store into the relational tables/views already defined in `supabase/schema.sql`
-- Build the remaining team IGL workflow and richer admin CRUD around relational tables
 - Expand empty-state cleanup across every legacy page that still says "not imported yet"
