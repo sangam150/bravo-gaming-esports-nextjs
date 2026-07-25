@@ -13,6 +13,7 @@ import {
 import BravoLogo from "@/components/ui/BravoLogo";
 import ManagedImage from "@/components/ui/ManagedImage";
 import TeamAvatar from "@/components/ui/TeamAvatar";
+import { AnimatedCounter } from "@/components/ui/MotionSystem";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import {
   getPublicPubgPlayers,
@@ -299,7 +300,7 @@ function resolveHomepageUpdates(hub: PlatformHubData): HomepageUpdateCard[] {
 
 function HeroSection({ featuredEvent }: { featuredEvent: PlatformEvent | null }) {
   return (
-    <section className="relative overflow-hidden rounded-[30px] border border-white/[0.08] bg-[#050910] shadow-[0_32px_90px_rgba(0,0,0,0.42)]">
+    <section className="home-hero relative overflow-hidden rounded-[30px] border border-white/[0.08] bg-[#050910] shadow-[0_32px_90px_rgba(0,0,0,0.42)]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_20%,rgba(30,123,255,0.18),transparent_28%),radial-gradient(circle_at_86%_26%,rgba(30,123,255,0.1),transparent_24%),linear-gradient(180deg,rgba(4,8,14,0.9),rgba(3,7,14,0.98))]" />
       <div className="absolute inset-y-0 left-0 right-[34%] hidden lg:block">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_26%,rgba(30,123,255,0.08),transparent_18%),radial-gradient(circle_at_48%_74%,rgba(255,112,40,0.06),transparent_12%)]" />
@@ -476,21 +477,25 @@ function CompetitionPulseSection({
     {
       title: "Published Matches",
       value: publishedMatches.length > 0 ? formatNumber(publishedMatches.length) : "Pending",
+      numericValue: publishedMatches.length,
       icon: <CalendarDays className="h-4 w-4" />,
     },
     {
       title: "Registered Teams",
       value: teamCount > 0 ? formatNumber(teamCount) : "Pending",
+      numericValue: teamCount,
       icon: <Users className="h-4 w-4" />,
     },
     {
       title: "Active Players",
       value: playerCount > 0 ? formatNumber(playerCount) : "Pending",
+      numericValue: playerCount,
       icon: <Crosshair className="h-4 w-4" />,
     },
     {
       title: "Total Kills",
       value: totalKills > 0 ? formatNumber(totalKills) : "Pending",
+      numericValue: totalKills,
       icon: <Trophy className="h-4 w-4" />,
     },
   ];
@@ -509,7 +514,9 @@ function CompetitionPulseSection({
                 {card.icon}
               </span>
               <div>
-                <p className="font-mono-stat text-3xl text-white">{card.value}</p>
+                <p className="font-mono-stat text-3xl text-white">
+                  {card.numericValue > 0 ? <AnimatedCounter value={card.numericValue} /> : card.value}
+                </p>
                 <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">{card.title}</p>
               </div>
             </div>

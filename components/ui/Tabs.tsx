@@ -18,11 +18,13 @@ export default function Tabs({
   const [active, setActive] = useState(defaultTab ?? tabs[0]);
   return (
     <div>
-      <div className={["tab-bar", barClassName].filter(Boolean).join(" ")}>
+      <div role="tablist" className={["tab-bar", barClassName].filter(Boolean).join(" ")}>
         {tabs.map((tab) => (
           <button
             key={tab}
             type="button"
+            role="tab"
+            aria-selected={active === tab}
             onClick={() => setActive(tab)}
             className={`tab-item ${active === tab ? "tab-item-active" : "hover:text-white"}`}
           >
@@ -30,7 +32,9 @@ export default function Tabs({
           </button>
         ))}
       </div>
-      <div className={["pt-6", contentClassName].filter(Boolean).join(" ")}>{children(active)}</div>
+      <div role="tabpanel" key={active} className={["tab-panel pt-6", contentClassName].filter(Boolean).join(" ")}>
+        {children(active)}
+      </div>
     </div>
   );
 }

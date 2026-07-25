@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ChevronRight,
@@ -77,6 +77,8 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -88,9 +90,43 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
+    if (mobileOpen) {
+      requestAnimationFrame(() => {
+        drawerRef.current?.querySelector<HTMLElement>("button, a")?.focus();
+      });
+    }
     return () => {
       document.body.style.overflow = "";
     };
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        requestAnimationFrame(() => menuButtonRef.current?.focus());
+        return;
+      }
+      if (event.key !== "Tab" || !drawerRef.current) return;
+      const focusable = Array.from(
+        drawerRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [mobileOpen]);
 
   useEffect(() => {
@@ -117,9 +153,15 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
               type="button"
               aria-label="Close navigation overlay"
               onClick={() => setMobileOpen(false)}
-              className="absolute inset-0 bg-black/72 backdrop-blur-sm"
+              className="mobile-backdrop absolute inset-0 bg-black/72 backdrop-blur-sm"
             />
-            <aside className="absolute inset-y-0 right-0 flex h-full w-full max-w-[28rem] flex-col overflow-y-auto border-l border-white/[0.08] bg-[linear-gradient(180deg,rgba(6,10,20,0.98),rgba(5,8,15,0.98))] px-4 py-4 shadow-[-24px_0_70px_rgba(0,0,0,0.38)]">
+            <aside
+              ref={drawerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Site navigation"
+              className="mobile-drawer absolute inset-y-0 right-0 flex h-full w-full max-w-[28rem] flex-col overflow-y-auto border-l border-white/[0.08] bg-[linear-gradient(180deg,rgba(6,10,20,0.98),rgba(5,8,15,0.98))] px-4 py-4 shadow-[-24px_0_70px_rgba(0,0,0,0.38)]"
+            >
               <div className="rounded-[26px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_28%),linear-gradient(180deg,rgba(12,18,34,0.95),rgba(8,13,26,0.95))] p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -239,8 +281,9 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
             </div>
 
             <button
+              ref={menuButtonRef}
               type="button"
-              aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+              aria-label={mobileOpen ? "Close Menu" : "Open Menu"}
               aria-expanded={mobileOpen}
               onClick={() => setMobileOpen((value) => !value)}
               className="btn-secondary ml-auto !h-11 xl:hidden"

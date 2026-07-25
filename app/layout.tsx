@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Poppins } from "next/font/google";
 import Footer from "@/components/Footer";
 import SiteHeader from "@/components/SiteHeader";
+import { MotionObserver, RouteTransition } from "@/components/ui/MotionSystem";
 import { getSiteUrl } from "@/lib/site";
 
 const displayFont = Poppins({
@@ -128,8 +129,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <SiteHeader />
         <div id="main-content" className="flex-1" tabIndex={-1}>
-          {children}
+          <RouteTransition>{children}</RouteTransition>
         </div>
+        <MotionObserver />
         <Footer />
       </body>
     </html>

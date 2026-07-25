@@ -28,7 +28,13 @@ export default function DiscordLoginButton({ className = "" }: { className?: str
 
   return (
     <div>
-      <button type="button" onClick={() => void connect()} disabled={loading} className={`btn-secondary w-full justify-center disabled:opacity-60 ${className}`}>
+      <button
+        type="button"
+        onClick={() => void connect()}
+        disabled={loading}
+        aria-busy={loading}
+        className={`btn-discord w-full justify-center disabled:opacity-60 ${className}`}
+      >
         <MessageCircle className="h-[18px] w-[18px]" aria-hidden="true" />
         {loading ? "Connecting to Discord…" : "Continue with Discord"}
       </button>

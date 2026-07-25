@@ -202,7 +202,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
               </p>
 
               {error ? (
-                <div className="mt-5 rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200">
+                <div role="alert" aria-live="assertive" className="form-message mt-5 rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200">
                   {error}
                 </div>
               ) : null}
@@ -238,7 +238,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                     aria-invalid={Boolean(error)}
                   />
                 </label>
-                <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
+                <button type="submit" disabled={loading} aria-busy={loading} className="btn-primary w-full justify-center disabled:opacity-60">
                   {loading ? "Checking access..." : content.buttonLabel}
                 </button>
               </div>

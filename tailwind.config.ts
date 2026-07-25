@@ -23,7 +23,7 @@ const config: Config = {
         text: {
           primary: "#FFFFFF",
           secondary: "#A8B3CF",
-          muted: "#6B7280",
+          muted: "#8792AA",
         },
         bravoBlue: "#1E7BFF",
         bravoGreen: "#22C55E",
