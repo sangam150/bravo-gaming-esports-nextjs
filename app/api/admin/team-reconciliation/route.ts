@@ -1,7 +1,10 @@
 import { getRequestSession, permissionDeniedResponse } from "@/lib/admin-auth";
 import { writeAuditLog } from "@/lib/audit-logs";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
-import { deterministicTeamId, normalizeTeamIdentity } from "@/lib/team-reconciliation";
+import {
+  deterministicTeamId,
+  normalizeCanonicalTeamIdentity,
+} from "@/lib/team-reconciliation";
 
 async function requireOwner(request: Request) {
   const session = await getRequestSession(request);
@@ -124,7 +127,7 @@ export async function POST(request: Request) {
       {
         id: teamId,
         name: canonicalName,
-        normalized_name: normalizeTeamIdentity(canonicalName),
+        normalized_name: normalizeCanonicalTeamIdentity(canonicalName),
         tag,
         short_name: tag,
         slug,
@@ -187,9 +190,9 @@ export async function POST(request: Request) {
       {
         team_id: teamId,
         alias,
-        normalized_alias: normalizeTeamIdentity(alias),
+        normalized_alias: normalizeCanonicalTeamIdentity(alias),
         source: candidate.source_type,
-        source_identifier: `${candidate.source_identifier}:${normalizeTeamIdentity(alias)}`,
+        source_identifier: `${candidate.source_identifier}:${normalizeCanonicalTeamIdentity(alias)}`,
         is_primary: alias === candidate.displayed_name,
         previous_name: alias === candidate.displayed_name ? alias : null,
         previous_tag: alias === candidate.team_tag ? alias : null,

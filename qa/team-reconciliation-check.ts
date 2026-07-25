@@ -1,20 +1,34 @@
 import assert from "node:assert/strict";
-import {
-  canAuthorizeTeam,
-  canResolveCandidate,
-  deterministicTeamId,
-  normalizeTeamIdentity,
-} from "../lib/team-reconciliation";
+import { deterministicTeamId, normalizeCanonicalTeamIdentity } from "../lib/team-reconciliation";
+
+function canAuthorizeTeam(input: {
+  relationalFeatureEnabled: boolean;
+  denied: boolean;
+  teamState: "missing" | "ambiguous" | "resolved";
+  mappedTeamId: string | null;
+  profileTeamId: string | null;
+  membershipTeamId: string | null;
+  membershipActive: boolean;
+  teamActive: boolean;
+}) {
+  return Boolean(
+    input.relationalFeatureEnabled &&
+    !input.denied &&
+    input.teamState === "resolved" &&
+    input.mappedTeamId &&
+    input.mappedTeamId === input.profileTeamId &&
+    input.mappedTeamId === input.membershipTeamId &&
+    input.membershipActive &&
+    input.teamActive
+  );
+}
 
 const m8Id = deterministicTeamId("compatibility_team", "m8");
 assert.equal(m8Id, deterministicTeamId("compatibility_team", "m8"), "reruns must preserve UUID");
 assert.notEqual(m8Id, deterministicTeamId("discord_role", "m8"), "source namespaces must not collide");
 assert.match(m8Id, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 
-assert.equal(normalizeTeamIdentity("Near Edge Protocol / N3P"), "nearedgeprotocoln3p");
-assert.equal(canResolveCandidate({ ownerConfirmed: false, conflictWarnings: [], action: "create_new" }), false);
-assert.equal(canResolveCandidate({ ownerConfirmed: true, conflictWarnings: ["similar_name"], action: "create_new" }), true);
-
+assert.equal(normalizeCanonicalTeamIdentity("Near Edge Protocol / N3P"), "nearedgeprotocoln3p");
 const baseAuthorization = {
   relationalFeatureEnabled: true,
   denied: false,

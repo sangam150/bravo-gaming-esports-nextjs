@@ -8,8 +8,24 @@ alter table public.teams
   add column if not exists archived_at timestamptz;
 
 update public.teams
-set normalized_name = lower(regexp_replace(trim(name), '[^a-z0-9]+', '', 'g'))
+set normalized_name = regexp_replace(lower(trim(name)), '[^a-z0-9]+', '', 'g')
 where normalized_name is null;
+
+create or replace function public.set_team_normalized_name()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  new.normalized_name = regexp_replace(lower(trim(new.name)), '[^a-z0-9]+', '', 'g');
+  return new;
+end;
+$$;
+
+drop trigger if exists teams_set_normalized_name on public.teams;
+create trigger teams_set_normalized_name
+before insert or update of name on public.teams
+for each row execute function public.set_team_normalized_name();
 
 create unique index if not exists teams_normalized_name_active_unique_idx
   on public.teams(normalized_name)
