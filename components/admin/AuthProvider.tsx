@@ -173,7 +173,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         throw new Error(credentialError);
       }
 
-      const supabase = getSupabaseBrowserClient();
       const { response, data } = await performPasswordLogin({
         email,
         password,
@@ -195,21 +194,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         );
         throw new Error(details.message);
       }
-
-      if (!data.accessToken || !data.refreshToken) {
-        const details = getLoginFailureDetails(new Error("Unable to establish your session."), {
-          variant: "admin",
-          stage: "session",
-        });
-        throw new Error(details.message);
-      }
-
-      await supabase.auth
-        .setSession({
-          access_token: data.accessToken,
-          refresh_token: data.refreshToken,
-        })
-        .catch(() => undefined);
 
       setUser(buildSessionUser(data.user));
       setRole(data.user?.role ?? null);

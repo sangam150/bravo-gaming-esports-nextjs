@@ -76,7 +76,9 @@ try {
   const desktop = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await desktop.newPage();
   page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
+    if (message.type() === "error") {
+      consoleErrors.push(`${message.text()} ${message.location().url}`.trim());
+    }
   });
 
   await page.goto(`${origin}/admin/login`, { waitUntil: "domcontentloaded" });
@@ -113,10 +115,16 @@ try {
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const teamPage = await mobile.newPage();
   await teamPage.goto(`${origin}/team/login`, { waitUntil: "domcontentloaded" });
+  await teamPage.getByRole("button", { name: "Open Team Workspace" }).waitFor({ state: "visible" });
+  await teamPage.waitForFunction(
+    () => !(document.querySelector('button[type="submit"]') instanceof HTMLButtonElement) ||
+      !document.querySelector('button[type="submit"]').disabled,
+    { timeout: 20_000 }
+  );
   await teamPage.getByLabel("Email address").fill(emails.team);
   await teamPage.getByLabel("Password").fill(password);
   await teamPage.getByRole("button", { name: "Open Team Workspace" }).click();
-  await teamPage.waitForTimeout(5_000);
+  await teamPage.waitForURL(`${origin}/team`, { timeout: 20_000 }).catch(() => undefined);
   const teamMe = await teamPage.evaluate(async () => {
     const response = await fetch("/api/auth/me", { credentials: "include" });
     const data = await response.json().catch(() => ({}));
@@ -157,7 +165,10 @@ try {
     teamPage.url() === `${origin}/team`,
     `Team login did not reach the workspace: ${JSON.stringify(teamMe)} ${JSON.stringify(directTeamDiagnostic)} ${teamFormText}`
   );
-  assert(directTeamDiagnostic === null, "Team login required a diagnostic retry.");
+  assert(
+    directTeamDiagnostic === null,
+    `Team login required a diagnostic retry: ${JSON.stringify({ teamMe, directTeamDiagnostic, teamFormText })}`
+  );
   await teamPage.goto(`${origin}/admin`, { waitUntil: "domcontentloaded" });
   assert(teamPage.url().includes("/admin/login"), "Team account accessed the admin route.");
   await mobile.close();
