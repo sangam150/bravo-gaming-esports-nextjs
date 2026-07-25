@@ -1,4 +1,9 @@
-import { resolveApprovedDiscordRole, resolveDiscordRoleIds } from "../lib/discord-role-mapping";
+import {
+  resolveApprovedDiscordRole,
+  resolveDiscordMemberRoles,
+  resolveDiscordRoleIds,
+  type DiscordRoleMapping,
+} from "../lib/discord-role-mapping";
 
 const mappings = [
   { roleId: "10", appRole: "admin" },
@@ -33,4 +38,50 @@ if (protectedSuperAdmin.role !== "super_admin") {
   throw new Error("Discord synchronization must never overwrite a manual super_admin.");
 }
 
-console.log("Discord role-ID mapping, priority, admin approval, and super-admin protection QA passed.");
+const dynamicMappings: DiscordRoleMapping[] = [
+  { roleId: "igl", mappingType: "team_function", appRole: "team_igl", enabled: true },
+  { roleId: "coach", mappingType: "team_function", appRole: "coach", enabled: true },
+  { roleId: "player", mappingType: "team_function", appRole: "player", enabled: true },
+  { roleId: "m8", mappingType: "team_identity", teamId: "team-m8", enabled: true },
+  { roleId: "haku", mappingType: "team_identity", teamId: "team-haku", enabled: true },
+  { roleId: "n3p", mappingType: "team_identity", teamId: "team-n3p", enabled: true },
+  { roleId: "registered", mappingType: "verification", enabled: true },
+  { roleId: "banned", mappingType: "deny", denyAccess: true, enabled: true },
+];
+
+const m8Igl = resolveDiscordMemberRoles(["igl", "m8", "registered"], dynamicMappings);
+if (m8Igl.primaryRole !== "team_igl" || m8Igl.teamId !== "team-m8" || m8Igl.teamState !== "resolved") {
+  throw new Error("IGL + M8 must resolve to the M8 team IGL.");
+}
+const hakuCoach = resolveDiscordMemberRoles(["coach", "haku"], dynamicMappings);
+if (hakuCoach.primaryRole !== "coach" || hakuCoach.teamId !== "team-haku") {
+  throw new Error("Coach + Team HAKU must resolve to the Team HAKU coach.");
+}
+const n3pPlayer = resolveDiscordMemberRoles(["player", "n3p"], dynamicMappings);
+if (n3pPlayer.primaryRole !== "player" || n3pPlayer.teamId !== "team-n3p") {
+  throw new Error("Player + N3P must resolve to the N3P player.");
+}
+const missingTeam = resolveDiscordMemberRoles(["igl", "registered"], dynamicMappings);
+if (missingTeam.teamState !== "missing" || missingTeam.teamId !== null) {
+  throw new Error("A function role without a team identity must not gain team access.");
+}
+const ambiguousTeam = resolveDiscordMemberRoles(["igl", "m8", "haku"], dynamicMappings);
+if (ambiguousTeam.teamState !== "ambiguous" || ambiguousTeam.teamId !== null) {
+  throw new Error("Two distinct team identities must be blocked as ambiguous.");
+}
+const bannedAdmin = resolveDiscordMemberRoles(
+  ["banned", "10"],
+  [...dynamicMappings, { roleId: "10", mappingType: "access", appRole: "admin", enabled: true }]
+);
+if (!bannedAdmin.denied) throw new Error("A deny role must override an admin role.");
+
+const futureTeamMappings: DiscordRoleMapping[] = [
+  ...dynamicMappings,
+  { roleId: "future-role-2027", mappingType: "team_identity", teamId: "future-team-id", enabled: true },
+];
+const futureTeam = resolveDiscordMemberRoles(["coach", "future-role-2027"], futureTeamMappings);
+if (futureTeam.teamId !== "future-team-id" || futureTeam.primaryRole !== "coach") {
+  throw new Error("New teams must resolve from database mappings without a code-level team list.");
+}
+
+console.log("Discord role mapping, team resolution, conflict denial, future-team support, admin approval, and super-admin protection QA passed.");

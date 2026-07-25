@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminDiscordLinkManager from "./AdminDiscordLinkManager";
+import AdminDiscordRoleMappingManager from "./AdminDiscordRoleMappingManager";
+import AdminRegisteredTeamsManager from "./AdminRegisteredTeamsManager";
 import AdminMatchManager from "./AdminMatchManager";
 import AdminTeamRequestsManager from "./AdminTeamRequestsManager";
 import AdminSidebar, { type AdminSection } from "./AdminSidebar";
@@ -1851,6 +1853,8 @@ export default function AdminDashboard({
             <AdminTeamRequestsManager />
           </div>
         )}
+        {section === "discordRoles" && <AdminDiscordRoleMappingManager />}
+        {section === "registeredTeams" && <AdminRegisteredTeamsManager />}
 
         {section === "inbox" && (
           <div className="space-y-6">

@@ -19,6 +19,8 @@ import {
   validateRegistrationTarget,
 } from "@/lib/team-registration";
 import { createUploadRecord } from "@/lib/upload-records";
+import { findTeamDuplicateCandidates } from "@/lib/team-onboarding";
+import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import {
   jsonErrorResponse,
   USER_FACING_ERROR_MESSAGES,
@@ -157,6 +159,35 @@ export async function POST(request: Request) {
       teamName: body.teamName,
       captainDiscord: body.captainDiscord,
     });
+    const [officialTeams, existingRegistrations] = await Promise.all([getTeams(), getRegistrations()]);
+    const duplicateCandidates = findTeamDuplicateCandidates(
+      {
+        name: body.teamName,
+        tag: normalizeOptionalString(body.teamTag),
+        captainDiscord: body.captainDiscord,
+        playerNames,
+      },
+      [
+        ...officialTeams.map((team) => ({
+          id: team.id,
+          name: team.name,
+          tag: team.tag,
+          captainDiscord: team.captainDiscord,
+          playerNames: team.playerIds,
+          status: team.status,
+        })),
+        ...existingRegistrations
+          .filter((registration) => registration.status !== "rejected")
+          .map((registration) => ({
+            id: registration.id,
+            name: registration.teamName,
+            tag: registration.teamTag,
+            captainDiscord: registration.captainDiscord,
+            playerNames: registration.playerNames,
+            status: registration.status,
+          })),
+      ]
+    );
     const result = await createRegistration({
       teamName: body.teamName,
       teamTag: normalizeOptionalString(body.teamTag),
@@ -169,6 +200,32 @@ export async function POST(request: Request) {
       logoPath,
       logoUploadId,
     });
+    if (duplicateCandidates.length > 0) {
+      const client = getSupabaseServiceRoleClient();
+      const candidateTeamIds = duplicateCandidates
+        .map((candidate) => candidate.team.id)
+        .filter((id): id is string => Boolean(id && /^[0-9a-f-]{36}$/i.test(id)));
+      await client.from("discord_access_reviews").insert({
+        discord_user_id: `registration:${result.id}`,
+        discord_guild_id: process.env.BRAVO_DISCORD_GUILD_ID?.trim() || "registration",
+        category: "duplicate_team",
+        candidate_team_ids: candidateTeamIds,
+        details: {
+          registrationId: result.id,
+          submittedName: body.teamName,
+          candidates: duplicateCandidates.slice(0, 10),
+        },
+      });
+      if (/^[0-9a-f-]{36}$/i.test(result.id)) {
+        await client
+          .from("registrations")
+          .update({
+            onboarding_status: "under_review",
+            duplicate_candidates: duplicateCandidates.slice(0, 10),
+          })
+          .eq("id", result.id);
+      }
+    }
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
     if (error instanceof RegistrationValidationError) {

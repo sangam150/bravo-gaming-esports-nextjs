@@ -24,7 +24,9 @@
     "qa:mahasangram": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/mahasangram-publication-check.ts",
     "qa:auth": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/auth-security-check.ts",
     "qa:auth:production": "node --env-file=.env.local ./qa/auth-production-e2e.mjs",
-    "qa:discord-roles": "node --import tsx ./qa/discord-role-mapping-check.ts"
+    "qa:discord-roles": "node --import tsx ./qa/discord-role-mapping-check.ts",
+    "qa:team-onboarding": "node --import tsx ./qa/team-onboarding-check.ts",
+    "qa:team-reconciliation": "node --import tsx ./qa/team-reconciliation-check.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",

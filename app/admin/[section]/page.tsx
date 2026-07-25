@@ -16,6 +16,8 @@ const SECTION_BY_ROUTE = {
   settings: "settings",
   messages: "inbox",
   "team-requests": "teamRequests",
+  "discord-role-mappings": "discordRoles",
+  "registered-teams": "registeredTeams",
 } as const satisfies Record<string, AdminSection>;
 
 export default async function AdminNamedSectionPage({ params }: PageProps) {

@@ -181,6 +181,137 @@ export type Database = {
           },
         ]
       }
+      discord_access_reviews: {
+        Row: {
+          candidate_team_ids: string[]
+          category: string
+          created_at: string
+          details: Json
+          discord_guild_id: string
+          discord_role_ids: string[]
+          discord_user_id: string
+          id: string
+          profile_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_team_ids?: string[]
+          category: string
+          created_at?: string
+          details?: Json
+          discord_guild_id: string
+          discord_role_ids?: string[]
+          discord_user_id: string
+          id?: string
+          profile_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_team_ids?: string[]
+          category?: string
+          created_at?: string
+          details?: Json
+          discord_guild_id?: string
+          discord_role_ids?: string[]
+          discord_user_id?: string
+          id?: string
+          profile_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discord_access_reviews_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discord_access_reviews_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discord_role_mappings: {
+        Row: {
+          application_role: string | null
+          created_at: string
+          deny_access: boolean
+          discord_guild_id: string
+          discord_role_id: string
+          discord_role_name: string
+          enabled: boolean
+          id: string
+          last_verified_at: string | null
+          managed_by_discord: boolean
+          mapping_status: string
+          mapping_type: string
+          member_count: number | null
+          priority: number
+          role_color: number
+          role_missing_at: string | null
+          role_position: number
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          application_role?: string | null
+          created_at?: string
+          deny_access?: boolean
+          discord_guild_id: string
+          discord_role_id: string
+          discord_role_name: string
+          enabled?: boolean
+          id?: string
+          last_verified_at?: string | null
+          managed_by_discord?: boolean
+          mapping_status?: string
+          mapping_type?: string
+          member_count?: number | null
+          priority?: number
+          role_color?: number
+          role_missing_at?: string | null
+          role_position?: number
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          application_role?: string | null
+          created_at?: string
+          deny_access?: boolean
+          discord_guild_id?: string
+          discord_role_id?: string
+          discord_role_name?: string
+          enabled?: boolean
+          id?: string
+          last_verified_at?: string | null
+          managed_by_discord?: boolean
+          mapping_status?: string
+          mapping_type?: string
+          member_count?: number | null
+          priority?: number
+          role_color?: number
+          role_missing_at?: string | null
+          role_position?: number
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discord_role_mappings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_teams: {
         Row: {
           created_at: string
@@ -1142,11 +1273,13 @@ export type Database = {
         Row: {
           auth_user_id: string
           created_at: string
-          discord_user_id: string | null
           discord_guild_id: string | null
           discord_mapped_roles: string[]
           discord_role_ids: string[]
           discord_role_synced_at: string | null
+          discord_team_role_id: string | null
+          discord_team_verified_at: string | null
+          discord_user_id: string | null
           display_name: string | null
           email: string
           id: string
@@ -1160,11 +1293,13 @@ export type Database = {
         Insert: {
           auth_user_id: string
           created_at?: string
-          discord_user_id?: string | null
           discord_guild_id?: string | null
           discord_mapped_roles?: string[]
           discord_role_ids?: string[]
           discord_role_synced_at?: string | null
+          discord_team_role_id?: string | null
+          discord_team_verified_at?: string | null
+          discord_user_id?: string | null
           display_name?: string | null
           email: string
           id?: string
@@ -1178,11 +1313,13 @@ export type Database = {
         Update: {
           auth_user_id?: string
           created_at?: string
-          discord_user_id?: string | null
           discord_guild_id?: string | null
           discord_mapped_roles?: string[]
           discord_role_ids?: string[]
           discord_role_synced_at?: string | null
+          discord_team_role_id?: string | null
+          discord_team_verified_at?: string | null
+          discord_user_id?: string | null
           display_name?: string | null
           email?: string
           id?: string
@@ -1194,6 +1331,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_team_id_fkey"
             columns: ["team_id"]
@@ -1210,9 +1354,12 @@ export type Database = {
           contact_name: string
           created_at: string
           deleted_at: string | null
+          duplicate_candidates: Json
           event_id: string | null
           id: string
           logo_upload_id: string | null
+          official_team_id: string | null
+          onboarding_status: string
           player_igns: Json
           reference_code: string
           review_note: string | null
@@ -1231,9 +1378,12 @@ export type Database = {
           contact_name: string
           created_at?: string
           deleted_at?: string | null
+          duplicate_candidates?: Json
           event_id?: string | null
           id?: string
           logo_upload_id?: string | null
+          official_team_id?: string | null
+          onboarding_status?: string
           player_igns?: Json
           reference_code: string
           review_note?: string | null
@@ -1252,9 +1402,12 @@ export type Database = {
           contact_name?: string
           created_at?: string
           deleted_at?: string | null
+          duplicate_candidates?: Json
           event_id?: string | null
           id?: string
           logo_upload_id?: string | null
+          official_team_id?: string | null
+          onboarding_status?: string
           player_igns?: Json
           reference_code?: string
           review_note?: string | null
@@ -1280,6 +1433,13 @@ export type Database = {
             columns: ["logo_upload_id"]
             isOneToOne: false
             referencedRelation: "uploads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_official_team_id_fkey"
+            columns: ["official_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -1546,6 +1706,293 @@ export type Database = {
         }
         Relationships: []
       }
+      team_aliases: {
+        Row: {
+          alias: string | null
+          created_at: string
+          id: string
+          is_primary: boolean
+          normalized_alias: string | null
+          previous_name: string | null
+          previous_slug: string | null
+          previous_tag: string | null
+          source: string
+          source_identifier: string | null
+          team_id: string
+        }
+        Insert: {
+          alias?: string | null
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          normalized_alias?: string | null
+          previous_name?: string | null
+          previous_slug?: string | null
+          previous_tag?: string | null
+          source?: string
+          source_identifier?: string | null
+          team_id: string
+        }
+        Update: {
+          alias?: string | null
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          normalized_alias?: string | null
+          previous_name?: string | null
+          previous_slug?: string | null
+          previous_tag?: string | null
+          source?: string
+          source_identifier?: string | null
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_aliases_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_memberships: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          change_reason: string | null
+          created_at: string
+          discord_role_id: string | null
+          effective_from: string | null
+          effective_until: string | null
+          id: string
+          is_primary: boolean
+          membership_role: string
+          membership_status: string
+          profile_id: string
+          source: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          change_reason?: string | null
+          created_at?: string
+          discord_role_id?: string | null
+          effective_from?: string | null
+          effective_until?: string | null
+          id?: string
+          is_primary?: boolean
+          membership_role: string
+          membership_status?: string
+          profile_id: string
+          source?: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          change_reason?: string | null
+          created_at?: string
+          discord_role_id?: string | null
+          effective_from?: string | null
+          effective_until?: string | null
+          id?: string
+          is_primary?: boolean
+          membership_role?: string
+          membership_status?: string
+          profile_id?: string
+          source?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_memberships_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_memberships_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_memberships_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_memberships_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_memberships_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_reconciliation_candidates: {
+        Row: {
+          aliases: Json
+          confidence: number | null
+          conflict_warnings: Json
+          created_at: string
+          displayed_name: string
+          evidence: Json
+          id: string
+          owner_note: string | null
+          proposed_action: string
+          proposed_team_id: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          slug: string | null
+          source_identifier: string
+          source_type: string
+          team_tag: string | null
+          updated_at: string
+        }
+        Insert: {
+          aliases?: Json
+          confidence?: number | null
+          conflict_warnings?: Json
+          created_at?: string
+          displayed_name: string
+          evidence?: Json
+          id?: string
+          owner_note?: string | null
+          proposed_action?: string
+          proposed_team_id?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          slug?: string | null
+          source_identifier: string
+          source_type: string
+          team_tag?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aliases?: Json
+          confidence?: number | null
+          conflict_warnings?: Json
+          created_at?: string
+          displayed_name?: string
+          evidence?: Json
+          id?: string
+          owner_note?: string | null
+          proposed_action?: string
+          proposed_team_id?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          slug?: string | null
+          source_identifier?: string
+          source_type?: string
+          team_tag?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_reconciliation_candidates_proposed_team_id_fkey"
+            columns: ["proposed_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_reconciliation_candidates_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_reconciliation_candidates_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_registry_audit: {
+        Row: {
+          action: string
+          actor_profile_id: string | null
+          candidate_id: string | null
+          created_at: string
+          id: string
+          new_value: Json | null
+          previous_value: Json | null
+          team_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_profile_id?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          previous_value?: Json | null
+          team_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_profile_id?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          previous_value?: Json | null
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_registry_audit_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_registry_audit_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_registry_audit_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "team_reconciliation_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_registry_audit_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_roster_history: {
         Row: {
           created_at: string
@@ -1597,59 +2044,163 @@ export type Database = {
           },
         ]
       }
+      team_source_links: {
+        Row: {
+          historical_name: string | null
+          historical_slug: string | null
+          historical_tag: string | null
+          id: string
+          linked_at: string
+          linked_by: string | null
+          metadata: Json
+          source_identifier: string
+          source_type: string
+          team_id: string
+        }
+        Insert: {
+          historical_name?: string | null
+          historical_slug?: string | null
+          historical_tag?: string | null
+          id?: string
+          linked_at?: string
+          linked_by?: string | null
+          metadata?: Json
+          source_identifier: string
+          source_type: string
+          team_id: string
+        }
+        Update: {
+          historical_name?: string | null
+          historical_slug?: string | null
+          historical_tag?: string | null
+          id?: string
+          linked_at?: string
+          linked_by?: string | null
+          metadata?: Json
+          source_identifier?: string
+          source_type?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_source_links_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_source_links_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_source_links_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
+          archived_at: string | null
           created_at: string
           deleted_at: string | null
           demo_seed_tag: string | null
           description: string | null
+          discord_mapping_status: string
           id: string
           is_active: boolean
           logo_url: string | null
+          merged_into_team_id: string | null
           name: string
+          normalized_name: string | null
+          primary_igl_profile_id: string | null
           region: string | null
           short_name: string | null
           slot_number: number | null
           slug: string | null
+          source_metadata: Json
           status: string
           tag: string | null
           updated_at: string
+          verification_status: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           deleted_at?: string | null
           demo_seed_tag?: string | null
           description?: string | null
+          discord_mapping_status?: string
           id?: string
           is_active?: boolean
           logo_url?: string | null
+          merged_into_team_id?: string | null
           name: string
+          normalized_name?: string | null
+          primary_igl_profile_id?: string | null
           region?: string | null
           short_name?: string | null
           slot_number?: number | null
           slug?: string | null
+          source_metadata?: Json
           status?: string
           tag?: string | null
           updated_at?: string
+          verification_status?: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           deleted_at?: string | null
           demo_seed_tag?: string | null
           description?: string | null
+          discord_mapping_status?: string
           id?: string
           is_active?: boolean
           logo_url?: string | null
+          merged_into_team_id?: string | null
           name?: string
+          normalized_name?: string | null
+          primary_igl_profile_id?: string | null
           region?: string | null
           short_name?: string | null
           slot_number?: number | null
           slug?: string | null
+          source_metadata?: Json
           status?: string
           tag?: string | null
           updated_at?: string
+          verification_status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "teams_merged_into_team_id_fkey"
+            columns: ["merged_into_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teams_primary_igl_profile_id_fkey"
+            columns: ["primary_igl_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teams_primary_igl_profile_id_fkey"
+            columns: ["primary_igl_profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       uploads: {
         Row: {
