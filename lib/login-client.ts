@@ -15,6 +15,7 @@ export type LoginSessionResponse = {
     role?: string;
     isAdmin?: boolean;
     teamId?: string | null;
+    playerId?: string | null;
   };
   error?: string;
 };

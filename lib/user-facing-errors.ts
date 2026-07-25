@@ -31,6 +31,7 @@ export const LOGIN_ERROR_MESSAGES = {
   rateLimited: "Too many login attempts. Please wait a moment and try again.",
   adminRoleMismatch: "This account does not have admin access.",
   teamRoleMismatch: "This account does not have team access.",
+  playerRoleMismatch: "This account does not have player access.",
   emailUnconfirmed: "Your email address has not been confirmed. Please verify your email before signing in.",
   profileMissing: "Your account has not been fully configured. Please contact the Bravo owner.",
   roleMissing: "Your account access has not been configured. Please contact the Bravo owner.",
@@ -38,7 +39,7 @@ export const LOGIN_ERROR_MESSAGES = {
   teamMembershipMissing: "This account is not linked to an active team workspace.",
 } as const;
 
-export type LoginAccessVariant = "admin" | "team" | "hub";
+export type LoginAccessVariant = "admin" | "team" | "player" | "hub";
 export type LoginErrorStage = "credentials" | "session" | "role" | "provider";
 export type LoginFailureCategory =
   | "missing_credentials"
@@ -159,7 +160,9 @@ export function toUserFacingErrorMessage(
 }
 
 export function getRoleAccessErrorMessage(variant: Exclude<LoginAccessVariant, "hub">) {
-  return variant === "admin" ? LOGIN_ERROR_MESSAGES.adminRoleMismatch : LOGIN_ERROR_MESSAGES.teamRoleMismatch;
+  if (variant === "admin") return LOGIN_ERROR_MESSAGES.adminRoleMismatch;
+  if (variant === "player") return LOGIN_ERROR_MESSAGES.playerRoleMismatch;
+  return LOGIN_ERROR_MESSAGES.teamRoleMismatch;
 }
 
 export function validateLoginCredentials(email: string, password: string) {

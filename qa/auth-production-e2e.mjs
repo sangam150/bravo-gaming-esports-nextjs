@@ -11,19 +11,21 @@ if (!url || !serviceKey) throw new Error("Supabase production QA configuration i
 const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 const users = [];
 let temporaryTeamId = null;
+let temporaryPlayerId = null;
 const suffix = randomUUID();
 const password = `Qa!${randomBytes(18).toString("base64url")}`;
 const emails = {
   admin: `codex-admin-${suffix}@example.invalid`,
   viewer: `codex-viewer-${suffix}@example.invalid`,
   team: `codex-team-${suffix}@example.invalid`,
+  player: `codex-player-${suffix}@example.invalid`,
 };
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-async function createQaUser(email, role, teamId = null) {
+async function createQaUser(email, role, teamId = null, playerId = null) {
   const { data, error } = await admin.auth.admin.createUser({
     email,
     password,
@@ -33,7 +35,7 @@ async function createQaUser(email, role, teamId = null) {
   users.push(data.user.id);
   const { error: profileError } = await admin
     .from("profiles")
-    .update({ role, team_id: teamId, is_active: true })
+    .update({ role, team_id: teamId, player_id: playerId, is_active: true })
     .eq("auth_user_id", data.user.id);
   if (profileError) throw profileError;
 }
@@ -71,6 +73,20 @@ try {
   await createQaUser(emails.admin, "admin");
   await createQaUser(emails.viewer, "viewer");
   await createQaUser(emails.team, "team_manager", teamId);
+  const { data: temporaryPlayer, error: temporaryPlayerError } = await admin
+    .from("players")
+    .insert({
+      pubg_name: `CodexPlayer${suffix.replaceAll("-", "").slice(0, 12)}`,
+      display_name: "Codex Player QA",
+      slug: `codex-player-${suffix}`,
+      is_active: true,
+      demo_seed_tag: `auth-qa-${suffix}`,
+    })
+    .select("id")
+    .single();
+  if (temporaryPlayerError) throw temporaryPlayerError;
+  temporaryPlayerId = temporaryPlayer.id;
+  await createQaUser(emails.player, "player", null, temporaryPlayer.id);
 
   const consoleErrors = [];
   const desktop = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -114,6 +130,23 @@ try {
   await viewerPage.getByRole("button", { name: "Sign In" }).click();
   await viewerPage.getByText("This account does not have admin access.", { exact: true }).waitFor({ timeout: 20_000 });
   await viewerContext.close();
+
+  const playerContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const playerPage = await playerContext.newPage();
+  await playerPage.goto(`${origin}/player/login`, { waitUntil: "domcontentloaded" });
+  await playerPage.getByRole("button", { name: "Open Player Dashboard" }).waitFor();
+  await playerPage.waitForFunction(
+    () => !document.querySelector('button[type="submit"]')?.hasAttribute("disabled"),
+    { timeout: 20_000 }
+  );
+  await playerPage.getByLabel("Email address").fill(emails.player);
+  await playerPage.getByLabel("Password").fill(password);
+  await playerPage.getByRole("button", { name: "Open Player Dashboard" }).click();
+  await playerPage.waitForURL(`${origin}/dashboard/player`, { timeout: 20_000 });
+  await playerPage.getByRole("heading", { name: "Player access confirmed" }).waitFor();
+  await playerPage.reload({ waitUntil: "domcontentloaded" });
+  assert(playerPage.url() === `${origin}/dashboard/player`, "Player refresh lost authorization.");
+  await playerContext.close();
 
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const teamPage = await mobile.newPage();
@@ -204,5 +237,8 @@ try {
     } catch {
       // Best-effort cleanup; the primary QA failure remains authoritative.
     }
+  }
+  if (temporaryPlayerId) {
+    await admin.from("players").delete().eq("id", temporaryPlayerId).catch(() => undefined);
   }
 }

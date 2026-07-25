@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { hasTeamWorkspaceAccess } from "@/lib/authz";
+import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
-import DiscordLoginButton from "@/components/auth/DiscordLoginButton";
+import DiscordLoginButton, { useDiscordProviderEnabled } from "@/components/auth/DiscordLoginButton";
 import {
   clearBravoSession,
   performPasswordLogin,
@@ -17,7 +17,7 @@ import {
   validateLoginCredentials,
 } from "@/lib/user-facing-errors";
 
-type LoginVariant = "hub" | "team";
+type LoginVariant = "hub" | "team" | "player";
 
 type LoginHubClientProps = {
   variant?: LoginVariant;
@@ -33,6 +33,13 @@ function getVariantContent(variant: LoginVariant) {
           "Use your Supabase coach, team manager, or team IGL account to manage roster requests, uploads, and team operations.",
         buttonLabel: "Open Team Workspace",
       };
+    case "player":
+      return {
+        badge: "Player Login",
+        title: "Open your Bravo player access",
+        description: "Use the confirmed Supabase account linked to your approved Bravo player profile.",
+        buttonLabel: "Open Player Dashboard",
+      };
     default:
       return {
         badge: "Platform Login",
@@ -46,7 +53,7 @@ function getVariantContent(variant: LoginVariant) {
 
 export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps) {
   const configured = isSupabaseConfigured();
-  const discordAuthEnabled = true;
+  const discordAuthEnabled = useDiscordProviderEnabled();
   const searchParams = useSearchParams();
   const [hydrated, setHydrated] = useState(false);
   const [email, setEmail] = useState("");
@@ -60,7 +67,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!configured) return;
-    const requestVariant = variant === "team" ? "team" : "hub";
+    const requestVariant = variant === "team" ? "team" : variant === "player" ? "player" : "hub";
 
     const credentialError = validateLoginCredentials(email, password);
     if (credentialError) {
@@ -87,6 +94,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
       }
 
       const isTeamUser = hasTeamWorkspaceAccess(data.user?.role, data.user?.isAdmin);
+      const isPlayerUser = hasPlayerDashboardAccess(data.user?.role, data.user?.isAdmin);
       const isAdminUser = Boolean(data.user?.isAdmin);
       if (variant === "team" && !isTeamUser) {
         await clearBravoSession().catch(() => undefined);
@@ -96,10 +104,16 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
         await clearBravoSession().catch(() => undefined);
         throw new Error(LOGIN_ERROR_MESSAGES.teamMembershipMissing);
       }
+      if (variant === "player" && (!isPlayerUser || !data.user?.playerId)) {
+        await clearBravoSession().catch(() => undefined);
+        throw new Error("This account is not linked to an approved player profile.");
+      }
 
       const redirectTarget =
         variant === "team"
           ? "/team"
+          : variant === "player"
+            ? "/dashboard/player"
           : searchParams.get("redirect") ||
             (isAdminUser
               ? "/admin"
@@ -230,7 +244,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                   <p className="mt-2 text-sm text-text-muted">
                     Discord verifies your identity; Bravo then checks your official server roles and approved team or player linkage.
                   </p>
-                  <DiscordLoginButton className="mt-4" />
+                  <DiscordLoginButton enabled className="mt-4" />
                 </div>
               ) : null}
 

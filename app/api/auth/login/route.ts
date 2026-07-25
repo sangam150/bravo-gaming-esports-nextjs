@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { after } from "next/server";
-import { hasTeamWorkspaceAccess } from "@/lib/authz";
+import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
@@ -25,11 +25,11 @@ function readText(value: unknown) {
 }
 
 function readVariant(value: unknown): LoginAccessVariant {
-  return value === "admin" || value === "team" || value === "hub" ? value : "hub";
+  return value === "admin" || value === "team" || value === "player" || value === "hub" ? value : "hub";
 }
 
 function buildRoleMismatchMessage(variant: LoginAccessVariant) {
-  if (variant === "admin" || variant === "team") {
+  if (variant === "admin" || variant === "team" || variant === "player") {
     return getRoleAccessErrorMessage(variant);
   }
 
@@ -146,11 +146,20 @@ export async function POST(request: Request) {
       });
       return createLoginErrorResponse(message, 403);
     }
+    if (
+      variant === "player" &&
+      hasPlayerDashboardAccess(verifiedSession.role, verifiedSession.isAdmin) &&
+      !verifiedSession.playerId
+    ) {
+      return createLoginErrorResponse("This player account is not linked to an approved player profile.", 403);
+    }
     const hasAllowedAccess =
       variant === "admin"
         ? verifiedSession.isAdmin
         : variant === "team"
           ? hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin)
+          : variant === "player"
+            ? hasPlayerDashboardAccess(verifiedSession.role, verifiedSession.isAdmin)
           : verifiedSession.isAdmin || hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin);
 
     if (!hasAllowedAccess) {

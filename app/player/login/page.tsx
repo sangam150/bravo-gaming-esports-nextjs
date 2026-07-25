@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default async function PlayerLoginPage() {
   return (
     <Suspense fallback={<main className="page-shell py-16 text-center text-text-muted">Loading player access…</main>}>
-      <LoginHubClient />
+      <LoginHubClient variant="player" />
     </Suspense>
   );
 }
