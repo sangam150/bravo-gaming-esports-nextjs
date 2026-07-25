@@ -26,17 +26,29 @@ function assert(condition, message) {
 }
 
 async function createQaUser(email, role, teamId = null, playerId = null) {
-  const { data, error } = await admin.auth.admin.createUser({
+  const { data: inviteData, error: inviteError } = await admin.auth.admin.generateLink({
+    type: "invite",
     email,
-    password,
-    email_confirm: true,
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+    },
   });
-  if (error) throw error;
-  users.push(data.user.id);
+  if (inviteError) throw inviteError;
+  const invitedUser = inviteData.user;
+  users.push(invitedUser.id);
+  const { data: confirmedData, error: confirmationError } = await admin.auth.admin.updateUserById(
+    invitedUser.id,
+    {
+      password,
+      email_confirm: true,
+    }
+  );
+  if (confirmationError) throw confirmationError;
+  assert(Boolean(confirmedData.user.email_confirmed_at), "Invited QA user was not confirmed.");
   const { error: profileError } = await admin
     .from("profiles")
     .update({ role, team_id: teamId, player_id: playerId, is_active: true })
-    .eq("auth_user_id", data.user.id);
+    .eq("auth_user_id", invitedUser.id);
   if (profileError) throw profileError;
 }
 
