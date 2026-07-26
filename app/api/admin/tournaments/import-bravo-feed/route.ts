@@ -9,14 +9,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const result = await syncBravoDailyScrimSeason({
-      configuredDays:
-        typeof body.configuredDays === "number" && Number.isFinite(body.configuredDays)
-          ? body.configuredDays
-          : undefined,
-      currentDay:
-        typeof body.currentDay === "number" && Number.isFinite(body.currentDay)
-          ? body.currentDay
-          : undefined,
+      configuredDays: typeof body.configuredDays === "number" && Number.isFinite(body.configuredDays) ? body.configuredDays : undefined,
+      currentDay: typeof body.currentDay === "number" && Number.isFinite(body.currentDay) ? body.currentDay : undefined,
     });
     revalidateTournamentPaths();
     return Response.json({

@@ -1,8 +1,5 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import {
-  applyPubgImportCandidateAction,
-  listPubgImportCandidates,
-} from "@/lib/pubg-import-candidates";
+import { applyPubgImportCandidateAction, listPubgImportCandidates } from "@/lib/pubg-import-candidates";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
@@ -40,7 +37,11 @@ export async function PATCH(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = await enforceRateLimit(request, { key: "admin-pubg-candidate-actions", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "admin-pubg-candidate-actions",
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -68,4 +69,3 @@ export async function PATCH(request: Request) {
     return Response.json({ error: message }, { status: 500 });
   }
 }
-

@@ -1,12 +1,8 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { previewCompetitionMatch } from "@/lib/competition-relational";
-import {
-  getUserFacingPlayerLabel,
-  getUserFacingTeamLabel,
-  USER_FACING_LABELS,
-} from "@/lib/user-facing-errors";
 import type { MatchPlayerResult, TeamMatchResult, TournamentMatch } from "@/lib/types";
+import { getUserFacingPlayerLabel, getUserFacingTeamLabel, USER_FACING_LABELS } from "@/lib/user-facing-errors";
 
 function normalizeTeamResults(value: unknown) {
   if (!Array.isArray(value)) return [];
@@ -19,22 +15,16 @@ function normalizeTeamResults(value: unknown) {
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
           teamName: getUserFacingTeamLabel(
             typeof item.teamName === "string" ? item.teamName : undefined,
-            USER_FACING_LABELS.teamPendingMapping
+            USER_FACING_LABELS.teamPendingMapping,
           ),
-          slotNumber:
-            typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
+          slotNumber: typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
           placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,
           kills: typeof item.kills === "number" && Number.isFinite(item.kills) ? item.kills : 0,
           damage: typeof item.damage === "number" && Number.isFinite(item.damage) ? item.damage : 0,
-          placementPoints:
-            typeof item.placementPoints === "number" && Number.isFinite(item.placementPoints)
-              ? item.placementPoints
-              : 0,
-          killPoints:
-            typeof item.killPoints === "number" && Number.isFinite(item.killPoints) ? item.killPoints : 0,
-          totalPoints:
-            typeof item.totalPoints === "number" && Number.isFinite(item.totalPoints) ? item.totalPoints : 0,
-        }) satisfies TeamMatchResult
+          placementPoints: typeof item.placementPoints === "number" && Number.isFinite(item.placementPoints) ? item.placementPoints : 0,
+          killPoints: typeof item.killPoints === "number" && Number.isFinite(item.killPoints) ? item.killPoints : 0,
+          totalPoints: typeof item.totalPoints === "number" && Number.isFinite(item.totalPoints) ? item.totalPoints : 0,
+        }) satisfies TeamMatchResult,
     );
 }
 
@@ -49,30 +39,24 @@ function normalizePlayerResults(value: unknown) {
           playerId: typeof item.playerId === "string" ? item.playerId : "",
           playerName: getUserFacingPlayerLabel(
             typeof item.playerName === "string" ? item.playerName : undefined,
-            USER_FACING_LABELS.playerPendingMapping
+            USER_FACING_LABELS.playerPendingMapping,
           ),
           pubgPlayerId: typeof item.pubgPlayerId === "string" ? item.pubgPlayerId : undefined,
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
           teamName: getUserFacingTeamLabel(
             typeof item.teamName === "string" ? item.teamName : undefined,
-            USER_FACING_LABELS.teamPendingMapping
+            USER_FACING_LABELS.teamPendingMapping,
           ),
-          slotNumber:
-            typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
+          slotNumber: typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
           placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,
           kills: typeof item.kills === "number" && Number.isFinite(item.kills) ? item.kills : 0,
           assists: typeof item.assists === "number" && Number.isFinite(item.assists) ? item.assists : 0,
           knocks: typeof item.knocks === "number" && Number.isFinite(item.knocks) ? item.knocks : 0,
           damage: typeof item.damage === "number" && Number.isFinite(item.damage) ? item.damage : 0,
-          survivalTime:
-            typeof item.survivalTime === "number" && Number.isFinite(item.survivalTime) ? item.survivalTime : 0,
-          placementPoints:
-            typeof item.placementPoints === "number" && Number.isFinite(item.placementPoints)
-              ? item.placementPoints
-              : 0,
-          totalPoints:
-            typeof item.totalPoints === "number" && Number.isFinite(item.totalPoints) ? item.totalPoints : 0,
-        }) satisfies MatchPlayerResult
+          survivalTime: typeof item.survivalTime === "number" && Number.isFinite(item.survivalTime) ? item.survivalTime : 0,
+          placementPoints: typeof item.placementPoints === "number" && Number.isFinite(item.placementPoints) ? item.placementPoints : 0,
+          totalPoints: typeof item.totalPoints === "number" && Number.isFinite(item.totalPoints) ? item.totalPoints : 0,
+        }) satisfies MatchPlayerResult,
     );
 }
 
@@ -80,7 +64,10 @@ function normalizeMatchInput(value: Record<string, unknown>) {
   const screenshotUrls = Array.isArray(value.screenshotUrls)
     ? value.screenshotUrls.filter((item): item is string => typeof item === "string")
     : typeof value.screenshotUrls === "string"
-      ? value.screenshotUrls.split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)
+      ? value.screenshotUrls
+          .split(/[\n,]+/g)
+          .map((item) => item.trim())
+          .filter(Boolean)
       : [];
 
   return {
@@ -89,10 +76,8 @@ function normalizeMatchInput(value: Record<string, unknown>) {
     scrimId: typeof value.scrimId === "string" ? value.scrimId : undefined,
     pubgMatchId: typeof value.pubgMatchId === "string" ? value.pubgMatchId : "",
     externalMatchId: typeof value.externalMatchId === "string" ? value.externalMatchId : undefined,
-    sequenceNumber:
-      typeof value.sequenceNumber === "number" && Number.isFinite(value.sequenceNumber) ? value.sequenceNumber : undefined,
-    matchNumber:
-      typeof value.matchNumber === "number" && Number.isFinite(value.matchNumber) ? value.matchNumber : undefined,
+    sequenceNumber: typeof value.sequenceNumber === "number" && Number.isFinite(value.sequenceNumber) ? value.sequenceNumber : undefined,
+    matchNumber: typeof value.matchNumber === "number" && Number.isFinite(value.matchNumber) ? value.matchNumber : undefined,
     map: typeof value.map === "string" ? value.map : "",
     eventName: typeof value.eventName === "string" ? value.eventName : undefined,
     eventSlug: typeof value.eventSlug === "string" ? value.eventSlug : undefined,

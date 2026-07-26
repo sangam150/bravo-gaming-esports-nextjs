@@ -46,21 +46,19 @@ function normalizeMatchIds(body: Record<string, unknown>) {
   const singleMatchId = typeof body.matchId === "string" ? body.matchId : "";
 
   return Array.from(
-    new Set(
-      [singleMatchId, ...rawMatchIds]
-        .map((value) => (typeof value === "string" ? value.trim() : ""))
-        .filter(Boolean)
-    )
+    new Set([singleMatchId, ...rawMatchIds].map((value) => (typeof value === "string" ? value.trim() : "")).filter(Boolean)),
   );
 }
 
 function normalizeDaySetup(body: Record<string, unknown>) {
-  const mapRotation =
-    Array.isArray(body.dayMapRotation)
-      ? body.dayMapRotation.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
-      : typeof body.dayMapRotation === "string"
-        ? body.dayMapRotation.split(/[\n,]+/g).map((value) => value.trim()).filter(Boolean)
-        : undefined;
+  const mapRotation = Array.isArray(body.dayMapRotation)
+    ? body.dayMapRotation.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+    : typeof body.dayMapRotation === "string"
+      ? body.dayMapRotation
+          .split(/[\n,]+/g)
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : undefined;
 
   return {
     dayTitle: typeof body.dayTitle === "string" ? body.dayTitle : undefined,
@@ -87,7 +85,11 @@ export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = await enforceRateLimit(request, { key: "admin-pubg-match", maxRequests: 12, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "admin-pubg-match",
+    maxRequests: 12,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -102,10 +104,7 @@ export async function POST(request: Request) {
       tournamentId: typeof body.tournamentId === "string" ? body.tournamentId : undefined,
       scrimId: typeof body.scrimId === "string" ? body.scrimId : undefined,
       seasonId: typeof body.seasonId === "string" ? body.seasonId : undefined,
-      seasonDayNumber:
-        typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber)
-          ? body.seasonDayNumber
-          : undefined,
+      seasonDayNumber: typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber) ? body.seasonDayNumber : undefined,
       autoCreateDay: body.autoCreateDay !== false,
       ...daySetup,
     };
@@ -178,7 +177,11 @@ export async function PATCH(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = await enforceRateLimit(request, { key: "admin-pubg-match-actions", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "admin-pubg-match-actions",
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -201,7 +204,11 @@ export async function PATCH(request: Request) {
         newValue: repaired,
       });
       revalidateCompetitionPaths(repaired.id);
-      return Response.json({ success: true, data: repaired, message: "Match repaired from cached import payload." });
+      return Response.json({
+        success: true,
+        data: repaired,
+        message: "Match repaired from cached import payload.",
+      });
     }
 
     if (action === "reset") {
@@ -215,7 +222,11 @@ export async function PATCH(request: Request) {
         oldValue: resetResult.before,
       });
       revalidateCompetitionPaths(resetResult.id);
-      return Response.json({ success: true, data: { id: resetResult.id }, message: "Imported match reset successfully." });
+      return Response.json({
+        success: true,
+        data: { id: resetResult.id },
+        message: "Imported match reset successfully.",
+      });
     }
 
     if (action === "reimport") {
@@ -224,13 +235,12 @@ export async function PATCH(request: Request) {
         scrimId: typeof body.scrimId === "string" ? body.scrimId : undefined,
         seasonId: typeof body.seasonId === "string" ? body.seasonId : undefined,
         seasonDayNumber:
-          typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber)
-            ? body.seasonDayNumber
-            : undefined,
+          typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber) ? body.seasonDayNumber : undefined,
         autoCreateDay: body.autoCreateDay !== false,
-        duplicateMode: body.duplicateMode === "skip" || body.duplicateMode === "error" || body.duplicateMode === "overwrite"
-          ? body.duplicateMode
-          : "overwrite",
+        duplicateMode:
+          body.duplicateMode === "skip" || body.duplicateMode === "error" || body.duplicateMode === "overwrite"
+            ? body.duplicateMode
+            : "overwrite",
         publish: body.publish === true,
         forceRefetch: body.forceRefetch === true,
       });
@@ -241,7 +251,10 @@ export async function PATCH(request: Request) {
         newValue: importResult,
       });
       revalidateCompetitionPaths();
-      return Response.json({ success: importResult.failedCount === 0, data: importResult });
+      return Response.json({
+        success: importResult.failedCount === 0,
+        data: importResult,
+      });
     }
 
     return Response.json({ error: "Unsupported action." }, { status: 400 });
@@ -251,4 +264,3 @@ export async function PATCH(request: Request) {
     return Response.json({ error: message }, { status: getErrorStatus(message) });
   }
 }
-

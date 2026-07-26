@@ -1,8 +1,8 @@
+import { BRAVO_DISCORD_URL, BRAVO_YOUTUBE_URL } from "@/lib/brand-links";
+import { getLiveStreamFeed, getStreams, getVideos } from "@/lib/data";
+import { buildContentMetadata } from "@/lib/metadata";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getLiveStreamFeed, getStreams, getVideos } from "@/lib/data";
-import { BRAVO_DISCORD_URL, BRAVO_YOUTUBE_URL } from "@/lib/brand-links";
-import { buildContentMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = buildContentMetadata({
   title: "Live Stream | Bravo Gaming Esports",
@@ -28,9 +28,7 @@ export default async function LiveStreamPage() {
           <section className="overflow-hidden rounded-[32px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.16),transparent_34%),linear-gradient(180deg,rgba(11,21,33,0.96),rgba(7,11,21,0.98))] p-6 sm:p-8">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Channel Feed</p>
             <h1 className="mt-3 font-display text-3xl font-black uppercase text-white sm:text-4xl">Bravo Gaming Live</h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-text-muted">
-              Official broadcasts and tournament streams will appear here.
-            </p>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-text-muted">Official broadcasts and tournament streams will appear here.</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <a href={watchOnYouTubeHref} target="_blank" rel="noreferrer" className="btn-primary">
                 Watch on YouTube
@@ -54,9 +52,7 @@ export default async function LiveStreamPage() {
         <div>
           <div className="mb-4 flex items-center gap-3">
             <span className="live-dot" />
-            <span className="font-display text-label font-bold uppercase text-accent-red">
-              {liveFeed.isLive ? "Live" : "Channel Feed"}
-            </span>
+            <span className="font-display text-label font-bold uppercase text-accent-red">{liveFeed.isLive ? "Live" : "Channel Feed"}</span>
             {liveFeed.viewers && <span className="font-mono-stat text-sm text-text-muted">{liveFeed.viewers}</span>}
           </div>
           <div className="overflow-hidden rounded-card border border-white/[0.08] bg-black">
@@ -114,7 +110,9 @@ export default async function LiveStreamPage() {
             ) : (
               <div>
                 <h1 className="font-display text-xl font-bold text-white">Bravo Gaming Live</h1>
-                <p className="text-sm text-text-muted">Official broadcasts and tournament streams will appear here after the next Bravo live window is scheduled.</p>
+                <p className="text-sm text-text-muted">
+                  Official broadcasts and tournament streams will appear here after the next Bravo live window is scheduled.
+                </p>
               </div>
             )}
           </div>
@@ -166,7 +164,9 @@ export default async function LiveStreamPage() {
             ))}
           </div>
         ) : (
-          <div className="esports-card p-6 text-sm text-text-muted">No videos are currently available. Check back later for new content and broadcasts.</div>
+          <div className="esports-card p-6 text-sm text-text-muted">
+            No videos are currently available. Check back later for new content and broadcasts.
+          </div>
         )}
       </section>
     </main>

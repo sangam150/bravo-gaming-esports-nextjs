@@ -1,15 +1,15 @@
 import { randomUUID } from "crypto";
-import { COLLECTIONS } from "./document-store-collections";
 import { getRequestedServerDataBackend } from "./data-backend";
-import { readJsonObject, sanitizeJsonObject, sanitizeJsonValue } from "./json-utils";
-import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
-import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
+import { COLLECTIONS } from "./document-store-collections";
+import { readJsonObject, sanitizeJsonObject } from "./json-utils";
 import {
   SUPABASE_DOCUMENT_STORE_TABLE,
+  isSupabaseDocumentStoreMissingError,
   mapSupabaseDocumentStoreRow,
   type SupabaseDocumentStoreRow,
-  isSupabaseDocumentStoreMissingError,
 } from "./supabase/document-store";
+import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
+import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 
 export { COLLECTIONS };
 
@@ -27,7 +27,7 @@ export type DocumentWriteOperation =
       docId: string;
     };
 
-export function sanitizeDocumentData(data: Record<string, unknown>) {
+function sanitizeDocumentData(data: Record<string, unknown>) {
   const { id: _ignoredId, ...payload } = data;
   return sanitizeJsonObject(payload);
 }
@@ -86,14 +86,12 @@ async function requireSupabaseDocumentStore() {
 
   if (!isSupabaseServiceRoleConfigured()) {
     throw new Error(
-      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY), and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY)."
+      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY), and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY).",
     );
   }
 
   if (!(await hasSupabaseDocumentStore())) {
-    throw new Error(
-      "Supabase document store is not ready. Run the SQL in supabase/schema.sql so public.app_documents exists."
-    );
+    throw new Error("Supabase document store is not ready. Run the SQL in supabase/schema.sql so public.app_documents exists.");
   }
 }
 
@@ -193,7 +191,7 @@ export async function saveDocument(collectionName: string, docId: string, data: 
     ],
     {
       onConflict: "collection_name,id",
-    }
+    },
   );
 
   if (error) {
@@ -227,7 +225,7 @@ export async function createDocument(collectionName: string, data: Record<string
     ],
     {
       onConflict: "collection_name,id",
-    }
+    },
   );
 
   if (error) {
@@ -241,11 +239,7 @@ export async function deleteDocument(collectionName: string, docId: string) {
   await requireSupabaseDocumentStore();
 
   const client = getSupabaseServiceRoleClient();
-  const { error } = await client
-    .from(SUPABASE_DOCUMENT_STORE_TABLE)
-    .delete()
-    .eq("collection_name", collectionName)
-    .eq("id", docId);
+  const { error } = await client.from(SUPABASE_DOCUMENT_STORE_TABLE).delete().eq("collection_name", collectionName).eq("id", docId);
 
   if (error) {
     throw error;
@@ -258,7 +252,7 @@ export async function queryDocumentCollection<T = Record<string, unknown>>(
   collectionName: string,
   field: string,
   value: string,
-  limit = 50
+  limit = 50,
 ) {
   const fetchedRows = await fetchDocumentCollection<T>(collectionName, Math.max(limit * 4, 200));
   return fetchedRows
@@ -279,10 +273,10 @@ export async function commitDocumentWriteOperations(operations: DocumentWriteOpe
   const client = getSupabaseServiceRoleClient();
   const now = new Date().toISOString();
   const setOperations = operations.filter(
-    (operation): operation is Extract<DocumentWriteOperation, { type: "set" }> => operation.type === "set"
+    (operation): operation is Extract<DocumentWriteOperation, { type: "set" }> => operation.type === "set",
   );
   const deleteOperations = operations.filter(
-    (operation): operation is Extract<DocumentWriteOperation, { type: "delete" }> => operation.type === "delete"
+    (operation): operation is Extract<DocumentWriteOperation, { type: "delete" }> => operation.type === "delete",
   );
 
   const existingRowsByCollection = new Map<string, Map<string, SupabaseDocumentStoreRow>>();
@@ -302,10 +296,7 @@ export async function commitDocumentWriteOperations(operations: DocumentWriteOpe
 
   const upsertRows = setOperations.map((operation) => {
     const existingRow = existingRowsByCollection.get(operation.collectionName)?.get(operation.docId);
-    const existingData =
-      operation.merge === false
-        ? {}
-        : readJsonObject(existingRow?.data) ?? {};
+    const existingData = operation.merge === false ? {} : (readJsonObject(existingRow?.data) ?? {});
 
     return {
       collection_name: operation.collectionName,
@@ -351,11 +342,7 @@ export async function commitDocumentWriteOperations(operations: DocumentWriteOpe
 
     for (let index = 0; index < uniqueDocIds.length; index += chunkSize) {
       const chunk = uniqueDocIds.slice(index, index + chunkSize);
-      const { error } = await client
-        .from(SUPABASE_DOCUMENT_STORE_TABLE)
-        .delete()
-        .eq("collection_name", collectionName)
-        .in("id", chunk);
+      const { error } = await client.from(SUPABASE_DOCUMENT_STORE_TABLE).delete().eq("collection_name", collectionName).in("id", chunk);
 
       if (error) {
         throw error;

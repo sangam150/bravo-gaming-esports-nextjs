@@ -29,12 +29,10 @@ export default function TermsPage() {
       <div className="page-stack">
         <section className="esports-card p-6 sm:p-8">
           <p className="section-title">Terms</p>
-          <h1 className="mt-3 font-display text-4xl font-black uppercase text-white sm:text-5xl">
-            Bravo Gaming Esports terms of use
-          </h1>
+          <h1 className="mt-3 font-display text-4xl font-black uppercase text-white sm:text-5xl">Bravo Gaming Esports terms of use</h1>
           <p className="mt-5 max-w-3xl text-sm leading-7 text-text-muted">
-            These terms explain how Bravo Gaming Esports surfaces competition data, platform content, role-based access,
-            and uploads across the public hub.
+            These terms explain how Bravo Gaming Esports surfaces competition data, platform content, role-based access, and uploads across
+            the public hub.
           </p>
           <div className="mt-8 grid gap-4 xl:grid-cols-2">
             {sections.map((section) => (

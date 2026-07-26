@@ -35,7 +35,7 @@ function normalizeValue(value?: string | null) {
   return value?.trim().toLowerCase() ?? "";
 }
 
-export function hasPublicDemoSeedTag(value?: string | null) {
+function hasPublicDemoSeedTag(value?: string | null) {
   const normalized = normalizeValue(value);
   return normalized.startsWith("bravo_demo_seed_") || normalized === "demo_seed";
 }
@@ -91,9 +91,4 @@ export function sanitizePublicAssetUrl(value?: string | null) {
   }
 
   return value;
-}
-
-export function buildInitials(value: string, fallback = "BG") {
-  const cleaned = value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase();
-  return cleaned || fallback;
 }

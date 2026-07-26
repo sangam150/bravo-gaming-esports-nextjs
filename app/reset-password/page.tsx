@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import PasswordRecoveryClient from "@/components/auth/PasswordRecoveryClient";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Password Recovery",

@@ -39,12 +39,42 @@ if (protectedSuperAdmin.role !== "super_admin") {
 }
 
 const dynamicMappings: DiscordRoleMapping[] = [
-  { roleId: "igl", mappingType: "team_function", appRole: "team_igl", enabled: true },
-  { roleId: "coach", mappingType: "team_function", appRole: "coach", enabled: true },
-  { roleId: "player", mappingType: "team_function", appRole: "player", enabled: true },
-  { roleId: "m8", mappingType: "team_identity", teamId: "team-m8", enabled: true },
-  { roleId: "haku", mappingType: "team_identity", teamId: "team-haku", enabled: true },
-  { roleId: "n3p", mappingType: "team_identity", teamId: "team-n3p", enabled: true },
+  {
+    roleId: "igl",
+    mappingType: "team_function",
+    appRole: "team_igl",
+    enabled: true,
+  },
+  {
+    roleId: "coach",
+    mappingType: "team_function",
+    appRole: "coach",
+    enabled: true,
+  },
+  {
+    roleId: "player",
+    mappingType: "team_function",
+    appRole: "player",
+    enabled: true,
+  },
+  {
+    roleId: "m8",
+    mappingType: "team_identity",
+    teamId: "team-m8",
+    enabled: true,
+  },
+  {
+    roleId: "haku",
+    mappingType: "team_identity",
+    teamId: "team-haku",
+    enabled: true,
+  },
+  {
+    roleId: "n3p",
+    mappingType: "team_identity",
+    teamId: "team-n3p",
+    enabled: true,
+  },
   { roleId: "registered", mappingType: "verification", enabled: true },
   { roleId: "banned", mappingType: "deny", denyAccess: true, enabled: true },
 ];
@@ -71,17 +101,24 @@ if (ambiguousTeam.teamState !== "ambiguous" || ambiguousTeam.teamId !== null) {
 }
 const bannedAdmin = resolveDiscordMemberRoles(
   ["banned", "10"],
-  [...dynamicMappings, { roleId: "10", mappingType: "access", appRole: "admin", enabled: true }]
+  [...dynamicMappings, { roleId: "10", mappingType: "access", appRole: "admin", enabled: true }],
 );
 if (!bannedAdmin.denied) throw new Error("A deny role must override an admin role.");
 
 const futureTeamMappings: DiscordRoleMapping[] = [
   ...dynamicMappings,
-  { roleId: "future-role-2027", mappingType: "team_identity", teamId: "future-team-id", enabled: true },
+  {
+    roleId: "future-role-2027",
+    mappingType: "team_identity",
+    teamId: "future-team-id",
+    enabled: true,
+  },
 ];
 const futureTeam = resolveDiscordMemberRoles(["coach", "future-role-2027"], futureTeamMappings);
 if (futureTeam.teamId !== "future-team-id" || futureTeam.primaryRole !== "coach") {
   throw new Error("New teams must resolve from database mappings without a code-level team list.");
 }
 
-console.log("Discord role mapping, team resolution, conflict denial, future-team support, admin approval, and super-admin protection QA passed.");
+console.log(
+  "Discord role mapping, team resolution, conflict denial, future-team support, admin approval, and super-admin protection QA passed.",
+);

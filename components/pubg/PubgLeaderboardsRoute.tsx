@@ -1,4 +1,16 @@
-import Link from "next/link";
+import {
+  buildHref,
+  EmptyState,
+  formatDateTime,
+  formatDecimal,
+  formatNumber,
+  PageHero,
+  RankBadge,
+  readSearchParam,
+  SectionHeader,
+  sourceLabel,
+  TrendBars,
+} from "@/components/pubg/PubgHubUI";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import {
@@ -9,23 +21,8 @@ import {
   type PubgHubPlayer,
   type PubgHubTeam,
 } from "@/lib/pubg-hub";
-import {
-  type PubgPlayerBoardRow,
-  type PubgTeamBoardRow,
-} from "@/lib/pubg-rankings";
-import {
-  buildHref,
-  EmptyState,
-  formatDecimal,
-  formatDateTime,
-  formatNumber,
-  PageHero,
-  RankBadge,
-  readSearchParam,
-  SectionHeader,
-  sourceLabel,
-  TrendBars,
-} from "@/components/pubg/PubgHubUI";
+import { type PubgPlayerBoardRow, type PubgTeamBoardRow } from "@/lib/pubg-rankings";
+import Link from "next/link";
 
 type SearchParamDictionary = Record<string, string | string[] | undefined>;
 
@@ -33,12 +30,10 @@ function buildTeamLookup(teams: readonly PubgHubTeam[]) {
   return new Map(teams.map((team) => [team.id, team] as const));
 }
 
-function buildPlayerLookup(players: readonly PubgHubPlayer[]) {
-  return new Map(players.map((player) => [player.id, player] as const));
-}
-
 function dedupeMaps(matches: PubgHubMatch[]) {
-  return Array.from(new Set(matches.map((match) => match.mapName))).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
+  return Array.from(new Set(matches.map((match) => match.mapName))).sort((firstValue, secondValue) =>
+    firstValue.localeCompare(secondValue),
+  );
 }
 
 function filterMatches(dataset: PubgHubDataset, options: { eventSlug?: string; mapName?: string }) {
@@ -56,16 +51,18 @@ function filterMatches(dataset: PubgHubDataset, options: { eventSlug?: string; m
 }
 
 function getLatestFilteredMatch(matches: PubgHubMatch[]) {
-  return [...matches].sort((firstValue, secondValue) => {
-    const firstTime = new Date(firstValue.startTime).getTime();
-    const secondTime = new Date(secondValue.startTime).getTime();
+  return (
+    [...matches].sort((firstValue, secondValue) => {
+      const firstTime = new Date(firstValue.startTime).getTime();
+      const secondTime = new Date(secondValue.startTime).getTime();
 
-    if (Number.isFinite(firstTime) && Number.isFinite(secondTime) && secondTime !== firstTime) {
-      return secondTime - firstTime;
-    }
+      if (Number.isFinite(firstTime) && Number.isFinite(secondTime) && secondTime !== firstTime) {
+        return secondTime - firstTime;
+      }
 
-    return secondValue.matchNumber - firstValue.matchNumber;
-  })[0] ?? null;
+      return secondValue.matchNumber - firstValue.matchNumber;
+    })[0] ?? null
+  );
 }
 
 function toTeamBoardRow(team: PubgHubTeam, rank: number): PubgTeamBoardRow {
@@ -147,13 +144,7 @@ function getLeaderboardSurface(rank: number) {
   return "border-white/[0.08] bg-[#08101a]";
 }
 
-function FilterBar({
-  children,
-  action,
-}: {
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
+function FilterBar({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="rounded-card border border-white/[0.08] bg-bg-card p-4">
       <form method="get" className="grid gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
@@ -169,13 +160,7 @@ function FilterBar({
   );
 }
 
-function FilterField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="grid gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
       <span>{label}</span>
@@ -184,11 +169,7 @@ function FilterField({
   );
 }
 
-function ActiveFilterSummary({
-  items,
-}: {
-  items: Array<{ label: string; value?: string | null }>;
-}) {
+function ActiveFilterSummary({ items }: { items: Array<{ label: string; value?: string | null }> }) {
   const activeItems = items.filter((item) => item.value && item.value !== "all");
 
   if (activeItems.length === 0) {
@@ -219,8 +200,8 @@ function LeaderboardsLaunchState() {
             Official leaderboards will appear here after published results go live
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-text-muted">
-            Team and player boards unlock after Bravo publishes the first verified PUBG result set. Until then,
-            use the public event board, team registration, and Discord updates to stay ready for the next lobby.
+            Team and player boards unlock after Bravo publishes the first verified PUBG result set. Until then, use the public event board,
+            team registration, and Discord updates to stay ready for the next lobby.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/events" className="btn-secondary">
@@ -251,28 +232,13 @@ function TeamLeaderboardMobileCard({ row }: { row: PubgTeamBoardRow }) {
         </div>
       </div>
       <p className="mt-4 font-mono-stat text-xl text-accent-blue-light">{formatNumber(row.totalPoints)} Total Points</p>
-      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.kills)} Kills • {formatNumber(row.wins)} WWCD</p>
-      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.matches)} Matches • {formatNumber(row.placementPoints)} Placement Points</p>
+      <p className="mt-2 text-sm text-text-muted">
+        {formatNumber(row.kills)} Kills • {formatNumber(row.wins)} WWCD
+      </p>
+      <p className="mt-2 text-sm text-text-muted">
+        {formatNumber(row.matches)} Matches • {formatNumber(row.placementPoints)} Placement Points
+      </p>
       <p className="mt-2 text-sm text-text-muted">Damage: {formatDamageValue(row.damage)}</p>
-    </Link>
-  );
-}
-
-function PlayerLeaderboardMobileCard({ row }: { row: PubgPlayerBoardRow }) {
-  return (
-    <Link href={`/pubg/players/${row.slug}`} className={`block rounded-[24px] border p-4 ${getLeaderboardSurface(row.rank)}`}>
-      <div className="flex items-start gap-3">
-        <RankBadge rank={row.rank} />
-        <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="md" />
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 font-display text-lg font-black uppercase text-white">{row.pubgName}</p>
-          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-muted">{row.teamName ?? "Team TBD"}</p>
-        </div>
-      </div>
-      <p className="mt-4 text-sm text-text-muted">{formatNumber(row.kills)} Kills • {formatDamageValue(row.damage)} Damage</p>
-      <p className="mt-2 text-sm text-text-muted">{formatNumber(row.assists)} Assists • {formatNumber(row.knocks)} Knocks</p>
-      <p className="mt-2 text-sm text-text-muted">Avg Kills: {formatDecimal(row.avgKills, 2)}</p>
-      <p className="mt-2 text-sm text-text-muted">Best Match: {row.bestMatch ? `${row.bestMatch.kills}K on ${row.bestMatch.mapName}` : "Pending"}</p>
     </Link>
   );
 }
@@ -293,26 +259,22 @@ function PlayerLeaderboardMobileSummaryCard({ row }: { row: PubgPlayerBoardRow }
       </p>
       <p className="mt-2 text-sm text-text-muted">{formatDamageValue(row.damage)} Damage</p>
       <p className="mt-2 text-sm text-text-muted">Avg Kills: {formatDecimal(row.avgKills, 2)}</p>
-      <p className="mt-2 text-sm text-text-muted">Best Match: {row.bestMatch ? `${row.bestMatch.kills}K on ${row.bestMatch.mapName}` : "Pending"}</p>
+      <p className="mt-2 text-sm text-text-muted">
+        Best Match: {row.bestMatch ? `${row.bestMatch.kills}K on ${row.bestMatch.mapName}` : "Pending"}
+      </p>
     </Link>
   );
 }
 
-export function PubgLeaderboardsRoute({
-  dataset,
-  searchParams,
-}: {
-  dataset: PubgHubDataset;
-  searchParams: SearchParamDictionary;
-}) {
+export function PubgLeaderboardsRoute({ dataset, searchParams }: { dataset: PubgHubDataset; searchParams: SearchParamDictionary }) {
   const view = readSearchParam(searchParams.view, "teams");
   const requestedEventSlug = readSearchParam(searchParams.event, "all");
-  const eventSlug = requestedEventSlug === "all" || dataset.events.some((event) => event.slug === requestedEventSlug) ? requestedEventSlug : "all";
+  const eventSlug =
+    requestedEventSlug === "all" || dataset.events.some((event) => event.slug === requestedEventSlug) ? requestedEventSlug : "all";
   const mapName = readSearchParam(searchParams.map, "all");
   const publicTeams = getPublicPubgTeams(dataset);
   const publicPlayers = getPublicPubgPlayers(dataset, publicTeams);
   const teamLookup = buildTeamLookup(publicTeams);
-  const playerLookup = buildPlayerLookup(publicPlayers);
   const filteredMatches = filterMatches(dataset, {
     eventSlug: eventSlug === "all" ? undefined : eventSlug,
     mapName,
@@ -322,8 +284,14 @@ export function PubgLeaderboardsRoute({
   const leaderboardUpdatedLabel = latestFilteredMatch
     ? `After published Match ${latestFilteredMatch.matchNumber} on ${latestFilteredMatch.mapName}`
     : "Generated from the current published results set";
-  const filteredPublicTeams = eventSlug === "all" ? publicTeams : publicTeams.filter((team) => team.eventStats.some((eventStat) => eventStat.eventSlug === eventSlug));
-  const filteredPublicPlayers = eventSlug === "all" ? publicPlayers : publicPlayers.filter((player) => player.eventStats.some((eventStat) => eventStat.eventSlug === eventSlug));
+  const filteredPublicTeams =
+    eventSlug === "all"
+      ? publicTeams
+      : publicTeams.filter((team) => team.eventStats.some((eventStat) => eventStat.eventSlug === eventSlug));
+  const filteredPublicPlayers =
+    eventSlug === "all"
+      ? publicPlayers
+      : publicPlayers.filter((player) => player.eventStats.some((eventStat) => eventStat.eventSlug === eventSlug));
   const teamBoardSource = filteredPublicTeams.length > 0 ? filteredPublicTeams : publicTeams;
   const playerBoardSource = filteredPublicPlayers.length > 0 ? filteredPublicPlayers : publicPlayers;
   const teamBoard = teamBoardSource.map((team, index) => toTeamBoardRow(team, index + 1));
@@ -340,11 +308,7 @@ export function PubgLeaderboardsRoute({
       <div className="page-stack">
         <PageHero
           badge="Official PUBG Leaderboards"
-          title={
-            <>
-              Official PUBG Leaderboards
-            </>
-          }
+          title={<>Official PUBG Leaderboards</>}
           description="Track team standings, top fraggers, damage leaders, and published tournament results."
           actions={
             <>
@@ -357,10 +321,22 @@ export function PubgLeaderboardsRoute({
             </>
           }
           stats={[
-            { label: "Matches In View", value: filteredMatches.length, tone: "blue" },
+            {
+              label: "Matches In View",
+              value: filteredMatches.length,
+              tone: "blue",
+            },
             { label: "Ranked Teams", value: teamBoard.length, tone: "green" },
-            { label: "Ranked Players", value: playerBoard.length, tone: "yellow" },
-            { label: "Maps", value: mapName === "all" ? mapOptions.length : 1, tone: "red" },
+            {
+              label: "Ranked Players",
+              value: playerBoard.length,
+              tone: "yellow",
+            },
+            {
+              label: "Maps",
+              value: mapName === "all" ? mapOptions.length : 1,
+              tone: "red",
+            },
           ]}
           aside={
             <div className="space-y-4">
@@ -369,10 +345,24 @@ export function PubgLeaderboardsRoute({
                 <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Switch between teams and players</h2>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Link href={buildHref("/pubg/leaderboards", { view: "teams", event: eventSlug === "all" ? undefined : eventSlug, map: mapName === "all" ? undefined : mapName })} className={`rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${view === "teams" ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue" : "border-white/10 bg-bg-primary text-text-muted"}`}>
+                <Link
+                  href={buildHref("/pubg/leaderboards", {
+                    view: "teams",
+                    event: eventSlug === "all" ? undefined : eventSlug,
+                    map: mapName === "all" ? undefined : mapName,
+                  })}
+                  className={`rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${view === "teams" ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue" : "border-white/10 bg-bg-primary text-text-muted"}`}
+                >
                   Team board
                 </Link>
-                <Link href={buildHref("/pubg/leaderboards", { view: "players", event: eventSlug === "all" ? undefined : eventSlug, map: mapName === "all" ? undefined : mapName })} className={`rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${view === "players" ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue" : "border-white/10 bg-bg-primary text-text-muted"}`}>
+                <Link
+                  href={buildHref("/pubg/leaderboards", {
+                    view: "players",
+                    event: eventSlug === "all" ? undefined : eventSlug,
+                    map: mapName === "all" ? undefined : mapName,
+                  })}
+                  className={`rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${view === "players" ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue" : "border-white/10 bg-bg-primary text-text-muted"}`}
+                >
                   Player board
                 </Link>
               </div>
@@ -428,8 +418,14 @@ export function PubgLeaderboardsRoute({
 
         <ActiveFilterSummary
           items={[
-            { label: "View", value: view === "teams" ? "Team Board" : "Player Board" },
-            { label: "Event", value: eventSlug === "all" ? null : dataset.events.find((event) => event.slug === eventSlug)?.name ?? eventSlug },
+            {
+              label: "View",
+              value: view === "teams" ? "Team Board" : "Player Board",
+            },
+            {
+              label: "Event",
+              value: eventSlug === "all" ? null : (dataset.events.find((event) => event.slug === eventSlug)?.name ?? eventSlug),
+            },
             { label: "Map", value: mapName === "all" ? null : mapName },
           ]}
         />
@@ -437,12 +433,19 @@ export function PubgLeaderboardsRoute({
         {view === "teams" ? (
           teamBoard.length === 0 ? (
             <section className="esports-card p-6">
-              <EmptyState title="Leaderboard data is not available yet" description="Leaderboard data will be available once matches have been completed and officially published." />
+              <EmptyState
+                title="Leaderboard data is not available yet"
+                description="Leaderboard data will be available once matches have been completed and officially published."
+              />
             </section>
           ) : (
             <section className="esports-card overflow-hidden !p-0">
               <div className="border-b border-white/[0.08] px-5 py-4">
-                <SectionHeader eyebrow="Team Board" title="Official team leaderboard" description="Rank, team, matches, WWCD, placement points, kills, damage, total points, and recent trend from the published board." />
+                <SectionHeader
+                  eyebrow="Team Board"
+                  title="Official team leaderboard"
+                  description="Rank, team, matches, WWCD, placement points, kills, damage, total points, and recent trend from the published board."
+                />
               </div>
               <div className="grid gap-3 p-4 md:hidden">
                 {teamBoard.map((row) => (
@@ -468,7 +471,10 @@ export function PubgLeaderboardsRoute({
                       className={`grid grid-cols-[72px,minmax(0,1.8fr),90px,76px,98px,84px,112px,102px,120px] items-center gap-4 rounded-[22px] border px-4 py-4 ${getLeaderboardSurface(row.rank)}`}
                     >
                       <RankBadge rank={row.rank} />
-                      <Link href={`/pubg/teams/${row.slug}`} className="flex min-w-0 items-center gap-3 rounded-card transition hover:text-accent-blue">
+                      <Link
+                        href={`/pubg/teams/${row.slug}`}
+                        className="flex min-w-0 items-center gap-3 rounded-card transition hover:text-accent-blue"
+                      >
                         <TeamAvatar name={row.name} imageUrl={row.logoUrl ?? undefined} size="sm" />
                         <div className="min-w-0">
                           <p className="font-semibold text-white">{row.name}</p>
@@ -492,12 +498,19 @@ export function PubgLeaderboardsRoute({
           )
         ) : playerBoard.length === 0 ? (
           <section className="esports-card p-6">
-            <EmptyState title="Player statistics are currently unavailable" description="Please check back after upcoming matches are completed." />
+            <EmptyState
+              title="Player statistics are currently unavailable"
+              description="Please check back after upcoming matches are completed."
+            />
           </section>
         ) : (
           <section className="esports-card overflow-hidden !p-0">
             <div className="border-b border-white/[0.08] px-5 py-4">
-              <SectionHeader eyebrow="Player Board" title="Official player leaderboard" description="Rank, player, team, kills, damage, assists, knocks, average kills, and best-match context from the published board." />
+              <SectionHeader
+                eyebrow="Player Board"
+                title="Official player leaderboard"
+                description="Rank, player, team, kills, damage, assists, knocks, average kills, and best-match context from the published board."
+              />
             </div>
             <div className="grid gap-3 p-4 md:hidden">
               {playerBoard.map((row) => (
@@ -523,7 +536,10 @@ export function PubgLeaderboardsRoute({
                     className={`grid grid-cols-[72px,minmax(0,1.5fr),minmax(0,1.2fr),84px,110px,86px,86px,96px,minmax(0,1.2fr)] items-center gap-4 rounded-[22px] border px-4 py-4 ${getLeaderboardSurface(row.rank)}`}
                   >
                     <RankBadge rank={row.rank} />
-                    <Link href={`/pubg/players/${row.slug}`} className="flex min-w-0 items-center gap-3 rounded-card transition hover:text-accent-blue">
+                    <Link
+                      href={`/pubg/players/${row.slug}`}
+                      className="flex min-w-0 items-center gap-3 rounded-card transition hover:text-accent-blue"
+                    >
                       <TeamAvatar name={row.pubgName} imageUrl={row.avatarUrl ?? undefined} size="sm" />
                       <div className="min-w-0">
                         <p className="font-semibold text-white">{row.pubgName}</p>
@@ -549,7 +565,9 @@ export function PubgLeaderboardsRoute({
                     <span className="text-right font-mono-stat text-white">{formatNumber(row.knocks)}</span>
                     <span className="text-right font-mono-stat text-accent-blue-light">{formatDecimal(row.avgKills, 2)}</span>
                     <span className="text-sm text-text-muted">
-                      {row.bestMatch ? `${row.bestMatch.kills}K • ${row.bestMatch.mapName} • Match ${row.bestMatch.matchNumber}` : "Pending"}
+                      {row.bestMatch
+                        ? `${row.bestMatch.kills}K • ${row.bestMatch.mapName} • Match ${row.bestMatch.matchNumber}`
+                        : "Pending"}
                     </span>
                   </div>
                 ))}

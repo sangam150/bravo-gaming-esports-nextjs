@@ -1,15 +1,11 @@
 "use client";
 
+import BravoLogo from "@/components/ui/BravoLogo";
+import { ChevronRight, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  ChevronRight,
-  Menu,
-  X,
-} from "lucide-react";
-import BravoLogo from "@/components/ui/BravoLogo";
 
 type HeaderFeatureCard = {
   eyebrow: string;
@@ -31,11 +27,27 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/", prefixes: ["/"] },
   { label: "PUBG", href: "/pubg", prefixes: ["/pubg"] },
   { label: "Events", href: "/events", prefixes: ["/events"] },
-  { label: "Leaderboards", href: "/pubg/leaderboards", prefixes: ["/pubg/leaderboards", "/leaderboard", "/rankings"] },
+  {
+    label: "Leaderboards",
+    href: "/pubg/leaderboards",
+    prefixes: ["/pubg/leaderboards", "/leaderboard", "/rankings"],
+  },
   { label: "News", href: "/news", prefixes: ["/news", "/news-media"] },
-  { label: "Media", href: "/media", prefixes: ["/media", "/highlights", "/videos"] },
-  { label: "Sponsors", href: "/sponsors", prefixes: ["/sponsors", "/partners"] },
-  { label: "About", href: "/about", prefixes: ["/about", "/contact", "/privacy", "/terms", "/rules", "/anti-cheat"] },
+  {
+    label: "Media",
+    href: "/media",
+    prefixes: ["/media", "/highlights", "/videos"],
+  },
+  {
+    label: "Sponsors",
+    href: "/sponsors",
+    prefixes: ["/sponsors", "/partners"],
+  },
+  {
+    label: "About",
+    href: "/about",
+    prefixes: ["/about", "/contact", "/privacy", "/terms", "/rules", "/anti-cheat"],
+  },
 ];
 
 function isActive(pathname: string, prefixes: string[]) {
@@ -111,8 +123,8 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
       if (event.key !== "Tab" || !drawerRef.current) return;
       const focusable = Array.from(
         drawerRef.current.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
       );
       if (!focusable.length) return;
       const first = focusable[0];
@@ -142,7 +154,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
 
   const currentSection = useMemo(
     () => NAV_ITEMS.find((item) => isActive(resolvedPathname, item.prefixes))?.label ?? "Bravo Gaming",
-    [resolvedPathname]
+    [resolvedPathname],
   );
 
   const mobileDrawer =
@@ -165,14 +177,11 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
               <div className="rounded-[26px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_28%),linear-gradient(180deg,rgba(12,18,34,0.95),rgba(8,13,26,0.95))] p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="font-display text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue">
-                      Bravo Navigation
-                    </p>
-                    <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">
-                      Quick Navigation
-                    </h2>
+                    <p className="font-display text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue">Bravo Navigation</p>
+                    <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Quick Navigation</h2>
                     <p className="mt-3 text-sm leading-7 text-text-muted">
-                      Home, PUBG, events, news, media, and sponsor routes with direct quick actions for registration, live coverage, and login.
+                      Home, PUBG, events, news, media, and sponsor routes with direct quick actions for registration, live coverage, and
+                      login.
                     </p>
                   </div>
                   <button
@@ -210,9 +219,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
 
                 <section className="esports-card p-4">
                   <div className="mb-4 flex items-center gap-3">
-                    <p className="font-display text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue">
-                      Actions
-                    </p>
+                    <p className="font-display text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue">Actions</p>
                     <div className="h-px flex-1 bg-white/10" />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -222,13 +229,15 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                     <Link href={watchLiveHref || "/live-stream"} className="btn-secondary justify-center">
                       Live &amp; Videos
                     </Link>
-                    <Link href="/login" className="btn-secondary justify-center sm:col-span-2">Login</Link>
+                    <Link href="/login" className="btn-secondary justify-center sm:col-span-2">
+                      Login
+                    </Link>
                   </div>
                 </section>
               </div>
             </aside>
           </div>,
-          document.body
+          document.body,
         )
       : null;
 
@@ -246,12 +255,8 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
             <Link href="/" className="flex min-w-0 items-center gap-3">
               <BravoLogo size={44} />
               <div className="hidden min-w-0 md:block">
-                <p className="truncate font-display text-[1rem] font-black uppercase tracking-[0.08em] text-white">
-                  Bravo Gaming
-                </p>
-                <p className="truncate font-display text-[10px] uppercase tracking-[0.22em] text-text-muted">
-                  Esports Nepal
-                </p>
+                <p className="truncate font-display text-[1rem] font-black uppercase tracking-[0.08em] text-white">Bravo Gaming</p>
+                <p className="truncate font-display text-[10px] uppercase tracking-[0.22em] text-text-muted">Esports Nepal</p>
               </div>
             </Link>
 
@@ -265,7 +270,7 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={`relative px-2.5 py-2 font-display text-[11px] font-semibold tracking-[0.01em] transition 2xl:px-3 2xl:text-[12px] ${desktopNavClasses(
-                      active
+                      active,
                     )}`}
                   >
                     {item.label}

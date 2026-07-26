@@ -1,6 +1,6 @@
-import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-auth";
 import { getHomepageContent, saveHomepageContent } from "@/lib/platform-content";
+import { revalidatePath } from "next/cache";
 
 export async function GET(request: Request) {
   const unauthorized = await requireAdmin(request);

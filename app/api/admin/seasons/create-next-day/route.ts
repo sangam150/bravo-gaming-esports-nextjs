@@ -30,12 +30,14 @@ function getRouteErrorMessage(error: unknown) {
 }
 
 function normalizeDaySetup(body: Record<string, unknown>) {
-  const mapRotation =
-    Array.isArray(body.dayMapRotation)
-      ? body.dayMapRotation.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
-      : typeof body.dayMapRotation === "string"
-        ? body.dayMapRotation.split(/[\n,]+/g).map((value) => value.trim()).filter(Boolean)
-        : undefined;
+  const mapRotation = Array.isArray(body.dayMapRotation)
+    ? body.dayMapRotation.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+    : typeof body.dayMapRotation === "string"
+      ? body.dayMapRotation
+          .split(/[\n,]+/g)
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : undefined;
 
   return {
     dayTitle: typeof body.dayTitle === "string" ? body.dayTitle : undefined,
@@ -54,7 +56,11 @@ export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = await enforceRateLimit(request, { key: "admin-create-next-day", maxRequests: 10, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "admin-create-next-day",
+    maxRequests: 10,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -62,15 +68,15 @@ export async function POST(request: Request) {
     const seasonId = typeof body.seasonId === "string" ? body.seasonId.trim() : "";
     const daySetup = normalizeDaySetup(body);
     const targetDayNumber =
-      typeof body.targetDayNumber === "number" && Number.isFinite(body.targetDayNumber)
-        ? body.targetDayNumber
-        : undefined;
+      typeof body.targetDayNumber === "number" && Number.isFinite(body.targetDayNumber) ? body.targetDayNumber : undefined;
     if (!seasonId) {
       return Response.json({ error: "seasonId is required" }, { status: 400 });
     }
 
     if (targetDayNumber) {
-      const result = await ensureSeasonDay(seasonId, targetDayNumber, { overrides: daySetup });
+      const result = await ensureSeasonDay(seasonId, targetDayNumber, {
+        overrides: daySetup,
+      });
       revalidateTournamentPaths(result.tournament?.id);
       const createdMatchCount = result.createdMatches?.length ?? 0;
       return Response.json({
@@ -99,4 +105,3 @@ export async function POST(request: Request) {
     return Response.json({ error: message }, { status: 500 });
   }
 }
-

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/lib/admin-api";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type DiscordLinkProfile = {
   id: string;
@@ -26,10 +26,7 @@ export default function AdminDiscordLinkManager() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const linkedCount = useMemo(
-    () => profiles.filter((profile) => Boolean(profile.discordUserId?.trim())).length,
-    [profiles]
-  );
+  const linkedCount = useMemo(() => profiles.filter((profile) => Boolean(profile.discordUserId?.trim())).length, [profiles]);
 
   const loadProfiles = useCallback(async () => {
     setLoading(true);
@@ -37,15 +34,17 @@ export default function AdminDiscordLinkManager() {
 
     try {
       const response = await adminFetch("/api/admin/discord-links");
-      const payload = (response.data ?? { profiles: [] }) as DiscordLinksPayload;
+      const payload = (response.data ?? {
+        profiles: [],
+      }) as DiscordLinksPayload;
       setProfiles(payload.profiles);
-      setDraftValues(
-        Object.fromEntries(
-          payload.profiles.map((profile) => [profile.id, profile.discordUserId ?? ""])
-        )
-      );
+      setDraftValues(Object.fromEntries(payload.profiles.map((profile) => [profile.id, profile.discordUserId ?? ""])));
     } catch (loadError: unknown) {
-      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(loadError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -71,9 +70,7 @@ export default function AdminDiscordLinkManager() {
       const updatedProfile = (response.data?.profile ?? null) as DiscordLinkProfile | null;
       if (updatedProfile) {
         setProfiles((currentProfiles) =>
-          currentProfiles.map((currentProfile) =>
-            currentProfile.id === updatedProfile.id ? updatedProfile : currentProfile
-          )
+          currentProfiles.map((currentProfile) => (currentProfile.id === updatedProfile.id ? updatedProfile : currentProfile)),
         );
         setDraftValues((currentValues) => ({
           ...currentValues,
@@ -82,7 +79,11 @@ export default function AdminDiscordLinkManager() {
       }
       setMessage(response.message ?? "Discord link updated.");
     } catch (saveError: unknown) {
-      setError(toUserFacingErrorMessage(saveError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(saveError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setSavingProfileId(null);
     }
@@ -93,7 +94,8 @@ export default function AdminDiscordLinkManager() {
       <div>
         <h2 className="text-2xl font-black text-white">Discord Team Links</h2>
         <p className="mt-1 text-sm text-text-muted">
-          Link Discord provider user IDs to Bravo team-access profiles. Unlinked Discord sign-ins stay denied until an admin adds the ID here.
+          Link Discord provider user IDs to Bravo team-access profiles. Unlinked Discord sign-ins stay denied until an admin adds the ID
+          here.
         </p>
       </div>
 
@@ -136,9 +138,7 @@ export default function AdminDiscordLinkManager() {
               <div key={profile.id} className="esports-card p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-blue">
-                      {profile.role.replace(/_/g, " ")}
-                    </p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-blue">{profile.role.replace(/_/g, " ")}</p>
                     <h3 className="mt-2 text-lg font-black text-white">{profile.displayName ?? profile.email}</h3>
                     <p className="mt-2 text-sm text-text-muted">
                       {profile.email}
@@ -176,12 +176,7 @@ export default function AdminDiscordLinkManager() {
                   >
                     {isSaving ? "Saving..." : "Save Link"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void saveLink(profile, "")}
-                    disabled={isSaving}
-                    className="btn-secondary"
-                  >
+                  <button type="button" onClick={() => void saveLink(profile, "")} disabled={isSaving} className="btn-secondary">
                     Clear
                   </button>
                 </div>

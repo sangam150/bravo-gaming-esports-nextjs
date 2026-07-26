@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import { SponsorsLandingPage } from "@/components/public/PublicLandingPages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = buildContentMetadata({
   title: "Sponsors | Bravo Gaming Esports",

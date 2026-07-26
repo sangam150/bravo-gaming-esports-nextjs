@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import MvpRankingPageClient from "@/components/mvp/MvpRankingPageClient";
 import { getCurrentSeasonOverview, getPlayers } from "@/lib/data";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "MVP Rankings",

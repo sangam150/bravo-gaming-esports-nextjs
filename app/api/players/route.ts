@@ -1,6 +1,6 @@
-import { getPlayers, savePlayer } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { getPlayers, savePlayer } from "@/lib/data";
 import { revalidatePlayerPaths } from "@/lib/revalidate-public";
 
 export async function GET() {

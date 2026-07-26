@@ -11,7 +11,7 @@ type BravoFeedCardMatch = {
   dayNumber: number;
 };
 
-export type BravoSourceMatchResult = {
+type BravoSourceMatchResult = {
   matchId: string;
   teamId: string | null;
   teamName: string;
@@ -19,7 +19,7 @@ export type BravoSourceMatchResult = {
   kills: number;
 };
 
-export type BravoSourceMatch = {
+type BravoSourceMatch = {
   id: string;
   tournamentId: string;
   sequenceNumber: number;
@@ -57,7 +57,7 @@ export type BravoSourcePlayerStanding = {
   rank: number;
 };
 
-export type BravoSourceTournament = {
+type BravoSourceTournament = {
   id: string;
   code: string;
   name: string;
@@ -87,7 +87,7 @@ export type BravoSourceTournament = {
   discordInviteUrl?: string;
 };
 
-export type BravoTournamentPayload = {
+type BravoTournamentPayload = {
   tournament: BravoSourceTournament;
   standings: BravoSourceStanding[] | string;
   playerStandings: BravoSourcePlayerStanding[];
@@ -211,9 +211,7 @@ function withFallbackCards(cards: BravoFeedCardMatch[]) {
 }
 
 function extractNextPayloadStrings(html: string) {
-  return [...html.matchAll(/self\.__next_f\.push\(\[(\d+),("(?:[^"\\]|\\.)*")\]\)<\/script>/g)].map((match) =>
-    JSON.parse(match[2]!)
-  );
+  return [...html.matchAll(/self\.__next_f\.push\(\[(\d+),("(?:[^"\\]|\\.)*")\]\)<\/script>/g)].map((match) => JSON.parse(match[2]!));
 }
 
 function extractPayloadObject(decodedPayload: string) {
@@ -284,10 +282,8 @@ function parseTournamentPayload(html: string) {
 export async function fetchBravoFeedTournaments(options?: { maxDay?: number }): Promise<BravoTournamentFeedItem[]> {
   const indexHtml = await fetchText(BRAVO_FEED_URL);
   const cards = withFallbackCards(extractFeedCards(indexHtml));
-  const filteredCards =
-    typeof options?.maxDay === "number"
-      ? cards.filter((card) => card.dayNumber <= options.maxDay)
-      : cards;
+  const maxDay = options?.maxDay;
+  const filteredCards = typeof maxDay === "number" ? cards.filter((card) => card.dayNumber <= maxDay) : cards;
 
   const tournamentItems = await Promise.all(
     filteredCards.map(async (card) => {
@@ -304,7 +300,7 @@ export async function fetchBravoFeedTournaments(options?: { maxDay?: number }): 
         sourceStatus: payload.tournament.status,
         payload,
       } satisfies BravoTournamentFeedItem;
-    })
+    }),
   );
 
   return tournamentItems.sort((firstItem, secondItem) => firstItem.dayNumber - secondItem.dayNumber);

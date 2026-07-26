@@ -180,7 +180,7 @@ export function buildPubgTeamBoardRows(matches: readonly PubgHubMatch[], teamLoo
         avgPlacement: Number((row.totalPlacement / Math.max(row.matches, 1)).toFixed(2)),
         trend: row.trend.slice(-6),
       } satisfies PubgTeamBoardRow;
-    })
+    }),
   ).map((row, index) => ({
     ...row,
     rank: index + 1,
@@ -304,24 +304,19 @@ export function buildPubgPlayerBoardRows(matches: readonly PubgHubMatch[], playe
         trend: row.trend.slice(-6),
         bestMatch: row.bestMatch ?? null,
       } satisfies PubgPlayerBoardRow;
-    })
+    }),
   ).map((row, index) => ({
     ...row,
     rank: index + 1,
   }));
 }
 
-export function buildPubgAggregatePlayerBoardRows(
-  players: readonly PubgHubPlayer[],
-  eventSlug = "all"
-) {
+export function buildPubgAggregatePlayerBoardRows(players: readonly PubgHubPlayer[], eventSlug = "all") {
   return getRankedPlayers(
     players
       .map((player) => {
         const scopedEventStats =
-          eventSlug === "all"
-            ? player.eventStats
-            : player.eventStats.filter((eventStat) => eventStat.eventSlug === eventSlug);
+          eventSlug === "all" ? player.eventStats : player.eventStats.filter((eventStat) => eventStat.eventSlug === eventSlug);
 
         if (scopedEventStats.length === 0) {
           return null;
@@ -335,7 +330,7 @@ export function buildPubgAggregatePlayerBoardRows(
             knocks: summary.knocks + eventStat.knocks,
             damage: summary.damage + eventStat.damage,
           }),
-          { matches: 0, kills: 0, assists: 0, knocks: 0, damage: 0 }
+          { matches: 0, kills: 0, assists: 0, knocks: 0, damage: 0 },
         );
 
         return {
@@ -355,18 +350,12 @@ export function buildPubgAggregatePlayerBoardRows(
           damage: totals.damage,
           avgKills: Number((totals.kills / Math.max(totals.matches, 1)).toFixed(2)),
           avgDamage: Number((totals.damage / Math.max(totals.matches, 1)).toFixed(2)),
-          trend:
-            player.recentTrend.length > 0
-              ? player.recentTrend
-              : scopedEventStats.map((eventStat) => eventStat.kills).slice(-6),
-          bestMatch:
-            player.bestMatch && (eventSlug === "all" || player.bestMatch.eventSlug === eventSlug)
-              ? player.bestMatch
-              : null,
+          trend: player.recentTrend.length > 0 ? player.recentTrend : scopedEventStats.map((eventStat) => eventStat.kills).slice(-6),
+          bestMatch: player.bestMatch && (eventSlug === "all" || player.bestMatch.eventSlug === eventSlug) ? player.bestMatch : null,
           sourceRank: scopedEventStats[0]?.rank ?? player.sourceRank ?? null,
         } satisfies PubgPlayerBoardRow;
       })
-      .filter((row): row is NonNullable<typeof row> => Boolean(row))
+      .filter((row): row is NonNullable<typeof row> => Boolean(row)),
   ).map((row, index) => ({
     ...row,
     rank: index + 1,

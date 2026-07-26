@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/lib/admin-api";
 import { formatDisplayDateTime } from "@/lib/display-format";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type AdminRosterRequest = {
   id: string;
@@ -68,7 +68,10 @@ function getStatusClasses(status: string) {
 }
 
 export default function AdminTeamRequestsManager() {
-  const [data, setData] = useState<TeamRequestsPayload>({ rosterRequests: [], mossSubmissions: [] });
+  const [data, setData] = useState<TeamRequestsPayload>({
+    rosterRequests: [],
+    mossSubmissions: [],
+  });
   const [loading, setLoading] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -79,7 +82,7 @@ export default function AdminTeamRequestsManager() {
     () =>
       data.rosterRequests.filter((request) => request.status === "pending").length +
       data.mossSubmissions.filter((submission) => submission.status === "submitted").length,
-    [data]
+    [data],
   );
 
   const loadData = useCallback(async () => {
@@ -90,7 +93,11 @@ export default function AdminTeamRequestsManager() {
       const response = await adminFetch("/api/admin/team-requests");
       setData(response.data ?? { rosterRequests: [], mossSubmissions: [] });
     } catch (loadError: unknown) {
-      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(loadError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -100,12 +107,7 @@ export default function AdminTeamRequestsManager() {
     void loadData();
   }, [loadData]);
 
-  async function handleReview(
-    kind: "roster_request" | "moss_submission",
-    id: string,
-    status: string,
-    currentNote: string | null
-  ) {
+  async function handleReview(kind: "roster_request" | "moss_submission", id: string, status: string, currentNote: string | null) {
     const noteKey = `${kind}:${id}`;
     setSavingKey(noteKey);
     setMessage(null);
@@ -124,7 +126,11 @@ export default function AdminTeamRequestsManager() {
       setMessage("Team request updated");
       await loadData();
     } catch (saveError: unknown) {
-      setError(toUserFacingErrorMessage(saveError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(saveError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setSavingKey(null);
     }
@@ -189,7 +195,9 @@ export default function AdminTeamRequestsManager() {
                         {request.requestedByEmail ? ` · ${request.requestedByEmail}` : ""}
                       </p>
                     </div>
-                    <span className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${getStatusClasses(request.status)}`}>
+                    <span
+                      className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${getStatusClasses(request.status)}`}
+                    >
                       {request.status}
                     </span>
                   </div>
@@ -218,7 +226,12 @@ export default function AdminTeamRequestsManager() {
                     <textarea
                       className={`${textareaClass} mt-2`}
                       value={draftNotes[noteKey] ?? request.adminNote ?? ""}
-                      onChange={(event) => setDraftNotes((current) => ({ ...current, [noteKey]: event.target.value }))}
+                      onChange={(event) =>
+                        setDraftNotes((current) => ({
+                          ...current,
+                          [noteKey]: event.target.value,
+                        }))
+                      }
                       placeholder="Add review notes, roster conditions, or follow-up instructions."
                     />
                   </div>
@@ -276,11 +289,14 @@ export default function AdminTeamRequestsManager() {
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-blue">MOSS Submission</p>
                       <h4 className="mt-2 text-lg font-black text-white">{submission.teamName}</h4>
                       <p className="mt-2 text-sm text-text-muted">
-                        {submission.eventName ?? "Event pending"}{submission.matchId ? ` · Match ${submission.matchId}` : ""}
+                        {submission.eventName ?? "Event pending"}
+                        {submission.matchId ? ` · Match ${submission.matchId}` : ""}
                         {submission.playerName ? ` · ${submission.playerName}` : ""}
                       </p>
                     </div>
-                    <span className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${getStatusClasses(submission.status)}`}>
+                    <span
+                      className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${getStatusClasses(submission.status)}`}
+                    >
                       {submission.status}
                     </span>
                   </div>
@@ -293,7 +309,12 @@ export default function AdminTeamRequestsManager() {
                     <div className="rounded-card border border-white/10 bg-bg-primary p-4">
                       <p className="text-xs uppercase tracking-[0.14em] text-text-muted">File</p>
                       {submission.fileUrl ? (
-                        <a href={submission.fileUrl} target="_blank" rel="noreferrer" className="mt-2 block text-sm text-accent-blue hover:underline">
+                        <a
+                          href={submission.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 block text-sm text-accent-blue hover:underline"
+                        >
                           Open uploaded file
                         </a>
                       ) : (
@@ -303,7 +324,12 @@ export default function AdminTeamRequestsManager() {
                     <div className="rounded-card border border-white/10 bg-bg-primary p-4">
                       <p className="text-xs uppercase tracking-[0.14em] text-text-muted">External Link</p>
                       {submission.externalLink ? (
-                        <a href={submission.externalLink} target="_blank" rel="noreferrer" className="mt-2 block text-sm text-accent-blue hover:underline">
+                        <a
+                          href={submission.externalLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 block text-sm text-accent-blue hover:underline"
+                        >
                           Open reference
                         </a>
                       ) : (
@@ -321,7 +347,12 @@ export default function AdminTeamRequestsManager() {
                     <textarea
                       className={`${textareaClass} mt-2`}
                       value={draftNotes[noteKey] ?? submission.adminNote ?? ""}
-                      onChange={(event) => setDraftNotes((current) => ({ ...current, [noteKey]: event.target.value }))}
+                      onChange={(event) =>
+                        setDraftNotes((current) => ({
+                          ...current,
+                          [noteKey]: event.target.value,
+                        }))
+                      }
                       placeholder="Add approval notes, missing evidence requests, or follow-up instructions."
                     />
                   </div>

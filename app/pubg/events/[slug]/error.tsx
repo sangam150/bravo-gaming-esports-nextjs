@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 
-export default function PubgEventDetailError({
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function PubgEventDetailError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <main className="page-shell">
       <div className="page-inner flex min-h-[60vh] max-w-3xl flex-col items-center justify-center text-center">

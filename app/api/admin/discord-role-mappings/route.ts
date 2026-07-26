@@ -3,32 +3,21 @@ import { writeAuditLog } from "@/lib/audit-logs";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import type { TablesInsert } from "@/types/database.types";
 
-const MAPPING_TYPES = new Set([
-  "access",
-  "team_function",
-  "team_identity",
-  "verification",
-  "cosmetic",
-  "bot",
-  "deny",
-  "ignored",
-]);
-const APPLICATION_ROLES = new Set([
-  "admin",
-  "organizer",
-  "moderator",
-  "team_manager",
-  "team_igl",
-  "coach",
-  "player",
-  "viewer",
-]);
+const MAPPING_TYPES = new Set(["access", "team_function", "team_identity", "verification", "cosmetic", "bot", "deny", "ignored"]);
+const APPLICATION_ROLES = new Set(["admin", "organizer", "moderator", "team_manager", "team_igl", "coach", "player", "viewer"]);
 
 async function requireSuperAdmin(request: Request) {
   const session = await getRequestSession(request);
-  if (!session) return { session: null, response: new Response("Unauthorized", { status: 401 }) };
+  if (!session)
+    return {
+      session: null,
+      response: new Response("Unauthorized", { status: 401 }),
+    };
   if (session.role !== "super_admin") {
-    return { session: null, response: permissionDeniedResponse("Only the owner can manage Discord role mappings.") };
+    return {
+      session: null,
+      response: permissionDeniedResponse("Only the owner can manage Discord role mappings."),
+    };
   }
   return { session, response: null };
 }
@@ -40,32 +29,18 @@ export async function GET(request: Request) {
   const guildId = process.env.BRAVO_DISCORD_GUILD_ID?.trim();
   if (!guildId) return Response.json({ error: "Discord guild is not configured." }, { status: 503 });
 
-  const [
-    { data: mappings, error: mappingsError },
-    { data: teams, error: teamsError },
-    { data: reviews, error: reviewsError },
-  ] = await Promise.all([
-    client
-      .from("discord_role_mappings")
-      .select("*")
-      .eq("discord_guild_id", guildId)
-      .order("role_position", { ascending: false }),
-    client
-      .from("teams")
-      .select("id,name,tag,slug,is_active,status")
-      .is("deleted_at", null)
-      .order("name"),
-    client
-      .from("discord_access_reviews")
-      .select("*")
-      .eq("status", "pending")
-      .order("created_at", { ascending: false })
-      .limit(200),
-  ]);
+  const [{ data: mappings, error: mappingsError }, { data: teams, error: teamsError }, { data: reviews, error: reviewsError }] =
+    await Promise.all([
+      client.from("discord_role_mappings").select("*").eq("discord_guild_id", guildId).order("role_position", { ascending: false }),
+      client.from("teams").select("id,name,tag,slug,is_active,status").is("deleted_at", null).order("name"),
+      client.from("discord_access_reviews").select("*").eq("status", "pending").order("created_at", { ascending: false }).limit(200),
+    ]);
   if (mappingsError || teamsError || reviewsError) {
     return Response.json(
-      { error: mappingsError?.message ?? teamsError?.message ?? reviewsError?.message },
-      { status: 500 }
+      {
+        error: mappingsError?.message ?? teamsError?.message ?? reviewsError?.message,
+      },
+      { status: 500 },
     );
   }
   return Response.json({ data: { guildId, mappings, teams, reviews } });
@@ -90,9 +65,7 @@ export async function POST(request: Request) {
     if (existingCatalogError) {
       return Response.json({ error: existingCatalogError.message }, { status: 500 });
     }
-    const existingByRoleId = new Map(
-      (existingCatalog ?? []).map((mapping) => [mapping.discord_role_id, mapping])
-    );
+    const existingByRoleId = new Map((existingCatalog ?? []).map((mapping) => [mapping.discord_role_id, mapping]));
     const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
       headers: { Authorization: `Bot ${botToken}` },
       cache: "no-store",
@@ -123,21 +96,14 @@ export async function POST(request: Request) {
       }));
     const liveRoleIds = new Set(catalog.map((role) => role.discord_role_id));
     const missingMappings = (existingCatalog ?? []).filter(
-      (mapping) =>
-        !liveRoleIds.has(mapping.discord_role_id) &&
-        mapping.mapping_type !== "ignored" &&
-        mapping.mapping_type !== "bot"
+      (mapping) => !liveRoleIds.has(mapping.discord_role_id) && mapping.mapping_type !== "ignored" && mapping.mapping_type !== "bot",
     );
-    const newHumanRoles = catalog.filter(
-      (role) => !existingByRoleId.has(role.discord_role_id) && !role.managed_by_discord
-    );
+    const newHumanRoles = catalog.filter((role) => !existingByRoleId.has(role.discord_role_id) && !role.managed_by_discord);
     const renamedRoles = catalog.filter((role) => {
       const existing = existingByRoleId.get(role.discord_role_id);
       return existing && existing.discord_role_name !== role.discord_role_name;
     });
-    const { error } = await client
-      .from("discord_role_mappings")
-      .upsert(catalog, { onConflict: "discord_guild_id,discord_role_id" });
+    const { error } = await client.from("discord_role_mappings").upsert(catalog, { onConflict: "discord_guild_id,discord_role_id" });
     if (error) return Response.json({ error: error.message }, { status: 500 });
     if (missingMappings.length > 0) {
       const { error: missingError } = await client
@@ -149,7 +115,10 @@ export async function POST(request: Request) {
           updated_at: synchronizedAt,
         })
         .eq("discord_guild_id", guildId)
-        .in("discord_role_id", missingMappings.map((mapping) => mapping.discord_role_id));
+        .in(
+          "discord_role_id",
+          missingMappings.map((mapping) => mapping.discord_role_id),
+        );
       if (missingError) return Response.json({ error: missingError.message }, { status: 500 });
     }
     const reviewRows: TablesInsert<"discord_access_reviews">[] = [
@@ -158,7 +127,10 @@ export async function POST(request: Request) {
         discord_guild_id: guildId,
         category: "new_discord_role",
         discord_role_ids: [role.discord_role_id],
-        details: { roleName: role.discord_role_name, rolePosition: role.role_position },
+        details: {
+          roleName: role.discord_role_name,
+          rolePosition: role.role_position,
+        },
       })),
       ...missingMappings.map((mapping) => ({
         discord_user_id: "guild-role-catalog",
@@ -204,8 +176,7 @@ export async function POST(request: Request) {
 
   const roleId = typeof body.roleId === "string" ? body.roleId.trim() : "";
   const mappingType = typeof body.mappingType === "string" ? body.mappingType : "";
-  const applicationRole =
-    typeof body.applicationRole === "string" && body.applicationRole ? body.applicationRole : null;
+  const applicationRole = typeof body.applicationRole === "string" && body.applicationRole ? body.applicationRole : null;
   const teamId = typeof body.teamId === "string" && body.teamId ? body.teamId : null;
   if (!/^\d{15,22}$/.test(roleId) || !MAPPING_TYPES.has(mappingType)) {
     return Response.json({ error: "Invalid Discord role mapping." }, { status: 400 });

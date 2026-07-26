@@ -11,18 +11,15 @@ export interface PlayerTeamAppearanceSummary {
 
 function compareAppearanceRecency(
   firstAppearance: Pick<PlayerTeamAppearanceSummary, "latestSequence" | "latestPlayedAt">,
-  secondAppearance: Pick<PlayerTeamAppearanceSummary, "latestSequence" | "latestPlayedAt">
+  secondAppearance: Pick<PlayerTeamAppearanceSummary, "latestSequence" | "latestPlayedAt">,
 ) {
   return (
-    (secondAppearance.latestSequence ?? Number.NEGATIVE_INFINITY) -
-      (firstAppearance.latestSequence ?? Number.NEGATIVE_INFINITY) ||
+    (secondAppearance.latestSequence ?? Number.NEGATIVE_INFINITY) - (firstAppearance.latestSequence ?? Number.NEGATIVE_INFINITY) ||
     (secondAppearance.latestPlayedAt ?? "").localeCompare(firstAppearance.latestPlayedAt ?? "")
   );
 }
 
-export function choosePreferredPlayerTeam(
-  appearances: PlayerTeamAppearanceSummary[]
-): PlayerTeamAppearanceSummary | null {
+export function choosePreferredPlayerTeam(appearances: PlayerTeamAppearanceSummary[]): PlayerTeamAppearanceSummary | null {
   if (appearances.length === 0) return null;
 
   return (
@@ -30,7 +27,7 @@ export function choosePreferredPlayerTeam(
       (firstAppearance, secondAppearance) =>
         secondAppearance.matches - firstAppearance.matches ||
         compareAppearanceRecency(firstAppearance, secondAppearance) ||
-        (firstAppearance.teamName ?? "").localeCompare(secondAppearance.teamName ?? "")
+        (firstAppearance.teamName ?? "").localeCompare(secondAppearance.teamName ?? ""),
     )[0] ?? null
   );
 }
@@ -58,8 +55,7 @@ export function buildPlayerAppearanceMapFromMatches(matches: TournamentMatch[]) 
       currentAppearance.slotNumber = playerResult.slotNumber ?? currentAppearance.slotNumber;
 
       const isNewerMatch =
-        (match.sequenceNumber ?? Number.NEGATIVE_INFINITY) >=
-          (currentAppearance.latestSequence ?? Number.NEGATIVE_INFINITY) ||
+        (match.sequenceNumber ?? Number.NEGATIVE_INFINITY) >= (currentAppearance.latestSequence ?? Number.NEGATIVE_INFINITY) ||
         (match.playedAt ?? "").localeCompare(currentAppearance.latestPlayedAt ?? "") >= 0;
       if (isNewerMatch) {
         currentAppearance.latestPlayedAt = match.playedAt ?? currentAppearance.latestPlayedAt;

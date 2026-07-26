@@ -7,7 +7,17 @@ export async function GET(request: Request) {
   if (unauthorized) return unauthorized;
 
   const [hub, managedPlatformEvents] = await Promise.all([getPlatformHubData(), getManagedPlatformEvents({ includeUnpublished: true })]);
-  const eventMap = new Map<string, { id: string; slug: string; name: string; gameName: string; status: string; state?: string }>();
+  const eventMap = new Map<
+    string,
+    {
+      id: string;
+      slug: string;
+      name: string;
+      gameName: string;
+      status: string;
+      state?: string;
+    }
+  >();
 
   for (const event of hub.events) {
     eventMap.set(event.slug, {
@@ -32,7 +42,10 @@ export async function GET(request: Request) {
   }
 
   const data = Array.from(eventMap.values())
-    .sort((firstEvent, secondEvent) => firstEvent.gameName.localeCompare(secondEvent.gameName) || firstEvent.name.localeCompare(secondEvent.name))
+    .sort(
+      (firstEvent, secondEvent) =>
+        firstEvent.gameName.localeCompare(secondEvent.gameName) || firstEvent.name.localeCompare(secondEvent.name),
+    )
     .map((event) => ({
       id: event.id,
       slug: event.slug,

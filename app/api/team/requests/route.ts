@@ -2,19 +2,19 @@ import { requireTeamWorkspaceUser } from "@/lib/admin-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import { createTeamRosterRequest } from "@/lib/team-workspace";
-import {
-  jsonErrorResponse,
-  USER_FACING_ERROR_MESSAGES,
-} from "@/lib/user-facing-errors";
+import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
 export async function POST(request: Request) {
-  const limited = await enforceRateLimit(request, { key: "team-roster-request", maxRequests: 12, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "team-roster-request",
+    maxRequests: 12,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   const auth = await requireTeamWorkspaceUser(request);
   if (auth.response || !auth.session) {
-    return auth.response ??
-      Response.json({ error: USER_FACING_ERROR_MESSAGES.session }, { status: 401 });
+    return auth.response ?? Response.json({ error: USER_FACING_ERROR_MESSAGES.session }, { status: 401 });
   }
 
   try {
@@ -48,4 +48,3 @@ export async function POST(request: Request) {
     });
   }
 }
-

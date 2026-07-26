@@ -1,6 +1,6 @@
+import type { Tables } from "@/types/database.types";
 import { compareMatchPlayerResults, compareMatchTeamResults } from "./ranking-sort";
 import type { MatchPlayerResult, TeamMatchResult } from "./types";
-import type { Tables } from "@/types/database.types";
 
 export const DEFAULT_POINT_SYSTEM_ID = "00000000-0000-4000-8000-000000000001";
 
@@ -47,11 +47,7 @@ function normalizeTeamKey(teamResult: Pick<TeamMatchResult, "teamId" | "teamName
   return `name:${teamResult.teamName.trim().toLowerCase()}`;
 }
 
-export function scoreMatchResults(
-  teamResults: TeamMatchResult[],
-  playerResults: MatchPlayerResult[],
-  pointSystem: PointSystemRecord
-) {
+export function scoreMatchResults(teamResults: TeamMatchResult[], playerResults: MatchPlayerResult[], pointSystem: PointSystemRecord) {
   const placementPointsMap = normalizePlacementPointsMap(pointSystem.placement_points);
   const killPointMultiplier = toFiniteNumber(pointSystem.kill_points, 1);
 
@@ -81,9 +77,7 @@ export function scoreMatchResults(
     .map((playerResult) => {
       const relatedTeam =
         teamLookup.get(normalizeTeamKey(playerResult)) ??
-        (playerResult.teamName.trim()
-          ? teamLookup.get(`name:${playerResult.teamName.trim().toLowerCase()}`) ?? null
-          : null);
+        (playerResult.teamName.trim() ? (teamLookup.get(`name:${playerResult.teamName.trim().toLowerCase()}`) ?? null) : null);
       const placement = toFiniteNumber(playerResult.placement, relatedTeam?.placement ?? 0);
       const kills = toFiniteNumber(playerResult.kills);
       const placementPoints = resolvePlacementPoints(placementPointsMap, placement);

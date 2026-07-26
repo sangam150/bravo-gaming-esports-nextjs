@@ -15,12 +15,7 @@ function serializeError(error: unknown) {
   };
 }
 
-export async function logServerError(
-  scope: string,
-  error: unknown,
-  request?: Request,
-  extra?: Record<string, unknown>
-) {
+export async function logServerError(scope: string, error: unknown, request?: Request, extra?: Record<string, unknown>) {
   const serialized = serializeError(error);
   const url = request ? new URL(request.url) : null;
   const payload: Omit<ErrorLogRecord, "id"> = {
@@ -51,11 +46,8 @@ export async function getRecentErrorLogs(limit = 25): Promise<ErrorLogRecord[]> 
 
   try {
     const records = await fetchDocumentCollection<ErrorLogRecord>(COLLECTIONS.errorLogs, limit);
-    return records.sort((firstRecord, secondRecord) =>
-      (secondRecord.createdAt ?? "").localeCompare(firstRecord.createdAt ?? "")
-    );
+    return records.sort((firstRecord, secondRecord) => (secondRecord.createdAt ?? "").localeCompare(firstRecord.createdAt ?? ""));
   } catch {
     return [];
   }
 }
-

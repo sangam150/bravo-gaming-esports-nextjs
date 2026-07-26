@@ -1,8 +1,6 @@
-import { randomUUID } from "crypto";
-import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { requireAuthenticatedUser } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
-import { enforceRateLimit } from "@/lib/rate-limit";
+import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import {
   buildPrivateUploadUrl,
   deleteFromStorageByUrl,
@@ -13,11 +11,13 @@ import {
   uploadPrivateFile,
   uploadPublicFile,
 } from "@/lib/r2/storage";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
-import { createUploadRecord } from "@/lib/upload-records";
 import { isPrivateUploadType, normalizeUploadType, type UploadType } from "@/lib/upload-config";
+import { createUploadRecord } from "@/lib/upload-records";
 import { resolveUploadContentType, validateUpload } from "@/lib/upload-validation";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
@@ -138,13 +138,17 @@ export async function GET(request: Request) {
           fallback: "We couldn't load that public upload right now. Please try again shortly.",
         }),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(request: Request) {
-  const limited = await enforceRateLimit(request, { key: "shared-upload-r2", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "shared-upload-r2",
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   const auth = await requireAuthenticatedUser(request);
@@ -170,7 +174,13 @@ export async function POST(request: Request) {
 
     if (!auth.session.isAdmin) {
       if (!auth.session.teamId) {
-        return Response.json({ success: false, error: "This account is not linked to a team yet." }, { status: 403 });
+        return Response.json(
+          {
+            success: false,
+            error: "This account is not linked to a team yet.",
+          },
+          { status: 403 },
+        );
       }
 
       if (!TEAM_UPLOAD_TYPES.has(type)) {
@@ -202,8 +212,7 @@ export async function POST(request: Request) {
     const uploadResult = isPrivateUploadType(type)
       ? await uploadPrivateFile(type, entityId, file.name, buffer, contentType)
       : await uploadPublicFile(type, entityId, file.name, buffer, contentType);
-    const url =
-      uploadResult.visibility === "private" ? buildPrivateUploadUrl(uploadRecordId) : uploadResult.url;
+    const url = uploadResult.visibility === "private" ? buildPrivateUploadUrl(uploadRecordId) : uploadResult.url;
 
     const record = await createUploadRecord({
       id: uploadRecordId,
@@ -253,8 +262,7 @@ export async function POST(request: Request) {
           fallback: "We couldn't upload that file right now. Please try again shortly.",
         }),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

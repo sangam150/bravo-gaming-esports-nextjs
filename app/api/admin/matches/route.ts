@@ -13,14 +13,10 @@ import {
 import { readJsonObject } from "@/lib/json-utils";
 import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
-import { getRecentUploadRecords } from "@/lib/upload-records";
-import {
-  getUserFacingPlayerLabel,
-  getUserFacingTeamLabel,
-  USER_FACING_LABELS,
-} from "@/lib/user-facing-errors";
-import type { Json } from "@/types/database.types";
 import type { MatchPlayerResult, TeamMatchResult, TournamentMatch } from "@/lib/types";
+import { getRecentUploadRecords } from "@/lib/upload-records";
+import { getUserFacingPlayerLabel, getUserFacingTeamLabel, USER_FACING_LABELS } from "@/lib/user-facing-errors";
+import type { Json } from "@/types/database.types";
 
 function normalizeTeamResults(value: unknown) {
   if (!Array.isArray(value)) return [];
@@ -33,22 +29,16 @@ function normalizeTeamResults(value: unknown) {
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
           teamName: getUserFacingTeamLabel(
             typeof item.teamName === "string" ? item.teamName : undefined,
-            USER_FACING_LABELS.teamPendingMapping
+            USER_FACING_LABELS.teamPendingMapping,
           ),
-          slotNumber:
-            typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
+          slotNumber: typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
           placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,
           kills: typeof item.kills === "number" && Number.isFinite(item.kills) ? item.kills : 0,
           damage: typeof item.damage === "number" && Number.isFinite(item.damage) ? item.damage : 0,
-          placementPoints:
-            typeof item.placementPoints === "number" && Number.isFinite(item.placementPoints)
-              ? item.placementPoints
-              : 0,
-          killPoints:
-            typeof item.killPoints === "number" && Number.isFinite(item.killPoints) ? item.killPoints : 0,
-          totalPoints:
-            typeof item.totalPoints === "number" && Number.isFinite(item.totalPoints) ? item.totalPoints : 0,
-        }) satisfies TeamMatchResult
+          placementPoints: typeof item.placementPoints === "number" && Number.isFinite(item.placementPoints) ? item.placementPoints : 0,
+          killPoints: typeof item.killPoints === "number" && Number.isFinite(item.killPoints) ? item.killPoints : 0,
+          totalPoints: typeof item.totalPoints === "number" && Number.isFinite(item.totalPoints) ? item.totalPoints : 0,
+        }) satisfies TeamMatchResult,
     );
 }
 
@@ -63,30 +53,24 @@ function normalizePlayerResults(value: unknown) {
           playerId: typeof item.playerId === "string" ? item.playerId : "",
           playerName: getUserFacingPlayerLabel(
             typeof item.playerName === "string" ? item.playerName : undefined,
-            USER_FACING_LABELS.playerPendingMapping
+            USER_FACING_LABELS.playerPendingMapping,
           ),
           pubgPlayerId: typeof item.pubgPlayerId === "string" ? item.pubgPlayerId : undefined,
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
           teamName: getUserFacingTeamLabel(
             typeof item.teamName === "string" ? item.teamName : undefined,
-            USER_FACING_LABELS.teamPendingMapping
+            USER_FACING_LABELS.teamPendingMapping,
           ),
-          slotNumber:
-            typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
+          slotNumber: typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
           placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,
           kills: typeof item.kills === "number" && Number.isFinite(item.kills) ? item.kills : 0,
           assists: typeof item.assists === "number" && Number.isFinite(item.assists) ? item.assists : 0,
           knocks: typeof item.knocks === "number" && Number.isFinite(item.knocks) ? item.knocks : 0,
           damage: typeof item.damage === "number" && Number.isFinite(item.damage) ? item.damage : 0,
-          survivalTime:
-            typeof item.survivalTime === "number" && Number.isFinite(item.survivalTime) ? item.survivalTime : 0,
-          placementPoints:
-            typeof item.placementPoints === "number" && Number.isFinite(item.placementPoints)
-              ? item.placementPoints
-              : 0,
-          totalPoints:
-            typeof item.totalPoints === "number" && Number.isFinite(item.totalPoints) ? item.totalPoints : 0,
-        }) satisfies MatchPlayerResult
+          survivalTime: typeof item.survivalTime === "number" && Number.isFinite(item.survivalTime) ? item.survivalTime : 0,
+          placementPoints: typeof item.placementPoints === "number" && Number.isFinite(item.placementPoints) ? item.placementPoints : 0,
+          totalPoints: typeof item.totalPoints === "number" && Number.isFinite(item.totalPoints) ? item.totalPoints : 0,
+        }) satisfies MatchPlayerResult,
     );
 }
 
@@ -94,7 +78,10 @@ function normalizeMatchInput(value: Record<string, unknown>) {
   const screenshotUrls = Array.isArray(value.screenshotUrls)
     ? value.screenshotUrls.filter((item): item is string => typeof item === "string")
     : typeof value.screenshotUrls === "string"
-      ? value.screenshotUrls.split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)
+      ? value.screenshotUrls
+          .split(/[\n,]+/g)
+          .map((item) => item.trim())
+          .filter(Boolean)
       : [];
 
   return {
@@ -103,10 +90,8 @@ function normalizeMatchInput(value: Record<string, unknown>) {
     scrimId: typeof value.scrimId === "string" ? value.scrimId : undefined,
     pubgMatchId: typeof value.pubgMatchId === "string" ? value.pubgMatchId : "",
     externalMatchId: typeof value.externalMatchId === "string" ? value.externalMatchId : undefined,
-    sequenceNumber:
-      typeof value.sequenceNumber === "number" && Number.isFinite(value.sequenceNumber) ? value.sequenceNumber : undefined,
-    matchNumber:
-      typeof value.matchNumber === "number" && Number.isFinite(value.matchNumber) ? value.matchNumber : undefined,
+    sequenceNumber: typeof value.sequenceNumber === "number" && Number.isFinite(value.sequenceNumber) ? value.sequenceNumber : undefined,
+    matchNumber: typeof value.matchNumber === "number" && Number.isFinite(value.matchNumber) ? value.matchNumber : undefined,
     map: typeof value.map === "string" ? value.map : "",
     eventName: typeof value.eventName === "string" ? value.eventName : undefined,
     eventSlug: typeof value.eventSlug === "string" ? value.eventSlug : undefined,
@@ -117,11 +102,8 @@ function normalizeMatchInput(value: Record<string, unknown>) {
     points: typeof value.points === "number" && Number.isFinite(value.points) ? value.points : undefined,
     knockouts: typeof value.knockouts === "number" && Number.isFinite(value.knockouts) ? value.knockouts : undefined,
     placementPoints:
-      typeof value.placementPoints === "number" && Number.isFinite(value.placementPoints)
-        ? value.placementPoints
-        : undefined,
-    killPoints:
-      typeof value.killPoints === "number" && Number.isFinite(value.killPoints) ? value.killPoints : undefined,
+      typeof value.placementPoints === "number" && Number.isFinite(value.placementPoints) ? value.placementPoints : undefined,
+    killPoints: typeof value.killPoints === "number" && Number.isFinite(value.killPoints) ? value.killPoints : undefined,
     playedAt: typeof value.playedAt === "string" ? value.playedAt : undefined,
     vodUrl: typeof value.vodUrl === "string" ? value.vodUrl : undefined,
     resultScreenshotUrl: typeof value.resultScreenshotUrl === "string" ? value.resultScreenshotUrl : undefined,
@@ -196,9 +178,8 @@ export async function GET(request: Request) {
   return Response.json({
     success: true,
     data: { matches, uploads, pointSystems },
-    message: matches.filter((match) => match.status !== "draft").length === 0
-      ? "Match data will appear once results are published."
-      : undefined,
+    message:
+      matches.filter((match) => match.status !== "draft").length === 0 ? "Match data will appear once results are published." : undefined,
   });
 }
 
@@ -209,9 +190,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const entries = Array.isArray(body.matches)
-      ? body.matches
-          .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
-          .map(normalizeMatchInput)
+      ? body.matches.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object").map(normalizeMatchInput)
       : [normalizeMatchInput(body)];
 
     if (entries.some((entry) => !entry.tournamentId || !entry.map)) {
@@ -220,11 +199,15 @@ export async function POST(request: Request) {
 
     const data =
       entries.length === 1
-        ? await saveCompetitionMatch(entries[0], { publish: entries[0].status === "published" })
+        ? await saveCompetitionMatch(entries[0], {
+            publish: entries[0].status === "published",
+          })
         : await Promise.all(
             entries.map((entry) =>
-              saveCompetitionMatch(entry, { publish: entry.status === "published" })
-            )
+              saveCompetitionMatch(entry, {
+                publish: entry.status === "published",
+              }),
+            ),
           );
     await writeAuditLogFromRequest(request, {
       action: entries.length === 1 ? "create" : "bulk_create",
@@ -269,7 +252,7 @@ export async function PUT(request: Request) {
             ...existingMatch,
             status: "published",
           },
-          { publish: true }
+          { publish: true },
         );
       } else if (action === "unpublish") {
         data = await setCompetitionMatchPublishedState(matchId, false);
@@ -304,7 +287,9 @@ export async function PUT(request: Request) {
     }
 
     const existingMatch = entry.id ? await getCompetitionMatch(entry.id) : null;
-    const data = await saveCompetitionMatch(entry, { publish: entry.status === "published" });
+    const data = await saveCompetitionMatch(entry, {
+      publish: entry.status === "published",
+    });
     await writeAuditLogFromRequest(request, {
       action: "edit",
       entityType: "match",

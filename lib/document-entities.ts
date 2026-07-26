@@ -12,7 +12,7 @@ type SoftDeletableRecord = {
   status?: string | null;
 };
 
-export function isSoftDeletedRecord(record?: { deletedAt?: string | null } | null) {
+function isSoftDeletedRecord(record?: { deletedAt?: string | null } | null) {
   return Boolean(record?.deletedAt);
 }
 
@@ -24,7 +24,7 @@ export async function ensureUniqueDocumentSlug(
   collectionName: string,
   desiredValue: string,
   currentId?: string | null,
-  fallbackValue?: string
+  fallbackValue?: string,
 ) {
   const baseSlug = slugify(desiredValue || fallbackValue || "item");
   const records = await fetchDocumentCollection<SoftDeletableRecord>(collectionName, 2000).catch(() => []);
@@ -32,7 +32,7 @@ export async function ensureUniqueDocumentSlug(
     records
       .filter((record) => record.id !== currentId && !isSoftDeletedRecord(record))
       .map((record) => record.slug?.trim().toLowerCase())
-      .filter((value): value is string => Boolean(value))
+      .filter((value): value is string => Boolean(value)),
   );
 
   if (!takenSlugs.has(baseSlug)) {
@@ -50,7 +50,7 @@ export async function ensureUniqueDocumentSlug(
 export async function getDocumentByIdOrSlug<T extends SoftDeletableRecord>(
   collectionName: string,
   identifier: string,
-  options: { includeDeleted?: boolean } = {}
+  options: { includeDeleted?: boolean } = {},
 ) {
   const directMatch = await getDocument<T>(collectionName, identifier).catch(() => null);
   if (directMatch) {
@@ -62,8 +62,7 @@ export async function getDocumentByIdOrSlug<T extends SoftDeletableRecord>(
 
   const records = await fetchDocumentCollection<T>(collectionName, 2000).catch(() => []);
   const normalizedIdentifier = identifier.trim().toLowerCase();
-  const matchedRecord =
-    records.find((record) => record.slug?.trim().toLowerCase() === normalizedIdentifier) ?? null;
+  const matchedRecord = records.find((record) => record.slug?.trim().toLowerCase() === normalizedIdentifier) ?? null;
 
   if (!matchedRecord) {
     return null;
@@ -76,11 +75,7 @@ export async function getDocumentByIdOrSlug<T extends SoftDeletableRecord>(
   return matchedRecord;
 }
 
-export async function softDeleteDocumentEntity(
-  collectionName: string,
-  id: string,
-  patch: Record<string, unknown> = {}
-) {
+export async function softDeleteDocumentEntity(collectionName: string, id: string, patch: Record<string, unknown> = {}) {
   const existing = await getDocument<Record<string, unknown> & SoftDeletableRecord>(collectionName, id);
   if (!existing) {
     return null;

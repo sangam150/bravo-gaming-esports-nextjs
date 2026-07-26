@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import FileUpload from "./FileUpload";
 import { adminFetch } from "@/lib/admin-api";
-import { compareMatchPlayerResults, compareMatchTeamResults, compareMatchSequenceOrder } from "@/lib/ranking-sort";
+import { compareMatchPlayerResults, compareMatchSequenceOrder, compareMatchTeamResults } from "@/lib/ranking-sort";
+import type { MatchPlayerResult, Scrim, TeamMatchResult, Tournament, TournamentMatch } from "@/lib/types";
 import {
   getUserFacingPlayerLabel,
   getUserFacingTeamLabel,
@@ -12,7 +10,9 @@ import {
   USER_FACING_ERROR_MESSAGES,
   USER_FACING_LABELS,
 } from "@/lib/user-facing-errors";
-import type { MatchPlayerResult, Scrim, TeamMatchResult, Tournament, TournamentMatch } from "@/lib/types";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import FileUpload from "./FileUpload";
 
 const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
@@ -152,11 +152,21 @@ function formatDateTimeLocalInput(value?: string) {
 function parseTeamResults(value: string) {
   return splitDelimitedLines(value)
     .map((line) => {
-      const [teamName = "", slotNumber = "", placement = "", kills = "", damage = "", placementPoints = "", killPoints = "", totalPoints = ""] =
-        line.split("|").map((part) => part.trim());
+      const [
+        teamName = "",
+        slotNumber = "",
+        placement = "",
+        kills = "",
+        damage = "",
+        placementPoints = "",
+        killPoints = "",
+        totalPoints = "",
+      ] = line.split("|").map((part) => part.trim());
       const normalizedPlacement = toFiniteNumber(placement);
       const normalizedKills = toFiniteNumber(kills);
-      const normalizedPlacementPoints = placementPoints ? toFiniteNumber(placementPoints) : placementPointsForPlacement(normalizedPlacement);
+      const normalizedPlacementPoints = placementPoints
+        ? toFiniteNumber(placementPoints)
+        : placementPointsForPlacement(normalizedPlacement);
       const normalizedKillPoints = killPoints ? toFiniteNumber(killPoints) : normalizedKills;
       return {
         teamName: getUserFacingTeamLabel(teamName, USER_FACING_LABELS.teamPendingMapping),
@@ -225,7 +235,7 @@ function serializeTeamResults(teamResults?: TeamMatchResult[]) {
         teamResult.placementPoints,
         teamResult.killPoints,
         teamResult.totalPoints,
-      ].join("|")
+      ].join("|"),
     )
     .join("\n");
 }
@@ -244,7 +254,7 @@ function serializePlayerResults(playerResults?: MatchPlayerResult[]) {
         playerResult.playerId,
         playerResult.pubgPlayerId ?? "",
         playerResult.survivalTime,
-      ].join("|")
+      ].join("|"),
     )
     .join("\n");
 }
@@ -318,13 +328,17 @@ export default function AdminMatchManager({
     try {
       const response = await adminFetch("/api/admin/matches");
       const loadedMatches = ((response.data?.matches ?? []) as TournamentMatch[]).sort((firstMatch, secondMatch) =>
-        compareMatchSequenceOrder(secondMatch, firstMatch)
+        compareMatchSequenceOrder(secondMatch, firstMatch),
       );
       const loadedPointSystems = (response.data?.pointSystems ?? []) as PointSystemOption[];
       setMatches(loadedMatches);
       setPointSystems(loadedPointSystems);
     } catch (loadError: unknown) {
-      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(loadError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -337,7 +351,7 @@ export default function AdminMatchManager({
   const previewTeamResults = useMemo(() => parseTeamResults(form.teamResultsText), [form.teamResultsText]);
   const previewPlayerResults = useMemo(
     () => parsePlayerResults(form.playerResultsText, previewTeamResults),
-    [form.playerResultsText, previewTeamResults]
+    [form.playerResultsText, previewTeamResults],
   );
   const previewWinner = previewTeamResults.find((teamResult) => teamResult.placement === 1)?.teamName ?? "Winner Pending";
   const activePreview = serverPreview ?? {
@@ -428,7 +442,11 @@ export default function AdminMatchManager({
       }));
       setMessage("Preview refreshed with the active point system.");
     } catch (previewError: unknown) {
-      setError(toUserFacingErrorMessage(previewError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(previewError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setPreviewing(false);
     }
@@ -440,7 +458,7 @@ export default function AdminMatchManager({
       return;
     }
 
-    const existingEditingMatch = editingId ? matches.find((match) => match.id === editingId) ?? null : null;
+    const existingEditingMatch = editingId ? (matches.find((match) => match.id === editingId) ?? null) : null;
     if (
       existingEditingMatch?.pubgMatchId?.trim() &&
       form.pubgMatchId.trim() &&
@@ -469,11 +487,15 @@ export default function AdminMatchManager({
             : "Match updated."
           : status === "published"
             ? "Match created and published."
-            : "Match created."
+            : "Match created.",
       );
       resetForm();
     } catch (submissionError: unknown) {
-      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(submissionError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setBusyState(false);
     }
@@ -486,8 +508,8 @@ export default function AdminMatchManager({
         bulkForm.matchIdsText
           .split(/[\n,]+/g)
           .map((item) => item.trim())
-          .filter(Boolean)
-      )
+          .filter(Boolean),
+      ),
     );
 
     if (matchIds.length === 0) {
@@ -534,7 +556,11 @@ export default function AdminMatchManager({
       setBulkForm(defaultBulkForm);
       await refreshAfterMutation(`${matchIds.length} match shell${matchIds.length === 1 ? "" : "s"} created.`);
     } catch (submissionError: unknown) {
-      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(submissionError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setBulkSaving(false);
     }
@@ -552,7 +578,11 @@ export default function AdminMatchManager({
       });
       await refreshAfterMutation(match.status === "draft" ? "Match published." : "Match moved back to draft.");
     } catch (toggleError: unknown) {
-      setError(toUserFacingErrorMessage(toggleError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(toggleError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setBusyMatchActionId(null);
     }
@@ -564,13 +594,19 @@ export default function AdminMatchManager({
     }
 
     try {
-      await adminFetch(`/api/admin/matches?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      await adminFetch(`/api/admin/matches?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
       if (editingId === id) {
         resetForm();
       }
       await refreshAfterMutation("Match deleted.");
     } catch (deleteError: unknown) {
-      setError(toUserFacingErrorMessage(deleteError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(deleteError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     }
   }
 
@@ -586,7 +622,11 @@ export default function AdminMatchManager({
       });
       await refreshAfterMutation("Match recalculated.");
     } catch (recalculateError: unknown) {
-      setError(toUserFacingErrorMessage(recalculateError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(recalculateError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setBusyMatchActionId(null);
     }
@@ -604,7 +644,11 @@ export default function AdminMatchManager({
       });
       await refreshAfterMutation("Match rolled back to the latest audited snapshot.");
     } catch (rollbackError: unknown) {
-      setError(toUserFacingErrorMessage(rollbackError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(rollbackError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setBusyMatchActionId(null);
     }
@@ -638,7 +682,8 @@ export default function AdminMatchManager({
       <div>
         <h2 className="text-2xl font-black text-white">Match Manager</h2>
         <p className="mt-1 text-sm text-text-muted">
-          Create manual matches, score results with the active point system, preview before publishing, and manage recalculation or rollback from one place.
+          Create manual matches, score results with the active point system, preview before publishing, and manage recalculation or rollback
+          from one place.
         </p>
       </div>
 
@@ -662,7 +707,12 @@ export default function AdminMatchManager({
               value={form.pubgMatchId}
               onChange={(event) => setForm({ ...form, pubgMatchId: event.target.value })}
             />
-            <input className={inputClass} placeholder="External Match ID" value={form.externalMatchId} onChange={(event) => setForm({ ...form, externalMatchId: event.target.value })} />
+            <input
+              className={inputClass}
+              placeholder="External Match ID"
+              value={form.externalMatchId}
+              onChange={(event) => setForm({ ...form, externalMatchId: event.target.value })}
+            />
             <select className={inputClass} value={form.map} onChange={(event) => setForm({ ...form, map: event.target.value })}>
               {pubgMaps.map((mapName) => (
                 <option key={mapName} value={mapName}>
@@ -670,10 +720,35 @@ export default function AdminMatchManager({
                 </option>
               ))}
             </select>
-            <input className={inputClass} type="number" min={1} value={form.matchNumber} onChange={(event) => setForm({ ...form, matchNumber: Math.max(1, Number(event.target.value) || 1) })} />
-            <input className={inputClass} placeholder="Event name" value={form.eventName} onChange={(event) => setForm({ ...form, eventName: event.target.value })} />
-            <input className={inputClass} placeholder="Event slug" value={form.eventSlug} onChange={(event) => setForm({ ...form, eventSlug: event.target.value })} />
-            <select className={inputClass} value={form.tournamentId} onChange={(event) => setForm({ ...form, tournamentId: event.target.value })}>
+            <input
+              className={inputClass}
+              type="number"
+              min={1}
+              value={form.matchNumber}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  matchNumber: Math.max(1, Number(event.target.value) || 1),
+                })
+              }
+            />
+            <input
+              className={inputClass}
+              placeholder="Event name"
+              value={form.eventName}
+              onChange={(event) => setForm({ ...form, eventName: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Event slug"
+              value={form.eventSlug}
+              onChange={(event) => setForm({ ...form, eventSlug: event.target.value })}
+            />
+            <select
+              className={inputClass}
+              value={form.tournamentId}
+              onChange={(event) => setForm({ ...form, tournamentId: event.target.value })}
+            >
               <option value="">Select event (required)</option>
               {tournamentOptions.map((tournament) => (
                 <option key={tournament.id} value={tournament.id}>
@@ -685,8 +760,7 @@ export default function AdminMatchManager({
               className={inputClass}
               value={form.pointSystemId}
               onChange={(event) => {
-                const nextPointSystem =
-                  pointSystems.find((pointSystem) => pointSystem.id === event.target.value) ?? null;
+                const nextPointSystem = pointSystems.find((pointSystem) => pointSystem.id === event.target.value) ?? null;
                 setForm({
                   ...form,
                   pointSystemId: event.target.value,
@@ -697,7 +771,8 @@ export default function AdminMatchManager({
               <option value={defaultPointSystemId}>Default Bravo point system</option>
               {pointSystems.map((pointSystem) => (
                 <option key={pointSystem.id} value={pointSystem.id}>
-                  {pointSystem.name}{pointSystem.active ? " (Active)" : ""}
+                  {pointSystem.name}
+                  {pointSystem.active ? " (Active)" : ""}
                 </option>
               ))}
             </select>
@@ -709,13 +784,37 @@ export default function AdminMatchManager({
                 </option>
               ))}
             </select>
-            <input className={inputClass} type="datetime-local" value={form.playedAt} onChange={(event) => setForm({ ...form, playedAt: event.target.value })} />
-            <select className={inputClass} value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as MatchFormState["status"] })}>
+            <input
+              className={inputClass}
+              type="datetime-local"
+              value={form.playedAt}
+              onChange={(event) => setForm({ ...form, playedAt: event.target.value })}
+            />
+            <select
+              className={inputClass}
+              value={form.status}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  status: event.target.value as MatchFormState["status"],
+                })
+              }
+            >
               <option value="draft">Draft</option>
               <option value="published">Published</option>
             </select>
-            <input className={inputClass} placeholder="VOD / YouTube URL" value={form.vodUrl} onChange={(event) => setForm({ ...form, vodUrl: event.target.value })} />
-            <input className={inputClass} placeholder="Source URL" value={form.sourceUrl} onChange={(event) => setForm({ ...form, sourceUrl: event.target.value })} />
+            <input
+              className={inputClass}
+              placeholder="VOD / YouTube URL"
+              value={form.vodUrl}
+              onChange={(event) => setForm({ ...form, vodUrl: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Source URL"
+              value={form.sourceUrl}
+              onChange={(event) => setForm({ ...form, sourceUrl: event.target.value })}
+            />
           </div>
 
           <div className="rounded-card border border-white/10 bg-bg-primary px-4 py-3 text-xs text-text-muted">
@@ -751,14 +850,24 @@ export default function AdminMatchManager({
               entityId={uploadEntityId}
               label="Scoreboard image"
               currentUrl={form.scoreboardImageUrl || undefined}
-              onUploaded={(url) => setForm((currentForm) => ({ ...currentForm, scoreboardImageUrl: url }))}
+              onUploaded={(url) =>
+                setForm((currentForm) => ({
+                  ...currentForm,
+                  scoreboardImageUrl: url,
+                }))
+              }
             />
             <FileUpload
               type="result_screenshot"
               entityId={uploadEntityId}
               label="Result poster"
               currentUrl={form.resultImageUrl || undefined}
-              onUploaded={(url) => setForm((currentForm) => ({ ...currentForm, resultImageUrl: url }))}
+              onUploaded={(url) =>
+                setForm((currentForm) => ({
+                  ...currentForm,
+                  resultImageUrl: url,
+                }))
+              }
             />
           </div>
 
@@ -838,7 +947,9 @@ export default function AdminMatchManager({
                 <p className="mt-2 font-semibold text-white">
                   #{form.matchNumber} | {form.map}
                 </p>
-                <p className="mt-1 text-xs text-text-muted">{activePreview.pubgMatchId || "Internal match reference will be generated on save."}</p>
+                <p className="mt-1 text-xs text-text-muted">
+                  {activePreview.pubgMatchId || "Internal match reference will be generated on save."}
+                </p>
               </div>
               <div className="rounded-card border border-white/10 bg-bg-primary p-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Winner</p>
@@ -862,7 +973,9 @@ export default function AdminMatchManager({
             ) : null}
 
             {(activePreview.teamResults?.length ?? 0) === 0 ? (
-              <p className="mt-5 text-sm text-text-muted">Add team and player lines, then run Preview to score the match before publishing.</p>
+              <p className="mt-5 text-sm text-text-muted">
+                Add team and player lines, then run Preview to score the match before publishing.
+              </p>
             ) : (
               <div className="mt-5 space-y-4">
                 <div className="table-scroll">
@@ -935,17 +1048,46 @@ export default function AdminMatchManager({
               onChange={(event) => setBulkForm({ ...bulkForm, matchIdsText: event.target.value })}
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <select className={inputClass} value={bulkForm.map} onChange={(event) => setBulkForm({ ...bulkForm, map: event.target.value })}>
+              <select
+                className={inputClass}
+                value={bulkForm.map}
+                onChange={(event) => setBulkForm({ ...bulkForm, map: event.target.value })}
+              >
                 {pubgMaps.map((mapName) => (
                   <option key={mapName} value={mapName}>
                     {mapName}
                   </option>
                 ))}
               </select>
-              <input className={inputClass} type="number" min={1} value={bulkForm.startMatchNumber} onChange={(event) => setBulkForm({ ...bulkForm, startMatchNumber: Math.max(1, Number(event.target.value) || 1) })} />
-              <input className={inputClass} placeholder="Event name" value={bulkForm.eventName} onChange={(event) => setBulkForm({ ...bulkForm, eventName: event.target.value })} />
-              <input className={inputClass} placeholder="Event slug" value={bulkForm.eventSlug} onChange={(event) => setBulkForm({ ...bulkForm, eventSlug: event.target.value })} />
-              <select className={inputClass} value={bulkForm.tournamentId} onChange={(event) => setBulkForm({ ...bulkForm, tournamentId: event.target.value })}>
+              <input
+                className={inputClass}
+                type="number"
+                min={1}
+                value={bulkForm.startMatchNumber}
+                onChange={(event) =>
+                  setBulkForm({
+                    ...bulkForm,
+                    startMatchNumber: Math.max(1, Number(event.target.value) || 1),
+                  })
+                }
+              />
+              <input
+                className={inputClass}
+                placeholder="Event name"
+                value={bulkForm.eventName}
+                onChange={(event) => setBulkForm({ ...bulkForm, eventName: event.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="Event slug"
+                value={bulkForm.eventSlug}
+                onChange={(event) => setBulkForm({ ...bulkForm, eventSlug: event.target.value })}
+              />
+              <select
+                className={inputClass}
+                value={bulkForm.tournamentId}
+                onChange={(event) => setBulkForm({ ...bulkForm, tournamentId: event.target.value })}
+              >
                 <option value="">Select event (required)</option>
                 {tournamentOptions.map((tournament) => (
                   <option key={tournament.id} value={tournament.id}>
@@ -957,8 +1099,7 @@ export default function AdminMatchManager({
                 className={inputClass}
                 value={bulkForm.pointSystemId}
                 onChange={(event) => {
-                  const nextPointSystem =
-                    pointSystems.find((pointSystem) => pointSystem.id === event.target.value) ?? null;
+                  const nextPointSystem = pointSystems.find((pointSystem) => pointSystem.id === event.target.value) ?? null;
                   setBulkForm({
                     ...bulkForm,
                     pointSystemId: event.target.value,
@@ -969,11 +1110,16 @@ export default function AdminMatchManager({
                 <option value={defaultPointSystemId}>Default Bravo point system</option>
                 {pointSystems.map((pointSystem) => (
                   <option key={pointSystem.id} value={pointSystem.id}>
-                    {pointSystem.name}{pointSystem.active ? " (Active)" : ""}
+                    {pointSystem.name}
+                    {pointSystem.active ? " (Active)" : ""}
                   </option>
                 ))}
               </select>
-              <select className={inputClass} value={bulkForm.scrimId} onChange={(event) => setBulkForm({ ...bulkForm, scrimId: event.target.value })}>
+              <select
+                className={inputClass}
+                value={bulkForm.scrimId}
+                onChange={(event) => setBulkForm({ ...bulkForm, scrimId: event.target.value })}
+              >
                 <option value="">Scrim link (optional)</option>
                 {scrimOptions.map((scrim) => (
                   <option key={scrim.id} value={scrim.id}>
@@ -981,13 +1127,37 @@ export default function AdminMatchManager({
                   </option>
                 ))}
               </select>
-              <input className={inputClass} type="datetime-local" value={bulkForm.playedAt} onChange={(event) => setBulkForm({ ...bulkForm, playedAt: event.target.value })} />
-              <select className={inputClass} value={bulkForm.status} onChange={(event) => setBulkForm({ ...bulkForm, status: event.target.value as BulkMatchFormState["status"] })}>
+              <input
+                className={inputClass}
+                type="datetime-local"
+                value={bulkForm.playedAt}
+                onChange={(event) => setBulkForm({ ...bulkForm, playedAt: event.target.value })}
+              />
+              <select
+                className={inputClass}
+                value={bulkForm.status}
+                onChange={(event) =>
+                  setBulkForm({
+                    ...bulkForm,
+                    status: event.target.value as BulkMatchFormState["status"],
+                  })
+                }
+              >
                 <option value="draft">Draft shells</option>
                 <option value="published">Publish immediately</option>
               </select>
-              <input className={inputClass} placeholder="Shared VOD URL" value={bulkForm.vodUrl} onChange={(event) => setBulkForm({ ...bulkForm, vodUrl: event.target.value })} />
-              <input className={inputClass} placeholder="Shared source URL" value={bulkForm.sourceUrl} onChange={(event) => setBulkForm({ ...bulkForm, sourceUrl: event.target.value })} />
+              <input
+                className={inputClass}
+                placeholder="Shared VOD URL"
+                value={bulkForm.vodUrl}
+                onChange={(event) => setBulkForm({ ...bulkForm, vodUrl: event.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="Shared source URL"
+                value={bulkForm.sourceUrl}
+                onChange={(event) => setBulkForm({ ...bulkForm, sourceUrl: event.target.value })}
+              />
             </div>
             <button type="submit" disabled={bulkSaving} className={btnPrimary}>
               {bulkSaving ? "Creating..." : "Create Multiple Matches"}
@@ -998,12 +1168,13 @@ export default function AdminMatchManager({
 
       <div className="esports-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="font-semibold text-white">Stored matches</p>
-              <p className="mt-1 text-sm text-text-muted">
-                Published matches flow to public results, standings, and player or team statistics. Drafts stay private until you publish them.
-              </p>
-            </div>
+          <div>
+            <p className="font-semibold text-white">Stored matches</p>
+            <p className="mt-1 text-sm text-text-muted">
+              Published matches flow to public results, standings, and player or team statistics. Drafts stay private until you publish
+              them.
+            </p>
+          </div>
           <button type="button" onClick={() => void loadMatches()} className="btn-secondary">
             Refresh
           </button>

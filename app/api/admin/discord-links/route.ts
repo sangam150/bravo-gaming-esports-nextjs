@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
-import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import { logServerError } from "@/lib/server-monitoring";
+import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import type { Tables } from "@/types/database.types";
 
 const TEAM_ACCESS_ROLES = ["coach", "team_igl", "team_manager"] as const;
@@ -17,7 +17,7 @@ function mapProfile(profile: ProfileRow, teamNameById: Map<string, string>) {
     displayName: profile.display_name,
     role: profile.role,
     teamId: profile.team_id,
-    teamName: profile.team_id ? teamNameById.get(profile.team_id) ?? null : null,
+    teamName: profile.team_id ? (teamNameById.get(profile.team_id) ?? null) : null,
     discordUserId: profile.discord_user_id,
   };
 }
@@ -91,8 +91,11 @@ export async function PATCH(request: Request) {
 
     if (!TEAM_ACCESS_ROLE_SET.has(existingProfile.role)) {
       return Response.json(
-        { success: false, error: "Discord linking is limited to team-access profiles." },
-        { status: 400 }
+        {
+          success: false,
+          error: "Discord linking is limited to team-access profiles.",
+        },
+        { status: 400 },
       );
     }
 
@@ -111,8 +114,11 @@ export async function PATCH(request: Request) {
     if (updateError) {
       if (/duplicate key|unique/i.test(updateError.message)) {
         return Response.json(
-          { success: false, error: "That Discord user ID is already linked to another team profile." },
-          { status: 409 }
+          {
+            success: false,
+            error: "That Discord user ID is already linked to another team profile.",
+          },
+          { status: 409 },
         );
       }
 

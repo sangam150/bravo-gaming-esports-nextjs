@@ -1,13 +1,8 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { loadEnvConfig } from "@next/env";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import {
-  DeleteObjectsCommand,
-  ListObjectsV2Command,
-  PutObjectCommand,
-  S3Client,
-} from "@aws-sdk/client-s3";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 loadEnvConfig(process.cwd());
 
@@ -32,6 +27,8 @@ const DEMO_DOCUMENT_COLLECTIONS = [
 ] as const;
 
 type JsonObject = Record<string, unknown>;
+// The seed utility intentionally targets several tables through a shared dynamic
+// helper, so its admin client cannot use one generated table-row specialization.
 type SupabaseAdminClient = SupabaseClient<any>;
 
 type AppDocumentRow = {
@@ -143,7 +140,7 @@ export function getSupabaseAdminClient() {
         autoRefreshToken: false,
         persistSession: false,
       },
-    }
+    },
   );
 }
 
@@ -161,15 +158,12 @@ export function getOptionalR2Config(): R2Config | null {
   return {
     client: new S3Client({
       credentials: { accessKeyId, secretAccessKey },
-      endpoint: trimTrailingSlash(
-        process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`
-      ),
+      endpoint: trimTrailingSlash(process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`),
       region: "auto",
     }),
     publicBaseUrl: trimTrailingSlash(publicBaseUrl),
     publicBucketName,
-    publicDeliveryMode:
-      process.env.R2_PUBLIC_DELIVERY_MODE?.trim().toLowerCase() === "proxy" ? "proxy" : "direct",
+    publicDeliveryMode: process.env.R2_PUBLIC_DELIVERY_MODE?.trim().toLowerCase() === "proxy" ? "proxy" : "direct",
   };
 }
 
@@ -187,11 +181,7 @@ function isDemoDocumentPayload(payload: unknown) {
     return false;
   }
 
-  return (
-    payload.demo_seed_tag === DEMO_SEED_TAG ||
-    payload.source === DEMO_SOURCE ||
-    payload.is_demo === true
-  );
+  return payload.demo_seed_tag === DEMO_SEED_TAG || payload.source === DEMO_SOURCE || payload.is_demo === true;
 }
 
 function mapDocumentBackup(row: AppDocumentRow | null): AppDocumentBackup | null {
@@ -258,7 +248,7 @@ export async function upsertRowsInChunks(
   client: SupabaseAdminClient,
   table: string,
   rows: JsonObject[],
-  options: { chunkSize?: number; onConflict?: string } = {}
+  options: { chunkSize?: number; onConflict?: string } = {},
 ) {
   if (rows.length === 0) {
     return;
@@ -267,10 +257,7 @@ export async function upsertRowsInChunks(
   const chunkSize = options.chunkSize ?? 200;
   for (let index = 0; index < rows.length; index += chunkSize) {
     const chunk = rows.slice(index, index + chunkSize);
-    const query = client.from(table).upsert(
-      chunk,
-      options.onConflict ? { onConflict: options.onConflict } : undefined
-    );
+    const query = client.from(table).upsert(chunk, options.onConflict ? { onConflict: options.onConflict } : undefined);
 
     const { error } = await query;
     if (error) {
@@ -281,7 +268,13 @@ export async function upsertRowsInChunks(
 
 export async function upsertAppDocuments(
   client: SupabaseAdminClient,
-  rows: Array<{ collectionName: string; id: string; data: JsonObject; createdAt?: string; updatedAt?: string }>
+  rows: Array<{
+    collectionName: string;
+    id: string;
+    data: JsonObject;
+    createdAt?: string;
+    updatedAt?: string;
+  }>,
 ) {
   if (rows.length === 0) {
     return;
@@ -298,7 +291,7 @@ export async function upsertAppDocuments(
       created_at: row.createdAt ?? now,
       updated_at: row.updatedAt ?? now,
     })),
-    { onConflict: "collection_name,id" }
+    { onConflict: "collection_name,id" },
   );
 }
 
@@ -316,11 +309,7 @@ async function listDemoAppDocuments(client: SupabaseAdminClient) {
   return ((data ?? []) as AppDocumentRow[]).filter((row) => isDemoDocumentPayload(row.data));
 }
 
-async function restoreSingletonDocument(
-  client: SupabaseAdminClient,
-  backup: AppDocumentBackup | null,
-  collectionName: string
-) {
+async function restoreSingletonDocument(client: SupabaseAdminClient, backup: AppDocumentBackup | null, collectionName: string) {
   if (backup) {
     await upsertAppDocuments(client, [
       {
@@ -346,11 +335,7 @@ async function restoreSingletonDocument(
   }
 
   if (data && isDemoDocumentPayload((data as AppDocumentRow).data)) {
-    const { error: deleteError } = await client
-      .from("app_documents")
-      .delete()
-      .eq("collection_name", collectionName)
-      .eq("id", "main");
+    const { error: deleteError } = await client.from("app_documents").delete().eq("collection_name", collectionName).eq("id", "main");
 
     if (deleteError) {
       throw deleteError;
@@ -359,10 +344,7 @@ async function restoreSingletonDocument(
 }
 
 async function countRowsByDemoTag(client: SupabaseAdminClient, table: string) {
-  const { count, error } = await client
-    .from(table)
-    .select("id", { count: "exact", head: true })
-    .eq("demo_seed_tag", DEMO_SEED_TAG);
+  const { count, error } = await client.from(table).select("id", { count: "exact", head: true }).eq("demo_seed_tag", DEMO_SEED_TAG);
 
   if (error) {
     throw error;
@@ -399,7 +381,7 @@ async function listR2ObjectKeysByPrefix(r2: R2Config | null, prefix: string) {
         Bucket: r2.publicBucketName,
         ContinuationToken: continuationToken,
         Prefix: prefix,
-      })
+      }),
     );
 
     for (const item of response.Contents ?? []) {
@@ -423,7 +405,7 @@ export async function uploadDemoSvgAsset(
     accentColor: string;
     backgroundColor: string;
     detailColor?: string;
-  }
+  },
 ): Promise<DemoUploadedAsset | null> {
   if (!r2) {
     return null;
@@ -456,7 +438,7 @@ export async function uploadDemoSvgAsset(
       CacheControl: "public, max-age=31536000, immutable",
       ContentType: "image/svg+xml",
       Key: objectKey,
-    })
+    }),
   );
 
   return {
@@ -468,48 +450,31 @@ export async function uploadDemoSvgAsset(
   };
 }
 
-export async function clearDemoData(
-  client: SupabaseAdminClient,
-  options: { log?: (message: string) => void } = {}
-) {
+export async function clearDemoData(client: SupabaseAdminClient, options: { log?: (message: string) => void } = {}) {
   const log = options.log ?? (() => undefined);
   const manifest = await readDemoManifest();
   const r2 = getOptionalR2Config();
 
   const demoDocuments = await listDemoAppDocuments(client);
   const removableDocuments = demoDocuments.filter(
-    (row) =>
-      !SINGLETON_DOCUMENTS.some(
-        (documentRef) =>
-          documentRef.collectionName === row.collection_name && documentRef.id === row.id
-      )
+    (row) => !SINGLETON_DOCUMENTS.some((documentRef) => documentRef.collectionName === row.collection_name && documentRef.id === row.id),
   );
 
   for (const collectionName of new Set(removableDocuments.map((row) => row.collection_name))) {
-    const ids = removableDocuments
-      .filter((row) => row.collection_name === collectionName)
-      .map((row) => row.id);
+    const ids = removableDocuments.filter((row) => row.collection_name === collectionName).map((row) => row.id);
 
     if (ids.length === 0) {
       continue;
     }
 
-    const { error } = await client
-      .from("app_documents")
-      .delete()
-      .eq("collection_name", collectionName)
-      .in("id", ids);
+    const { error } = await client.from("app_documents").delete().eq("collection_name", collectionName).in("id", ids);
 
     if (error) {
       throw error;
     }
   }
 
-  await restoreSingletonDocument(
-    client,
-    manifest?.singletonBackups.homepageContent ?? null,
-    "homepageContent"
-  );
+  await restoreSingletonDocument(client, manifest?.singletonBackups.homepageContent ?? null, "homepageContent");
   await restoreSingletonDocument(client, manifest?.singletonBackups.siteStats ?? null, "siteStats");
 
   const summary: DemoCleanupSummary = {
@@ -529,10 +494,7 @@ export async function clearDemoData(
   };
 
   const objectKeys = Array.from(
-    new Set([
-      ...(manifest?.uploadedObjectKeys ?? []),
-      ...(await listR2ObjectKeysByPrefix(r2, DEMO_R2_PREFIX)),
-    ])
+    new Set([...(manifest?.uploadedObjectKeys ?? []), ...(await listR2ObjectKeysByPrefix(r2, DEMO_R2_PREFIX))]),
   );
 
   if (r2 && objectKeys.length > 0) {
@@ -544,7 +506,7 @@ export async function clearDemoData(
           Delete: {
             Objects: chunk.map((key) => ({ Key: key })),
           },
-        })
+        }),
       );
     }
     summary.removedObjectKeys = objectKeys.length;

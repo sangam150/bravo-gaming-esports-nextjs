@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import Tabs from "@/components/ui/Tabs";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { formatDisplayNumber } from "@/lib/display-format";
 import { compareMatchPlayerResults, compareMatchTeamResults } from "@/lib/ranking-sort";
 import { useRealtimeMatchResult } from "@/lib/realtime-hooks";
 import type { MatchPlayerResult, TournamentMatch } from "@/lib/types";
+import Link from "next/link";
 
 function readText(value?: string | null, fallback = "TBD") {
   const normalizedValue = value?.trim();
@@ -77,18 +77,12 @@ function getMvp(match: TournamentMatch): MatchPlayerResult | null {
         secondPlayer.kills - firstPlayer.kills ||
         secondPlayer.damage - firstPlayer.damage ||
         secondPlayer.assists - firstPlayer.assists ||
-        firstPlayer.playerName.localeCompare(secondPlayer.playerName)
+        firstPlayer.playerName.localeCompare(secondPlayer.playerName),
     )[0] ?? null
   );
 }
 
-function MatchMetaCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
+function MatchMetaCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="stat-pill !p-4">
       <p className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">{label}</p>
@@ -110,13 +104,11 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
         activeMatch.scoreboardImageUrl,
         activeMatch.resultScreenshotUrl,
         ...(activeMatch.screenshotUrls ?? []),
-      ].filter((value): value is string => Boolean(value))
-    )
+      ].filter((value): value is string => Boolean(value)),
+    ),
   );
   const lobbyDuration =
-    sortedPlayerResults.length > 0
-      ? Math.max(...sortedPlayerResults.map((playerResult) => playerResult.survivalTime ?? 0))
-      : undefined;
+    sortedPlayerResults.length > 0 ? Math.max(...sortedPlayerResults.map((playerResult) => playerResult.survivalTime ?? 0)) : undefined;
   const tabs = ["Overview", "Teams", "Players"];
 
   return (
@@ -126,9 +118,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
           <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
               <p className="section-title">03. Match Detail Page</p>
-              <h1 className="hero-h1 mt-4 max-w-[11ch]">
-                {readText(activeMatch.eventName, "Bravo Daily Scrims")}
-              </h1>
+              <h1 className="hero-h1 mt-4 max-w-[11ch]">{readText(activeMatch.eventName, "Bravo Daily Scrims")}</h1>
               <p className="mt-4 text-sm leading-7 text-text-secondary">
                 {readText(activeMatch.map)} | Match {activeMatch.sequenceNumber ?? activeMatch.matchNumber ?? "-"} | PUBG Match ID{" "}
                 <span className="font-mono text-white">{readText(activeMatch.pubgMatchId)}</span>
@@ -137,9 +127,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
 
             <div className="rounded-[24px] border border-white/[0.06] bg-black/20 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <div className="flex items-center justify-between gap-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">
-                  Match State
-                </p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">Match State</p>
                 <span className="rounded-full border border-accent-green/30 bg-accent-green/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-accent-green">
                   Completed
                 </span>
@@ -179,13 +167,9 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="section-title">Overview</p>
-                          <h2 className="mt-2 font-display text-xl font-black uppercase text-white">
-                            Placement Table
-                          </h2>
+                          <h2 className="mt-2 font-display text-xl font-black uppercase text-white">Placement Table</h2>
                         </div>
-                        <p className="text-xs uppercase tracking-[0.16em] text-text-muted">
-                          Teams ranked by total points
-                        </p>
+                        <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Teams ranked by total points</p>
                       </div>
                     </div>
                     <div className="table-scroll">
@@ -232,12 +216,8 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                         ) : (
                           <div className="flex h-52 items-end p-5">
                             <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">
-                                Map Spotlight
-                              </p>
-                              <p className="mt-2 font-display text-2xl font-black uppercase text-white">
-                                {readText(activeMatch.map)}
-                              </p>
+                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">Map Spotlight</p>
+                              <p className="mt-2 font-display text-2xl font-black uppercase text-white">{readText(activeMatch.map)}</p>
                             </div>
                           </div>
                         )}
@@ -251,9 +231,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                           <div className="flex items-center gap-3">
                             <TeamAvatar name={readText(mvp.playerName)} size="lg" />
                             <div>
-                              <p className="font-display text-2xl font-black uppercase text-white">
-                                {readText(mvp.playerName)}
-                              </p>
+                              <p className="font-display text-2xl font-black uppercase text-white">{readText(mvp.playerName)}</p>
                               <p className="text-sm text-text-muted">{readText(mvp.teamName)}</p>
                             </div>
                           </div>
@@ -278,9 +256,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                 <section className="esports-card overflow-hidden !p-0">
                   <div className="border-b border-white/[0.06] px-5 py-4">
                     <p className="section-title">{activeTab === "Teams" ? "Teams" : "Lobby Board"}</p>
-                    <h2 className="mt-2 font-display text-xl font-black uppercase text-white">
-                      Full Team Results
-                    </h2>
+                    <h2 className="mt-2 font-display text-xl font-black uppercase text-white">Full Team Results</h2>
                   </div>
                   <div className="table-scroll">
                     <table className="data-table min-w-full">
@@ -315,9 +291,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                 <section className="esports-card overflow-hidden !p-0">
                   <div className="border-b border-white/[0.06] px-5 py-4">
                     <p className="section-title">Players</p>
-                    <h2 className="mt-2 font-display text-xl font-black uppercase text-white">
-                      Full Player Statistics
-                    </h2>
+                    <h2 className="mt-2 font-display text-xl font-black uppercase text-white">Full Player Statistics</h2>
                   </div>
                   {sortedPlayerResults.length > 0 ? (
                     <div className="table-scroll">

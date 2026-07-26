@@ -8,16 +8,23 @@ export default function FounderPage() {
           <div>
             <p className="section-title">About</p>
             <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] text-white sm:text-5xl">Founder</h1>
-            <p className="mt-5 max-w-3xl text-slate-300">Learn about the founder behind Bravo Gaming Esports and the vision driving Nepal’s competitive PUBG community.</p>
+            <p className="mt-5 max-w-3xl text-slate-300">
+              Learn about the founder behind Bravo Gaming Esports and the vision driving Nepal’s competitive PUBG community.
+            </p>
           </div>
-          <Link href="/about" className="rounded-full bg-bravoBlue px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white/90">
+          <Link
+            href="/about"
+            className="rounded-full bg-bravoBlue px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white/90"
+          >
             Back to About
           </Link>
         </div>
         <div className="mt-10 grid gap-6 lg:grid-cols-2">
           <div className="rounded-[28px] border border-white/10 bg-slate-950/80 p-6">
             <p className="text-lg font-semibold text-white">Visionary leadership</p>
-            <p className="mt-3 text-slate-300">The Bravo founder is focused on building structured esports pathways and delivering top-level live event production.</p>
+            <p className="mt-3 text-slate-300">
+              The Bravo founder is focused on building structured esports pathways and delivering top-level live event production.
+            </p>
           </div>
           <div className="rounded-[28px] border border-white/10 bg-slate-950/80 p-6">
             <p className="text-lg font-semibold text-white">What matters</p>

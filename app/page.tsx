@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import HomePage from "@/components/home/HomePage";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Bravo Gaming Esports | PUBG PC Scrims & Tournaments in Nepal",

@@ -1,14 +1,14 @@
-import "server-only";
+import type { Tables } from "@/types/database.types";
 import { cookies } from "next/headers";
+import "server-only";
+import { AuthConfigurationError } from "./auth-errors";
 import { isAdminRole as isAdminRoleHelper, isPlatformRole } from "./authz";
 import { extractDiscordUserId } from "./discord-auth";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
-import type { Tables } from "@/types/database.types";
-import { AuthConfigurationError } from "./auth-errors";
 
 export const SESSION_COOKIE = "bravo_session";
 export const REFRESH_COOKIE = "bravo_refresh";
-export const SESSION_MAX_AGE = 60 * 60 * 24 * 5; // 5 days
+const SESSION_MAX_AGE = 60 * 60 * 24 * 5; // 5 days
 
 type ProfileRecord = Pick<Tables<"profiles">, "id" | "role" | "team_id" | "player_id" | "display_name" | "discord_user_id"> & {
   is_active: boolean;
@@ -26,7 +26,7 @@ export type VerifiedSession = {
   accountStatus: "active";
 };
 
-export function isAdminRole(role: string | null | undefined) {
+function isAdminRole(role: string | null | undefined) {
   return isAdminRoleHelper(role);
 }
 
@@ -144,28 +144,16 @@ export async function verifyAccessToken(accessToken: string) {
 
   const profileRecord = await getUserProfileRecord(user.id, extractDiscordUserId(user));
   if (!profileRecord) {
-    throw new AuthConfigurationError(
-      "profile_missing",
-      "Your account has not been fully configured. Please contact the Bravo owner."
-    );
+    throw new AuthConfigurationError("profile_missing", "Your account has not been fully configured. Please contact the Bravo owner.");
   }
   if (!profileRecord.role) {
-    throw new AuthConfigurationError(
-      "role_missing",
-      "Your account access has not been configured. Please contact the Bravo owner."
-    );
+    throw new AuthConfigurationError("role_missing", "Your account access has not been configured. Please contact the Bravo owner.");
   }
   if (!isPlatformRole(profileRecord.role)) {
-    throw new AuthConfigurationError(
-      "role_invalid",
-      "Your account access has not been configured. Please contact the Bravo owner."
-    );
+    throw new AuthConfigurationError("role_invalid", "Your account access has not been configured. Please contact the Bravo owner.");
   }
   if (!profileRecord.is_active) {
-    throw new AuthConfigurationError(
-      "account_inactive",
-      "This account is currently inactive. Please contact the Bravo owner."
-    );
+    throw new AuthConfigurationError("account_inactive", "This account is currently inactive. Please contact the Bravo owner.");
   }
 
   return {
@@ -181,30 +169,13 @@ export async function verifyAccessToken(accessToken: string) {
   } satisfies VerifiedSession;
 }
 
-export async function verifyAdminToken(accessToken: string) {
-  const session = await verifyAccessToken(accessToken);
-  if (!session.isAdmin) {
-    throw new Error("Unauthorized: not an admin user");
-  }
-  return session;
-}
-
 export async function createSessionCookie(accessToken: string, _expiresInMs: number) {
   await verifyAccessToken(accessToken);
   return accessToken;
 }
 
-export async function createAdminSessionCookie(accessToken: string, _expiresInMs: number) {
-  await verifyAdminToken(accessToken);
-  return accessToken;
-}
-
 export async function verifySessionCookie(sessionCookie: string) {
   return verifyAccessToken(sessionCookie);
-}
-
-export async function verifyAdminSessionCookie(sessionCookie: string) {
-  return verifyAdminToken(sessionCookie);
 }
 
 export async function getServerSession() {

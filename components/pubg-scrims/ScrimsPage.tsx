@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import Tabs from "@/components/ui/Tabs";
 import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
 import { formatDisplayNumber } from "@/lib/display-format";
 import { compareMatchTeamResults } from "@/lib/ranking-sort";
 import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { MatchPlayerResult, ScrimDayResult, ScrimDayStatus, TournamentMatch } from "@/lib/types";
+import Link from "next/link";
 
 const weekdaySchedule = [
   { day: "Monday", map: "Rondo", time: "8:00 PM NPT" },
@@ -64,9 +64,7 @@ function formatUpdatedAt(value?: string) {
 }
 
 function getScrimMatchIds(pubgMatchId?: string, pubgMatchIds?: string[]) {
-  return Array.from(
-    new Set([...(pubgMatchIds ?? []), pubgMatchId].filter((matchId): matchId is string => Boolean(matchId)))
-  );
+  return Array.from(new Set([...(pubgMatchIds ?? []), pubgMatchId].filter((matchId): matchId is string => Boolean(matchId))));
 }
 
 function getAssignedTeamNames(teamIds: string[]) {
@@ -98,23 +96,23 @@ function formatSurvivalTime(totalSeconds?: number) {
 }
 
 function sortTeamResultsByPlacement(teamResults: TournamentMatch["teamResults"]) {
-  return [...(teamResults ?? [])].sort((firstResult, secondResult) =>
-    compareMatchTeamResults(firstResult, secondResult)
-  );
+  return [...(teamResults ?? [])].sort((firstResult, secondResult) => compareMatchTeamResults(firstResult, secondResult));
 }
 
 function getMatchMvp(match: TournamentMatch): MatchPlayerResult | null {
   const playerResults = [...(match.playerResults ?? [])];
   if (playerResults.length === 0) return null;
 
-  return playerResults.sort(
-    (firstPlayer, secondPlayer) =>
-      secondPlayer.totalPoints - firstPlayer.totalPoints ||
-      secondPlayer.kills - firstPlayer.kills ||
-      secondPlayer.damage - firstPlayer.damage ||
-      secondPlayer.assists - firstPlayer.assists ||
-      firstPlayer.playerName.localeCompare(secondPlayer.playerName)
-  )[0] ?? null;
+  return (
+    playerResults.sort(
+      (firstPlayer, secondPlayer) =>
+        secondPlayer.totalPoints - firstPlayer.totalPoints ||
+        secondPlayer.kills - firstPlayer.kills ||
+        secondPlayer.damage - firstPlayer.damage ||
+        secondPlayer.assists - firstPlayer.assists ||
+        firstPlayer.playerName.localeCompare(secondPlayer.playerName),
+    )[0] ?? null
+  );
 }
 
 function MatchBreakdownPanel({ matches }: { matches: ScrimDayResult["matches"] }) {
@@ -136,9 +134,7 @@ function MatchBreakdownPanel({ matches }: { matches: ScrimDayResult["matches"] }
           <article key={match.id} className="rounded-card border border-white/10 bg-bg-primary">
             <div className="flex flex-col gap-4 border-b border-white/10 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-blue">
-                  Match {index + 1}
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-blue">Match {index + 1}</p>
                 <h5 className="mt-2 text-xl font-black text-white">{match.map}</h5>
                 <p className="mt-1 text-sm text-text-muted">{formatPlayedAt(match.playedAt)}</p>
                 <Link
@@ -309,7 +305,7 @@ function SchedulePanel() {
 function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
   if (days.length === 0) {
     return (
-        <div className="esports-card p-8 text-center text-text-muted">
+      <div className="esports-card p-8 text-center text-text-muted">
         <p className="font-display font-bold uppercase text-white">Results pending</p>
         <p className="mt-2 text-sm">
           Create scrim entries in admin, import PUBG match IDs, and the daily results will appear here automatically.
@@ -336,8 +332,8 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
               </div>
               <h3 className="mt-4 text-2xl font-black tracking-[-0.03em] text-white">{day.displayDate}</h3>
               <p className="mt-2 text-sm text-text-muted">
-                {day.scrimCount} scrim slot{day.scrimCount === 1 ? "" : "s"} scheduled | {day.completedMatches} match
-                result{day.completedMatches === 1 ? "" : "s"} imported from the PUBG API
+                {day.scrimCount} scrim slot{day.scrimCount === 1 ? "" : "s"} scheduled | {day.completedMatches} match result
+                {day.completedMatches === 1 ? "" : "s"} imported from the PUBG API
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -428,8 +424,8 @@ function ResultsPanel({ days }: { days: ScrimDayResult[] }) {
 
               {day.leaderboard.length === 0 ? (
                 <div className="mt-4 rounded-card border border-dashed border-white/10 px-4 py-8 text-center text-sm text-text-muted">
-                  Results for {day.label} will be published after admin approval. Add the PUBG match ID in admin and import it to
-                  populate the table.
+                  Results for {day.label} will be published after admin approval. Add the PUBG match ID in admin and import it to populate
+                  the table.
                 </div>
               ) : (
                 <div className="table-scroll mt-4">
@@ -500,76 +496,74 @@ export default function ScrimsPage({ days }: { days: ScrimDayResult[] }) {
   return (
     <main className="page-shell">
       <div className="page-inner">
-      <div className="page-hero mb-8">
-        <p className="section-title">PUBG PC</p>
-        <h1 className="hero-h1 mt-2 !text-4xl">Daily Scrims</h1>
-        <p className="mt-3 max-w-3xl text-text-muted">
-          Competitive scrim rooms with verified daily standings. Each day&apos;s results are fetched from the PUBG API,
-          stored in Bravo&apos;s Supabase-backed data hub, and displayed here as Day 1, Day 2, Day 3, and beyond.
-        </p>
-      </div>
-
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="esports-card p-5">
-          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Scrim Days</p>
-          <p className="mt-3 text-3xl font-black text-white">{totalDays}</p>
-        </div>
-        <div className="esports-card p-5">
-          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Synced Matches</p>
-          <p className="mt-3 text-3xl font-black text-white">{totalMatches}</p>
-        </div>
-        <div className="esports-card p-5">
-          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Scrim Slots</p>
-          <p className="mt-3 text-3xl font-black text-white">{totalScrimSlots}</p>
-        </div>
-        <div className="esports-card p-5">
-          <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Active Day</p>
-          <p className="mt-3 text-lg font-black text-white">{latestDay?.label ?? "Day not created yet"}</p>
-          <p className="mt-1 text-sm text-text-muted">
-            {latestDay?.displayDate ?? "Create the next scrim day from admin"}
+        <div className="page-hero mb-8">
+          <p className="section-title">PUBG PC</p>
+          <h1 className="hero-h1 mt-2 !text-4xl">Daily Scrims</h1>
+          <p className="mt-3 max-w-3xl text-text-muted">
+            Competitive scrim rooms with verified daily standings. Each day&apos;s results are fetched from the PUBG API, stored in
+            Bravo&apos;s Supabase-backed data hub, and displayed here as Day 1, Day 2, Day 3, and beyond.
           </p>
         </div>
-      </div>
 
-      <Tabs tabs={["Schedule", "Rules", "How to Join", "Daily Results"]}>
-        {(tab) => (
-          <>
-            {tab === "Schedule" && <SchedulePanel />}
-            {tab === "Rules" && (
-              <div className="esports-card p-6 text-sm text-text-muted">
-                <p>Teams must register before joining scrim lobbies.</p>
-                <p className="mt-2">Match IDs must be submitted within 30 minutes of completion.</p>
-                <p className="mt-2">Admin reviews all results before leaderboard updates.</p>
-                <p className="mt-2">Fair play policy: cheating results in a permanent ban.</p>
-              </div>
-            )}
-            {tab === "How to Join" && (
-              <div className="esports-card p-6">
-                <ol className="list-decimal space-y-3 pl-5 text-text-muted">
-                  <li>Register your team at the registration page.</li>
-                  <li>Join the Bravo Discord for lobby credentials.</li>
-                  <li>Play scheduled scrims at listed times.</li>
-                  <li>Submit match IDs to admins for verification.</li>
-                </ol>
-                <Link href="/teams/register" className="btn-primary mt-6 inline-flex">
-                  Register Team
-                </Link>
-              </div>
-            )}
-            {tab === "Daily Results" && <ResultsPanel days={activeDays} />}
-          </>
-        )}
-      </Tabs>
-
-      <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-card border border-accent-blue/20 bg-accent-blue/5 p-6 sm:flex-row">
-        <div>
-          <h3 className="font-display text-lg font-bold uppercase text-white">Want to Play?</h3>
-          <p className="text-sm text-text-muted">Register your team and compete in our daily scrims.</p>
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="esports-card p-5">
+            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Scrim Days</p>
+            <p className="mt-3 text-3xl font-black text-white">{totalDays}</p>
+          </div>
+          <div className="esports-card p-5">
+            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Synced Matches</p>
+            <p className="mt-3 text-3xl font-black text-white">{totalMatches}</p>
+          </div>
+          <div className="esports-card p-5">
+            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Scrim Slots</p>
+            <p className="mt-3 text-3xl font-black text-white">{totalScrimSlots}</p>
+          </div>
+          <div className="esports-card p-5">
+            <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Active Day</p>
+            <p className="mt-3 text-lg font-black text-white">{latestDay?.label ?? "Day not created yet"}</p>
+            <p className="mt-1 text-sm text-text-muted">{latestDay?.displayDate ?? "Create the next scrim day from admin"}</p>
+          </div>
         </div>
-        <Link href="/teams/register" className="btn-primary">
-          Join Scrims
-        </Link>
-      </div>
+
+        <Tabs tabs={["Schedule", "Rules", "How to Join", "Daily Results"]}>
+          {(tab) => (
+            <>
+              {tab === "Schedule" && <SchedulePanel />}
+              {tab === "Rules" && (
+                <div className="esports-card p-6 text-sm text-text-muted">
+                  <p>Teams must register before joining scrim lobbies.</p>
+                  <p className="mt-2">Match IDs must be submitted within 30 minutes of completion.</p>
+                  <p className="mt-2">Admin reviews all results before leaderboard updates.</p>
+                  <p className="mt-2">Fair play policy: cheating results in a permanent ban.</p>
+                </div>
+              )}
+              {tab === "How to Join" && (
+                <div className="esports-card p-6">
+                  <ol className="list-decimal space-y-3 pl-5 text-text-muted">
+                    <li>Register your team at the registration page.</li>
+                    <li>Join the Bravo Discord for lobby credentials.</li>
+                    <li>Play scheduled scrims at listed times.</li>
+                    <li>Submit match IDs to admins for verification.</li>
+                  </ol>
+                  <Link href="/teams/register" className="btn-primary mt-6 inline-flex">
+                    Register Team
+                  </Link>
+                </div>
+              )}
+              {tab === "Daily Results" && <ResultsPanel days={activeDays} />}
+            </>
+          )}
+        </Tabs>
+
+        <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-card border border-accent-blue/20 bg-accent-blue/5 p-6 sm:flex-row">
+          <div>
+            <h3 className="font-display text-lg font-bold uppercase text-white">Want to Play?</h3>
+            <p className="text-sm text-text-muted">Register your team and compete in our daily scrims.</p>
+          </div>
+          <Link href="/teams/register" className="btn-primary">
+            Join Scrims
+          </Link>
+        </div>
       </div>
     </main>
   );

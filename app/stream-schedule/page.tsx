@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { getLiveStreamFeed, getStreams } from "@/lib/data";
+import Link from "next/link";
 
 export default async function StreamSchedulePage() {
   const [liveFeed, streams] = await Promise.all([getLiveStreamFeed(), getStreams()]);
@@ -16,10 +16,7 @@ export default async function StreamSchedulePage() {
               See every upcoming live broadcast, esports stream, and production window on the Bravo portal.
             </p>
           </div>
-          <Link
-            href="/"
-            className="rounded-full bg-bravoBlue px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white/90"
-          >
+          <Link href="/" className="rounded-full bg-bravoBlue px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white/90">
             Back to Home
           </Link>
         </div>
@@ -49,7 +46,7 @@ export default async function StreamSchedulePage() {
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-semibold text-white">{stream.title}</p>
                       <span className={`text-xs font-semibold uppercase ${stream.isLive ? "text-red-300" : "text-accent-blue"}`}>
-                        {stream.isLive ? "Live" : stream.platform ?? "YouTube"}
+                        {stream.isLive ? "Live" : (stream.platform ?? "YouTube")}
                       </span>
                     </div>
                     <p className="mt-2 text-sm text-slate-400">{stream.time}</p>

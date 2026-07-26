@@ -139,10 +139,8 @@ function buildTargetDraftMatch(preview: PubgImportPreview, emptyDraftMatches: To
 
     const firstDate = parseDate(firstMatch.playedAt);
     const secondDate = parseDate(secondMatch.playedAt);
-    const firstDelta =
-      previewDate && firstDate ? Math.abs(previewDate.getTime() - firstDate.getTime()) : Number.POSITIVE_INFINITY;
-    const secondDelta =
-      previewDate && secondDate ? Math.abs(previewDate.getTime() - secondDate.getTime()) : Number.POSITIVE_INFINITY;
+    const firstDelta = previewDate && firstDate ? Math.abs(previewDate.getTime() - firstDate.getTime()) : Number.POSITIVE_INFINITY;
+    const secondDelta = previewDate && secondDate ? Math.abs(previewDate.getTime() - secondDate.getTime()) : Number.POSITIVE_INFINITY;
     if (firstDelta !== secondDelta) {
       return firstDelta - secondDelta;
     }
@@ -192,10 +190,7 @@ function buildConfidenceReason(status: PubgImportCandidateStatus, score: number,
   return `Candidate processing failed${signalSummary ? `: ${signalSummary}.` : "."}`;
 }
 
-async function loadCandidateEventContext(
-  watcher: PubgImportWatcher,
-  preview: PubgImportPreview
-): Promise<CandidateEventContext> {
+async function loadCandidateEventContext(watcher: PubgImportWatcher, preview: PubgImportPreview): Promise<CandidateEventContext> {
   const tournamentId = watcher.tournamentId ?? preview.tournamentId;
   const scrimId = watcher.scrimId ?? preview.scrimId;
   const [tournament, scrim] = await Promise.all([
@@ -203,19 +198,15 @@ async function loadCandidateEventContext(
     scrimId ? getDocument<Scrim>(COLLECTIONS.scrims, scrimId) : Promise.resolve(null),
   ]);
   const existingMatches = tournament?.id
-    ? await getCompetitionMatchesForEvent(tournament.id, { includeDrafts: true })
+    ? await getCompetitionMatchesForEvent(tournament.id, {
+        includeDrafts: true,
+      })
     : [];
   const emptyDraftMatches = existingMatches
-    .filter(
-      (match) =>
-        match.status === "draft" &&
-        (match.teamResults?.length ?? 0) === 0 &&
-        (match.playerResults?.length ?? 0) === 0
-    )
+    .filter((match) => match.status === "draft" && (match.teamResults?.length ?? 0) === 0 && (match.playerResults?.length ?? 0) === 0)
     .sort(
       (firstMatch, secondMatch) =>
-        (firstMatch.matchNumber ?? firstMatch.sequenceNumber ?? 999) -
-        (secondMatch.matchNumber ?? secondMatch.sequenceNumber ?? 999)
+        (firstMatch.matchNumber ?? firstMatch.sequenceNumber ?? 999) - (secondMatch.matchNumber ?? secondMatch.sequenceNumber ?? 999),
     );
   const registeredTeamIds = tournament?.registeredTeamIds ?? [];
 
@@ -238,9 +229,7 @@ function buildSignals(input: {
   const signals: PubgImportCandidateSignal[] = [];
   const window = buildEventWindow(context.scrim, context.emptyDraftMatches);
   const previewTime = parseDate(preview.summary.createdAt);
-  const emptyMatchTarget = context.emptyDraftMatches.find(
-    (match) => (match.matchNumber ?? match.sequenceNumber) === targetMatchNumber
-  );
+  const emptyMatchTarget = context.emptyDraftMatches.find((match) => (match.matchNumber ?? match.sequenceNumber) === targetMatchNumber);
   const expectedMap =
     emptyMatchTarget?.map ??
     context.scrim?.mapRotation?.[Math.max((targetMatchNumber ?? 1) - 1, 0)] ??
@@ -257,31 +246,28 @@ function buildSignals(input: {
   const configuredExpectedTeamCount = Math.max(
     context.registeredTeamIds.length,
     context.tournament?.teamCount ?? 0,
-    context.scrim?.teamIds.length ?? 0
+    context.scrim?.teamIds.length ?? 0,
   );
   const expectedTeamCount = configuredExpectedTeamCount > 0 ? configuredExpectedTeamCount : actualTeamCount;
   const configuredExpectedParticipantCount = expectedTeamCount > 0 ? expectedTeamCount * 4 : 0;
-  const expectedParticipantCount = configuredExpectedParticipantCount > 0
-    ? configuredExpectedParticipantCount
-    : actualParticipantCount;
+  const expectedParticipantCount = configuredExpectedParticipantCount > 0 ? configuredExpectedParticipantCount : actualParticipantCount;
   const duplicateImportedMatch = preview.alreadyImported;
   const seriousRosterConflict = preview.conflicts.length > 0 || hasSeriousReviewWarning(preview);
   const insideEventWindow = Boolean(
-    previewTime && previewTime.getTime() >= window.start.getTime() && previewTime.getTime() <= window.end.getTime()
+    previewTime && previewTime.getTime() >= window.start.getTime() && previewTime.getTime() <= window.end.getTime(),
   );
-  const mapMatchesExpected = normalizedPreviewMap.length > 0 && normalizedExpectedMap.length > 0
-    ? normalizedPreviewMap === normalizedExpectedMap
-    : (context.scrim?.mapRotation ?? context.tournament?.mapRotation ?? []).some(
-        (mapName) => normalizeMapName(mapName) === normalizedPreviewMap
-      );
+  const mapMatchesExpected =
+    normalizedPreviewMap.length > 0 && normalizedExpectedMap.length > 0
+      ? normalizedPreviewMap === normalizedExpectedMap
+      : (context.scrim?.mapRotation ?? context.tournament?.mapRotation ?? []).some(
+          (mapName) => normalizeMapName(mapName) === normalizedPreviewMap,
+        );
   const knownPlayerRatio = actualParticipantCount > 0 ? knownPlayers / actualParticipantCount : 0;
   const knownTeamRatio = actualTeamCount > 0 ? knownTeams / actualTeamCount : 0;
   const teamCountMatches = actualTeamCount > 0 && actualTeamCount === expectedTeamCount;
   const participantCountMatches = actualParticipantCount > 0 && actualParticipantCount === expectedParticipantCount;
   const matchOrderFits =
-    typeof targetMatchNumber === "number" &&
-    typeof firstEmptyMatchNumber === "number" &&
-    targetMatchNumber === firstEmptyMatchNumber;
+    typeof targetMatchNumber === "number" && typeof firstEmptyMatchNumber === "number" && targetMatchNumber === firstEmptyMatchNumber;
 
   if (insideEventWindow) {
     signals.push({ label: "Match inside event time window", score: 30 });
@@ -352,7 +338,7 @@ async function saveWatcherProgress(
   options?: {
     imported?: boolean;
     lastCandidateStatus?: string;
-  }
+  },
 ) {
   const watcher = await getDocument<PubgImportWatcher>(COLLECTIONS.pubgImportWatchers, watcherId);
   if (!watcher) {
@@ -375,10 +361,7 @@ async function saveWatcherProgress(
   });
 }
 
-async function importCandidateMatch(
-  candidate: PubgImportCandidate,
-  publish: boolean
-) {
+async function importCandidateMatch(candidate: PubgImportCandidate, publish: boolean) {
   const result = await importPubgMatchesRelational([candidate.matchId], {
     tournamentId: candidate.tournamentId,
     scrimId: candidate.scrimId,
@@ -431,15 +414,9 @@ async function writeSystemCandidateAudit(action: string, candidate: PubgImportCa
   });
 }
 
-export async function evaluatePubgImportCandidate(
-  watcher: PubgImportWatcher,
-  preview: PubgImportPreview
-): Promise<PubgImportCandidate> {
+async function evaluatePubgImportCandidate(watcher: PubgImportWatcher, preview: PubgImportPreview): Promise<PubgImportCandidate> {
   const eventContext = await loadCandidateEventContext(watcher, preview);
-  const { targetMatch, targetMatchNumber, firstEmptyMatchNumber } = buildTargetDraftMatch(
-    preview,
-    eventContext.emptyDraftMatches
-  ) ?? {
+  const { targetMatch, targetMatchNumber, firstEmptyMatchNumber } = buildTargetDraftMatch(preview, eventContext.emptyDraftMatches) ?? {
     targetMatch: null,
     targetMatchNumber: preview.matchNumber,
     firstEmptyMatchNumber: undefined,
@@ -453,18 +430,16 @@ export async function evaluatePubgImportCandidate(
   const confidenceScore = signalState.signals.reduce((totalScore, signal) => totalScore + signal.score, 0);
   const canAutoPublish = Boolean(
     watcher.autoPublishCandidates &&
-      !signalState.duplicateImportedMatch &&
-      !signalState.seriousRosterConflict &&
-      signalState.enoughRegisteredTeams &&
-      signalState.enoughRegisteredPlayers &&
-      signalState.insideEventWindow &&
-      signalState.mapMatchesExpected &&
-      typeof targetMatchNumber === "number"
+    !signalState.duplicateImportedMatch &&
+    !signalState.seriousRosterConflict &&
+    signalState.enoughRegisteredTeams &&
+    signalState.enoughRegisteredPlayers &&
+    signalState.insideEventWindow &&
+    signalState.mapMatchesExpected &&
+    typeof targetMatchNumber === "number",
   );
   const canDraftImport = Boolean(
-    !signalState.duplicateImportedMatch &&
-      typeof targetMatchNumber === "number" &&
-      eventContext.tournament?.id
+    !signalState.duplicateImportedMatch && typeof targetMatchNumber === "number" && eventContext.tournament?.id,
   );
   const hasReviewBlockingWarning = signalState.seriousRosterConflict;
 
@@ -517,10 +492,7 @@ export async function evaluatePubgImportCandidate(
   };
 }
 
-export async function processAutoDetectedPubgCandidate(
-  watcher: PubgImportWatcher,
-  preview: PubgImportPreview
-) {
+export async function processAutoDetectedPubgCandidate(watcher: PubgImportWatcher, preview: PubgImportPreview) {
   const now = new Date().toISOString();
   let candidate = await evaluatePubgImportCandidate(watcher, preview);
   candidate = await saveCandidate({
@@ -531,7 +503,9 @@ export async function processAutoDetectedPubgCandidate(
   await writeSystemCandidateAudit("candidate_found", candidate);
 
   if (candidate.status === "ignored") {
-    await saveWatcherProgress(watcher.id, candidate.matchId, { lastCandidateStatus: candidate.status });
+    await saveWatcherProgress(watcher.id, candidate.matchId, {
+      lastCandidateStatus: candidate.status,
+    });
     await writeSystemCandidateAudit("candidate_ignored", candidate);
     return candidate;
   }
@@ -558,7 +532,9 @@ export async function processAutoDetectedPubgCandidate(
         error: error instanceof Error ? error.message : String(error),
         updatedAt: new Date().toISOString(),
       });
-      await saveWatcherProgress(watcher.id, candidate.matchId, { lastCandidateStatus: candidate.status });
+      await saveWatcherProgress(watcher.id, candidate.matchId, {
+        lastCandidateStatus: candidate.status,
+      });
       await writeSystemCandidateAudit("candidate_failed", candidate);
       return candidate;
     }
@@ -587,36 +563,38 @@ export async function processAutoDetectedPubgCandidate(
         error: error instanceof Error ? error.message : String(error),
         updatedAt: new Date().toISOString(),
       });
-      await saveWatcherProgress(watcher.id, candidate.matchId, { lastCandidateStatus: candidate.status });
+      await saveWatcherProgress(watcher.id, candidate.matchId, {
+        lastCandidateStatus: candidate.status,
+      });
       await writeSystemCandidateAudit("candidate_failed", candidate);
       return candidate;
     }
   }
 
-  await saveWatcherProgress(watcher.id, candidate.matchId, { lastCandidateStatus: candidate.status });
+  await saveWatcherProgress(watcher.id, candidate.matchId, {
+    lastCandidateStatus: candidate.status,
+  });
   return candidate;
 }
 
 export async function listPubgImportCandidates(limit = RECENT_CANDIDATE_LIMIT) {
-  const candidates = await fetchDocumentCollection<PubgImportCandidate>(COLLECTIONS.pubgImportCandidates, limit).catch(
-    () => []
-  );
+  const candidates = await fetchDocumentCollection<PubgImportCandidate>(COLLECTIONS.pubgImportCandidates, limit).catch(() => []);
 
   return candidates.sort(
     (firstCandidate, secondCandidate) =>
       (secondCandidate.updatedAt ?? "").localeCompare(firstCandidate.updatedAt ?? "") ||
-      secondCandidate.confidenceScore - firstCandidate.confidenceScore
+      secondCandidate.confidenceScore - firstCandidate.confidenceScore,
   );
 }
 
-export async function getPubgImportCandidate(candidateId: string) {
+async function getPubgImportCandidate(candidateId: string) {
   return getDocument<PubgImportCandidate>(COLLECTIONS.pubgImportCandidates, candidateId);
 }
 
 export async function applyPubgImportCandidateAction(
   request: Request,
   candidateId: string,
-  action: "approve_publish" | "reject" | "force_import_draft"
+  action: "approve_publish" | "reject" | "force_import_draft",
 ) {
   const candidate = await getPubgImportCandidate(candidateId);
   if (!candidate) {
@@ -662,7 +640,7 @@ export async function applyPubgImportCandidateAction(
     ...candidate,
     status: nextStatus,
     reviewPending: publish ? false : true,
-    importedDraftAt: publish ? candidate.importedDraftAt ?? new Date().toISOString() : new Date().toISOString(),
+    importedDraftAt: publish ? (candidate.importedDraftAt ?? new Date().toISOString()) : new Date().toISOString(),
     publishedAt: publish ? new Date().toISOString() : candidate.publishedAt,
     updatedAt: new Date().toISOString(),
   });

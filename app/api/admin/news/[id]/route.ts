@@ -1,12 +1,8 @@
-import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { normalizeNewsDateTime } from "@/lib/news-publishing";
-import {
-  deleteManagedNewsArticle,
-  getManagedNewsArticleById,
-  saveManagedNewsArticle,
-} from "@/lib/platform-content";
+import { deleteManagedNewsArticle, getManagedNewsArticleById, saveManagedNewsArticle } from "@/lib/platform-content";
+import { revalidatePath } from "next/cache";
 
 type RouteProps = {
   params: Promise<{ id: string }>;

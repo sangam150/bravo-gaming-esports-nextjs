@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import { adminFetch, adminUpload } from "@/lib/admin-api";
-import {
-  formatUploadSize,
-  getUploadMaxBytes,
-  IMAGE_FILE_INPUT_ACCEPT,
-} from "@/lib/upload-config";
-import { validateImageUpload } from "@/lib/upload-validation";
 import type { Team } from "@/lib/types";
+import { formatUploadSize, getUploadMaxBytes, IMAGE_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
+import { validateImageUpload } from "@/lib/upload-validation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type UploadStatus = "queued" | "uploading" | "uploaded" | "unmatched" | "error";
 
@@ -62,13 +58,7 @@ function matchTeam(fileName: string, teams: Team[]) {
   return fuzzyMatches.length === 1 ? fuzzyMatches[0] : null;
 }
 
-export default function BulkTeamLogoUpload({
-  teams,
-  onComplete,
-}: {
-  teams: Team[];
-  onComplete: () => Promise<void> | void;
-}) {
+export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[]; onComplete: () => Promise<void> | void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const previewUrlsRef = useRef<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -97,9 +87,7 @@ export default function BulkTeamLogoUpload({
   }
 
   function updateResult(resultId: string, updates: Partial<UploadResult>) {
-    setResults((currentResults) =>
-      currentResults.map((result) => (result.id === resultId ? { ...result, ...updates } : result))
-    );
+    setResults((currentResults) => currentResults.map((result) => (result.id === resultId ? { ...result, ...updates } : result)));
   }
 
   async function handleBulkUpload(files: FileList) {
@@ -230,9 +218,7 @@ export default function BulkTeamLogoUpload({
   const uploadedCount = results.filter((result) => result.status === "uploaded").length;
   const unmatchedCount = results.filter((result) => result.status === "unmatched").length;
   const errorCount = results.filter((result) => result.status === "error").length;
-  const queuedCount = results.filter(
-    (result) => result.status === "queued" || result.status === "uploading"
-  ).length;
+  const queuedCount = results.filter((result) => result.status === "queued" || result.status === "uploading").length;
   const teamLogoMaxUploadSize = formatUploadSize(getUploadMaxBytes("team_logo"));
 
   return (
@@ -243,12 +229,8 @@ export default function BulkTeamLogoUpload({
           <p className="mt-2 text-sm text-text-muted">
             Drop multiple logo files at once. Filenames should match the team `id`, team name, or tag.
           </p>
-          <p className="mt-2 text-xs text-text-muted">
-            Supported files: JPG, PNG, WEBP up to {teamLogoMaxUploadSize}
-          </p>
-          <p className="mt-1 text-xs text-text-muted">
-            Example: `dead-eyes.png`, `DeadEyes Guys.png`, or `DE.png`
-          </p>
+          <p className="mt-2 text-xs text-text-muted">Supported files: JPG, PNG, WEBP up to {teamLogoMaxUploadSize}</p>
+          <p className="mt-1 text-xs text-text-muted">Example: `dead-eyes.png`, `DeadEyes Guys.png`, or `DE.png`</p>
         </div>
         <div className="rounded-card border border-white/10 bg-bg-primary px-4 py-3 text-sm text-text-muted">
           {teamsWithLogos}/{teams.length} teams currently have logos
@@ -300,9 +282,7 @@ export default function BulkTeamLogoUpload({
           }
         }}
         className={`mt-5 rounded-card border-2 border-dashed p-5 transition ${
-          dragActive
-            ? "border-accent-blue bg-accent-blue/10"
-            : "border-white/10 bg-bg-primary hover:border-white/20"
+          dragActive ? "border-accent-blue bg-accent-blue/10" : "border-white/10 bg-bg-primary hover:border-white/20"
         } ${uploading ? "cursor-wait opacity-90" : "cursor-pointer"}`}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -342,9 +322,7 @@ export default function BulkTeamLogoUpload({
             <div className="rounded-card border border-accent-yellow/20 bg-accent-yellow/10 px-4 py-3 text-sm text-accent-yellow">
               Unmatched: {unmatchedCount}
             </div>
-            <div className="rounded-card border border-bravoRed/20 bg-bravoRed/10 px-4 py-3 text-sm text-red-300">
-              Errors: {errorCount}
-            </div>
+            <div className="rounded-card border border-bravoRed/20 bg-bravoRed/10 px-4 py-3 text-sm text-red-300">Errors: {errorCount}</div>
           </div>
 
           <div className="max-h-96 overflow-auto rounded-card border border-white/10">

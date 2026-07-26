@@ -1,12 +1,12 @@
-import { randomUUID } from "crypto";
 import { getRequestSession, requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
-import { uploadPrivateFile, uploadPublicFile, buildPrivateUploadUrl, deleteFromStorageByUrl } from "@/lib/r2/storage";
-import { createUploadRecord } from "@/lib/upload-records";
+import { buildPrivateUploadUrl, deleteFromStorageByUrl, uploadPrivateFile, uploadPublicFile } from "@/lib/r2/storage";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import { isPrivateUploadType, normalizeUploadType } from "@/lib/upload-config";
+import { createUploadRecord } from "@/lib/upload-records";
 import { resolveUploadContentType, validateUpload } from "@/lib/upload-validation";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
@@ -15,7 +15,11 @@ export async function POST(request: Request) {
   if (unauthorized) return unauthorized;
 
   const session = await getRequestSession(request);
-  const limited = await enforceRateLimit(request, { key: "admin-upload-r2", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "admin-upload-r2",
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -42,7 +46,9 @@ export async function POST(request: Request) {
     }
 
     const contentType =
-      resolveUploadContentType(type, file.name, file.type, { audience: "admin" }) || "application/octet-stream";
+      resolveUploadContentType(type, file.name, file.type, {
+        audience: "admin",
+      }) || "application/octet-stream";
     const buffer = Buffer.from(await file.arrayBuffer());
     const uploadRecordId = randomUUID();
 
@@ -50,8 +56,7 @@ export async function POST(request: Request) {
       ? await uploadPrivateFile(type, entityId, file.name, buffer, contentType)
       : await uploadPublicFile(type, entityId, file.name, buffer, contentType);
 
-    const url =
-      uploadResult.visibility === "private" ? buildPrivateUploadUrl(uploadRecordId) : uploadResult.url;
+    const url = uploadResult.visibility === "private" ? buildPrivateUploadUrl(uploadRecordId) : uploadResult.url;
 
     const record = await createUploadRecord({
       contentType,
@@ -95,4 +100,3 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: message }, { status: 500 });
   }
 }
-

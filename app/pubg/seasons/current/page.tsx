@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
 import { getCurrentSeasonOverview } from "@/lib/data";
+import { redirect } from "next/navigation";
 
 export default async function PubgCurrentSeasonPage() {
   const overview = await getCurrentSeasonOverview();

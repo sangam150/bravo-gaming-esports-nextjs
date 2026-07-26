@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { PlatformGameDetailPage } from "@/components/platform/PlatformPages";
 import { getPlatformGameBySlug, getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ slug: string }>;

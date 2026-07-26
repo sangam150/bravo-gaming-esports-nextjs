@@ -1,30 +1,15 @@
-import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { requireAdmin } from "@/lib/admin-auth";
-import {
-  createRegistration,
-  getRegistration,
-  getRegistrations,
-  getTeam,
-  getTeams,
-  saveTeam,
-  updateRegistrationStatus,
-} from "@/lib/data";
+import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { createRegistration, getRegistration, getRegistrations, getTeam, getTeams, saveTeam, updateRegistrationStatus } from "@/lib/data";
 import { getManagedUploadRecord, getPrivateObject, readObjectBodyAsBuffer, uploadPublicFile } from "@/lib/r2/storage";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { revalidateCompetitionPaths, revalidateTeamPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
-import {
-  isValidDiscordHandle,
-  RegistrationValidationError,
-  validateRegistrationTarget,
-} from "@/lib/team-registration";
-import { createUploadRecord } from "@/lib/upload-records";
-import { findTeamDuplicateCandidates } from "@/lib/team-onboarding";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
-import {
-  jsonErrorResponse,
-  USER_FACING_ERROR_MESSAGES,
-} from "@/lib/user-facing-errors";
+import { findTeamDuplicateCandidates } from "@/lib/team-onboarding";
+import { isValidDiscordHandle, RegistrationValidationError, validateRegistrationTarget } from "@/lib/team-registration";
+import { createUploadRecord } from "@/lib/upload-records";
+import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
 function slugify(value: string) {
   return value
@@ -75,7 +60,7 @@ async function promotePendingTeamLogo(options: {
     options.teamId,
     existingUpload.fileName ?? `${options.teamName}.png`,
     buffer,
-    contentType
+    contentType,
   );
   const publicRecord = await createUploadRecord({
     fileUrl: promotedUpload.url,
@@ -103,41 +88,57 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const limited = await enforceRateLimit(request, { key: "team-registration", maxRequests: 5, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "team-registration",
+    maxRequests: 5,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     const logoUrl = normalizeOptionalString(body.logoUrl);
     const logoPath = normalizeOptionalString(body.logoPath);
     const logoUploadId = normalizeOptionalString(body.logoUploadId);
+    const teamName = normalizeOptionalString(body.teamName);
+    const captainName = normalizeOptionalString(body.captainName);
+    const captainDiscord = normalizeOptionalString(body.captainDiscord);
+    const tournamentId = normalizeOptionalString(body.tournamentId);
     const playerNames = Array.isArray(body.playerNames)
-      ? body.playerNames.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      ? body.playerNames.filter((value: unknown): value is string => typeof value === "string" && value.trim().length > 0)
       : [];
-    if (!body.teamName || !body.captainName || !body.captainDiscord) {
+    if (!teamName || !captainName || !captainDiscord) {
       return Response.json(
-        { error: "Please provide the team name, IGL or manager name, and Discord contact before submitting." },
-        { status: 400 }
+        {
+          error: "Please provide the team name, IGL or manager name, and Discord contact before submitting.",
+        },
+        { status: 400 },
       );
     }
     if (playerNames.length > 4) {
       return Response.json(
-        { error: "Team registrations support up to 4 player names in this form." },
-        { status: 400 }
+        {
+          error: "Team registrations support up to 4 player names in this form.",
+        },
+        { status: 400 },
       );
     }
-    if (!isValidDiscordHandle(body.captainDiscord)) {
+    if (!isValidDiscordHandle(captainDiscord)) {
       return Response.json(
-        { error: "Enter a valid Discord username so Bravo admins can contact your team after review." },
-        { status: 400 }
+        {
+          error: "Enter a valid Discord username so Bravo admins can contact your team after review.",
+        },
+        { status: 400 },
       );
     }
     const hasAnyLogoField = Boolean(logoUrl || logoPath || logoUploadId);
     if (hasAnyLogoField) {
       if (!logoUrl || !logoPath || !logoUploadId) {
         return Response.json(
-          { error: "Finish the team logo upload before you submit, or submit the form without a logo." },
-          { status: 400 }
+          {
+            error: "Finish the team logo upload before you submit, or submit the form without a logo.",
+          },
+          { status: 400 },
         );
       }
 
@@ -149,22 +150,24 @@ export async function POST(request: Request) {
         pendingUploadRecord.url !== logoUrl
       ) {
         return Response.json(
-          { error: "Upload the team logo again before you submit this registration." },
-          { status: 400 }
+          {
+            error: "Upload the team logo again before you submit this registration.",
+          },
+          { status: 400 },
         );
       }
     }
     const registrationTarget = await validateRegistrationTarget({
-      tournamentId: typeof body.tournamentId === "string" ? body.tournamentId : undefined,
-      teamName: body.teamName,
-      captainDiscord: body.captainDiscord,
+      tournamentId,
+      teamName,
+      captainDiscord,
     });
     const [officialTeams, existingRegistrations] = await Promise.all([getTeams(), getRegistrations()]);
     const duplicateCandidates = findTeamDuplicateCandidates(
       {
-        name: body.teamName,
+        name: teamName,
         tag: normalizeOptionalString(body.teamTag),
-        captainDiscord: body.captainDiscord,
+        captainDiscord,
         playerNames,
       },
       [
@@ -186,15 +189,15 @@ export async function POST(request: Request) {
             playerNames: registration.playerNames,
             status: registration.status,
           })),
-      ]
+      ],
     );
     const result = await createRegistration({
-      teamName: body.teamName,
+      teamName,
       teamTag: normalizeOptionalString(body.teamTag),
-      captainName: body.captainName,
-      captainDiscord: body.captainDiscord,
+      captainName,
+      captainDiscord,
       playerNames,
-      tournamentId: registrationTarget?.id ?? body.tournamentId,
+      tournamentId: registrationTarget?.id ?? tournamentId,
       tournamentTitle: registrationTarget?.title,
       logoUrl,
       logoPath,
@@ -212,7 +215,7 @@ export async function POST(request: Request) {
         candidate_team_ids: candidateTeamIds,
         details: {
           registrationId: result.id,
-          submittedName: body.teamName,
+          submittedName: teamName,
           candidates: duplicateCandidates.slice(0, 10),
         },
       });
@@ -244,7 +247,11 @@ export async function PATCH(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = await enforceRateLimit(request, { key: "registration-admin-update", maxRequests: 30, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "registration-admin-update",
+    maxRequests: 30,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -272,9 +279,7 @@ export async function PATCH(request: Request) {
     if (body.status === "approved") {
       const existingTeam =
         (registration.approvedTeamId ? await getTeam(registration.approvedTeamId) : null) ??
-        (await getTeams()).find(
-          (team) => team.name.trim().toLowerCase() === registration.teamName.trim().toLowerCase()
-        ) ??
+        (await getTeams()).find((team) => team.name.trim().toLowerCase() === registration.teamName.trim().toLowerCase()) ??
         null;
 
       const teamId = existingTeam?.id ?? registration.approvedTeamId ?? slugify(registration.teamName);
@@ -318,7 +323,7 @@ export async function PATCH(request: Request) {
           sourceProvider: existingTeam?.sourceProvider,
           createdAt: existingTeam?.createdAt,
         },
-        teamId
+        teamId,
       );
 
       revalidateTeamPaths(approvedTeam.id);

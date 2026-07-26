@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-api";
+import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "./AuthProvider";
 
 type Mapping = {
@@ -34,27 +34,8 @@ type AccessReview = {
   created_at: string;
 };
 
-const mappingTypes = [
-  "ignored",
-  "access",
-  "team_function",
-  "team_identity",
-  "verification",
-  "cosmetic",
-  "bot",
-  "deny",
-];
-const applicationRoles = [
-  "",
-  "admin",
-  "organizer",
-  "moderator",
-  "team_manager",
-  "team_igl",
-  "coach",
-  "player",
-  "viewer",
-];
+const mappingTypes = ["ignored", "access", "team_function", "team_identity", "verification", "cosmetic", "bot", "deny"];
+const applicationRoles = ["", "admin", "organizer", "moderator", "team_manager", "team_igl", "coach", "player", "viewer"];
 
 export default function AdminDiscordRoleMappingManager() {
   const { role } = useAdminAuth();
@@ -88,11 +69,7 @@ export default function AdminDiscordRoleMappingManager() {
   }, [load, role]);
 
   function updateLocal(roleId: string, patch: Partial<Mapping>) {
-    setMappings((current) =>
-      current.map((mapping) =>
-        mapping.discord_role_id === roleId ? { ...mapping, ...patch } : mapping
-      )
-    );
+    setMappings((current) => current.map((mapping) => (mapping.discord_role_id === roleId ? { ...mapping, ...patch } : mapping)));
   }
 
   async function syncCatalog() {
@@ -156,7 +133,8 @@ export default function AdminDiscordRoleMappingManager() {
             <div>
               <h1 className="section-heading">Discord Role Mapping</h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">
-                Function roles describe what a member does. Team identity roles link numeric Discord roles to existing Bravo teams, including teams added later.
+                Function roles describe what a member does. Team identity roles link numeric Discord roles to existing Bravo teams,
+                including teams added later.
               </p>
             </div>
             <button type="button" onClick={() => void syncCatalog()} disabled={syncing} className="btn-primary">
@@ -165,8 +143,16 @@ export default function AdminDiscordRoleMappingManager() {
           </div>
         </section>
 
-        {message ? <p role="status" className="rounded-card border border-green-500/30 bg-green-500/10 p-4 text-green-100">{message}</p> : null}
-        {error ? <p role="alert" className="rounded-card border border-red-500/30 bg-red-500/10 p-4 text-red-100">{error}</p> : null}
+        {message ? (
+          <p role="status" className="rounded-card border border-green-500/30 bg-green-500/10 p-4 text-green-100">
+            {message}
+          </p>
+        ) : null}
+        {error ? (
+          <p role="alert" className="rounded-card border border-red-500/30 bg-red-500/10 p-4 text-red-100">
+            {error}
+          </p>
+        ) : null}
 
         <section className="esports-card">
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -174,24 +160,16 @@ export default function AdminDiscordRoleMappingManager() {
               <p className="section-title">Owner review queue</p>
               <h2 className="mt-2 font-display text-xl font-black uppercase text-white">Discord and team conflicts</h2>
             </div>
-            <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-text-muted">
-              {reviews.length} open
-            </span>
+            <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-text-muted">{reviews.length} open</span>
           </div>
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
             {reviews.map((review) => (
               <article key={review.id} className="rounded-card border border-amber-400/20 bg-amber-400/[0.06] p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-200">
-                  {review.category.replaceAll("_", " ")}
-                </p>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-200">{review.category.replaceAll("_", " ")}</p>
                 <p className="mt-2 text-sm text-white">
-                  {review.discord_user_id === "guild-role-catalog"
-                    ? "Discord role catalog"
-                    : `Discord member ${review.discord_user_id}`}
+                  {review.discord_user_id === "guild-role-catalog" ? "Discord role catalog" : `Discord member ${review.discord_user_id}`}
                 </p>
-                <p className="mt-2 break-all font-mono text-xs text-text-muted">
-                  Roles: {review.discord_role_ids.join(", ") || "None"}
-                </p>
+                <p className="mt-2 break-all font-mono text-xs text-text-muted">Roles: {review.discord_role_ids.join(", ") || "None"}</p>
                 <p className="mt-2 text-xs text-text-muted">
                   Candidate teams: {review.candidate_team_ids.length || "None"} · {new Date(review.created_at).toLocaleString()}
                 </p>
@@ -222,19 +200,28 @@ export default function AdminDiscordRoleMappingManager() {
                   <tr key={mapping.discord_role_id}>
                     <td>
                       <p className="font-semibold text-white">{mapping.discord_role_name}</p>
-                      <p className="text-xs text-text-muted">Position {mapping.role_position}{mapping.managed_by_discord ? " · managed" : ""}</p>
+                      <p className="text-xs text-text-muted">
+                        Position {mapping.role_position}
+                        {mapping.managed_by_discord ? " · managed" : ""}
+                      </p>
                     </td>
                     <td className="font-mono text-xs">{mapping.discord_role_id}</td>
                     <td>
                       <select
                         className="input-esports min-w-40"
                         value={mapping.mapping_type}
-                        onChange={(event) => updateLocal(mapping.discord_role_id, {
-                          mapping_type: event.target.value,
-                          team_id: event.target.value === "team_identity" ? mapping.team_id : null,
-                        })}
+                        onChange={(event) =>
+                          updateLocal(mapping.discord_role_id, {
+                            mapping_type: event.target.value,
+                            team_id: event.target.value === "team_identity" ? mapping.team_id : null,
+                          })
+                        }
                       >
-                        {mappingTypes.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}
+                        {mappingTypes.map((type) => (
+                          <option key={type} value={type}>
+                            {type.replaceAll("_", " ")}
+                          </option>
+                        ))}
                       </select>
                     </td>
                     <td>
@@ -242,10 +229,16 @@ export default function AdminDiscordRoleMappingManager() {
                         className="input-esports min-w-36"
                         value={mapping.application_role ?? ""}
                         disabled={!["access", "team_function"].includes(mapping.mapping_type)}
-                        onChange={(event) => updateLocal(mapping.discord_role_id, { application_role: event.target.value || null })}
+                        onChange={(event) =>
+                          updateLocal(mapping.discord_role_id, {
+                            application_role: event.target.value || null,
+                          })
+                        }
                       >
                         {applicationRoles.map((applicationRole) => (
-                          <option key={applicationRole || "none"} value={applicationRole}>{applicationRole || "None"}</option>
+                          <option key={applicationRole || "none"} value={applicationRole}>
+                            {applicationRole || "None"}
+                          </option>
                         ))}
                       </select>
                     </td>
@@ -254,22 +247,41 @@ export default function AdminDiscordRoleMappingManager() {
                         className="input-esports min-w-48"
                         value={mapping.team_id ?? ""}
                         disabled={mapping.mapping_type !== "team_identity"}
-                        onChange={(event) => updateLocal(mapping.discord_role_id, { team_id: event.target.value || null })}
+                        onChange={(event) =>
+                          updateLocal(mapping.discord_role_id, {
+                            team_id: event.target.value || null,
+                          })
+                        }
                       >
                         <option value="">Select team</option>
-                        {teams.map((team) => <option key={team.id} value={team.id}>{team.name}{team.tag ? ` (${team.tag})` : ""}{team.is_active ? "" : " · inactive"}</option>)}
+                        {teams.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.name}
+                            {team.tag ? ` (${team.tag})` : ""}
+                            {team.is_active ? "" : " · inactive"}
+                          </option>
+                        ))}
                       </select>
                     </td>
                     <td>
                       <input
                         type="checkbox"
                         checked={mapping.enabled}
-                        onChange={(event) => updateLocal(mapping.discord_role_id, { enabled: event.target.checked })}
+                        onChange={(event) =>
+                          updateLocal(mapping.discord_role_id, {
+                            enabled: event.target.checked,
+                          })
+                        }
                         aria-label={`Enable ${mapping.discord_role_name}`}
                       />
                     </td>
                     <td>
-                      <button type="button" className="btn-secondary" disabled={savingRoleId === mapping.discord_role_id} onClick={() => void save(mapping)}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={savingRoleId === mapping.discord_role_id}
+                        onClick={() => void save(mapping)}
+                      >
                         {savingRoleId === mapping.discord_role_id ? "Saving..." : "Save"}
                       </button>
                     </td>
@@ -278,7 +290,9 @@ export default function AdminDiscordRoleMappingManager() {
               </tbody>
             </table>
           </div>
-          {!loading && mappings.length === 0 ? <p className="p-6 text-text-muted">Synchronize the Discord catalog to begin mapping roles.</p> : null}
+          {!loading && mappings.length === 0 ? (
+            <p className="p-6 text-text-muted">Synchronize the Discord catalog to begin mapping roles.</p>
+          ) : null}
           {loading ? <p className="p-6 text-text-muted">Loading Discord role mappings...</p> : null}
         </section>
       </div>

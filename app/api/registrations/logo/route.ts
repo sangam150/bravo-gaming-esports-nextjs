@@ -1,18 +1,19 @@
-import { randomUUID } from "crypto";
 import { buildPrivateUploadUrl, deleteFromStorageByUrl, uploadPrivateFile } from "@/lib/r2/storage";
-import { createUploadRecord } from "@/lib/upload-records";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
+import { createUploadRecord } from "@/lib/upload-records";
 import { resolveUploadContentType, validateUpload } from "@/lib/upload-validation";
-import {
-  jsonErrorResponse,
-  USER_FACING_ERROR_MESSAGES,
-} from "@/lib/user-facing-errors";
+import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const limited = await enforceRateLimit(request, { key: "team-registration-logo-upload", maxRequests: 8, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "team-registration-logo-upload",
+    maxRequests: 8,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -38,8 +39,9 @@ export async function POST(request: Request) {
     }
 
     const contentType =
-      resolveUploadContentType("team_logo", file.name, file.type, { audience: "team" }) ||
-      "application/octet-stream";
+      resolveUploadContentType("team_logo", file.name, file.type, {
+        audience: "team",
+      }) || "application/octet-stream";
     const buffer = Buffer.from(await file.arrayBuffer());
     const uploadRecordId = randomUUID();
     const uploadResult = await uploadPrivateFile("team_logo_pending", teamName, file.name, buffer, contentType);
@@ -75,4 +77,3 @@ export async function POST(request: Request) {
     });
   }
 }
-

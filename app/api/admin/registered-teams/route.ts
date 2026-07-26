@@ -9,12 +9,8 @@ export async function GET(request: Request) {
 
   const [teams, profiles, registrations, mappings, reviews] = await Promise.all([
     client.from("teams").select("*").order("updated_at", { ascending: false }),
-    client
-      .from("profiles")
-      .select("id,team_id,display_name,email,role,is_active,discord_user_id,discord_role_synced_at"),
-    client
-      .from("registrations")
-      .select("id,team_name,team_tag,status,onboarding_status,official_team_id,team_id,created_at,updated_at"),
+    client.from("profiles").select("id,team_id,display_name,email,role,is_active,discord_user_id,discord_role_synced_at"),
+    client.from("registrations").select("id,team_name,team_tag,status,onboarding_status,official_team_id,team_id,created_at,updated_at"),
     guildId
       ? client
           .from("discord_role_mappings")
@@ -22,10 +18,7 @@ export async function GET(request: Request) {
           .eq("discord_guild_id", guildId)
           .eq("mapping_type", "team_identity")
       : Promise.resolve({ data: [], error: null }),
-    client
-      .from("discord_access_reviews")
-      .select("id,profile_id,category,candidate_team_ids,status,created_at")
-      .eq("status", "pending"),
+    client.from("discord_access_reviews").select("id,profile_id,category,candidate_team_ids,status,created_at").eq("status", "pending"),
   ]);
   const error = teams.error || profiles.error || registrations.error || mappings.error || reviews.error;
   if (error) return Response.json({ error: error.message }, { status: 500 });
@@ -38,8 +31,7 @@ export async function GET(request: Request) {
     const members = profileRows.filter((profile) => profile.team_id === team.id);
     const teamMappings = mappingRows.filter((mapping) => mapping.team_id === team.id);
     const teamRegistrations = registrationRows.filter(
-      (registration) =>
-        registration.official_team_id === team.id || registration.team_id === team.id
+      (registration) => registration.official_team_id === team.id || registration.team_id === team.id,
     );
     const primaryIgl =
       members.find((member) => member.id === team.primary_igl_profile_id) ??
@@ -73,7 +65,7 @@ export async function GET(request: Request) {
     data: {
       teams: data,
       pendingRegistrations: registrationRows.filter((registration) =>
-        ["pending", "submitted", "under_review"].includes(registration.onboarding_status || registration.status)
+        ["pending", "submitted", "under_review"].includes(registration.onboarding_status || registration.status),
       ),
       openReviews: reviewRows,
     },

@@ -47,16 +47,98 @@ const PENDING_TEAMS = [
 ] as const;
 
 const PLAYER_HANDLES = [
-  "Aero", "Blitz", "Cipher", "Drift", "Echo", "Falcon", "Frost", "Ghost", "Havoc", "Jinx",
-  "Karma", "Lynx", "Mamba", "Nova", "Orion", "Phantom", "Quake", "Rogue", "Saber", "Talon",
-  "Vanta", "Vex", "Warden", "Zephyr", "Axiom", "Banshee", "Crux", "Dagger", "Ember", "Flux",
-  "Glitch", "Halo", "Iris", "Jolt", "Knox", "Ledger", "Mako", "Nyte", "Onyx", "Proxy",
-  "Riot", "Shade", "Torque", "Umbra", "Volt", "Wrath", "Xyro", "Yoru", "Zen", "Astra",
-  "Briar", "Cinder", "Dune", "Enzo", "Fable", "Grimm", "Hex", "Inferno", "Jade", "Kairo",
-  "Locus", "Myth", "Nero", "Omen", "Pyro", "Quest", "Riven", "Stryke", "Tracer", "Ulric",
-  "Viral", "Wraith", "Xeno", "Yami", "Zed", "Ashen", "Brisk", "Cross", "Dusk", "Elix",
-  "Fury", "Grit", "Hush", "Ivory", "Jaeger", "Kilo", "Lux", "Mirth", "Nexus", "Orbit",
-  "Pulse", "Raze",
+  "Aero",
+  "Blitz",
+  "Cipher",
+  "Drift",
+  "Echo",
+  "Falcon",
+  "Frost",
+  "Ghost",
+  "Havoc",
+  "Jinx",
+  "Karma",
+  "Lynx",
+  "Mamba",
+  "Nova",
+  "Orion",
+  "Phantom",
+  "Quake",
+  "Rogue",
+  "Saber",
+  "Talon",
+  "Vanta",
+  "Vex",
+  "Warden",
+  "Zephyr",
+  "Axiom",
+  "Banshee",
+  "Crux",
+  "Dagger",
+  "Ember",
+  "Flux",
+  "Glitch",
+  "Halo",
+  "Iris",
+  "Jolt",
+  "Knox",
+  "Ledger",
+  "Mako",
+  "Nyte",
+  "Onyx",
+  "Proxy",
+  "Riot",
+  "Shade",
+  "Torque",
+  "Umbra",
+  "Volt",
+  "Wrath",
+  "Xyro",
+  "Yoru",
+  "Zen",
+  "Astra",
+  "Briar",
+  "Cinder",
+  "Dune",
+  "Enzo",
+  "Fable",
+  "Grimm",
+  "Hex",
+  "Inferno",
+  "Jade",
+  "Kairo",
+  "Locus",
+  "Myth",
+  "Nero",
+  "Omen",
+  "Pyro",
+  "Quest",
+  "Riven",
+  "Stryke",
+  "Tracer",
+  "Ulric",
+  "Viral",
+  "Wraith",
+  "Xeno",
+  "Yami",
+  "Zed",
+  "Ashen",
+  "Brisk",
+  "Cross",
+  "Dusk",
+  "Elix",
+  "Fury",
+  "Grit",
+  "Hush",
+  "Ivory",
+  "Jaeger",
+  "Kilo",
+  "Lux",
+  "Mirth",
+  "Nexus",
+  "Orbit",
+  "Pulse",
+  "Raze",
 ] as const;
 
 const PLACEMENT_POINTS: Record<number, number> = {
@@ -98,9 +180,7 @@ type MatchBuildResult = {
 
 function buildTeamParticipants(teams: DemoTeam[], matchIndex: number) {
   const benchStart = (matchIndex * 4) % teams.length;
-  const benchedTeamIds = new Set(
-    Array.from({ length: 4 }, (_, offset) => teams[(benchStart + offset) % teams.length]?.id).filter(Boolean)
-  );
+  const benchedTeamIds = new Set(Array.from({ length: 4 }, (_, offset) => teams[(benchStart + offset) % teams.length]?.id).filter(Boolean));
 
   return teams.filter((team) => !benchedTeamIds.has(team.id));
 }
@@ -158,15 +238,12 @@ function buildMatchData(input: {
     const placementPoints = PLACEMENT_POINTS[placement] ?? 0;
     const kills = Math.max(
       0,
-      Math.min(16, Math.round((17 - placement) * 0.6 + team.matchStrength / 14 + ((index + input.globalMatchIndex) % 3)))
+      Math.min(16, Math.round((17 - placement) * 0.6 + team.matchStrength / 14 + ((index + input.globalMatchIndex) % 3))),
     );
     const players = rotateArray(playersByTeamId.get(team.id) ?? [], input.globalMatchIndex).slice(0, 4);
     const killWeights = [0.36, 0.28, 0.22, 0.14];
     const playerRows = players.map((player, playerIndex) => {
-      const baselineKills =
-        playerIndex === players.length - 1
-          ? 0
-          : Math.max(0, Math.round(kills * (killWeights[playerIndex] ?? 0.14)));
+      const baselineKills = playerIndex === players.length - 1 ? 0 : Math.max(0, Math.round(kills * (killWeights[playerIndex] ?? 0.14)));
       return {
         player,
         assists: Math.max(0, baselineKills + ((placement + playerIndex) % 3) - 1),
@@ -181,8 +258,7 @@ function buildMatchData(input: {
     }
 
     const normalizedPlayerRows = playerRows.map((playerRow, playerIndex) => {
-      const damage =
-        playerRow.kills * 118 + playerRow.assists * 42 + Math.max(0, 140 - placement * 6) + playerIndex * 18;
+      const damage = playerRow.kills * 118 + playerRow.assists * 42 + Math.max(0, 140 - placement * 6) + playerIndex * 18;
       const totalPoints = playerRow.kills + placementPoints;
 
       return {
@@ -222,22 +298,22 @@ function buildMatchData(input: {
     knockouts: teamRows.reduce((sum, teamRow) => sum + teamRow.kills, 0),
     map: input.mapName,
     matchNumber: input.matchNumber,
-      playerResults: teamRows.flatMap((teamRow) =>
-        teamRow.players.map((playerRow) => ({
-          assists: playerRow.assists,
-          damage: playerRow.damage,
-          kills: playerRow.kills,
-          placement: playerRow.placement,
-          placementPoints: teamRow.placementPoints,
-          playerId: playerRow.playerId,
-          playerName: playerRow.playerName,
-          pubgPlayerId: playerRow.pubgAccountId,
+    playerResults: teamRows.flatMap((teamRow) =>
+      teamRow.players.map((playerRow) => ({
+        assists: playerRow.assists,
+        damage: playerRow.damage,
+        kills: playerRow.kills,
+        placement: playerRow.placement,
+        placementPoints: teamRow.placementPoints,
+        playerId: playerRow.playerId,
+        playerName: playerRow.playerName,
+        pubgPlayerId: playerRow.pubgAccountId,
         slotNumber: playerRow.slotNumber,
         survivalTime: playerRow.survivalTime,
         teamId: playerRow.teamId,
         teamName: playerRow.teamName,
         totalPoints: playerRow.totalPoints,
-      }))
+      })),
     ),
     playedAt: input.playedAt,
     points: winningTeam.totalPoints,
@@ -281,7 +357,7 @@ function buildMatchData(input: {
       updated_at: input.playedAt,
     },
     playerRows: teamRows.flatMap((teamRow) =>
-      teamRow.players.map((playerRow, playerIndex) => ({
+      teamRow.players.map((playerRow) => ({
         match_id: input.matchId,
         player_id: playerRow.playerId,
         player_name: playerRow.playerName,
@@ -300,7 +376,7 @@ function buildMatchData(input: {
         demo_seed_tag: DEMO_SEED_TAG,
         created_at: input.playedAt,
         updated_at: input.playedAt,
-      }))
+      })),
     ),
     teamRows: teamRows.map((teamRow) => ({
       match_id: input.matchId,
@@ -364,8 +440,8 @@ async function uploadSharedAssets(teams: DemoTeam[], players: DemoPlayer[]) {
         fileName: `team-logo-${name}`,
         folder: "teams",
         label: `${name} Crest`,
-      })
-    )
+      }),
+    ),
   );
 
   const playerAvatarAssets = await Promise.all(
@@ -376,21 +452,20 @@ async function uploadSharedAssets(teams: DemoTeam[], players: DemoPlayer[]) {
         fileName: `player-avatar-${name}`,
         folder: "players",
         label: `${name} Avatar`,
-      })
-    )
+      }),
+    ),
   );
 
   const sponsorAssets = await Promise.all(
-    ["Gorkhali Roleplay", "Hukut", "Bravo Community Partner", "Local Esports Supporter"].map(
-      (name, index) =>
-        uploadDemoSvgAsset(r2, {
-          accentColor: ["#38bdf8", "#22c55e", "#f59e0b", "#f43f5e"][index] ?? "#38bdf8",
-          backgroundColor: "#0f172a",
-          fileName: slugify(name),
-          folder: "sponsors",
-          label: name,
-        })
-    )
+    ["Gorkhali Roleplay", "Hukut", "Bravo Community Partner", "Local Esports Supporter"].map((name, index) =>
+      uploadDemoSvgAsset(r2, {
+        accentColor: ["#38bdf8", "#22c55e", "#f59e0b", "#f43f5e"][index] ?? "#38bdf8",
+        backgroundColor: "#0f172a",
+        fileName: slugify(name),
+        folder: "sponsors",
+        label: name,
+      }),
+    ),
   );
 
   for (const asset of [...sharedAssets, ...teamLogoAssets, ...playerAvatarAssets, ...sponsorAssets]) {
@@ -427,8 +502,7 @@ async function uploadSharedAssets(teams: DemoTeam[], players: DemoPlayer[]) {
   }
 
   for (const [index, player] of players.entries()) {
-    const asset =
-      filteredPlayerAvatarAssets[index % Math.max(filteredPlayerAvatarAssets.length, 1)] ?? null;
+    const asset = filteredPlayerAvatarAssets[index % Math.max(filteredPlayerAvatarAssets.length, 1)] ?? null;
     if (!asset) {
       continue;
     }
@@ -467,10 +541,7 @@ async function run() {
   });
 
   const backups = await captureSingletonBackups(client);
-  const existingTeamSlotsResponse = await client
-    .from("teams")
-    .select("slot_number,name")
-    .not("slot_number", "is", null);
+  const existingTeamSlotsResponse = await client.from("teams").select("slot_number,name").not("slot_number", "is", null);
 
   if (existingTeamSlotsResponse.error) {
     throw existingTeamSlotsResponse.error;
@@ -482,19 +553,15 @@ async function run() {
   }
 
   const occupiedSlotNumbers = new Set(
-    (existingTeamSlotsResponse.data ?? [])
-      .map((row) => row.slot_number)
-      .filter((value): value is number => Number.isFinite(value))
+    (existingTeamSlotsResponse.data ?? []).map((row) => row.slot_number).filter((value): value is number => Number.isFinite(value)),
   );
   const occupiedTeamNames = new Set(
-    (existingTeamSlotsResponse.data ?? [])
-      .map((row) => row.name?.trim().toLowerCase())
-      .filter((value): value is string => Boolean(value))
+    (existingTeamSlotsResponse.data ?? []).map((row) => row.name?.trim().toLowerCase()).filter((value): value is string => Boolean(value)),
   );
   const occupiedPlayerNames = new Set(
     (existingPlayerNamesResponse.data ?? [])
       .map((row) => row.pubg_name?.trim().toLowerCase())
-      .filter((value): value is string => Boolean(value))
+      .filter((value): value is string => Boolean(value)),
   );
   const reserveSlotNumbers = (count: number, startAt = 41) => {
     const reservedSlots: number[] = [];
@@ -577,7 +644,7 @@ async function run() {
         pubgName: resolvedHandle,
         slug: slugify(`${resolvedHandle}-${team.name}`),
       };
-    })
+    }),
   );
 
   const assets = await uploadSharedAssets(activeTeams, players);
@@ -798,9 +865,7 @@ async function run() {
     short_name: team.tag,
     logo_url: team.logoUrl,
     description:
-      team.status === "active"
-        ? "Roster approved for launch preview coverage."
-        : "Pending approval record kept for public-safety QA.",
+      team.status === "active" ? "Roster approved for launch preview coverage." : "Pending approval record kept for public-safety QA.",
     status: team.status,
     tag: team.tag,
     region: "Nepal",
@@ -812,7 +877,7 @@ async function run() {
     updated_at: nowIso,
   }));
 
-  const playerRows = players.map((player, index) => ({
+  const playerRows = players.map((player) => ({
     id: player.id,
     pubg_account_id: player.pubgAccountId,
     pubg_name: player.pubgName,
@@ -851,7 +916,7 @@ async function run() {
       demo_seed_tag: DEMO_SEED_TAG,
       created_at: nowIso,
       updated_at: nowIso,
-    }))
+    })),
   );
 
   const publishedMatches: MatchBuildResult[] = [];
@@ -877,7 +942,7 @@ async function run() {
           seasonId,
           status: "published",
           teams: activeTeams,
-        })
+        }),
       );
       globalMatchIndex += 1;
     }
@@ -919,9 +984,7 @@ async function run() {
       published: true,
       pubgMatchIds:
         index < 4
-          ? publishedMatches
-              .slice(index * 4, index * 4 + 4)
-              .map((match) => String(match.matchRow.match_id))
+          ? publishedMatches.slice(index * 4, index * 4 + 4).map((match) => String(match.matchRow.match_id))
           : [String(draftMatch.matchRow.match_id)],
       seasonDayNumber: index + 1,
       seasonId,
@@ -993,8 +1056,7 @@ async function run() {
         gameSlug: "pubg-pc",
         id: article.id,
         imageUrl: article.imageUrl,
-        publishAt:
-          article.state === "scheduled" ? `${formatDateOnly(addDays(now, 2))}T20:00:00+05:45` : undefined,
+        publishAt: article.state === "scheduled" ? `${formatDateOnly(addDays(now, 2))}T20:00:00+05:45` : undefined,
         publishedAt: article.state === "published" ? nowIso : undefined,
         slug,
         source: DEMO_SOURCE,
@@ -1120,8 +1182,7 @@ async function run() {
       heroSlides: [
         {
           badge: "Launch Preview",
-          description:
-            "Preview homepage hero content with realistic standings, media, and tournament coverage before launch.",
+          description: "Preview homepage hero content with realistic standings, media, and tournament coverage before launch.",
           id: "demo-hero-1",
           imageUrl: assets.heroImageUrl,
           primaryHref: "/pubg",
@@ -1136,8 +1197,7 @@ async function run() {
         },
         {
           badge: "Upcoming Major",
-          description:
-            "PUBG MAHASANGRAM is seeded with sponsor support, banner assets, and public registration context.",
+          description: "PUBG MAHASANGRAM is seeded with sponsor support, banner assets, and public registration context.",
           id: "demo-hero-2",
           imageUrl: assets.bannerUrl,
           primaryHref: `/pubg/events/${tournamentRow.slug}`,
@@ -1150,8 +1210,7 @@ async function run() {
         },
         {
           badge: "Community Coverage",
-          description:
-            "Announcements, team cards, player spotlights, and media tiles now have realistic preview content.",
+          description: "Announcements, team cards, player spotlights, and media tiles now have realistic preview content.",
           id: "demo-hero-3",
           imageUrl: assets.mediaImageUrl,
           primaryHref: "/pubg/community",
@@ -1199,14 +1258,15 @@ async function run() {
     updatedAt: nowIso,
   };
 
-  await upsertRowsInChunks(client, "seasons", [seasonRow], { onConflict: "id" });
+  await upsertRowsInChunks(client, "seasons", [seasonRow], {
+    onConflict: "id",
+  });
   await upsertRowsInChunks(client, "days", dayRows, { onConflict: "id" });
-  await upsertRowsInChunks(client, "events", [...dayEvents, tournamentRow], { onConflict: "id" });
+  await upsertRowsInChunks(client, "events", [...dayEvents, tournamentRow], {
+    onConflict: "id",
+  });
   {
-    const { error } = await client
-      .from("seasons")
-      .update({ current_event_id: dayEventIds[3], updated_at: nowIso })
-      .eq("id", seasonId);
+    const { error } = await client.from("seasons").update({ current_event_id: dayEventIds[3], updated_at: nowIso }).eq("id", seasonId);
 
     if (error) {
       throw error;
@@ -1214,14 +1274,22 @@ async function run() {
   }
   await upsertRowsInChunks(client, "teams", teamRows, { onConflict: "id" });
   await upsertRowsInChunks(client, "players", playerRows, { onConflict: "id" });
-  await upsertRowsInChunks(client, "team_roster_history", rosterRows, { onConflict: "id" });
-  await upsertRowsInChunks(client, "event_teams", eventTeamRows, { onConflict: "event_id,team_id" });
+  await upsertRowsInChunks(client, "team_roster_history", rosterRows, {
+    onConflict: "id",
+  });
+  await upsertRowsInChunks(client, "event_teams", eventTeamRows, {
+    onConflict: "event_id,team_id",
+  });
   await upsertRowsInChunks(client, "matches", matchRows, { onConflict: "id" });
-  await upsertRowsInChunks(client, "match_team_results", matchTeamRows, { onConflict: "match_id,team_id" });
+  await upsertRowsInChunks(client, "match_team_results", matchTeamRows, {
+    onConflict: "match_id,team_id",
+  });
   await upsertRowsInChunks(client, "match_player_results", matchPlayerRows, {
     onConflict: "match_id,player_id",
   });
-  await upsertRowsInChunks(client, "uploads", assets.uploadRows, { onConflict: "id" });
+  await upsertRowsInChunks(client, "uploads", assets.uploadRows, {
+    onConflict: "id",
+  });
   await upsertAppDocuments(client, [
     ...scrimDocuments,
     ...newsDocuments,

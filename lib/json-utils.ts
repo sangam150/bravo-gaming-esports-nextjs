@@ -16,16 +16,14 @@ export function sanitizeJsonValue(value: unknown): Json | undefined {
   }
 
   if (Array.isArray(value)) {
-    return value
-      .map((item) => sanitizeJsonValue(item))
-      .filter((item): item is Json => item !== undefined);
+    return value.map((item) => sanitizeJsonValue(item)).filter((item): item is Json => item !== undefined);
   }
 
   if (typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value)
         .map(([key, nestedValue]) => [key, sanitizeJsonValue(nestedValue)] as const)
-        .filter((entry): entry is [string, Json] => entry[1] !== undefined)
+        .filter((entry): entry is [string, Json] => entry[1] !== undefined),
     ) as JsonObject;
   }
 

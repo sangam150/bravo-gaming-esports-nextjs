@@ -1,24 +1,14 @@
-import { createClient } from "@supabase/supabase-js";
-import { after } from "next/server";
-import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { AuthConfigurationError } from "@/lib/auth-errors";
+import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
+import { createSessionCookie, getSessionCookieMaxAge, REFRESH_COOKIE, SESSION_COOKIE, verifyAccessToken } from "@/lib/supabase-auth-server";
 import { requireSupabaseEnv } from "@/lib/supabase/env";
-import {
-  createSessionCookie,
-  getSessionCookieMaxAge,
-  REFRESH_COOKIE,
-  SESSION_COOKIE,
-  verifyAccessToken,
-} from "@/lib/supabase-auth-server";
 import type { LoginAccessVariant } from "@/lib/user-facing-errors";
-import {
-  getLoginFailureDetails,
-  getRoleAccessErrorMessage,
-  LOGIN_ERROR_MESSAGES,
-} from "@/lib/user-facing-errors";
-import { AuthConfigurationError } from "@/lib/auth-errors";
+import { getLoginFailureDetails, getRoleAccessErrorMessage, LOGIN_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import { createClient } from "@supabase/supabase-js";
+import { after } from "next/server";
 
 function readText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -44,7 +34,7 @@ async function logLoginFailure(
     stage: string;
     status?: number | null;
     code?: string | null;
-  }
+  },
 ) {
   await logServerError("auth.login.failure", new Error(`login_failure:${payload.category}`), request, payload);
 }
@@ -56,21 +46,22 @@ function createLoginErrorResponse(message: string, status: number) {
       error: message,
       status,
     },
-    { status }
+    { status },
   );
 }
 
-function scheduleLoginFailure(
-  request: Request,
-  payload: Parameters<typeof logLoginFailure>[1]
-) {
+function scheduleLoginFailure(request: Request, payload: Parameters<typeof logLoginFailure>[1]) {
   after(async () => {
     await logLoginFailure(request, payload);
   });
 }
 
 export async function POST(request: Request) {
-  const limited = await enforceRateLimit(request, { key: "auth-login", maxRequests: 8, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "auth-login",
+    maxRequests: 8,
+    windowMs: 60_000,
+  });
   if (limited) {
     return createLoginErrorResponse(LOGIN_ERROR_MESSAGES.rateLimited, 429);
   }
@@ -132,11 +123,7 @@ export async function POST(request: Request) {
     }
 
     const verifiedSession = await verifyAccessToken(data.session.access_token);
-    if (
-      variant === "team" &&
-      hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin) &&
-      !verifiedSession.teamId
-    ) {
+    if (variant === "team" && hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin) && !verifiedSession.teamId) {
       const message = LOGIN_ERROR_MESSAGES.teamMembershipMissing;
       scheduleLoginFailure(request, {
         variant,
@@ -146,11 +133,7 @@ export async function POST(request: Request) {
       });
       return createLoginErrorResponse(message, 403);
     }
-    if (
-      variant === "player" &&
-      hasPlayerDashboardAccess(verifiedSession.role, verifiedSession.isAdmin) &&
-      !verifiedSession.playerId
-    ) {
+    if (variant === "player" && hasPlayerDashboardAccess(verifiedSession.role, verifiedSession.isAdmin) && !verifiedSession.playerId) {
       return createLoginErrorResponse("This player account is not linked to an approved player profile.", 403);
     }
     const hasAllowedAccess =
@@ -160,7 +143,7 @@ export async function POST(request: Request) {
           ? hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin)
           : variant === "player"
             ? hasPlayerDashboardAccess(verifiedSession.role, verifiedSession.isAdmin)
-          : verifiedSession.isAdmin || hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin);
+            : verifiedSession.isAdmin || hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin);
 
     if (!hasAllowedAccess) {
       const message = buildRoleMismatchMessage(variant);
@@ -192,11 +175,11 @@ export async function POST(request: Request) {
     const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
     response.headers.append(
       "Set-Cookie",
-      `${SESSION_COOKIE}=${sessionCookie}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${sessionCookieMaxAge}${secure}`
+      `${SESSION_COOKIE}=${sessionCookie}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${sessionCookieMaxAge}${secure}`,
     );
     response.headers.append(
       "Set-Cookie",
-      `${REFRESH_COOKIE}=${data.session.refresh_token}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${60 * 60 * 24 * 5}${secure}`
+      `${REFRESH_COOKIE}=${data.session.refresh_token}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${60 * 60 * 24 * 5}${secure}`,
     );
 
     await writeAuditLogFromRequest(request, {

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import BravoLogo from "@/components/ui/BravoLogo";
+import Link from "next/link";
 
 type AccessAction = {
   href: string;
@@ -20,13 +20,7 @@ function renderAction(action: AccessAction) {
 
   if (action.external) {
     return (
-      <a
-        key={`${action.href}-${action.label}`}
-        href={action.href}
-        target="_blank"
-        rel="noreferrer"
-        className={className}
-      >
+      <a key={`${action.href}-${action.label}`} href={action.href} target="_blank" rel="noreferrer" className={className}>
         {action.label}
       </a>
     );
@@ -39,12 +33,7 @@ function renderAction(action: AccessAction) {
   );
 }
 
-export default function AccessStateCard({
-  badge,
-  title,
-  description,
-  actions = [],
-}: AccessStateCardProps) {
+export default function AccessStateCard({ badge, title, description, actions = [] }: AccessStateCardProps) {
   return (
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
@@ -58,11 +47,7 @@ export default function AccessStateCard({
             <h1 className="hero-h1 mt-5">{title}</h1>
             <p className="mt-4 max-w-2xl text-sm leading-relaxed text-text-muted">{description}</p>
 
-            {actions.length > 0 ? (
-              <div className="mt-6 flex flex-wrap gap-3">
-                {actions.map((action) => renderAction(action))}
-              </div>
-            ) : null}
+            {actions.length > 0 ? <div className="mt-6 flex flex-wrap gap-3">{actions.map((action) => renderAction(action))}</div> : null}
           </div>
         </section>
       </div>

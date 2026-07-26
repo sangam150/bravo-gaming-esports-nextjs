@@ -1,18 +1,15 @@
-import { randomUUID } from "crypto";
 import { requireTeamWorkspaceUser } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { getPlayer, savePlayer } from "@/lib/data";
-import { revalidateCompetitionPaths, revalidatePlayerPaths } from "@/lib/revalidate-public";
 import { deleteFromStorageByUrl, uploadPublicFile } from "@/lib/r2/storage";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { revalidateCompetitionPaths, revalidatePlayerPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import { createUploadRecord } from "@/lib/upload-records";
 import { resolveUploadContentType, validateUpload } from "@/lib/upload-validation";
-import {
-  USER_FACING_ERROR_MESSAGES,
-  toUserFacingErrorMessage,
-} from "@/lib/user-facing-errors";
+import { USER_FACING_ERROR_MESSAGES, toUserFacingErrorMessage } from "@/lib/user-facing-errors";
+import { randomUUID } from "crypto";
 
 type RouteContext = {
   params: Promise<{ playerId: string }>;
@@ -21,7 +18,11 @@ type RouteContext = {
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: RouteContext) {
-  const limited = await enforceRateLimit(request, { key: "team-player-avatar-upload", maxRequests: 12, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "team-player-avatar-upload",
+    maxRequests: 12,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   const auth = await requireTeamWorkspaceUser(request);
@@ -70,12 +71,19 @@ export async function POST(request: Request, { params }: RouteContext) {
     }
 
     if (!playerRow) {
-      return Response.json({ success: false, error: "You can only update player images for your own roster." }, { status: 403 });
+      return Response.json(
+        {
+          success: false,
+          error: "You can only update player images for your own roster.",
+        },
+        { status: 403 },
+      );
     }
 
     const contentType =
-      resolveUploadContentType("player_avatar", file.name, file.type, { audience: "team" }) ||
-      "application/octet-stream";
+      resolveUploadContentType("player_avatar", file.name, file.type, {
+        audience: "team",
+      }) || "application/octet-stream";
     const buffer = Buffer.from(await file.arrayBuffer());
     const uploadRecordId = randomUUID();
     const uploadResult = await uploadPublicFile("player_avatar", normalizedPlayerId, file.name, buffer, contentType);
@@ -116,7 +124,7 @@ export async function POST(request: Request, { params }: RouteContext) {
           avatarUrl: uploadResult.url,
           name: existingPlayer.name ?? playerRow.display_name ?? playerRow.pubg_name,
         },
-        normalizedPlayerId
+        normalizedPlayerId,
       ).catch(() => undefined);
     }
 
@@ -162,7 +170,7 @@ export async function POST(request: Request, { params }: RouteContext) {
           fallback: "We couldn't upload that player image right now. Please try again shortly.",
         }),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

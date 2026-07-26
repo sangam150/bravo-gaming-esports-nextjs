@@ -1,30 +1,19 @@
 import "server-only";
 
-import { randomUUID } from "crypto";
-import { Readable } from "stream";
-import {
-  DeleteObjectCommand,
-  GetObjectCommand,
-  PutObjectCommand,
-  type GetObjectCommandOutput,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import {
-  normalizeUploadType,
   normalizeUploadFolder,
+  normalizeUploadType,
   sanitizeStorageSegment,
   sanitizeUploadFileName,
   STORAGE_TARGET_BY_TYPE,
   type UploadType,
 } from "@/lib/upload-config";
-import {
-  getR2Client,
-  getR2PrivateBucketName,
-  getR2PublicBaseUrl,
-  getR2PublicBucketName,
-  getR2PublicDeliveryMode,
-} from "./client";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, type GetObjectCommandOutput } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { randomUUID } from "crypto";
+import { Readable } from "stream";
+import { getR2Client, getR2PrivateBucketName, getR2PublicBaseUrl, getR2PublicBucketName, getR2PublicDeliveryMode } from "./client";
 import type { BuildStoragePathResult, ManagedUploadRecord, PresignedUploadResult, StorageVisibility } from "./types";
 
 function trimSlashes(value: string) {
@@ -155,7 +144,7 @@ async function deleteLegacySupabaseObject(bucketName: string, filePath: string) 
   }
 }
 
-export function buildPublicFileUrl(objectKey: string) {
+function buildPublicFileUrl(objectKey: string) {
   const normalizedObjectKey = normalizeObjectKey(objectKey);
 
   if (getR2PublicDeliveryMode() === "proxy") {
@@ -169,7 +158,7 @@ export function buildPrivateUploadUrl(uploadId: string) {
   return `/api/uploads/private/${encodeURIComponent(uploadId)}`;
 }
 
-export function buildStoragePath(type: UploadType, entityId: string, filename: string): BuildStoragePathResult {
+function buildStoragePath(type: UploadType, entityId: string, filename: string): BuildStoragePathResult {
   const target = STORAGE_TARGET_BY_TYPE[type];
   const safeEntityId = sanitizeStorageSegment(entityId);
   const safeFilename = sanitizeUploadFileName(type, filename);
@@ -185,7 +174,7 @@ export function buildStoragePath(type: UploadType, entityId: string, filename: s
   };
 }
 
-export async function uploadObjectToR2(input: {
+async function uploadObjectToR2(input: {
   body: Buffer;
   bucket: string;
   contentType: string;
@@ -199,7 +188,7 @@ export async function uploadObjectToR2(input: {
       CacheControl: getObjectCacheControl(input.visibility),
       ContentType: input.contentType,
       Key: normalizeObjectKey(input.objectKey),
-    })
+    }),
   );
 }
 
@@ -208,7 +197,7 @@ export async function uploadPublicFile(
   entityId: string,
   filename: string,
   body: Buffer,
-  contentType: string
+  contentType: string,
 ): Promise<BuildStoragePathResult & { url: string; visibility: "public" }> {
   const storagePath = buildStoragePath(type, entityId, filename);
 
@@ -236,7 +225,7 @@ export async function uploadPrivateFile(
   entityId: string,
   filename: string,
   body: Buffer,
-  contentType: string
+  contentType: string,
 ): Promise<BuildStoragePathResult & { visibility: "private" }> {
   const storagePath = buildStoragePath(type, entityId, filename);
 
@@ -258,12 +247,12 @@ export async function uploadPrivateFile(
   };
 }
 
-export async function deleteObjectFromR2(visibility: StorageVisibility, objectKey: string) {
+async function deleteObjectFromR2(visibility: StorageVisibility, objectKey: string) {
   await getR2Client().send(
     new DeleteObjectCommand({
       Bucket: getBucketName(visibility),
       Key: normalizeObjectKey(objectKey),
-    })
+    }),
   );
 }
 
@@ -305,7 +294,7 @@ export async function createPresignedPublicUpload(
   type: UploadType,
   entityId: string,
   fileName: string,
-  contentType: string
+  contentType: string,
 ): Promise<PresignedUploadResult> {
   const storagePath = buildStoragePath(type, entityId, fileName);
 
@@ -321,7 +310,7 @@ export async function createPresignedPublicUpload(
       ContentType: contentType,
       Key: storagePath.path,
     }),
-    { expiresIn: 300 }
+    { expiresIn: 300 },
   );
 
   return {
@@ -345,7 +334,7 @@ export async function getPrivateObject(filePath: string): Promise<GetObjectComma
     new GetObjectCommand({
       Bucket: getR2PrivateBucketName(),
       Key: normalizeObjectKey(filePath),
-    })
+    }),
   );
 }
 
@@ -354,7 +343,7 @@ export async function getPublicObject(filePath: string): Promise<GetObjectComman
     new GetObjectCommand({
       Bucket: getR2PublicBucketName(),
       Key: normalizeObjectKey(filePath),
-    })
+    }),
   );
 }
 

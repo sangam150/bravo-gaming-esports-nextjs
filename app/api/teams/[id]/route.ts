@@ -1,6 +1,6 @@
-import { deleteTeam, getPlayers, getTeam, saveTeam } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { deleteTeam, getPlayers, getTeam, saveTeam } from "@/lib/data";
 import { revalidateTeamPaths } from "@/lib/revalidate-public";
 
 type RouteParams = { params: Promise<{ id: string }> };

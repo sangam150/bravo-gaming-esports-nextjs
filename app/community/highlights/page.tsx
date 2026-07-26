@@ -8,9 +8,14 @@ export default function CommunityHighlightsPage() {
           <div>
             <p className="section-title">Community</p>
             <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] text-white sm:text-5xl">Community Highlights</h1>
-            <p className="mt-5 max-w-3xl text-slate-300">Highlighting the standout plays, teams, and moments from the Bravo esports community.</p>
+            <p className="mt-5 max-w-3xl text-slate-300">
+              Highlighting the standout plays, teams, and moments from the Bravo esports community.
+            </p>
           </div>
-          <Link href="/community" className="rounded-full bg-bravoBlue px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white/90">
+          <Link
+            href="/community"
+            className="rounded-full bg-bravoBlue px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white/90"
+          >
             Back to Community
           </Link>
         </div>

@@ -31,7 +31,7 @@ function identityTokens(value: string) {
   return new Set(
     normalizeTeamIdentity(value)
       .split(" ")
-      .filter((token) => token && !GENERIC_TEAM_WORDS.has(token))
+      .filter((token) => token && !GENERIC_TEAM_WORDS.has(token)),
   );
 }
 
@@ -47,10 +47,7 @@ function normalizedOptional(value?: string | null) {
   return value ? normalizeTeamIdentity(value) : "";
 }
 
-export function findTeamDuplicateCandidates(
-  incoming: TeamIdentityInput,
-  existingTeams: TeamIdentityInput[]
-): TeamDuplicateCandidate[] {
+export function findTeamDuplicateCandidates(incoming: TeamIdentityInput, existingTeams: TeamIdentityInput[]): TeamDuplicateCandidate[] {
   const incomingName = normalizeTeamIdentity(incoming.name);
   const incomingTag = normalizedOptional(incoming.tag);
   const incomingDiscord = normalizedOptional(incoming.captainDiscord);
@@ -64,9 +61,7 @@ export function findTeamDuplicateCandidates(
       const exactTag = Boolean(incomingTag && normalizedOptional(team.tag) === incomingTag);
       const sameDiscord = Boolean(incomingDiscord && normalizedOptional(team.captainDiscord) === incomingDiscord);
       const sameEmail = Boolean(incomingEmail && team.captainEmail?.trim().toLowerCase() === incomingEmail);
-      const overlap = (team.playerNames ?? [])
-        .map(normalizeTeamIdentity)
-        .filter((player) => player && incomingPlayers.has(player)).length;
+      const overlap = (team.playerNames ?? []).map(normalizeTeamIdentity).filter((player) => player && incomingPlayers.has(player)).length;
       const nameSimilarity = tokenSimilarity(incoming.name, team.name);
 
       if (exactName) reasons.push("same normalized team name");

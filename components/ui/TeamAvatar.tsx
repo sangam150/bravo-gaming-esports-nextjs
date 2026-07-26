@@ -1,15 +1,10 @@
 import ManagedImage from "@/components/ui/ManagedImage";
 
-export default function TeamAvatar({
-  name,
-  size = "md",
-  imageUrl,
-}: {
-  name: string;
-  size?: "sm" | "md" | "lg";
-  imageUrl?: string;
-}) {
-  const initials = name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase();
+export default function TeamAvatar({ name, size = "md", imageUrl }: { name: string; size?: "sm" | "md" | "lg"; imageUrl?: string }) {
+  const initials = name
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, 2)
+    .toUpperCase();
   const sizes = {
     sm: "h-9 w-9 text-[10px]",
     md: "h-10 w-10 text-[11px]",

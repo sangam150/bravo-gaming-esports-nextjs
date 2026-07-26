@@ -1,11 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import { pubgFetch, PUBG_SHARD, extractTelemetryUrl } from "@/lib/pubg";
+import { extractTelemetryUrl, PUBG_SHARD, pubgFetch } from "@/lib/pubg";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
-  const limited = await enforceRateLimit(req, { key: "pubg-telemetry", maxRequests: 8, windowMs: 60_000 });
+  const limited = await enforceRateLimit(req, {
+    key: "pubg-telemetry",
+    maxRequests: 8,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {

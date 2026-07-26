@@ -1,5 +1,5 @@
-import { loadEnvConfig } from "@next/env";
 import { importFirstOfficialTournament } from "@/lib/official-tournament-import";
+import { loadEnvConfig } from "@next/env";
 
 loadEnvConfig(process.cwd());
 

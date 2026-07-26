@@ -1,28 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import FileUpload from "./FileUpload";
 import { adminFetch } from "@/lib/admin-api";
-import {
-  buildFallbackTeamNameFromSlot,
-  parseBravoSlotNumber,
-  resolveBravoTeamIdentity,
-} from "@/lib/bravo-teams";
+import { buildFallbackTeamNameFromSlot, parseBravoSlotNumber, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
 import { formatDisplayDateTime } from "@/lib/display-format";
 import { compareMatchPlayerResults, compareMatchTeamResults } from "@/lib/ranking-sort";
-import {
-  getUserFacingTeamLabel,
-  toUserFacingErrorMessage,
-  USER_FACING_ERROR_MESSAGES,
-  USER_FACING_LABELS,
-} from "@/lib/user-facing-errors";
 import type {
   MatchPlayerResult,
   PubgBulkImportResult,
-  PubgImportCandidate,
-  PubgImportBatchPreviewMatch,
   PubgBulkPreviewResult,
   PubgDuplicateMode,
+  PubgImportBatchPreviewMatch,
+  PubgImportCandidate,
   PubgImportEdit,
   PubgImportPreview,
   PubgImportWatcher,
@@ -32,6 +20,9 @@ import type {
   TeamMatchResult,
   Tournament,
 } from "@/lib/types";
+import { getUserFacingTeamLabel, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES, USER_FACING_LABELS } from "@/lib/user-facing-errors";
+import { useEffect, useMemo, useRef, useState } from "react";
+import FileUpload from "./FileUpload";
 
 const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
@@ -80,38 +71,43 @@ function toFiniteNumber(value?: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function resolvePreviewTeamAssignment(
-  teamName?: string,
-  slotNumber?: number,
-  preferredField: "teamName" | "slotNumber" = "teamName"
-) {
+function resolvePreviewTeamAssignment(teamName?: string, slotNumber?: number, preferredField: "teamName" | "slotNumber" = "teamName") {
   const trimmedTeamName = teamName?.trim();
   const safeSlotNumber = toFiniteNumber(slotNumber);
   const resolvedByName = trimmedTeamName ? resolveBravoTeamIdentity(trimmedTeamName) : null;
   const resolvedBySlot =
     typeof safeSlotNumber === "number"
-      ? resolveBravoTeamIdentity(`slot ${safeSlotNumber}`) ?? resolveBravoTeamIdentity(String(safeSlotNumber))
+      ? (resolveBravoTeamIdentity(`slot ${safeSlotNumber}`) ?? resolveBravoTeamIdentity(String(safeSlotNumber)))
       : null;
-  const resolvedTeam = preferredField === "slotNumber" ? resolvedBySlot ?? resolvedByName : resolvedByName ?? resolvedBySlot;
-  const inferredSlotNumber =
-    resolvedTeam?.slotNumber ?? safeSlotNumber ?? parseBravoSlotNumber(trimmedTeamName);
+  const resolvedTeam = preferredField === "slotNumber" ? (resolvedBySlot ?? resolvedByName) : (resolvedByName ?? resolvedBySlot);
+  const inferredSlotNumber = resolvedTeam?.slotNumber ?? safeSlotNumber ?? parseBravoSlotNumber(trimmedTeamName);
 
   return {
     teamId: resolvedTeam?.id,
     teamName: getUserFacingTeamLabel(
       resolvedTeam?.name ?? trimmedTeamName ?? buildFallbackTeamNameFromSlot(inferredSlotNumber),
-      USER_FACING_LABELS.teamPendingMapping
+      USER_FACING_LABELS.teamPendingMapping,
     ),
     slotNumber: inferredSlotNumber,
   };
 }
 
 function normalizeMatchIds(value?: string) {
-  return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
+  return Array.from(
+    new Set(
+      (value ?? "")
+        .split(/[\n,]+/g)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 function normalizeMapRotation(value?: string) {
-  return (value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean);
+  return (value ?? "")
+    .split(/[\n,]+/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function slugify(value: string) {
@@ -196,10 +192,7 @@ function placementPointsForPlacement(placement: number) {
   return 0;
 }
 
-function normalizePreviewTeamResult(
-  teamResult: TeamMatchResult,
-  preferredField: "teamName" | "slotNumber" = "teamName"
-): TeamMatchResult {
+function normalizePreviewTeamResult(teamResult: TeamMatchResult, preferredField: "teamName" | "slotNumber" = "teamName"): TeamMatchResult {
   const assignment = resolvePreviewTeamAssignment(teamResult.teamName, teamResult.slotNumber, preferredField);
   const placement = Number.isFinite(teamResult.placement) ? Number(teamResult.placement) : 0;
   const kills = Number.isFinite(teamResult.kills) ? Number(teamResult.kills) : 0;
@@ -225,18 +218,16 @@ function normalizePreviewTeamResult(
 function normalizePreviewPlayerResult(
   playerResult: MatchPlayerResult,
   teamResults: TeamMatchResult[],
-  preferredField: "teamName" | "slotNumber" = "teamName"
+  preferredField: "teamName" | "slotNumber" = "teamName",
 ): MatchPlayerResult {
   const assignment = resolvePreviewTeamAssignment(playerResult.teamName, playerResult.slotNumber, preferredField);
   const matchedTeam =
     teamResults.find(
       (teamResult) =>
         (assignment.slotNumber && teamResult.slotNumber === assignment.slotNumber) ||
-        teamResult.teamName.trim().toLowerCase() === assignment.teamName.trim().toLowerCase()
+        teamResult.teamName.trim().toLowerCase() === assignment.teamName.trim().toLowerCase(),
     ) ?? null;
-  const placement = Number.isFinite(playerResult.placement)
-    ? Number(playerResult.placement)
-    : (matchedTeam?.placement ?? 0);
+  const placement = Number.isFinite(playerResult.placement) ? Number(playerResult.placement) : (matchedTeam?.placement ?? 0);
   const placementPointsValue = Number.isFinite(playerResult.placementPoints)
     ? Number(playerResult.placementPoints)
     : (matchedTeam?.placementPoints ?? placementPointsForPlacement(placement));
@@ -259,23 +250,17 @@ function normalizePreviewPlayerResult(
 }
 
 function sortTeamResultsByPlacement(results: TeamMatchResult[]) {
-  return [...results].sort(
-    (firstResult, secondResult) => compareMatchTeamResults(firstResult, secondResult)
-  );
+  return [...results].sort((firstResult, secondResult) => compareMatchTeamResults(firstResult, secondResult));
 }
 
 function sortPlayerResultsByPlacement(results: MatchPlayerResult[]) {
-  return [...results].sort(
-    (firstResult, secondResult) => compareMatchPlayerResults(firstResult, secondResult)
-  );
+  return [...results].sort((firstResult, secondResult) => compareMatchPlayerResults(firstResult, secondResult));
 }
 
 function normalizePreviewResults(teamResults: TeamMatchResult[], playerResults: MatchPlayerResult[]) {
-  const normalizedTeamResults = sortTeamResultsByPlacement(
-    teamResults.map((teamResult) => normalizePreviewTeamResult(teamResult))
-  );
+  const normalizedTeamResults = sortTeamResultsByPlacement(teamResults.map((teamResult) => normalizePreviewTeamResult(teamResult)));
   const normalizedPlayerResults = sortPlayerResultsByPlacement(
-    playerResults.map((playerResult) => normalizePreviewPlayerResult(playerResult, normalizedTeamResults))
+    playerResults.map((playerResult) => normalizePreviewPlayerResult(playerResult, normalizedTeamResults)),
   );
 
   return {
@@ -289,7 +274,7 @@ function createEditablePreview(preview: PubgImportPreview): EditablePreview {
   const matchTime = formatKathmanduTimeInput(preview.summary.createdAt);
   const normalizedResults = normalizePreviewResults(
     preview.teamResults.map((teamResult) => ({ ...teamResult })),
-    preview.playerResults.map((playerResult) => ({ ...playerResult }))
+    preview.playerResults.map((playerResult) => ({ ...playerResult })),
   );
 
   return {
@@ -387,41 +372,40 @@ export default function PubgImportManager({
   const [error, setError] = useState<string | null>(null);
   const [previewDrafts, setPreviewDrafts] = useState<EditablePreview[]>([]);
   const [previewErrors, setPreviewErrors] = useState<Array<{ matchId: string; error: string; code: string }>>([]);
-  const [importLog, setImportLog] = useState<Array<{ matchId: string; success: boolean; skipped?: boolean; error?: string }>>([]);
+  const [importLog, setImportLog] = useState<
+    Array<{
+      matchId: string;
+      success: boolean;
+      skipped?: boolean;
+      error?: string;
+    }>
+  >([]);
   const [seasonDraft, setSeasonDraft] = useState<SeasonDraft>(() => buildSeasonDraft(1));
   const lastAutoPreviewRequestRef = useRef<string | null>(null);
 
   const nextSeasonNumber = useMemo(
     () => seasons.reduce((highestSeasonNumber, season) => Math.max(highestSeasonNumber, season.seasonNumber ?? 0), 0) + 1,
-    [seasons]
+    [seasons],
   );
 
-  const selectedSeason = useMemo(
-    () => seasons.find((season) => season.id === selectedSeasonId) ?? null,
-    [seasons, selectedSeasonId]
-  );
+  const selectedSeason = useMemo(() => seasons.find((season) => season.id === selectedSeasonId) ?? null, [seasons, selectedSeasonId]);
   const seasonTournaments = useMemo(
     () => tournaments.filter((tournament) => tournament.seasonId === selectedSeasonId).sort(sortTournamentsByDay),
-    [selectedSeasonId, tournaments]
+    [selectedSeasonId, tournaments],
   );
   const seasonScrims = useMemo(
     () => scrims.filter((scrim) => scrim.seasonId === selectedSeasonId).sort(sortScrimsByDay),
-    [scrims, selectedSeasonId]
+    [scrims, selectedSeasonId],
   );
   const selectedTournament = useMemo(
     () => tournaments.find((tournament) => tournament.id === selectedTournamentId) ?? null,
-    [selectedTournamentId, tournaments]
+    [selectedTournamentId, tournaments],
   );
-  const selectedScrim = useMemo(
-    () => scrims.find((scrim) => scrim.id === selectedScrimId) ?? null,
-    [scrims, selectedScrimId]
-  );
+  const selectedScrim = useMemo(() => scrims.find((scrim) => scrim.id === selectedScrimId) ?? null, [scrims, selectedScrimId]);
   const selectedDayTournament = useMemo(() => {
     if (selectedDayNumber === "") return null;
     return (
-      seasonTournaments.find(
-        (tournament) => (tournament.seasonDayNumber ?? tournament.dayNumber) === Number(selectedDayNumber)
-      ) ?? null
+      seasonTournaments.find((tournament) => (tournament.seasonDayNumber ?? tournament.dayNumber) === Number(selectedDayNumber)) ?? null
     );
   }, [seasonTournaments, selectedDayNumber]);
   const selectedDayScrim = useMemo(() => {
@@ -430,7 +414,7 @@ export default function PubgImportManager({
       seasonScrims.find(
         (scrim) =>
           scrim.seasonDayNumber === Number(selectedDayNumber) ||
-          (selectedDayTournament ? scrim.tournamentId === selectedDayTournament.id : false)
+          (selectedDayTournament ? scrim.tournamentId === selectedDayTournament.id : false),
       ) ?? null
     );
   }, [seasonScrims, selectedDayNumber, selectedDayTournament]);
@@ -438,16 +422,13 @@ export default function PubgImportManager({
     const highestSeasonDay = Math.max(
       selectedSeason?.currentDay ?? 0,
       ...seasonTournaments.map((tournament) => tournament.seasonDayNumber ?? tournament.dayNumber ?? 0),
-      ...seasonScrims.map((scrim) => scrim.seasonDayNumber ?? 0)
+      ...seasonScrims.map((scrim) => scrim.seasonDayNumber ?? 0),
     );
 
     return Math.max(highestSeasonDay + 1, 1);
   }, [seasonScrims, seasonTournaments, selectedSeason]);
   const selectedDayExists = Boolean(selectedDayTournament || selectedDayScrim);
-  const hasEditedMatchIds = useMemo(
-    () => previewDrafts.some((draft) => draft.matchId.trim() !== draft.sourceMatchId),
-    [previewDrafts]
-  );
+  const hasEditedMatchIds = useMemo(() => previewDrafts.some((draft) => draft.matchId.trim() !== draft.sourceMatchId), [previewDrafts]);
 
   useEffect(() => {
     if (selectedDayNumber !== "" || !selectedSeason) return;
@@ -596,7 +577,11 @@ export default function PubgImportManager({
       const response = await adminFetch("/api/admin/pubg/watchers");
       setWatchers(response.data ?? []);
     } catch (lookupError: unknown) {
-      setError(toUserFacingErrorMessage(lookupError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(lookupError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoadingWatchers(false);
     }
@@ -608,7 +593,11 @@ export default function PubgImportManager({
       const response = await adminFetch("/api/admin/pubg/candidates");
       setCandidates(response.data ?? []);
     } catch (candidateError: unknown) {
-      setError(toUserFacingErrorMessage(candidateError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(candidateError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoadingCandidates(false);
     }
@@ -619,12 +608,7 @@ export default function PubgImportManager({
     void loadCandidates();
   }, []);
 
-  function applyResolvedDayContext(context?: {
-    seasonId?: string;
-    seasonDayNumber?: number;
-    tournamentId?: string;
-    scrimId?: string;
-  }) {
+  function applyResolvedDayContext(context?: { seasonId?: string; seasonDayNumber?: number; tournamentId?: string; scrimId?: string }) {
     if (!context) return;
     if (context.seasonId) {
       setSelectedSeasonId(context.seasonId);
@@ -665,21 +649,11 @@ export default function PubgImportManager({
     setShowSeasonForm((currentValue) => !currentValue);
   }
 
-  function updatePreviewDraft(
-    sourceMatchId: string,
-    updater: (draft: EditablePreview) => EditablePreview
-  ) {
-    setPreviewDrafts((currentDrafts) =>
-      currentDrafts.map((draft) => (draft.sourceMatchId === sourceMatchId ? updater(draft) : draft))
-    );
+  function updatePreviewDraft(sourceMatchId: string, updater: (draft: EditablePreview) => EditablePreview) {
+    setPreviewDrafts((currentDrafts) => currentDrafts.map((draft) => (draft.sourceMatchId === sourceMatchId ? updater(draft) : draft)));
   }
 
-  function updateTeamResult(
-    sourceMatchId: string,
-    teamIndex: number,
-    field: keyof TeamMatchResult,
-    rawValue: string
-  ) {
+  function updateTeamResult(sourceMatchId: string, teamIndex: number, field: keyof TeamMatchResult, rawValue: string) {
     updatePreviewDraft(sourceMatchId, (draft) => {
       const currentTeamResults = [...draft.teamResults];
       const targetTeam = currentTeamResults[teamIndex];
@@ -712,16 +686,11 @@ export default function PubgImportManager({
         }
       }
 
-      currentTeamResults[teamIndex] = normalizePreviewTeamResult(
-        updatedTeam,
-        field === "slotNumber" ? "slotNumber" : "teamName"
-      );
+      currentTeamResults[teamIndex] = normalizePreviewTeamResult(updatedTeam, field === "slotNumber" ? "slotNumber" : "teamName");
       const normalizedUpdatedTeam = currentTeamResults[teamIndex];
 
       const updatedPlayers = draft.playerResults.map((playerResult) => {
-        const belongsToTeam =
-          playerResult.teamName === previousTeamName &&
-          (playerResult.slotNumber ?? undefined) === previousSlotNumber;
+        const belongsToTeam = playerResult.teamName === previousTeamName && (playerResult.slotNumber ?? undefined) === previousSlotNumber;
 
         if (!belongsToTeam) return playerResult;
 
@@ -745,12 +714,7 @@ export default function PubgImportManager({
     });
   }
 
-  function updatePlayerResult(
-    sourceMatchId: string,
-    playerIndex: number,
-    field: keyof MatchPlayerResult,
-    rawValue: string
-  ) {
+  function updatePlayerResult(sourceMatchId: string, playerIndex: number, field: keyof MatchPlayerResult, rawValue: string) {
     updatePreviewDraft(sourceMatchId, (draft) => {
       const currentPlayerResults = [...draft.playerResults];
       const targetPlayer = currentPlayerResults[playerIndex];
@@ -790,7 +754,7 @@ export default function PubgImportManager({
       currentPlayerResults[playerIndex] = normalizePreviewPlayerResult(
         updatedPlayer,
         draft.teamResults,
-        field === "slotNumber" ? "slotNumber" : "teamName"
+        field === "slotNumber" ? "slotNumber" : "teamName",
       );
       const normalizedResults = normalizePreviewResults(draft.teamResults, currentPlayerResults);
 
@@ -846,9 +810,7 @@ export default function PubgImportManager({
   async function handlePrepareDay() {
     if (!selectedSeasonId) {
       setError(
-        seasons.length === 0
-          ? "Create a season first, then prepare the scrim day."
-          : "Select a season before preparing a scrim day."
+        seasons.length === 0 ? "Create a season first, then prepare the scrim day." : "Select a season before preparing a scrim day.",
       );
       return;
     }
@@ -881,7 +843,11 @@ export default function PubgImportManager({
       setMessage(response.message ?? `${getDayLabel(Number(selectedDayNumber))} is ready for imports.`);
       onImported?.();
     } catch (prepareError: unknown) {
-      setError(toUserFacingErrorMessage(prepareError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(prepareError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setPreparingDay(false);
     }
@@ -895,8 +861,7 @@ export default function PubgImportManager({
     try {
       const normalizedSeriesTitle = draft.seriesTitle.trim() || defaultSeasonSeriesTitle;
       const normalizedSeasonNumber = Math.max(1, Number(draft.seasonNumber) || nextSeasonNumber);
-      const normalizedTitle =
-        draft.title.trim() || `${normalizedSeriesTitle} Season ${normalizedSeasonNumber}`;
+      const normalizedTitle = draft.title.trim() || `${normalizedSeriesTitle} Season ${normalizedSeasonNumber}`;
       const normalizedConfiguredDays = Math.max(1, Number(draft.configuredDays) || 15);
 
       const response = await adminFetch("/api/seasons", {
@@ -950,9 +915,7 @@ export default function PubgImportManager({
           tournamentId: preparedDayResponse.data?.tournament?.id,
           scrimId: preparedDayResponse.data?.scrim?.id,
         });
-        setMessage(
-          preparedDayResponse.message ?? `Created ${createdSeason.title} and prepared Day 1 for imports.`
-        );
+        setMessage(preparedDayResponse.message ?? `Created ${createdSeason.title} and prepared Day 1 for imports.`);
       } else {
         setMessage(response.message ?? "Created the season. You can prepare Day 1 now.");
       }
@@ -961,7 +924,11 @@ export default function PubgImportManager({
       resetSeasonDraft(Math.max(normalizedSeasonNumber + 1, nextSeasonNumber + 1));
       onImported?.();
     } catch (seasonError: unknown) {
-      setError(toUserFacingErrorMessage(seasonError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(seasonError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setCreatingSeason(false);
     }
@@ -997,7 +964,11 @@ export default function PubgImportManager({
     } catch (lookupError: unknown) {
       setLookup(null);
       setSelectedMatchIds([]);
-      setError(toUserFacingErrorMessage(lookupError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(lookupError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoadingLookup(false);
     }
@@ -1041,12 +1012,16 @@ export default function PubgImportManager({
       setMessage(
         data.previews.length > 0
           ? `Prepared preview for ${data.previews.length} PUBG match${data.previews.length === 1 ? "" : "es"}.`
-          : "No preview could be generated for the provided PUBG match IDs."
+          : "No preview could be generated for the provided PUBG match IDs.",
       );
     } catch (previewError: unknown) {
       setPreviewDrafts([]);
       setPreviewErrors([]);
-      setError(toUserFacingErrorMessage(previewError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(previewError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setPreviewing(false);
     }
@@ -1099,29 +1074,29 @@ export default function PubgImportManager({
           success: result.success,
           skipped: result.skipped,
           error: result.error,
-        }))
+        })),
       );
 
       if (data.failedCount > 0) {
         setError(
-          `Imported ${data.importedCount} match${data.importedCount === 1 ? "" : "es"} with ${data.failedCount} failure${data.failedCount === 1 ? "" : "s"}.`
+          `Imported ${data.importedCount} match${data.importedCount === 1 ? "" : "es"} with ${data.failedCount} failure${data.failedCount === 1 ? "" : "s"}.`,
         );
       } else {
         setMessage(
           `Imported ${data.importedCount} PUBG match${data.importedCount === 1 ? "" : "es"} for ${getDayLabel(
-            data.context.seasonDayNumber
-          )}.`
+            data.context.seasonDayNumber,
+          )}.`,
         );
       }
 
       if (lookup) {
         const importedIds = new Set(
-          (data.results ?? []).filter((result) => result.success && !result.skipped).map((result) => result.matchId)
+          (data.results ?? []).filter((result) => result.success && !result.skipped).map((result) => result.matchId),
         );
         setLookup({
           ...lookup,
           recentMatches: lookup.recentMatches.map((match) =>
-            importedIds.has(match.matchId) ? { ...match, alreadyImported: true } : match
+            importedIds.has(match.matchId) ? { ...match, alreadyImported: true } : match,
           ),
         });
       }
@@ -1132,7 +1107,11 @@ export default function PubgImportManager({
       setPreviewErrors([]);
       onImported?.();
     } catch (importError: unknown) {
-      setError(toUserFacingErrorMessage(importError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(importError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setImporting(false);
     }
@@ -1183,7 +1162,11 @@ export default function PubgImportManager({
       setPreviewErrors([]);
       onImported?.();
     } catch (queueError: unknown) {
-      setError(toUserFacingErrorMessage(queueError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(queueError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setQueueingPending(false);
     }
@@ -1210,23 +1193,23 @@ export default function PubgImportManager({
           enabled: true,
           autoImportNewMatches: true,
           autoPublishCandidates: autoPublishWatcher,
-          importedMatchIds: lookup.recentMatches
-            .filter((match) => match.alreadyImported)
-            .map((match) => match.matchId),
-          processedMatchIds: lookup.recentMatches
-            .filter((match) => match.alreadyImported)
-            .map((match) => match.matchId),
+          importedMatchIds: lookup.recentMatches.filter((match) => match.alreadyImported).map((match) => match.matchId),
+          processedMatchIds: lookup.recentMatches.filter((match) => match.alreadyImported).map((match) => match.matchId),
         }),
       });
       setMessage(
         autoPublishWatcher
           ? `Auto-detect and auto-publish are enabled for ${lookup.playerName}.`
-          : `Auto-detect is enabled for ${lookup.playerName}.`
+          : `Auto-detect is enabled for ${lookup.playerName}.`,
       );
       await loadWatchers();
       await loadCandidates();
     } catch (watcherError: unknown) {
-      setError(toUserFacingErrorMessage(watcherError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(watcherError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setSavingWatcher(false);
     }
@@ -1240,7 +1223,11 @@ export default function PubgImportManager({
       });
       await loadWatchers();
     } catch (watcherError: unknown) {
-      setError(toUserFacingErrorMessage(watcherError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(watcherError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     }
   }
 
@@ -1251,7 +1238,11 @@ export default function PubgImportManager({
       });
       await loadWatchers();
     } catch (watcherError: unknown) {
-      setError(toUserFacingErrorMessage(watcherError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(watcherError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     }
   }
 
@@ -1274,10 +1265,7 @@ export default function PubgImportManager({
     setError(null);
   }
 
-  async function handleCandidateAction(
-    candidateId: string,
-    action: "approve_publish" | "reject" | "force_import_draft"
-  ) {
+  async function handleCandidateAction(candidateId: string, action: "approve_publish" | "reject" | "force_import_draft") {
     setProcessingCandidateId(candidateId);
     setError(null);
     setMessage(null);
@@ -1292,14 +1280,18 @@ export default function PubgImportManager({
           ? "Candidate published successfully."
           : action === "force_import_draft"
             ? "Candidate imported to draft."
-            : "Candidate rejected."
+            : "Candidate rejected.",
       );
       await loadCandidates();
       await loadWatchers();
       onImported?.();
       return response.data as PubgImportCandidate;
     } catch (candidateError: unknown) {
-      setError(toUserFacingErrorMessage(candidateError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(candidateError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
       return null;
     } finally {
       setProcessingCandidateId(null);
@@ -1317,14 +1309,16 @@ export default function PubgImportManager({
     setMessage(null);
 
     try {
-      const response = await adminFetch(
-        `/api/admin/pubg/raw?matchId=${encodeURIComponent(maintenanceMatchId.trim())}`
-      );
+      const response = await adminFetch(`/api/admin/pubg/raw?matchId=${encodeURIComponent(maintenanceMatchId.trim())}`);
       setMaintenanceRawJson(JSON.stringify(response.data?.raw ?? null, null, 2));
       setMessage("Loaded cached raw JSON payload.");
     } catch (maintenanceError: unknown) {
       setMaintenanceRawJson("");
-      setError(toUserFacingErrorMessage(maintenanceError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(maintenanceError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setMaintenanceBusyAction(null);
     }
@@ -1352,7 +1346,11 @@ export default function PubgImportManager({
       setMessage(response.message ?? "Match repaired successfully.");
       onImported?.();
     } catch (maintenanceError: unknown) {
-      setError(toUserFacingErrorMessage(maintenanceError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(maintenanceError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setMaintenanceBusyAction(null);
     }
@@ -1379,7 +1377,11 @@ export default function PubgImportManager({
       setMessage(response.message ?? "Imported match reset successfully.");
       onImported?.();
     } catch (maintenanceError: unknown) {
-      setError(toUserFacingErrorMessage(maintenanceError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(maintenanceError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setMaintenanceBusyAction(null);
     }
@@ -1419,11 +1421,15 @@ export default function PubgImportManager({
       setMessage(
         response.data?.failedCount > 0
           ? `Reimported with ${response.data.failedCount} failure${response.data.failedCount === 1 ? "" : "s"}.`
-          : "Match reimport completed successfully."
+          : "Match reimport completed successfully.",
       );
       onImported?.();
     } catch (maintenanceError: unknown) {
-      setError(toUserFacingErrorMessage(maintenanceError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(maintenanceError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setMaintenanceBusyAction(null);
     }
@@ -1441,9 +1447,7 @@ export default function PubgImportManager({
       {(message || error) && (
         <div
           className={`rounded-card border px-4 py-3 text-sm ${
-            error
-              ? "border-accent-red/30 bg-accent-red/10 text-white"
-              : "border-accent-green/25 bg-accent-green/10 text-white"
+            error ? "border-accent-red/30 bg-accent-red/10 text-white" : "border-accent-green/25 bg-accent-green/10 text-white"
           }`}
         >
           {error ?? message}
@@ -1459,8 +1463,8 @@ export default function PubgImportManager({
             </p>
             {selectedSeason && (
               <p className="mt-2 text-xs text-text-muted">
-                Selected season: {selectedSeason.seriesTitle ?? selectedSeason.title} | Current day:{" "}
-                {selectedSeason.currentDay || 0} | Next available day: {nextAvailableDayNumber}
+                Selected season: {selectedSeason.seriesTitle ?? selectedSeason.title} | Current day: {selectedSeason.currentDay || 0} | Next
+                available day: {nextAvailableDayNumber}
               </p>
             )}
           </div>
@@ -1468,12 +1472,7 @@ export default function PubgImportManager({
             <button type="button" onClick={toggleSeasonForm} className={btnSecondary}>
               {showSeasonForm ? "Hide Season Form" : "Create New Season"}
             </button>
-            <button
-              type="button"
-              onClick={() => void handleCreateDefaultSeason()}
-              disabled={creatingSeason}
-              className={btnPrimary}
-            >
+            <button type="button" onClick={() => void handleCreateDefaultSeason()} disabled={creatingSeason} className={btnPrimary}>
               {creatingSeason ? "Creating Season..." : "Quick Create Default Season"}
             </button>
           </div>
@@ -1485,14 +1484,22 @@ export default function PubgImportManager({
               className={inputClass}
               placeholder="Season title"
               value={seasonDraft.title}
-              onChange={(event) => setSeasonDraft((currentDraft) => ({ ...currentDraft, title: event.target.value }))}
+              onChange={(event) =>
+                setSeasonDraft((currentDraft) => ({
+                  ...currentDraft,
+                  title: event.target.value,
+                }))
+              }
             />
             <input
               className={inputClass}
               placeholder="Series title"
               value={seasonDraft.seriesTitle}
               onChange={(event) =>
-                setSeasonDraft((currentDraft) => ({ ...currentDraft, seriesTitle: event.target.value }))
+                setSeasonDraft((currentDraft) => ({
+                  ...currentDraft,
+                  seriesTitle: event.target.value,
+                }))
               }
             />
             <input
@@ -1526,7 +1533,10 @@ export default function PubgImportManager({
               type="date"
               value={seasonDraft.startDate}
               onChange={(event) =>
-                setSeasonDraft((currentDraft) => ({ ...currentDraft, startDate: event.target.value }))
+                setSeasonDraft((currentDraft) => ({
+                  ...currentDraft,
+                  startDate: event.target.value,
+                }))
               }
             />
             <input
@@ -1546,14 +1556,22 @@ export default function PubgImportManager({
               className={inputClass}
               placeholder="Game"
               value={seasonDraft.game}
-              onChange={(event) => setSeasonDraft((currentDraft) => ({ ...currentDraft, game: event.target.value }))}
+              onChange={(event) =>
+                setSeasonDraft((currentDraft) => ({
+                  ...currentDraft,
+                  game: event.target.value,
+                }))
+              }
             />
             <input
               className={inputClass}
               placeholder="Format"
               value={seasonDraft.format}
               onChange={(event) =>
-                setSeasonDraft((currentDraft) => ({ ...currentDraft, format: event.target.value }))
+                setSeasonDraft((currentDraft) => ({
+                  ...currentDraft,
+                  format: event.target.value,
+                }))
               }
             />
             <input
@@ -1561,7 +1579,10 @@ export default function PubgImportManager({
               placeholder="Region"
               value={seasonDraft.region}
               onChange={(event) =>
-                setSeasonDraft((currentDraft) => ({ ...currentDraft, region: event.target.value }))
+                setSeasonDraft((currentDraft) => ({
+                  ...currentDraft,
+                  region: event.target.value,
+                }))
               }
             />
             <input
@@ -1569,24 +1590,17 @@ export default function PubgImportManager({
               placeholder="Perspective"
               value={seasonDraft.perspective}
               onChange={(event) =>
-                setSeasonDraft((currentDraft) => ({ ...currentDraft, perspective: event.target.value }))
+                setSeasonDraft((currentDraft) => ({
+                  ...currentDraft,
+                  perspective: event.target.value,
+                }))
               }
             />
             <div className="flex flex-wrap gap-3 xl:col-span-2">
-              <button
-                type="button"
-                onClick={() => void handleCreateSeason(false)}
-                disabled={creatingSeason}
-                className={btnPrimary}
-              >
+              <button type="button" onClick={() => void handleCreateSeason(false)} disabled={creatingSeason} className={btnPrimary}>
                 {creatingSeason ? "Creating Season..." : "Create Season"}
               </button>
-              <button
-                type="button"
-                onClick={() => void handleCreateSeason(true)}
-                disabled={creatingSeason}
-                className={btnSecondary}
-              >
+              <button type="button" onClick={() => void handleCreateSeason(true)} disabled={creatingSeason} className={btnSecondary}>
                 {creatingSeason ? "Preparing..." : "Create Season + Day 1"}
               </button>
             </div>
@@ -1620,9 +1634,7 @@ export default function PubgImportManager({
             min={1}
             placeholder="Scrim day number"
             value={selectedDayNumber}
-            onChange={(event) =>
-              setSelectedDayNumber(event.target.value ? Number(event.target.value) : "")
-            }
+            onChange={(event) => setSelectedDayNumber(event.target.value ? Number(event.target.value) : "")}
           />
           <button
             type="button"
@@ -1636,10 +1648,10 @@ export default function PubgImportManager({
             {preparingDay
               ? "Preparing..."
               : selectedDayNumber === ""
-              ? "Create Day"
-              : selectedDayExists
-              ? `Update Day ${selectedDayNumber}`
-              : `Create Day ${selectedDayNumber}`}
+                ? "Create Day"
+                : selectedDayExists
+                  ? `Update Day ${selectedDayNumber}`
+                  : `Create Day ${selectedDayNumber}`}
           </button>
         </div>
 
@@ -1649,17 +1661,13 @@ export default function PubgImportManager({
               ? selectedDayNumber === ""
                 ? `Choose a day number or use Next Day (${nextAvailableDayNumber}).`
                 : selectedDayExists
-                ? `${getDayLabel(Number(selectedDayNumber))} already exists. Saving here will update its title, date, map, and linked import target.`
-                : `${getDayLabel(Number(selectedDayNumber))} does not exist yet. Saving here will create the tournament day and scrim automatically.`
+                  ? `${getDayLabel(Number(selectedDayNumber))} already exists. Saving here will update its title, date, map, and linked import target.`
+                  : `${getDayLabel(Number(selectedDayNumber))} does not exist yet. Saving here will create the tournament day and scrim automatically.`
               : "Create or select a season first, then create the scrim day here."}
           </p>
         </div>
 
-        <select
-          className={inputClass}
-          value={selectedTournamentId}
-          onChange={(event) => setSelectedTournamentId(event.target.value)}
-        >
+        <select className={inputClass} value={selectedTournamentId} onChange={(event) => setSelectedTournamentId(event.target.value)}>
           <option value="">Linked tournament day</option>
           {seasonTournaments.map((tournament) => (
             <option key={tournament.id} value={tournament.id}>
@@ -1677,19 +1685,9 @@ export default function PubgImportManager({
           ))}
         </select>
 
-        <input
-          className={inputClass}
-          placeholder="Day title"
-          value={dayTitle}
-          onChange={(event) => setDayTitle(event.target.value)}
-        />
+        <input className={inputClass} placeholder="Day title" value={dayTitle} onChange={(event) => setDayTitle(event.target.value)} />
 
-        <input
-          className={inputClass}
-          type="date"
-          value={dayDate}
-          onChange={(event) => setDayDate(event.target.value)}
-        />
+        <input className={inputClass} type="date" value={dayDate} onChange={(event) => setDayDate(event.target.value)} />
 
         <input
           className={inputClass}
@@ -1743,11 +1741,7 @@ export default function PubgImportManager({
 
         <div className="flex flex-wrap gap-3 sm:items-end">
           <label className="inline-flex items-center gap-2 text-xs text-text-muted">
-            <input
-              type="checkbox"
-              checked={autoPublishWatcher}
-              onChange={(event) => setAutoPublishWatcher(event.target.checked)}
-            />
+            <input type="checkbox" checked={autoPublishWatcher} onChange={(event) => setAutoPublishWatcher(event.target.checked)} />
             auto-publish 80+ confidence matches
           </label>
           <button type="button" onClick={() => void handleSaveWatcher()} disabled={savingWatcher || !lookup} className={btnPrimary}>
@@ -1804,7 +1798,7 @@ export default function PubgImportManager({
                           setSelectedMatchIds((currentIds) =>
                             event.target.checked
                               ? [...currentIds, match.matchId]
-                              : currentIds.filter((currentId) => currentId !== match.matchId)
+                              : currentIds.filter((currentId) => currentId !== match.matchId),
                           );
                         }}
                       />
@@ -1818,9 +1812,7 @@ export default function PubgImportManager({
                     </div>
                     <span
                       className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
-                        match.alreadyImported
-                          ? "bg-accent-yellow/15 text-accent-yellow"
-                          : "bg-accent-blue/10 text-accent-blue"
+                        match.alreadyImported ? "bg-accent-yellow/15 text-accent-yellow" : "bg-accent-blue/10 text-accent-blue"
                       }`}
                     >
                       {match.alreadyImported ? "Already Imported" : "Ready"}
@@ -1871,11 +1863,7 @@ export default function PubgImportManager({
               >
                 {previewing ? "Previewing..." : "Preview Bulk Match IDs"}
               </button>
-              <button
-                type="button"
-                onClick={() => setDirectMatchIds("")}
-                className="btn-secondary"
-              >
+              <button type="button" onClick={() => setDirectMatchIds("")} className="btn-secondary">
                 Clear Match IDs
               </button>
             </div>
@@ -2032,9 +2020,7 @@ export default function PubgImportManager({
                       </div>
                       <span
                         className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
-                          watcher.enabled === false
-                            ? "bg-accent-red/15 text-accent-red"
-                            : "bg-accent-green/15 text-accent-green"
+                          watcher.enabled === false ? "bg-accent-red/15 text-accent-red" : "bg-accent-green/15 text-accent-green"
                         }`}
                       >
                         {watcher.enabled === false ? "Paused" : "Active"}
@@ -2077,7 +2063,8 @@ export default function PubgImportManager({
               <div>
                 <p className="section-heading !text-sm">Import Repair / Reset</p>
                 <p className="mt-1 text-sm text-text-muted">
-                  Manual results remain the fallback. Use these tools to repair cached imports, fetch raw JSON, reset bad imports, or reimport safely.
+                  Manual results remain the fallback. Use these tools to repair cached imports, fetch raw JSON, reset bad imports, or
+                  reimport safely.
                 </p>
               </div>
             </div>
@@ -2100,11 +2087,7 @@ export default function PubgImportManager({
                   allow published reset/repair
                 </label>
                 <label className="inline-flex items-center gap-2 text-xs text-text-muted">
-                  <input
-                    type="checkbox"
-                    checked={maintenancePublish}
-                    onChange={(event) => setMaintenancePublish(event.target.checked)}
-                  />
+                  <input type="checkbox" checked={maintenancePublish} onChange={(event) => setMaintenancePublish(event.target.checked)} />
                   publish after repair/reimport
                 </label>
                 <label className="inline-flex items-center gap-2 text-xs text-text-muted">
@@ -2153,11 +2136,7 @@ export default function PubgImportManager({
               </div>
 
               {maintenanceRawJson ? (
-                <textarea
-                  className={`${inputClass} min-h-36 font-mono text-xs`}
-                  value={maintenanceRawJson}
-                  readOnly
-                />
+                <textarea className={`${inputClass} min-h-36 font-mono text-xs`} value={maintenanceRawJson} readOnly />
               ) : null}
             </div>
           </div>
@@ -2167,7 +2146,10 @@ export default function PubgImportManager({
               <p className="section-heading !text-sm">Import Errors</p>
               <div className="mt-4 space-y-2 text-sm">
                 {previewErrors.map((entry) => (
-                  <div key={`preview-${entry.matchId}`} className="rounded-card border border-accent-red/30 bg-accent-red/10 px-3 py-2 text-white">
+                  <div
+                    key={`preview-${entry.matchId}`}
+                    className="rounded-card border border-accent-red/30 bg-accent-red/10 px-3 py-2 text-white"
+                  >
                     <span className="font-mono-stat">{entry.matchId}</span>
                     <span className="ml-2 text-xs uppercase">{entry.code.replaceAll("_", " ")}</span>
                     <p className="mt-1 text-xs text-white/80">{entry.error}</p>
@@ -2185,9 +2167,7 @@ export default function PubgImportManager({
                       }`}
                     >
                       <span className="font-mono-stat">{entry.matchId}</span>
-                      <span className="ml-2 text-xs uppercase">
-                        {entry.skipped ? "Skipped duplicate" : entry.error ?? "Failed"}
-                      </span>
+                      <span className="ml-2 text-xs uppercase">{entry.skipped ? "Skipped duplicate" : (entry.error ?? "Failed")}</span>
                     </div>
                   ))}
               </div>
@@ -2200,8 +2180,8 @@ export default function PubgImportManager({
                 <div>
                   <p className="section-heading !text-sm">Import Preview</p>
                   <p className="mt-1 text-sm text-text-muted">
-                      Step 1: verify every fetched match. Step 2: save the reviewed draft to pending imports. Step 3: publish the draft when ready.
-                      Match metadata, teams, players, placements, kills, and points can be corrected here.
+                    Step 1: verify every fetched match. Step 2: save the reviewed draft to pending imports. Step 3: publish the draft when
+                    ready. Match metadata, teams, players, placements, kills, and points can be corrected here.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -2240,11 +2220,7 @@ export default function PubgImportManager({
                   >
                     {importing ? "Importing..." : "Import Draft"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewDrafts([])}
-                    className="btn-watch-live"
-                  >
+                  <button type="button" onClick={() => setPreviewDrafts([])} className="btn-watch-live">
                     Delete Draft
                   </button>
                   <button
@@ -2449,7 +2425,7 @@ export default function PubgImportManager({
                         <p className="mt-1 font-mono-stat text-white">
                           {preview.teamResults.reduce(
                             (sum, teamResult) => sum + (Number.isFinite(teamResult.totalPoints) ? teamResult.totalPoints : 0),
-                            0
+                            0,
                           )}
                         </p>
                       </div>
@@ -2457,9 +2433,7 @@ export default function PubgImportManager({
 
                     {preview.conflicts.length > 0 && (
                       <div className="mt-4 rounded-card border border-accent-yellow/25 bg-accent-yellow/10 p-4">
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-yellow">
-                          Player Team Mismatch Detected
-                        </p>
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-yellow">Player Team Mismatch Detected</p>
                         <div className="mt-3 space-y-2 text-sm text-white">
                           {preview.conflicts.map((conflict) => (
                             <p key={`${preview.matchId}-${conflict.playerName}`}>
@@ -2475,9 +2449,7 @@ export default function PubgImportManager({
 
                     {preview.warnings.length > 0 && (
                       <div className="mt-4 rounded-card border border-accent-blue/25 bg-accent-blue/10 p-4">
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-blue">
-                          Import Warnings
-                        </p>
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-blue">Import Warnings</p>
                         <div className="mt-3 space-y-2 text-sm text-white">
                           {preview.warnings.slice(0, 12).map((warning, warningIndex) => (
                             <p key={`${preview.matchId}-${warning.type}-${warningIndex}`}>
@@ -2495,9 +2467,7 @@ export default function PubgImportManager({
 
                     <div className="mt-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">
-                          Team Verification
-                        </p>
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Team Verification</p>
                         <p className="text-xs text-text-muted">Edit team names, slots, placements, kills, and points before publishing.</p>
                       </div>
                       <div className="mt-3 table-scroll">
@@ -2544,9 +2514,7 @@ export default function PubgImportManager({
                                   <input
                                     className="min-w-[180px] rounded border border-white/10 bg-transparent px-2 py-1 text-white"
                                     value={teamResult.teamName}
-                                    onChange={(event) =>
-                                      updateTeamResult(preview.sourceMatchId, teamIndex, "teamName", event.target.value)
-                                    }
+                                    onChange={(event) => updateTeamResult(preview.sourceMatchId, teamIndex, "teamName", event.target.value)}
                                   />
                                 </td>
                                 <td>
@@ -2555,9 +2523,7 @@ export default function PubgImportManager({
                                     type="number"
                                     min={0}
                                     value={teamResult.kills}
-                                    onChange={(event) =>
-                                      updateTeamResult(preview.sourceMatchId, teamIndex, "kills", event.target.value)
-                                    }
+                                    onChange={(event) => updateTeamResult(preview.sourceMatchId, teamIndex, "kills", event.target.value)}
                                   />
                                 </td>
                                 <td>
@@ -2567,12 +2533,7 @@ export default function PubgImportManager({
                                     min={0}
                                     value={teamResult.placementPoints}
                                     onChange={(event) =>
-                                      updateTeamResult(
-                                        preview.sourceMatchId,
-                                        teamIndex,
-                                        "placementPoints",
-                                        event.target.value
-                                      )
+                                      updateTeamResult(preview.sourceMatchId, teamIndex, "placementPoints", event.target.value)
                                     }
                                   />
                                 </td>
@@ -2607,9 +2568,7 @@ export default function PubgImportManager({
 
                     <div className="mt-5">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">
-                          Player Verification
-                        </p>
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Player Verification</p>
                         <p className="text-xs text-text-muted">
                           Review player mapping, kills, assists, damage, survival time, and points before approval.
                         </p>
@@ -2746,12 +2705,7 @@ export default function PubgImportManager({
                                     min={0}
                                     value={playerResult.placementPoints}
                                     onChange={(event) =>
-                                      updatePlayerResult(
-                                        preview.sourceMatchId,
-                                        playerIndex,
-                                        "placementPoints",
-                                        event.target.value
-                                      )
+                                      updatePlayerResult(preview.sourceMatchId, playerIndex, "placementPoints", event.target.value)
                                     }
                                   />
                                 </td>
@@ -2793,7 +2747,7 @@ export default function PubgImportManager({
                   >
                     <span className="font-mono-stat">{entry.matchId}</span>
                     <span className="ml-2 text-xs uppercase">
-                      {entry.success ? (entry.skipped ? "Skipped" : "Imported") : entry.error ?? "Failed"}
+                      {entry.success ? (entry.skipped ? "Skipped" : "Imported") : (entry.error ?? "Failed")}
                     </span>
                   </div>
                 ))}

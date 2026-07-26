@@ -1,15 +1,19 @@
 import { writeAuditLog } from "@/lib/audit-logs";
 import { COLLECTIONS, fetchDocumentCollection, getDocument, saveDocument } from "@/lib/document-store";
+import { fetchPubgPlayerRecentMatches, fetchPubgPlayerRecentMatchesById } from "@/lib/pubg";
 import { processAutoDetectedPubgCandidate } from "@/lib/pubg-import-candidates";
 import { cachePendingImportPreview } from "@/lib/pubg-import-relational";
-import { fetchPubgPlayerRecentMatches, fetchPubgPlayerRecentMatchesById } from "@/lib/pubg";
 import { importPubgMatches, previewPubgMatches } from "@/lib/pubg-sync";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import type { PubgImportWatcher, Scrim } from "@/lib/types";
 
 export async function GET(request: Request) {
-  const limited = await enforceRateLimit(request, { key: "cron-sync-matches", maxRequests: 30, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "cron-sync-matches",
+    maxRequests: 30,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   const authHeader = request.headers.get("authorization");
@@ -24,7 +28,7 @@ export async function GET(request: Request) {
       fetchDocumentCollection<PubgImportWatcher>(COLLECTIONS.pubgImportWatchers, 50).catch(() => []),
     ]);
     const pending = scrims.filter(
-      (s) => (s.pubgMatchId || (s.pubgMatchIds?.length ?? 0) > 0) && (s.status === "live" || s.status === "waiting_for_data")
+      (s) => (s.pubgMatchId || (s.pubgMatchIds?.length ?? 0) > 0) && (s.status === "live" || s.status === "waiting_for_data"),
     );
 
     const results: Array<{
@@ -38,7 +42,7 @@ export async function GET(request: Request) {
 
     for (const scrim of pending) {
       const matchIds = Array.from(
-        new Set([...(scrim.pubgMatchIds ?? []), scrim.pubgMatchId].filter((matchId): matchId is string => Boolean(matchId)))
+        new Set([...(scrim.pubgMatchIds ?? []), scrim.pubgMatchId].filter((matchId): matchId is string => Boolean(matchId))),
       );
       try {
         const importResult = await importPubgMatches(matchIds, {
@@ -99,9 +103,7 @@ export async function GET(request: Request) {
         }
 
         const lookup = watcher.playerId
-          ? await fetchPubgPlayerRecentMatchesById(watcher.playerId, 10).catch(() =>
-              fetchPubgPlayerRecentMatches(watcher.playerName, 10)
-            )
+          ? await fetchPubgPlayerRecentMatchesById(watcher.playerId, 10).catch(() => fetchPubgPlayerRecentMatches(watcher.playerName, 10))
           : await fetchPubgPlayerRecentMatches(watcher.playerName, 10);
         const knownMatchIds = new Set(watcher.processedMatchIds ?? watcher.importedMatchIds ?? []);
         const pendingMatchIds: string[] = [];
@@ -167,9 +169,7 @@ export async function GET(request: Request) {
           }
         }
 
-        const latestWatcher = await getDocument<PubgImportWatcher>(COLLECTIONS.pubgImportWatchers, watcher.id).catch(
-          () => null
-        );
+        const latestWatcher = await getDocument<PubgImportWatcher>(COLLECTIONS.pubgImportWatchers, watcher.id).catch(() => null);
         await saveDocument(COLLECTIONS.pubgImportWatchers, watcher.id, {
           playerId: watcher.playerId ?? lookup.playerId,
           shardId: watcher.shardId ?? lookup.shardId,
@@ -191,11 +191,13 @@ export async function GET(request: Request) {
       }
     }
 
-    return Response.json({ success: true, synced: results.filter((r) => r.ok).length, results });
+    return Response.json({
+      success: true,
+      synced: results.filter((r) => r.ok).length,
+      results,
+    });
   } catch (error: unknown) {
     await logServerError("cron.sync-matches", error, request);
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
-
-

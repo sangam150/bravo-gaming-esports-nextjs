@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import { PubgCommunityPage } from "@/components/pubg/PubgPublicPages";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
+import type { Metadata } from "next";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

@@ -1,17 +1,14 @@
 "use client";
 
+import DiscordLoginButton from "@/components/auth/DiscordLoginButton";
+import BravoLogo from "@/components/ui/BravoLogo";
+import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
+import { reportLoginFailure } from "@/lib/login-client";
+import { LOGIN_ERROR_MESSAGES, validateLoginCredentials } from "@/lib/user-facing-errors";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAdminAuth } from "./AuthProvider";
-import BravoLogo from "@/components/ui/BravoLogo";
-import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
-import { reportLoginFailure } from "@/lib/login-client";
-import DiscordLoginButton from "@/components/auth/DiscordLoginButton";
-import {
-  LOGIN_ERROR_MESSAGES,
-  validateLoginCredentials,
-} from "@/lib/user-facing-errors";
 
 export default function AdminLogin() {
   const { login, configured } = useAdminAuth();
@@ -51,11 +48,11 @@ export default function AdminLogin() {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-4">
         <div className="esports-card max-w-md p-8 text-center">
-          <div className="mx-auto w-fit"><BravoLogo size={56} /></div>
+          <div className="mx-auto w-fit">
+            <BravoLogo size={56} />
+          </div>
           <h1 className="mt-4 font-display text-2xl font-black uppercase text-white">Admin Login</h1>
-          <p className="mt-3 text-sm text-text-muted">
-            {LOGIN_ERROR_MESSAGES.backendUnavailable}
-          </p>
+          <p className="mt-3 text-sm text-text-muted">{LOGIN_ERROR_MESSAGES.backendUnavailable}</p>
         </div>
       </div>
     );
@@ -65,14 +62,20 @@ export default function AdminLogin() {
     <div className="flex min-h-[70vh] items-center justify-center px-4">
       <form onSubmit={handleSubmit} noValidate className="esports-card w-full max-w-md space-y-5 p-8">
         <div className="text-center">
-          <div className="mx-auto w-fit"><BravoLogo size={56} /></div>
+          <div className="mx-auto w-fit">
+            <BravoLogo size={56} />
+          </div>
           <p className="section-title mt-4">Staff Only</p>
           <h1 className="mt-2 font-display text-3xl font-black uppercase text-white">Admin Login</h1>
           <p className="mt-2 text-sm text-text-muted">Sign in with your authorized Supabase admin account.</p>
         </div>
 
         {error && (
-          <div role="alert" aria-live="assertive" className="rounded-xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-300">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="rounded-xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-300"
+          >
             {error}
           </div>
         )}
@@ -126,7 +129,12 @@ export default function AdminLogin() {
             <Link href="/contact" className="text-accent-blue transition hover:text-white hover:underline">
               Contact Bravo Admin
             </Link>
-            <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="text-accent-blue transition hover:text-white hover:underline">
+            <a
+              href={BRAVO_DISCORD_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="text-accent-blue transition hover:text-white hover:underline"
+            >
               Join Discord
             </a>
           </div>

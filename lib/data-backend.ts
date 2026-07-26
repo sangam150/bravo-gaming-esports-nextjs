@@ -10,15 +10,5 @@ function normalizeRequestedDataBackend(value?: string | null): RequestedDataBack
 }
 
 export function getRequestedServerDataBackend() {
-  return normalizeRequestedDataBackend(
-    process.env.BRAVO_DATA_BACKEND ?? process.env.NEXT_PUBLIC_BRAVO_DATA_BACKEND
-  );
-}
-
-export function getRequestedClientDataBackend() {
-  return normalizeRequestedDataBackend(process.env.NEXT_PUBLIC_BRAVO_DATA_BACKEND);
-}
-
-export function shouldTrySupabaseBackend(requestedBackend: RequestedDataBackend) {
-  return requestedBackend === "auto" || requestedBackend === "supabase";
+  return normalizeRequestedDataBackend(process.env.BRAVO_DATA_BACKEND ?? process.env.NEXT_PUBLIC_BRAVO_DATA_BACKEND);
 }

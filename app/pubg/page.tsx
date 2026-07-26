@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
-import { PubgHubLaunchPage } from "@/components/public/PublicLandingPages";
 import { PubgDashboardPage } from "@/components/pubg/PubgPublicPages";
+import { PubgHubLaunchPage } from "@/components/public/PublicLandingPages";
 import { getCurrentSeasonOverview } from "@/lib/data";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgDashboardData } from "@/lib/pubg-hub";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = buildContentMetadata({
   title: "PUBG Hub | Bravo Gaming Esports",

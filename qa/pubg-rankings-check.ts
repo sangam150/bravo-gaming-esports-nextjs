@@ -23,7 +23,7 @@ function assertSortedTeams<T extends Parameters<typeof comparePubgTeams>[0]>(tea
     assert.ok(comparePubgTeams(previous, current) <= 0, `Team order drifted between ${previous.name} and ${current.name}`);
     assert.ok(
       !(previous.totalPoints < current.totalPoints),
-      `Lower-point team ranked above higher-point team: ${previous.name} (${previous.totalPoints}) < ${current.name} (${current.totalPoints})`
+      `Lower-point team ranked above higher-point team: ${previous.name} (${previous.totalPoints}) < ${current.name} (${current.totalPoints})`,
     );
   }
 }
@@ -45,66 +45,81 @@ async function main() {
   const rankedPlayers = getRankedPlayers(dataset.players);
   const teamBoard = buildPubgTeamBoardRows(dataset.matches, teamLookup);
   const matchPlayerBoard = buildPubgPlayerBoardRows(dataset.matches, playerLookup);
-  const playerBoard =
-    matchPlayerBoard.length > 0 ? matchPlayerBoard : buildPubgAggregatePlayerBoardRows(dataset.players);
+  const playerBoard = matchPlayerBoard.length > 0 ? matchPlayerBoard : buildPubgAggregatePlayerBoardRows(dataset.players);
 
   assert.deepEqual(
     dataset.teams.map((team) => team.id),
     rankedTeams.map((team) => team.id),
-    "Dataset team order no longer matches the shared team ranking helper"
+    "Dataset team order no longer matches the shared team ranking helper",
   );
   assert.deepEqual(
     dataset.players.map((player) => player.id),
     rankedPlayers.map((player) => player.id),
-    "Dataset player order no longer matches the shared player ranking helper"
+    "Dataset player order no longer matches the shared player ranking helper",
   );
 
   assert.deepEqual(
     rankedTeams.slice(0, 5).map((team) => team.id),
     teamBoard.slice(0, 5).map((row) => row.teamId),
-    "Homepage and full leaderboard team top 5 are out of sync"
+    "Homepage and full leaderboard team top 5 are out of sync",
   );
   assert.deepEqual(
     rankedTeams.slice(0, 4).map((team) => team.id),
     teamBoard.slice(0, 4).map((row) => row.teamId),
-    "Top Teams cards no longer match the full leaderboard top 4"
+    "Top Teams cards no longer match the full leaderboard top 4",
   );
   assert.deepEqual(
     dashboard.topTeams.map((team) => team.id),
     rankedTeams.slice(0, 6).map((team) => team.id),
-    "PUBG hub top teams no longer match the official leaderboard top 6"
+    "PUBG hub top teams no longer match the official leaderboard top 6",
   );
   assert.deepEqual(
     dashboard.topTeams.slice(0, 4).map((team) => team.id),
     rankedTeams.slice(0, 4).map((team) => team.id),
-    "PUBG hub top team cards no longer match the full leaderboard top 4"
+    "PUBG hub top team cards no longer match the full leaderboard top 4",
   );
   assert.deepEqual(
     dashboard.topTeams.slice(0, 3).map((team) => team.id),
     rankedTeams.slice(0, 3).map((team) => team.id),
-    "PUBG hub sidebar standings no longer match the full leaderboard top 3"
+    "PUBG hub sidebar standings no longer match the full leaderboard top 3",
   );
   assert.deepEqual(
     rankedPlayers.slice(0, 4).map((player) => player.id),
     playerBoard.slice(0, 4).map((row) => row.playerId),
-    "Top player cards no longer match the full player leaderboard top 4"
+    "Top player cards no longer match the full player leaderboard top 4",
   );
   assert.deepEqual(
     dashboard.topPlayers.map((player) => player.id),
     rankedPlayers.slice(0, 6).map((player) => player.id),
-    "PUBG hub player preview no longer matches the full player leaderboard top 6"
+    "PUBG hub player preview no longer matches the full player leaderboard top 6",
   );
 
-  assertSequentialRanks("Team board", teamBoard.map((row) => row.rank));
-  assertSequentialRanks("Player board", playerBoard.map((row) => row.rank));
+  assertSequentialRanks(
+    "Team board",
+    teamBoard.map((row) => row.rank),
+  );
+  assertSequentialRanks(
+    "Player board",
+    playerBoard.map((row) => row.rank),
+  );
   assertSortedTeams(rankedTeams);
   assertSortedTeams(teamBoard);
   assertSortedPlayers(rankedPlayers);
   assertSortedPlayers(playerBoard);
 
   console.log("PUBG ranking QA passed");
-  console.log(`Top 5 teams: ${teamBoard.slice(0, 5).map((row) => `#${row.rank} ${row.name} (${row.totalPoints})`).join(" | ")}`);
-  console.log(`Top 5 players: ${playerBoard.slice(0, 5).map((row) => `#${row.rank} ${row.pubgName} (${row.kills} kills)`).join(" | ")}`);
+  console.log(
+    `Top 5 teams: ${teamBoard
+      .slice(0, 5)
+      .map((row) => `#${row.rank} ${row.name} (${row.totalPoints})`)
+      .join(" | ")}`,
+  );
+  console.log(
+    `Top 5 players: ${playerBoard
+      .slice(0, 5)
+      .map((row) => `#${row.rank} ${row.pubgName} (${row.kills} kills)`)
+      .join(" | ")}`,
+  );
 }
 
 main().catch((error) => {

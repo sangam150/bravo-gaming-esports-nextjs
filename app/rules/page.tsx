@@ -1,7 +1,7 @@
-import Link from "next/link";
-import type { Metadata } from "next";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+import Link from "next/link";
 
 const ruleSections = [
   {
@@ -62,8 +62,8 @@ export default function RulesPage() {
                 Rules & Conduct
               </h1>
               <p className="mt-5 max-w-3xl text-sm leading-7 text-text-muted sm:text-base">
-                Review the core public rules for Bravo PUBG PC scrims and tournaments. Event-specific instructions,
-                schedules, and roster limits published on official event pages or in Discord always take priority.
+                Review the core public rules for Bravo PUBG PC scrims and tournaments. Event-specific instructions, schedules, and roster
+                limits published on official event pages or in Discord always take priority.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href="/events" className="btn-primary">
@@ -119,9 +119,8 @@ export default function RulesPage() {
           <p className="section-title">Final Note</p>
           <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Public rules support a fair competitive standard</h2>
           <p className="mt-4 max-w-4xl text-sm leading-7 text-text-muted">
-            Bravo may update public rules when event formats, anti-cheat safeguards, or tournament operations require
-            it. The latest published event page and official Discord notice should be treated as the active source of
-            truth.
+            Bravo may update public rules when event formats, anti-cheat safeguards, or tournament operations require it. The latest
+            published event page and official Discord notice should be treated as the active source of truth.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/anti-cheat" className="btn-secondary">

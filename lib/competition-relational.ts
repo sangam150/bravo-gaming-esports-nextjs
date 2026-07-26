@@ -1,14 +1,15 @@
 import "server-only";
 
+import type { Database, Json, Tables, TablesInsert } from "@/types/database.types";
 import { randomUUID } from "crypto";
+import { DEFAULT_POINT_SYSTEM_ID, scoreMatchResults, type PointSystemRecord } from "./competition-scoring";
+import { readJsonObject, sanitizeJsonValue } from "./json-utils";
 import {
   compareMatchPlayerResults,
   compareMatchTeamResults,
   comparePlayerLeaderboardPerformance,
   compareTeamLeaderboardPerformance,
 } from "./ranking-sort";
-import { readJsonObject, sanitizeJsonValue } from "./json-utils";
-import { DEFAULT_POINT_SYSTEM_ID, scoreMatchResults, type PointSystemRecord } from "./competition-scoring";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import type {
   LeaderboardRow,
@@ -21,7 +22,6 @@ import type {
   Tournament,
   TournamentMatch,
 } from "./types";
-import type { Database, Json, Tables, TablesInsert, TablesUpdate } from "@/types/database.types";
 
 type PublicViewName = keyof Database["public"]["Views"];
 type Views<ViewName extends PublicViewName> = Database["public"]["Views"][ViewName]["Row"];
@@ -66,23 +66,6 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
-}
-
-function compareCompetitionSeasonOrder(
-  firstSeason: Pick<Season, "createdAt" | "seasonNumber" | "startDate">,
-  secondSeason: Pick<Season, "createdAt" | "seasonNumber" | "startDate">
-) {
-  const dateComparison = (secondSeason.startDate ?? "").localeCompare(firstSeason.startDate ?? "");
-  if (dateComparison !== 0) {
-    return dateComparison;
-  }
-
-  const createdAtComparison = (secondSeason.createdAt ?? "").localeCompare(firstSeason.createdAt ?? "");
-  if (createdAtComparison !== 0) {
-    return createdAtComparison;
-  }
-
-  return (secondSeason.seasonNumber ?? 0) - (firstSeason.seasonNumber ?? 0);
 }
 
 function looksLikeUuid(value?: string | null) {
@@ -294,11 +277,7 @@ function mapEventRow(row: Tables<"events">, registeredTeamIds: string[]): Tourna
   };
 }
 
-function mapTeamRow(
-  row: Tables<"teams">,
-  standing?: Views<"team_leaderboard"> | null,
-  playerIds?: string[]
-): Team {
+function mapTeamRow(row: Tables<"teams">, standing?: Views<"team_leaderboard"> | null, playerIds?: string[]): Team {
   const normalizedStatus = row.status === "pending" || row.status === "inactive" ? row.status : "active";
 
   return {
@@ -327,7 +306,7 @@ function mapTeamRow(
 function mapPlayerRow(
   row: Tables<"players">,
   leaderboard?: Views<"player_leaderboard"> | null,
-  mvpRanking?: Views<"mvp_rankings"> | null
+  mvpRanking?: Views<"mvp_rankings"> | null,
 ): Player {
   return {
     id: row.id,
@@ -376,9 +355,7 @@ async function getEventTeamMap(eventIds: string[]) {
 
 async function getPointSystem(pointSystemId?: string | null, fallbackPointSystemId?: string | null): Promise<PointSystemRecord> {
   const client = getSupabaseServiceRoleClient();
-  const requestedIds = [pointSystemId, fallbackPointSystemId, DEFAULT_POINT_SYSTEM_ID].filter(
-    (value): value is string => Boolean(value)
-  );
+  const requestedIds = [pointSystemId, fallbackPointSystemId, DEFAULT_POINT_SYSTEM_ID].filter((value): value is string => Boolean(value));
 
   for (const id of requestedIds) {
     const { data, error } = await client
@@ -451,9 +428,7 @@ export async function listCompetitionSeasons() {
 export async function getCompetitionSeason(idOrSlug: string) {
   const client = getSupabaseServiceRoleClient();
   const value = idOrSlug.trim();
-  const byId = looksLikeUuid(value)
-    ? await client.from("seasons").select("*").eq("id", value).maybeSingle()
-    : { data: null, error: null };
+  const byId = looksLikeUuid(value) ? await client.from("seasons").select("*").eq("id", value).maybeSingle() : { data: null, error: null };
 
   if (byId.error) {
     throw byId.error;
@@ -557,11 +532,7 @@ export async function deleteCompetitionSeason(id: string) {
 
 export async function listCompetitionEvents(status?: Tournament["status"]) {
   const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client
-    .from("events")
-    .select("*")
-    .is("deleted_at", null)
-    .order("start_date", { ascending: false });
+  const { data, error } = await client.from("events").select("*").is("deleted_at", null).order("start_date", { ascending: false });
 
   if (error) {
     throw error;
@@ -587,11 +558,8 @@ export async function getCompetitionEvent(idOrSlug: string) {
 
   const row = byId.data
     ? (byId.data as Tables<"events">)
-    : (
-        (
-          await client.from("events").select("*").eq("slug", value.toLowerCase()).is("deleted_at", null).maybeSingle()
-        ).data as Tables<"events"> | null
-      );
+    : ((await client.from("events").select("*").eq("slug", value.toLowerCase()).is("deleted_at", null).maybeSingle())
+        .data as Tables<"events"> | null);
 
   if (!row) {
     return null;
@@ -712,10 +680,7 @@ async function getCompetitionTeamLookup() {
   return { byId, byName, bySlug };
 }
 
-function resolveTeamCandidate(
-  candidates: Tables<"teams">[] | undefined,
-  eventTeamIds?: ReadonlySet<string>
-) {
+function resolveTeamCandidate(candidates: Tables<"teams">[] | undefined, eventTeamIds?: ReadonlySet<string>) {
   if (!candidates?.length) {
     return null;
   }
@@ -763,7 +728,7 @@ async function findOrCreateTeam(
   options: {
     eventTeamIds?: ReadonlySet<string>;
     region?: string | null;
-  } = {}
+  } = {},
 ) {
   const existingTeam =
     (looksLikeUuid(teamResult.teamId) ? teamLookup.byId.get(teamResult.teamId as string) : null) ??
@@ -820,25 +785,24 @@ async function findOrCreatePlayer(
   playerResult: MatchPlayerResult,
   resolvedTeamId: string | null,
   createIfMissing: boolean,
-  playerLookup: Awaited<ReturnType<typeof getCompetitionPlayerLookup>>
+  playerLookup: Awaited<ReturnType<typeof getCompetitionPlayerLookup>>,
 ) {
   const normalizedPubgAccountId = cleanString(playerResult.pubgPlayerId)?.toLowerCase();
-  const existingPlayerById = looksLikeUuid(playerResult.playerId)
-    ? playerLookup.byId.get(playerResult.playerId)
-    : undefined;
-  const existingPlayerByPubgAccountId = normalizedPubgAccountId
-    ? playerLookup.byPubgAccountId.get(normalizedPubgAccountId)
-    : undefined;
+  const existingPlayerById = looksLikeUuid(playerResult.playerId) ? playerLookup.byId.get(playerResult.playerId) : undefined;
+  const existingPlayerByPubgAccountId = normalizedPubgAccountId ? playerLookup.byPubgAccountId.get(normalizedPubgAccountId) : undefined;
   const existingPlayer =
-    existingPlayerById ??
-    existingPlayerByPubgAccountId ??
-    playerLookup.byName.get(playerResult.playerName.trim().toLowerCase()) ??
-    null;
+    existingPlayerById ?? existingPlayerByPubgAccountId ?? playerLookup.byName.get(playerResult.playerName.trim().toLowerCase()) ?? null;
 
   if (existingPlayer) {
     const client = getSupabaseServiceRoleClient();
     if (resolvedTeamId && existingPlayer.current_team_id !== resolvedTeamId) {
-      await client.from("players").update({ current_team_id: resolvedTeamId, updated_at: new Date().toISOString() }).eq("id", existingPlayer.id);
+      await client
+        .from("players")
+        .update({
+          current_team_id: resolvedTeamId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingPlayer.id);
     }
 
     return existingPlayer;
@@ -863,14 +827,8 @@ async function findOrCreatePlayer(
   const { data, error } = await client.from("players").insert(payload).select("*").single();
   if (error) {
     const fallbackLookup = await getCompetitionPlayerLookup();
-    const fallbackPlayerByPubgAccountId = normalizedPubgAccountId
-      ? fallbackLookup.byPubgAccountId.get(normalizedPubgAccountId)
-      : undefined;
-    return (
-      fallbackPlayerByPubgAccountId ??
-      fallbackLookup.byName.get(playerResult.playerName.trim().toLowerCase()) ??
-      null
-    );
+    const fallbackPlayerByPubgAccountId = normalizedPubgAccountId ? fallbackLookup.byPubgAccountId.get(normalizedPubgAccountId) : undefined;
+    return fallbackPlayerByPubgAccountId ?? fallbackLookup.byName.get(playerResult.playerName.trim().toLowerCase()) ?? null;
   }
 
   const player = data as Tables<"players">;
@@ -919,7 +877,9 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
   const matchIds = matchRows.map((row) => row.id);
   const { teamResults, playerResults } = await getMatchRows(matchIds);
   const eventIds = Array.from(new Set(matchRows.map((row) => row.event_id).filter((value): value is string => Boolean(value))));
-  const pointSystemIds = Array.from(new Set(matchRows.map((row) => row.point_system_id).filter((value): value is string => Boolean(value))));
+  const pointSystemIds = Array.from(
+    new Set(matchRows.map((row) => row.point_system_id).filter((value): value is string => Boolean(value))),
+  );
   const teamIds = Array.from(new Set(teamResults.map((row) => row.team_id).filter((value): value is string => Boolean(value))));
   const playerIds = Array.from(new Set(playerResults.map((row) => row.player_id).filter((value): value is string => Boolean(value))));
 
@@ -927,11 +887,19 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
     eventIds.length > 0 ? client.from("events").select("*").in("id", eventIds) : Promise.resolve({ data: [] as Tables<"events">[] }),
     pointSystemIds.length > 0
       ? client.from("point_systems").select("id,name").in("id", pointSystemIds)
-      : Promise.resolve({ data: [] as Array<Pick<Tables<"point_systems">, "id" | "name">> }),
-    teamIds.length > 0 ? client.from("teams").select("id,name").in("id", teamIds) : Promise.resolve({ data: [] as Array<Pick<Tables<"teams">, "id" | "name">> }),
+      : Promise.resolve({
+          data: [] as Array<Pick<Tables<"point_systems">, "id" | "name">>,
+        }),
+    teamIds.length > 0
+      ? client.from("teams").select("id,name").in("id", teamIds)
+      : Promise.resolve({
+          data: [] as Array<Pick<Tables<"teams">, "id" | "name">>,
+        }),
     playerIds.length > 0
       ? client.from("players").select("id,pubg_name,display_name,pubg_account_id").in("id", playerIds)
-      : Promise.resolve({ data: [] as Array<Pick<Tables<"players">, "id" | "pubg_name" | "display_name" | "pubg_account_id">> }),
+      : Promise.resolve({
+          data: [] as Array<Pick<Tables<"players">, "id" | "pubg_name" | "display_name" | "pubg_account_id">>,
+        }),
   ]);
 
   const eventById = new Map(((events ?? []) as Tables<"events">[]).map((event) => [event.id, event] as const));
@@ -944,7 +912,7 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
     const currentValue = teamResultsByMatchId.get(teamResult.match_id) ?? [];
     currentValue.push({
       teamId: teamResult.team_id ?? undefined,
-      teamName: teamResult.team_name ?? (teamResult.team_id ? teamNameById.get(teamResult.team_id) ?? "Team Pending" : "Team Pending"),
+      teamName: teamResult.team_name ?? (teamResult.team_id ? (teamNameById.get(teamResult.team_id) ?? "Team Pending") : "Team Pending"),
       slotNumber: teamResult.slot_number ?? undefined,
       placement: teamResult.placement,
       kills: teamResult.kills,
@@ -959,13 +927,14 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
   const playerResultsByMatchId = new Map<string, MatchPlayerResult[]>();
   for (const playerResult of playerResults) {
     const currentValue = playerResultsByMatchId.get(playerResult.match_id) ?? [];
-    const player = playerResult.player_id ? playerById.get(playerResult.player_id) ?? null : null;
+    const player = playerResult.player_id ? (playerById.get(playerResult.player_id) ?? null) : null;
     currentValue.push({
       playerId: playerResult.player_id ?? playerResult.pubg_account_id ?? slugify(playerResult.player_name ?? "player"),
       playerName: playerResult.player_name ?? player?.display_name ?? player?.pubg_name ?? "Player Pending",
       pubgPlayerId: playerResult.pubg_account_id ?? player?.pubg_account_id ?? undefined,
       teamId: playerResult.team_id ?? undefined,
-      teamName: playerResult.team_name ?? (playerResult.team_id ? teamNameById.get(playerResult.team_id) ?? "Team Pending" : "Team Pending"),
+      teamName:
+        playerResult.team_name ?? (playerResult.team_id ? (teamNameById.get(playerResult.team_id) ?? "Team Pending") : "Team Pending"),
       slotNumber: playerResult.slot_number ?? undefined,
       placement: playerResult.placement,
       kills: playerResult.kills,
@@ -983,8 +952,9 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
     const snapshot = parseMatchSnapshot(row.raw_json);
     const storedTeamResults = teamResultsByMatchId.get(row.id);
     const storedPlayerResults = playerResultsByMatchId.get(row.id);
-    const event = row.event_id ? eventById.get(row.event_id) ?? null : null;
-    const teamResultsValue = storedTeamResults && storedTeamResults.length > 0 ? storedTeamResults : normalizeInputTeamResults(snapshot?.teamResults);
+    const event = row.event_id ? (eventById.get(row.event_id) ?? null) : null;
+    const teamResultsValue =
+      storedTeamResults && storedTeamResults.length > 0 ? storedTeamResults : normalizeInputTeamResults(snapshot?.teamResults);
     const playerResultsValue =
       storedPlayerResults && storedPlayerResults.length > 0 ? storedPlayerResults : normalizeInputPlayerResults(snapshot?.playerResults);
     teamResultsValue.sort((firstValue, secondValue) => compareMatchTeamResults(firstValue, secondValue));
@@ -1013,13 +983,10 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
       sourceUrl: row.source_url ?? cleanString(snapshot?.sourceUrl),
       scoreboardImageUrl: row.scoreboard_image_url ?? cleanString(snapshot?.scoreboardImageUrl),
       resultImageUrl: row.result_image_url ?? cleanString(snapshot?.resultImageUrl),
-      screenshotUrls: Array.isArray(row.screenshot_urls)
-        ? (row.screenshot_urls as string[])
-        : cleanStringArray(snapshot?.screenshotUrls),
+      screenshotUrls: Array.isArray(row.screenshot_urls) ? (row.screenshot_urls as string[]) : cleanStringArray(snapshot?.screenshotUrls),
       pointSystemId: row.point_system_id ?? cleanString(snapshot?.pointSystemId),
       pointSystemName:
-        (row.point_system_id ? pointSystemNameById.get(row.point_system_id) : undefined) ??
-        cleanString(snapshot?.pointSystemName),
+        (row.point_system_id ? pointSystemNameById.get(row.point_system_id) : undefined) ?? cleanString(snapshot?.pointSystemName),
       dataSource: row.data_source === "pubg_api" || row.data_source === "external_feed" ? row.data_source : "manual_correction",
       syncedAt: row.updated_at,
       publishedAt: row.published_at ?? undefined,
@@ -1080,13 +1047,7 @@ export async function getCompetitionMatchesForEvent(eventId: string, options: { 
 
 async function ensureUniqueEventMatchNumber(eventId: string, matchNumber: number, excludeMatchId?: string | null) {
   const client = getSupabaseServiceRoleClient();
-  let query = client
-    .from("matches")
-    .select("id")
-    .eq("event_id", eventId)
-    .eq("match_number", matchNumber)
-    .is("deleted_at", null)
-    .limit(1);
+  let query = client.from("matches").select("id").eq("event_id", eventId).eq("match_number", matchNumber).is("deleted_at", null).limit(1);
 
   if (excludeMatchId) {
     query = query.neq("id", excludeMatchId);
@@ -1128,7 +1089,7 @@ export async function previewCompetitionMatch(input: Partial<TournamentMatch>) {
   const scored = scoreMatchResults(normalizedInput.teamResults, normalizedInput.playerResults, pointSystem);
 
   return {
-    id: normalizedInput.id ?? undefined,
+    id: normalizedInput.id ?? normalizedInput.pubgMatchId,
     tournamentId: normalizedInput.tournamentId,
     scrimId: normalizedInput.scrimId,
     pubgMatchId: normalizedInput.pubgMatchId,
@@ -1136,7 +1097,7 @@ export async function previewCompetitionMatch(input: Partial<TournamentMatch>) {
     matchNumber: normalizedInput.matchNumber,
     sequenceNumber: normalizedInput.matchNumber,
     map: normalizedInput.map,
-    eventName: event.name ?? event.title,
+    eventName: event.name ?? event.title ?? "Untitled event",
     eventSlug: event.slug ?? undefined,
     status: normalizedInput.status,
     winner: scored.winner,
@@ -1192,7 +1153,7 @@ function buildStoredMatchSnapshot(match: TournamentMatch) {
 async function replaceMatchResults(
   matchId: string,
   preview: TournamentMatch,
-  options: { publish: boolean; region?: string | null; eventId: string }
+  options: { publish: boolean; region?: string | null; eventId: string },
 ) {
   const client = getSupabaseServiceRoleClient();
   const teamLookup = await getCompetitionTeamLookup();
@@ -1216,7 +1177,7 @@ async function replaceMatchResults(
 
     teamRows.push({
       match_id: matchId,
-      team_id: resolvedTeam?.id ?? (looksLikeUuid(teamResult.teamId) ? teamResult.teamId ?? null : null),
+      team_id: resolvedTeam?.id ?? (looksLikeUuid(teamResult.teamId) ? (teamResult.teamId ?? null) : null),
       team_name: teamResult.teamName,
       slot_number: teamResult.slotNumber ?? null,
       placement: teamResult.placement,
@@ -1233,14 +1194,9 @@ async function replaceMatchResults(
       (teamRow) =>
         (teamRow.team_id && playerResult.teamId && teamRow.team_id === playerResult.teamId) ||
         (teamRow.slot_number && playerResult.slotNumber && teamRow.slot_number === playerResult.slotNumber) ||
-        (teamRow.team_name && teamRow.team_name.trim().toLowerCase() === playerResult.teamName.trim().toLowerCase())
+        (teamRow.team_name && teamRow.team_name.trim().toLowerCase() === playerResult.teamName.trim().toLowerCase()),
     );
-    const resolvedPlayer = await findOrCreatePlayer(
-      playerResult,
-      teamMatch?.team_id ?? null,
-      createMissingEntities,
-      playerLookup
-    );
+    const resolvedPlayer = await findOrCreatePlayer(playerResult, teamMatch?.team_id ?? null, createMissingEntities, playerLookup);
 
     playerRows.push({
       match_id: matchId,
@@ -1336,14 +1292,11 @@ export async function saveCompetitionMatch(input: Partial<TournamentMatch>, opti
     scoreboard_image_url: preview.scoreboardImageUrl ?? null,
     result_image_url: preview.resultImageUrl ?? null,
     screenshot_urls: sanitizeJsonValue(preview.screenshotUrls) ?? [],
-    published_at: publish ? existingMatch?.publishedAt ?? now : null,
+    published_at: publish ? (existingMatch?.publishedAt ?? now) : null,
     deleted_at: null,
     created_at: existingMatch?.createdAt ?? now,
     updated_at: now,
-    data_source:
-      preview.dataSource === "pubg_api" || preview.dataSource === "external_feed"
-        ? preview.dataSource
-        : MATCH_SOURCE_MANUAL,
+    data_source: preview.dataSource === "pubg_api" || preview.dataSource === "external_feed" ? preview.dataSource : MATCH_SOURCE_MANUAL,
   };
 
   const { error } = await client.from("matches").upsert(payload);
@@ -1364,7 +1317,10 @@ export async function saveCompetitionMatch(input: Partial<TournamentMatch>, opti
 
   await client
     .from("events")
-    .update({ match_count: await countPublishedMatchesForEvent(event.id), updated_at: now })
+    .update({
+      match_count: await countPublishedMatchesForEvent(event.id),
+      updated_at: now,
+    })
     .eq("id", event.id);
 
   return savedMatch;
@@ -1410,7 +1366,10 @@ export async function setCompetitionMatchPublishedState(id: string, published: b
   if (match.tournamentId) {
     await client
       .from("events")
-      .update({ match_count: await countPublishedMatchesForEvent(match.tournamentId), updated_at: now })
+      .update({
+        match_count: await countPublishedMatchesForEvent(match.tournamentId),
+        updated_at: now,
+      })
       .eq("id", match.tournamentId);
   }
 
@@ -1432,7 +1391,9 @@ export async function recalculateCompetitionMatch(id: string) {
 }
 
 export async function restoreCompetitionMatchFromSnapshot(snapshot: TournamentMatch) {
-  return saveCompetitionMatch(snapshot, { publish: snapshot.status === "published" });
+  return saveCompetitionMatch(snapshot, {
+    publish: snapshot.status === "published",
+  });
 }
 
 export async function deleteCompetitionMatch(id: string) {
@@ -1464,7 +1425,10 @@ export async function deleteCompetitionMatch(id: string) {
   if (match.tournamentId) {
     await client
       .from("events")
-      .update({ match_count: await countPublishedMatchesForEvent(match.tournamentId), updated_at: now })
+      .update({
+        match_count: await countPublishedMatchesForEvent(match.tournamentId),
+        updated_at: now,
+      })
       .eq("id", match.tournamentId);
   }
 
@@ -1526,7 +1490,11 @@ export async function getCompetitionSeasonTeams(seasonId: string): Promise<Team[
     return [];
   }
 
-  const { data: teams, error: teamsError } = await client.from("teams").select("*").in("id", Array.from(seasonTeamIds)).is("deleted_at", null);
+  const { data: teams, error: teamsError } = await client
+    .from("teams")
+    .select("*")
+    .in("id", Array.from(seasonTeamIds))
+    .is("deleted_at", null);
   if (teamsError) {
     throw teamsError;
   }
@@ -1544,7 +1512,7 @@ export async function getCompetitionSeasonTeams(seasonId: string): Promise<Team[
   }
 
   const standingsByTeamId = new Map(
-    ((leaderboardRows.data ?? []) as Views<"team_leaderboard">[]).map((row) => [row.team_id ?? "", row] as const)
+    ((leaderboardRows.data ?? []) as Views<"team_leaderboard">[]).map((row) => [row.team_id ?? "", row] as const),
   );
 
   return ((teams ?? []) as Tables<"teams">[])
@@ -1567,7 +1535,11 @@ export async function getCompetitionSeasonPlayers(seasonId: string): Promise<Pla
   }
 
   const playerIds = Array.from(
-    new Set(((leaderboardRows ?? []) as Views<"player_leaderboard">[]).map((row) => row.player_id).filter((value): value is string => Boolean(value)))
+    new Set(
+      ((leaderboardRows ?? []) as Views<"player_leaderboard">[])
+        .map((row) => row.player_id)
+        .filter((value): value is string => Boolean(value)),
+    ),
   );
 
   if (playerIds.length === 0) {
@@ -1580,7 +1552,7 @@ export async function getCompetitionSeasonPlayers(seasonId: string): Promise<Pla
   }
 
   const leaderboardByPlayerId = new Map(
-    ((leaderboardRows ?? []) as Views<"player_leaderboard">[]).map((row) => [row.player_id ?? "", row] as const)
+    ((leaderboardRows ?? []) as Views<"player_leaderboard">[]).map((row) => [row.player_id ?? "", row] as const),
   );
   const mvpByPlayerId = new Map(((mvpRows ?? []) as Views<"mvp_rankings">[]).map((row) => [row.player_id ?? "", row] as const));
 

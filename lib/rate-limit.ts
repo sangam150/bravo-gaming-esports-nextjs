@@ -43,9 +43,7 @@ function buildTokenFingerprint(value: string) {
 
 function getRequestIp(request: Request) {
   const forwardedFor =
-    request.headers.get("x-forwarded-for") ||
-    request.headers.get("x-real-ip") ||
-    request.headers.get("cf-connecting-ip");
+    request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || request.headers.get("cf-connecting-ip");
 
   return forwardedFor?.split(",")[0]?.trim() || "anonymous";
 }
@@ -91,7 +89,7 @@ function createRateLimitResponse(retryAfterSeconds: number, remaining = 0, reset
     {
       status: 429,
       headers,
-    }
+    },
   );
 }
 
@@ -126,7 +124,7 @@ async function enforceSharedRateLimit(identifier: string, options: RateLimitOpti
       p_key: identifier,
       p_max_requests: options.maxRequests,
       p_window_ms: options.windowMs,
-    } as never
+    } as never,
   );
 
   if (error) {
@@ -135,11 +133,7 @@ async function enforceSharedRateLimit(identifier: string, options: RateLimitOpti
 
   const payload = (data ?? null) as SharedRateLimitPayload;
   if (!payload?.allowed) {
-    return createRateLimitResponse(
-      Math.max(1, payload?.retry_after_seconds ?? 1),
-      Math.max(0, payload?.remaining ?? 0),
-      payload?.reset_at
-    );
+    return createRateLimitResponse(Math.max(1, payload?.retry_after_seconds ?? 1), Math.max(0, payload?.remaining ?? 0), payload?.reset_at);
   }
 
   return null;

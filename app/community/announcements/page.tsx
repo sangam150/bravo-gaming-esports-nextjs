@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { getAnnouncements } from "@/lib/data";
+import Link from "next/link";
 
 export default async function CommunityAnnouncementsPage() {
   const announcements = await getAnnouncements();

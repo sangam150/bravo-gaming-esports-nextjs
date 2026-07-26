@@ -1,15 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { adminUpload } from "@/lib/admin-api";
-import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
-import {
-  formatUploadSize,
-  getUploadMaxBytes,
-  IMAGE_FILE_INPUT_ACCEPT,
-  type UploadType,
-} from "@/lib/upload-config";
+import { formatUploadSize, getUploadMaxBytes, IMAGE_FILE_INPUT_ACCEPT, type UploadType } from "@/lib/upload-config";
 import { validateImageUpload } from "@/lib/upload-validation";
+import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import { useEffect, useRef, useState } from "react";
 
 export default function FileUpload({
   type,
@@ -84,7 +79,11 @@ export default function FileUpload({
       onUploaded(res.url);
       setNotice("Upload complete.");
     } catch (err: unknown) {
-      setError(toUserFacingErrorMessage(err, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(err, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
       setNotice(null);
       resetPreviewObjectUrl();
       setPreview(currentUrl ?? null);
@@ -94,8 +93,7 @@ export default function FileUpload({
   }
 
   async function handleCopyUrl() {
-    const persistedUrl =
-      currentUrl?.trim() || (preview && !preview.startsWith("blob:") ? preview : "");
+    const persistedUrl = currentUrl?.trim() || (preview && !preview.startsWith("blob:") ? preview : "");
 
     if (!persistedUrl) return;
 
@@ -122,8 +120,7 @@ export default function FileUpload({
     inputRef.current?.click();
   }
 
-  const persistedUrl =
-    currentUrl?.trim() || (preview && !preview.startsWith("blob:") ? preview : "");
+  const persistedUrl = currentUrl?.trim() || (preview && !preview.startsWith("blob:") ? preview : "");
   const maxUploadSizeLabel = formatUploadSize(getUploadMaxBytes(type));
 
   return (
@@ -171,33 +168,21 @@ export default function FileUpload({
           }
         }}
         className={`rounded-card border-2 border-dashed p-4 transition ${
-          dragActive
-            ? "border-accent-blue bg-accent-blue/10"
-            : "border-white/10 bg-bg-primary hover:border-white/20"
+          dragActive ? "border-accent-blue bg-accent-blue/10" : "border-white/10 bg-bg-primary hover:border-white/20"
         } ${uploading ? "cursor-wait opacity-90" : "cursor-pointer"}`}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           {preview ? (
-            <img
-              src={preview}
-              alt={`${label} preview`}
-              className="h-24 w-24 rounded-xl border border-white/10 object-cover"
-            />
+            <img src={preview} alt={`${label} preview`} className="h-24 w-24 rounded-xl border border-white/10 object-cover" />
           ) : (
             <div className="flex h-24 w-24 items-center justify-center rounded-xl border border-dashed border-white/20 text-center text-xs text-text-muted">
               Drop image
             </div>
           )}
           <div className="min-w-0 flex-1 space-y-2">
-            <p className="text-sm font-semibold text-white">
-              {preview ? "Replace image" : "Upload image"}
-            </p>
-            <p className="text-xs text-text-muted">
-              Drag and drop or click to choose a JPG, PNG, or WEBP file.
-            </p>
-            <p className="text-xs text-text-muted">
-              Max size: {maxUploadSizeLabel}
-            </p>
+            <p className="text-sm font-semibold text-white">{preview ? "Replace image" : "Upload image"}</p>
+            <p className="text-xs text-text-muted">Drag and drop or click to choose a JPG, PNG, or WEBP file.</p>
+            <p className="text-xs text-text-muted">Max size: {maxUploadSizeLabel}</p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -244,10 +229,7 @@ export default function FileUpload({
       {uploading && (
         <div className="space-y-1">
           <div className="h-2 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-accent-blue transition-all"
-              style={{ width: `${progress}%` }}
-            />
+            <div className="h-full rounded-full bg-accent-blue transition-all" style={{ width: `${progress}%` }} />
           </div>
           <p className="text-xs text-text-muted">Uploading to Cloudflare R2... {progress}%</p>
         </div>

@@ -26,35 +26,17 @@ export const STORAGE_TARGET_BY_TYPE = {
 export type UploadType = keyof typeof STORAGE_TARGET_BY_TYPE;
 export type UploadFolder = ManagedUploadFolder;
 
-export const SMALL_PUBLIC_IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
-export const LARGE_PUBLIC_IMAGE_UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
-export const MOSS_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
+const SMALL_PUBLIC_IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+const LARGE_PUBLIC_IMAGE_UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
+const MOSS_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
 
-export const ALLOWED_IMAGE_CONTENT_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-] as const;
+export const ALLOWED_IMAGE_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 
-export const ALLOWED_IMAGE_EXTENSIONS = [
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".webp",
-] as const;
+export const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"] as const;
 
-export const TEAM_LOGO_CONTENT_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-] as const;
+export const TEAM_LOGO_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 
-export const TEAM_LOGO_EXTENSIONS = [
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".webp",
-] as const;
+export const TEAM_LOGO_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"] as const;
 
 export const ALLOWED_MOSS_CONTENT_TYPES = [
   "application/zip",
@@ -65,13 +47,7 @@ export const ALLOWED_MOSS_CONTENT_TYPES = [
   "text/plain",
 ] as const;
 
-export const ALLOWED_MOSS_EXTENSIONS = [
-  ".zip",
-  ".rar",
-  ".7z",
-  ".pdf",
-  ".txt",
-] as const;
+export const ALLOWED_MOSS_EXTENSIONS = [".zip", ".rar", ".7z", ".pdf", ".txt"] as const;
 
 export const IMAGE_FILE_INPUT_ACCEPT = ALLOWED_IMAGE_EXTENSIONS.join(",");
 export const TEAM_LOGO_FILE_INPUT_ACCEPT = TEAM_LOGO_EXTENSIONS.join(",");
@@ -86,20 +62,15 @@ const SMALL_PUBLIC_IMAGE_UPLOAD_TYPES = new Set<UploadType>([
   "team_logo_pending",
 ]);
 
-const PRIVATE_FILE_UPLOAD_TYPES = new Set<UploadType>([
-  "evidence_file",
-  "investigation_file",
-  "moss_file",
-  "report_attachment",
-]);
+const PRIVATE_FILE_UPLOAD_TYPES = new Set<UploadType>(["evidence_file", "investigation_file", "moss_file", "report_attachment"]);
 
 const IMAGE_UPLOAD_TYPES = new Set<UploadType>(
   Object.keys(STORAGE_TARGET_BY_TYPE).filter(
-    (value): value is UploadType => value in STORAGE_TARGET_BY_TYPE && !PRIVATE_FILE_UPLOAD_TYPES.has(value as UploadType)
-  )
+    (value): value is UploadType => value in STORAGE_TARGET_BY_TYPE && !PRIVATE_FILE_UPLOAD_TYPES.has(value as UploadType),
+  ),
 );
 
-export function isUploadType(value: string): value is UploadType {
+function isUploadType(value: string): value is UploadType {
   return value in STORAGE_TARGET_BY_TYPE;
 }
 
@@ -123,9 +94,7 @@ export function sanitizeUploadFileName(type: UploadType, fileName: string) {
   const lastDotIndex = normalizedFileName.toLowerCase().lastIndexOf(".");
   const extension = lastDotIndex >= 0 ? normalizedFileName.slice(lastDotIndex).toLowerCase() : "";
   const baseName = extension ? normalizedFileName.slice(0, -extension.length) : normalizedFileName;
-  const allowedExtensions = (
-    PRIVATE_FILE_UPLOAD_TYPES.has(type) ? ALLOWED_MOSS_EXTENSIONS : ALLOWED_IMAGE_EXTENSIONS
-  ) as readonly string[];
+  const allowedExtensions = (PRIVATE_FILE_UPLOAD_TYPES.has(type) ? ALLOWED_MOSS_EXTENSIONS : ALLOWED_IMAGE_EXTENSIONS) as readonly string[];
   const safeExtension = allowedExtensions.includes(extension) ? extension : "";
   const safeBaseName = baseName
     .trim()
@@ -169,21 +138,15 @@ export function isTeamLogoUploadType(type: UploadType) {
   return type === "team_logo" || type === "team_logo_pending";
 }
 
-export function isSmallPublicImageUploadType(type: UploadType) {
-  return SMALL_PUBLIC_IMAGE_UPLOAD_TYPES.has(type);
-}
-
 export function getUploadMaxBytes(type: UploadType) {
   if (PRIVATE_FILE_UPLOAD_TYPES.has(type)) {
     return MOSS_UPLOAD_MAX_BYTES;
   }
 
-  return SMALL_PUBLIC_IMAGE_UPLOAD_TYPES.has(type)
-    ? SMALL_PUBLIC_IMAGE_UPLOAD_MAX_BYTES
-    : LARGE_PUBLIC_IMAGE_UPLOAD_MAX_BYTES;
+  return SMALL_PUBLIC_IMAGE_UPLOAD_TYPES.has(type) ? SMALL_PUBLIC_IMAGE_UPLOAD_MAX_BYTES : LARGE_PUBLIC_IMAGE_UPLOAD_MAX_BYTES;
 }
 
-export function isUploadFolder(value: string): value is UploadFolder {
+function isUploadFolder(value: string): value is UploadFolder {
   return (Object.values(STORAGE_TARGET_BY_TYPE) as StorageTarget[]).some((target) => target.folder === value);
 }
 

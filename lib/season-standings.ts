@@ -1,5 +1,5 @@
-import type { LeaderboardRow, Team, TournamentStanding } from "./types";
 import { compareTeamLeaderboardPerformance } from "./ranking-sort";
+import type { LeaderboardRow, Team, TournamentStanding } from "./types";
 
 export interface SeasonLeaderboardEntry {
   teamId: string;
@@ -18,10 +18,7 @@ export interface SeasonLeaderboardEntry {
   logoUrl?: string;
 }
 
-export function buildSeasonLeaderboard(
-  standings: TournamentStanding[],
-  teamsById?: Map<string, Team>
-): SeasonLeaderboardEntry[] {
+export function buildSeasonLeaderboard(standings: TournamentStanding[], teamsById?: Map<string, Team>): SeasonLeaderboardEntry[] {
   const leaderboardMap = new Map<
     string,
     Omit<SeasonLeaderboardEntry, "rank" | "averagePlacement"> & {
@@ -78,9 +75,7 @@ export function buildSeasonLeaderboard(
       bestPlacement: Number.isFinite(entry.bestPlacement) ? entry.bestPlacement : 0,
       rank: 0,
     }))
-    .sort(
-      (firstEntry, secondEntry) => compareTeamLeaderboardPerformance(firstEntry, secondEntry)
-    )
+    .sort((firstEntry, secondEntry) => compareTeamLeaderboardPerformance(firstEntry, secondEntry))
     .map((entry, index) => ({
       ...entry,
       rank: index + 1,

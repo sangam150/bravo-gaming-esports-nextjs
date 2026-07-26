@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { PlatformOrganizationDetailPage } from "@/components/platform/PlatformPages";
 import { getPlatformHubData, getPlatformOrganizationBySlug } from "@/lib/platform-hub";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ slug: string }>;

@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
-import { PubgPlayersLaunchPage } from "@/components/public/PublicLandingPages";
 import { PubgPlayersPage } from "@/components/pubg/PubgPublicPages";
+import { PubgPlayersLaunchPage } from "@/components/public/PublicLandingPages";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset, getPublicPubgPlayers, getPublicPubgTeams } from "@/lib/pubg-hub";
+import type { Metadata } from "next";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

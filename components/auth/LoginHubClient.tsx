@@ -1,21 +1,14 @@
 "use client";
 
+import DiscordLoginButton, { useDiscordProviderEnabled } from "@/components/auth/DiscordLoginButton";
+import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
+import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
+import { clearBravoSession, performPasswordLogin, reportLoginFailure } from "@/lib/login-client";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { LOGIN_ERROR_MESSAGES, validateLoginCredentials } from "@/lib/user-facing-errors";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
-import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
-import DiscordLoginButton, { useDiscordProviderEnabled } from "@/components/auth/DiscordLoginButton";
-import {
-  clearBravoSession,
-  performPasswordLogin,
-  reportLoginFailure,
-} from "@/lib/login-client";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
-import {
-  LOGIN_ERROR_MESSAGES,
-  validateLoginCredentials,
-} from "@/lib/user-facing-errors";
 
 type LoginVariant = "hub" | "team" | "player";
 
@@ -29,8 +22,7 @@ function getVariantContent(variant: LoginVariant) {
       return {
         badge: "Team Login",
         title: "Open the Bravo team workspace",
-        description:
-          "Use your Supabase coach, team manager, or team IGL account to manage roster requests, uploads, and team operations.",
+        description: "Use your Supabase coach, team manager, or team IGL account to manage roster requests, uploads, and team operations.",
         buttonLabel: "Open Team Workspace",
       };
     case "player":
@@ -44,8 +36,7 @@ function getVariantContent(variant: LoginVariant) {
       return {
         badge: "Platform Login",
         title: "Sign in to the Bravo platform",
-        description:
-          "Use your Supabase account and Bravo will route you to the correct admin or team workspace.",
+        description: "Use your Supabase account and Bravo will route you to the correct admin or team workspace.",
         buttonLabel: "Sign In",
       };
   }
@@ -114,12 +105,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
           ? "/team"
           : variant === "player"
             ? "/dashboard/player"
-          : searchParams.get("redirect") ||
-            (isAdminUser
-              ? "/admin"
-              : isTeamUser
-                ? "/team"
-                : "/login");
+            : searchParams.get("redirect") || (isAdminUser ? "/admin" : isTeamUser ? "/team" : "/login");
 
       window.location.assign(redirectTarget);
     } catch (submissionError: unknown) {
@@ -138,9 +124,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
             <div className="relative z-10 max-w-3xl">
               <span className="brand-badge">{content.badge}</span>
               <h1 className="hero-h1 mt-5">Sign-in is temporarily unavailable</h1>
-              <p className="mt-4 text-sm leading-relaxed text-text-muted">
-                {LOGIN_ERROR_MESSAGES.backendUnavailable}
-              </p>
+              <p className="mt-4 text-sm leading-relaxed text-text-muted">{LOGIN_ERROR_MESSAGES.backendUnavailable}</p>
             </div>
           </section>
         </div>
@@ -157,9 +141,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
             <div>
               <span className="brand-badge">{content.badge}</span>
               <h1 className="hero-h1 mt-5">{content.title}</h1>
-              <p className="mt-4 max-w-3xl text-sm leading-relaxed text-text-muted">
-                {content.description}
-              </p>
+              <p className="mt-4 max-w-3xl text-sm leading-relaxed text-text-muted">{content.description}</p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {variant === "hub" ? (
                   <>
@@ -188,21 +170,21 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
             <form onSubmit={handleSubmit} noValidate className="rounded-card border border-white/[0.08] bg-bg-primary/75 p-6">
               <p className="section-title">Email Login</p>
               <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Sign in</h2>
-              <p className="mt-3 text-sm text-text-muted">
-                Use the same Supabase credentials assigned to your Bravo role.
-              </p>
+              <p className="mt-3 text-sm text-text-muted">Use the same Supabase credentials assigned to your Bravo role.</p>
 
               {error ? (
-                <div role="alert" aria-live="assertive" className="form-message mt-5 rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200">
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="form-message mt-5 rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200"
+                >
                   {error}
                 </div>
               ) : null}
 
               <div className="mt-5 space-y-4">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-                    Email address
-                  </span>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">Email address</span>
                   <input
                     className="input-esports"
                     type="email"
@@ -215,9 +197,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-                    Password
-                  </span>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">Password</span>
                   <input
                     className="input-esports"
                     type="password"
@@ -229,7 +209,12 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                     aria-invalid={Boolean(error)}
                   />
                 </label>
-                <button type="submit" disabled={!hydrated || loading} aria-busy={loading} className="btn-primary w-full justify-center disabled:opacity-60">
+                <button
+                  type="submit"
+                  disabled={!hydrated || loading}
+                  aria-busy={loading}
+                  className="btn-primary w-full justify-center disabled:opacity-60"
+                >
                   {loading ? "Checking access..." : content.buttonLabel}
                 </button>
               </div>
@@ -262,7 +247,12 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                   <Link href="/contact" className="text-accent-blue transition hover:text-white hover:underline">
                     Contact Bravo Admin
                   </Link>
-                  <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="text-accent-blue transition hover:text-white hover:underline">
+                  <a
+                    href={BRAVO_DISCORD_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-accent-blue transition hover:text-white hover:underline"
+                  >
                     Join Discord
                   </a>
                 </div>

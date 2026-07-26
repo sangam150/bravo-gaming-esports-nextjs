@@ -2,8 +2,8 @@ import "server-only";
 
 import { sanitizeJsonValue } from "@/lib/json-utils";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
-import type { Json, TablesInsert } from "@/types/database.types";
 import type { PubgImportPreviewSource } from "@/lib/types";
+import type { Json, TablesInsert } from "@/types/database.types";
 import { DEFAULT_PUBG_SHARD, fetchPubgMatch } from "./pubg-api";
 
 type RawPubgMatchResult = {
@@ -19,9 +19,7 @@ function toNullableUuid(value?: string | null) {
   }
 
   const normalizedValue = value.trim();
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedValue)
-    ? normalizedValue
-    : null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedValue) ? normalizedValue : null;
 }
 
 export async function getRawPubgMatch(matchId: string) {
@@ -42,7 +40,7 @@ export async function getRawPubgMatch(matchId: string) {
   return data?.raw_json ?? null;
 }
 
-export async function saveRawPubgMatch(matchId: string, shard: string, rawJson: unknown) {
+async function saveRawPubgMatch(matchId: string, shard: string, rawJson: unknown) {
   const client = getSupabaseServiceRoleClient();
   const { data: existing, error: existingError } = await client
     .from("pending_imports")

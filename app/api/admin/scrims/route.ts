@@ -13,11 +13,7 @@ function normalizePubgMatchIds(body: Record<string, unknown>) {
   const primaryMatchId = typeof body.pubgMatchId === "string" ? body.pubgMatchId : "";
 
   return Array.from(
-    new Set(
-      [primaryMatchId, ...rawMatchIds]
-        .map((value) => (typeof value === "string" ? value.trim() : ""))
-        .filter(Boolean)
-    )
+    new Set([primaryMatchId, ...rawMatchIds].map((value) => (typeof value === "string" ? value.trim() : "")).filter(Boolean)),
   );
 }
 
@@ -41,10 +37,7 @@ function buildScrimPayload(body: Record<string, unknown>): Partial<Scrim> {
       : [],
     seasonId: typeof body.seasonId === "string" ? body.seasonId : undefined,
     seasonTitle: typeof body.seasonTitle === "string" ? body.seasonTitle : undefined,
-    seasonDayNumber:
-      typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber)
-        ? body.seasonDayNumber
-        : undefined,
+    seasonDayNumber: typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber) ? body.seasonDayNumber : undefined,
     tournamentId: typeof body.tournamentId === "string" ? body.tournamentId : undefined,
   };
 }
@@ -67,7 +60,10 @@ export async function POST(request: Request) {
     const payload = buildScrimPayload(body as Record<string, unknown>);
     const result = await createDocument(COLLECTIONS.scrims, payload as Record<string, unknown>, body.id);
     revalidateCompetitionPaths();
-    return Response.json({ success: true, data: { id: result.id, ...payload } });
+    return Response.json({
+      success: true,
+      data: { id: result.id, ...payload },
+    });
   } catch (error: unknown) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
@@ -98,5 +94,3 @@ export async function DELETE(request: Request) {
   revalidateCompetitionPaths();
   return Response.json({ success: true });
 }
-
-

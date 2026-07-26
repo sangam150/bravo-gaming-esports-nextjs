@@ -1,11 +1,7 @@
 "use client";
 
+import { getResponseErrorMessage, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import { useState } from "react";
-import {
-  getResponseErrorMessage,
-  toUserFacingErrorMessage,
-  USER_FACING_ERROR_MESSAGES,
-} from "@/lib/user-facing-errors";
 
 type ContactFormClientProps = {
   kind: "contact" | "feedback";
@@ -18,13 +14,7 @@ type ContactFormClientProps = {
 const inputClass =
   "w-full rounded-[16px] border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white outline-none transition placeholder:text-text-muted focus:border-bravoBlue focus:ring-1 focus:ring-bravoBlue/30";
 
-export default function ContactFormClient({
-  kind,
-  title,
-  description,
-  submitLabel,
-  subjectLabel = "Subject",
-}: ContactFormClientProps) {
+export default function ContactFormClient({ kind, title, description, submitLabel, subjectLabel = "Subject" }: ContactFormClientProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -52,12 +42,14 @@ export default function ContactFormClient({
         }),
       });
 
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
       if (!response.ok) {
         throw new Error(
           getResponseErrorMessage(response, data.error, {
             fallback: USER_FACING_ERROR_MESSAGES.contact,
-          })
+          }),
         );
       }
 
@@ -68,13 +60,13 @@ export default function ContactFormClient({
       setNotice(
         kind === "feedback"
           ? "Feedback received. Thank you for helping improve Bravo."
-          : "Message received. The Bravo team will get back to you soon."
+          : "Message received. The Bravo team will get back to you soon.",
       );
     } catch (submissionError: unknown) {
       setError(
         toUserFacingErrorMessage(submissionError, {
           fallback: USER_FACING_ERROR_MESSAGES.contact,
-        })
+        }),
       );
     } finally {
       setSubmitting(false);
@@ -92,21 +84,29 @@ export default function ContactFormClient({
       </div>
 
       {notice ? (
-        <div className="rounded-[16px] border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-100">
-          {notice}
-        </div>
+        <div className="rounded-[16px] border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-100">{notice}</div>
       ) : null}
 
-      {error ? (
-        <div className="rounded-[16px] border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-100">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className="rounded-[16px] border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-100">{error}</div> : null}
 
       <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your Name" required />
-      <input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email Address" required />
+      <input
+        className={inputClass}
+        type="email"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        placeholder="Email Address"
+        required
+      />
       <input className={inputClass} value={subject} onChange={(event) => setSubject(event.target.value)} placeholder={subjectLabel} />
-      <textarea className={inputClass} rows={5} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Message" required />
+      <textarea
+        className={inputClass}
+        rows={5}
+        value={message}
+        onChange={(event) => setMessage(event.target.value)}
+        placeholder="Message"
+        required
+      />
       <button
         type="submit"
         disabled={submitting}

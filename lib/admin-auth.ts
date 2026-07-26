@@ -1,16 +1,17 @@
 import "server-only";
-import {
-  hasTeamWorkspaceAccess,
-} from "./authz";
+import { hasTeamWorkspaceAccess } from "./authz";
 import {
   SESSION_COOKIE,
-  getServerAdminSession as getSupabaseAdminSession,
   getServerSession,
+  getServerAdminSession as getSupabaseAdminSession,
   verifyAccessToken,
   verifySessionCookie,
-  verifyAdminToken,
   type VerifiedSession,
 } from "./supabase-auth-server";
+
+type AuthResult = { response: Response; session: null } | { response: null; session: VerifiedSession };
+
+type TeamAuthResult = { response: Response; session: null } | { response: null; session: VerifiedSession & { teamId: string } };
 
 function readSessionCookie(request: Request) {
   return request.headers.get("cookie")?.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`))?.[1] ?? null;
@@ -21,11 +22,6 @@ function jsonAuthResponse(status: number, error: string) {
     status,
     headers: { "Content-Type": "application/json" },
   });
-}
-
-export async function isAdminRequest(request: Request): Promise<boolean> {
-  const session = await getRequestSession(request);
-  return Boolean(session?.isAdmin);
 }
 
 export async function getRequestSession(request: Request): Promise<VerifiedSession | null> {
@@ -64,7 +60,7 @@ export async function requireAdmin(request: Request) {
   return null;
 }
 
-export async function requireAuthenticatedUser(request: Request) {
+export async function requireAuthenticatedUser(request: Request): Promise<AuthResult> {
   const session = await getRequestSession(request);
   if (!session) {
     return {
@@ -76,7 +72,7 @@ export async function requireAuthenticatedUser(request: Request) {
   return { response: null, session };
 }
 
-export async function requireTeamWorkspaceUser(request: Request) {
+export async function requireTeamWorkspaceUser(request: Request): Promise<TeamAuthResult> {
   const auth = await requireAuthenticatedUser(request);
   if (auth.response || !auth.session) {
     return auth;
@@ -96,18 +92,9 @@ export async function requireTeamWorkspaceUser(request: Request) {
     };
   }
 
-  return auth;
-}
-
-export async function requirePlayerDashboardUser(request: Request) {
-  const auth = await requireAuthenticatedUser(request);
-  if (auth.response || !auth.session) {
-    return auth;
-  }
-
   return {
-    response: permissionDeniedResponse("Player login is disabled. Use admin or team access instead."),
-    session: null,
+    response: null,
+    session: { ...auth.session, teamId: auth.session.teamId },
   };
 }
 
@@ -119,19 +106,11 @@ export async function getServerAuthenticatedSession() {
   return getServerSession();
 }
 
-export async function verifyAdminBearerToken(accessToken: string) {
-  return verifyAdminToken(accessToken);
-}
-
-export async function verifyBearerToken(accessToken: string) {
-  return verifyAccessToken(accessToken);
-}
-
-export function adminUnauthorizedResponse() {
+function adminUnauthorizedResponse() {
   return jsonAuthResponse(401, "Unauthorized. Admin login required.");
 }
 
-export function loginRequiredResponse() {
+function loginRequiredResponse() {
   return jsonAuthResponse(401, "Unauthorized. Login required.");
 }
 

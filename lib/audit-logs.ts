@@ -1,7 +1,7 @@
+import type { Json, Tables } from "@/types/database.types";
 import { getRequestSession } from "./admin-auth";
 import { sanitizeJsonValue } from "./json-utils";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
-import type { Json, Tables } from "@/types/database.types";
 
 export type AuditLogRecord = Tables<"audit_logs"> & {
   actorName?: string | null;
@@ -47,15 +47,9 @@ export async function writeAuditLog(payload: AuditPayload) {
   return data;
 }
 
-export async function writeAuditLogFromRequest(
-  request: Request,
-  payload: Omit<AuditPayload, "actorId">
-) {
+export async function writeAuditLogFromRequest(request: Request, payload: Omit<AuditPayload, "actorId">) {
   try {
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("x-real-ip")?.trim() ??
-      null;
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip")?.trim() ?? null;
     const userAgent = request.headers.get("user-agent") ?? null;
     const metadata = {
       timestamp: new Date().toISOString(),
@@ -89,29 +83,20 @@ export async function writeAuditLogFromRequest(
 
 export async function listRecentAuditLogs(limit = 20): Promise<AuditLogRecord[]> {
   const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client
-    .from("audit_logs")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  const { data, error } = await client.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(limit);
 
   if (error) {
     throw error;
   }
 
   const logs = (data ?? []) as Tables<"audit_logs">[];
-  const actorIds = Array.from(
-    new Set(logs.map((log) => log.actor_id).filter((value): value is string => Boolean(value)))
-  );
+  const actorIds = Array.from(new Set(logs.map((log) => log.actor_id).filter((value): value is string => Boolean(value))));
 
   if (actorIds.length === 0) {
     return logs;
   }
 
-  const { data: profiles } = await client
-    .from("profiles")
-    .select("id,email,display_name")
-    .in("id", actorIds);
+  const { data: profiles } = await client.from("profiles").select("id,email,display_name").in("id", actorIds);
 
   const profileById = new Map(
     (profiles ?? []).map((profile) => [
@@ -120,12 +105,12 @@ export async function listRecentAuditLogs(limit = 20): Promise<AuditLogRecord[]>
         actorName: profile.display_name ?? null,
         actorEmail: profile.email,
       },
-    ])
+    ]),
   );
 
   return logs.map((log) => ({
     ...log,
-    actorName: log.actor_id ? profileById.get(log.actor_id)?.actorName ?? null : null,
-    actorEmail: log.actor_id ? profileById.get(log.actor_id)?.actorEmail ?? null : null,
+    actorName: log.actor_id ? (profileById.get(log.actor_id)?.actorName ?? null) : null,
+    actorEmail: log.actor_id ? (profileById.get(log.actor_id)?.actorEmail ?? null) : null,
   }));
 }

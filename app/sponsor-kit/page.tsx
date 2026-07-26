@@ -1,14 +1,13 @@
-import Link from "next/link";
-import type { Metadata } from "next";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { getSiteStats } from "@/lib/data";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
+import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = buildContentMetadata({
   title: "Sponsor Kit | Bravo Gaming Esports",
-  description:
-    "Review Bravo Gaming Esports sponsor packages, public event proof, tournament formats, and partnership contact options.",
+  description: "Review Bravo Gaming Esports sponsor packages, public event proof, tournament formats, and partnership contact options.",
   path: "/sponsor-kit",
   type: "website",
 });
@@ -143,7 +142,7 @@ export default async function SponsorKitPage() {
         (sponsor) =>
           sponsor.eventSlugs.includes(event.slug) ||
           sponsor.supportedEvents.includes(event.name) ||
-          (event.sponsorName ? sponsor.name === event.sponsorName : false)
+          (event.sponsorName ? sponsor.name === event.sponsorName : false),
       )
       .map((sponsor) => sponsor.name);
 
@@ -193,9 +192,9 @@ export default async function SponsorKitPage() {
                 Bravo overview
               </h1>
               <p className="mt-5 max-w-3xl text-sm leading-7 text-text-muted sm:text-base">
-                Use this page for a clean public read on Bravo Gaming Esports partnership options, real event proof, and
-                tournament support standards. Where exact audience numbers are not yet published, we state that clearly
-                instead of filling the gap with estimates.
+                Use this page for a clean public read on Bravo Gaming Esports partnership options, real event proof, and tournament support
+                standards. Where exact audience numbers are not yet published, we state that clearly instead of filling the gap with
+                estimates.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href="/contact" className="btn-primary">
@@ -229,8 +228,8 @@ export default async function SponsorKitPage() {
                 )}
               </div>
               <p className="mt-5 text-sm leading-7 text-text-muted">
-                Average live stream viewers and combined social reach are not hard-coded here when the public stat set
-                is incomplete. Detailed audience stats are available upon request.
+                Average live stream viewers and combined social reach are not hard-coded here when the public stat set is incomplete.
+                Detailed audience stats are available upon request.
               </p>
             </div>
           </div>

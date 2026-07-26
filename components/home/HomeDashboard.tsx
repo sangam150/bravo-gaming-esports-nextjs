@@ -1,20 +1,10 @@
-import Image from "next/image";
-import Link from "next/link";
-import {
-  CalendarDays,
-  ChevronRight,
-  Crosshair,
-  Newspaper,
-  Play,
-  Radio,
-  Trophy,
-  Users,
-} from "lucide-react";
+import { formatDate, formatDateRange, formatNumber } from "@/components/pubg/PubgHubUI";
 import BravoLogo from "@/components/ui/BravoLogo";
 import ManagedImage from "@/components/ui/ManagedImage";
-import TeamAvatar from "@/components/ui/TeamAvatar";
 import { AnimatedCounter } from "@/components/ui/MotionSystem";
+import TeamAvatar from "@/components/ui/TeamAvatar";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
+import type { PlatformArticle, PlatformEvent, PlatformHubData, PlatformMediaItem, PlatformSponsorProfile } from "@/lib/platform-hub";
 import {
   getPublicPubgPlayers,
   getPublicPubgTeams,
@@ -23,14 +13,9 @@ import {
   type PubgHubPlayer,
   type PubgHubTeam,
 } from "@/lib/pubg-hub";
-import type {
-  PlatformArticle,
-  PlatformEvent,
-  PlatformHubData,
-  PlatformMediaItem,
-  PlatformSponsorProfile,
-} from "@/lib/platform-hub";
-import { formatDate, formatDateRange, formatNumber } from "@/components/pubg/PubgHubUI";
+import { CalendarDays, ChevronRight, Crosshair, Newspaper, Play, Radio, Trophy, Users } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 
 function cx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -51,8 +36,7 @@ function ActionLink({
   variant?: "primary" | "secondary" | "watch";
   className?: string;
 }) {
-  const resolvedClassName =
-    variant === "secondary" ? "btn-secondary" : variant === "watch" ? "btn-watch-live" : "btn-primary";
+  const resolvedClassName = variant === "secondary" ? "btn-secondary" : variant === "watch" ? "btn-watch-live" : "btn-primary";
 
   if (isExternalHref(href)) {
     return (
@@ -204,9 +188,7 @@ function resolveHomepageEvents(hub: PlatformHubData) {
 
 function resolveHomepageSponsors(hub: PlatformHubData) {
   const source =
-    hub.home.featuredSponsors.length > 0
-      ? hub.home.featuredSponsors
-      : hub.sponsors.filter((sponsor) => sponsor.showOnHomepage);
+    hub.home.featuredSponsors.length > 0 ? hub.home.featuredSponsors : hub.sponsors.filter((sponsor) => sponsor.showOnHomepage);
 
   return source
     .filter((sponsor) => sponsor.visible)
@@ -254,10 +236,10 @@ function resolveHomepageUpdates(hub: PlatformHubData): HomepageUpdateCard[] {
   const seen = new Set<string>();
 
   const articles = [...hub.home.featuredNews, ...hub.news].filter(
-    (article, index, list) => list.findIndex((value) => value.id === article.id) === index
+    (article, index, list) => list.findIndex((value) => value.id === article.id) === index,
   );
   const mediaItems = [...hub.home.featuredMedia, ...hub.media].filter(
-    (item, index, list) => list.findIndex((value) => value.id === item.id) === index
+    (item, index, list) => list.findIndex((value) => value.id === item.id) === index,
   );
 
   for (const article of articles) {
@@ -289,7 +271,7 @@ function resolveHomepageUpdates(hub: PlatformHubData): HomepageUpdateCard[] {
       kind: "Video",
       title: featuredVideo.title,
       summary: featuredVideo.summary,
-      meta: featuredVideo.publishedAt ? formatDate(featuredVideo.publishedAt) : featuredVideo.duration ?? "Media Update",
+      meta: featuredVideo.publishedAt ? formatDate(featuredVideo.publishedAt) : (featuredVideo.duration ?? "Media Update"),
       href: getMediaHref(featuredVideo),
       imageUrl: featuredVideo.imageUrl,
     });
@@ -307,14 +289,7 @@ function HeroSection({ featuredEvent }: { featuredEvent: PlatformEvent | null })
       </div>
       <div className="absolute inset-y-0 right-[19%] hidden lg:block lg:w-[28rem]">
         <div className="relative h-full w-full opacity-[0.32]">
-          <Image
-            src="/images/hero-character.svg"
-            alt=""
-            aria-hidden="true"
-            fill
-            unoptimized
-            className="object-contain object-center"
-          />
+          <Image src="/images/hero-character.svg" alt="" aria-hidden="true" fill unoptimized className="object-contain object-center" />
         </div>
       </div>
 
@@ -327,7 +302,8 @@ function HeroSection({ featuredEvent }: { featuredEvent: PlatformEvent | null })
             Nepal&apos;s Home of Competitive <span className="text-accent-blue-light">PUBG PC</span> Esports
           </h1>
           <p className="mt-5 max-w-[36rem] text-[1rem] leading-8 text-text-secondary">
-            Compete in the best scrims and tournaments, track standings, earn glory, and become part of Nepal&apos;s growing PUBG PC esports community.
+            Compete in the best scrims and tournaments, track standings, earn glory, and become part of Nepal&apos;s growing PUBG PC esports
+            community.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <ActionLink href={getEventRegistrationHref(featuredEvent)} className="min-w-[10.75rem] justify-center">
@@ -344,7 +320,9 @@ function HeroSection({ featuredEvent }: { featuredEvent: PlatformEvent | null })
 
         <div className="min-w-0">
           <div className="rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(7,12,24,0.98),rgba(5,9,18,0.98))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.36)] sm:p-6">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">{getFeaturedEventLabel(featuredEvent)}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">
+              {getFeaturedEventLabel(featuredEvent)}
+            </p>
             <div className="mt-4 flex items-center gap-3">
               <BravoLogo size={44} />
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">
@@ -372,7 +350,12 @@ function HeroSection({ featuredEvent }: { featuredEvent: PlatformEvent | null })
 
             <div className="mt-5 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3.5">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">Registration Status</p>
-              <span className={cx("mt-3 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]", getEventStatusTone(featuredEvent))}>
+              <span
+                className={cx(
+                  "mt-3 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
+                  getEventStatusTone(featuredEvent),
+                )}
+              >
                 {getEventRegistrationLabel(featuredEvent)}
               </span>
             </div>
@@ -418,12 +401,8 @@ function SponsorLogoStrip({ sponsors }: { sponsors: PlatformSponsorProfile[] }) 
             </>
           ) : (
             <>
-              <span className="font-display text-[1.65rem] font-black uppercase tracking-[0.08em] text-white">
-                {sponsor.name}
-              </span>
-              <span className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-accent-green">
-                {sponsor.tier}
-              </span>
+              <span className="font-display text-[1.65rem] font-black uppercase tracking-[0.08em] text-white">{sponsor.name}</span>
+              <span className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-accent-green">{sponsor.tier}</span>
             </>
           );
 
@@ -446,19 +425,10 @@ function SponsorLogoStrip({ sponsors }: { sponsors: PlatformSponsorProfile[] }) 
   );
 }
 
-function CompetitionPulseSection({
-  pubg,
-  teamCount,
-  playerCount,
-}: {
-  pubg: PubgHubDataset;
-  teamCount: number;
-  playerCount: number;
-}) {
+function CompetitionPulseSection({ pubg, teamCount, playerCount }: { pubg: PubgHubDataset; teamCount: number; playerCount: number }) {
   const publishedMatches = pubg.matches.filter((match) => match.status === "published");
   const totalKills = publishedMatches.reduce((sum, match) => sum + match.totalKills, 0);
-  const hasCompetitionData =
-    publishedMatches.length > 0 || teamCount > 0 || playerCount > 0 || totalKills > 0;
+  const hasCompetitionData = publishedMatches.length > 0 || teamCount > 0 || playerCount > 0 || totalKills > 0;
 
   if (!hasCompetitionData) {
     return (
@@ -539,8 +509,8 @@ function LatestCompletedTournamentSection({ event }: { event: PubgHubEvent }) {
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-yellow">First Official Tournament</p>
           <h3 className="mt-3 font-display text-3xl font-black uppercase leading-tight text-white">{event.name}</h3>
           <p className="mt-4 text-sm leading-7 text-text-secondary">
-            Official results are now live from Bravo&apos;s first imported tournament dataset, with verified standings,
-            team output, and player totals.
+            Official results are now live from Bravo&apos;s first imported tournament dataset, with verified standings, team output, and
+            player totals.
           </p>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -604,12 +574,15 @@ function CurrentStandings({ teams }: { teams: PubgHubTeam[] }) {
 
   return (
     <section className="light-card p-5 xl:col-span-1">
-      <SectionHeading icon={<Trophy className="h-4 w-4" />} title="Current Standings" href="/pubg/leaderboards?view=teams" hrefLabel="View Full Leaderboard" />
+      <SectionHeading
+        icon={<Trophy className="h-4 w-4" />}
+        title="Current Standings"
+        href="/pubg/leaderboards?view=teams"
+        hrefLabel="View Full Leaderboard"
+      />
       {rankedTeams.length === 0 ? (
         <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(13,20,36,0.94),rgba(8,12,24,0.94))] px-5 py-8 text-center">
-          <p className="text-sm leading-7 text-text-muted">
-            Official standings will appear after verified match results are published.
-          </p>
+          <p className="text-sm leading-7 text-text-muted">Official standings will appear after verified match results are published.</p>
         </div>
       ) : (
         <>
@@ -821,7 +794,7 @@ function UpcomingEventsSection({ events }: { events: PlatformEvent[] }) {
                   ? "border-accent-yellow/20 bg-[linear-gradient(180deg,rgba(24,20,12,0.96),rgba(15,12,8,0.96))]"
                   : index === 0
                     ? "border-accent-blue/20 bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(8,13,26,0.96))]"
-                    : "border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(8,13,26,0.96))]"
+                    : "border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(8,13,26,0.96))]",
               )}
             >
               <div className="flex items-start justify-between gap-3">
@@ -843,7 +816,12 @@ function UpcomingEventsSection({ events }: { events: PlatformEvent[] }) {
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">Registration</span>
-                  <span className={cx("rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]", getEventStatusTone(event))}>
+                  <span
+                    className={cx(
+                      "rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
+                      getEventStatusTone(event),
+                    )}
+                  >
                     {getEventRegistrationLabel(event)}
                   </span>
                 </div>
@@ -901,7 +879,7 @@ function UpdateCard({ item }: { item: HomepageUpdateCard }) {
               ? "bg-violet-500/15 text-violet-200"
               : item.kind === "Announcement"
                 ? "bg-accent-yellow/12 text-accent-yellow"
-                : "bg-accent-blue/12 text-accent-blue-light"
+                : "bg-accent-blue/12 text-accent-blue-light",
           )}
         >
           {item.kind}
@@ -991,13 +969,7 @@ function CommunityBanner() {
   );
 }
 
-export default function HomeDashboard({
-  hub,
-  pubg,
-}: {
-  hub: PlatformHubData;
-  pubg: PubgHubDataset;
-}) {
+export default function HomeDashboard({ hub, pubg }: { hub: PlatformHubData; pubg: PubgHubDataset }) {
   const homepageEvents = resolveHomepageEvents(hub);
   const homepageSponsors = resolveHomepageSponsors(hub);
   const featuredEvent = homepageEvents.find((event) => canRegisterForEvent(event)) ?? homepageEvents[0] ?? null;

@@ -1,17 +1,11 @@
-import { NextResponse } from "next/server";
+import { hasEdgeAdminAccess, hasEdgeTeamAccess, resolveEdgeIdentity } from "@/lib/edge-auth";
 import type { NextRequest } from "next/server";
-import {
-  hasEdgeAdminAccess,
-  hasEdgeTeamAccess,
-  resolveEdgeIdentity,
-} from "@/lib/edge-auth";
+import { NextResponse } from "next/server";
 
 const SESSION_COOKIE = "bravo_session";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
 const SUPABASE_PUBLIC_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
-  "";
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
 
 function getSupabaseHeaders() {
   if (!SUPABASE_PUBLIC_KEY) {
@@ -54,7 +48,9 @@ async function hasPublicSupabaseRow(table: string, filters: Record<string, strin
 }
 
 function notFoundResponse(request: NextRequest) {
-  const response = NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 });
+  const response = NextResponse.rewrite(new URL("/_not-found", request.url), {
+    status: 404,
+  });
   response.headers.set("x-robots-tag", "noindex");
   return response;
 }

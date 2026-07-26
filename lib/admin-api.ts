@@ -2,12 +2,9 @@
 
 import { getSupabaseBrowserClient } from "./supabase/browser-client";
 import type { UploadType } from "./upload-config";
-import {
-  getResponseErrorMessage,
-  USER_FACING_ERROR_MESSAGES,
-} from "./user-facing-errors";
+import { getResponseErrorMessage, USER_FACING_ERROR_MESSAGES } from "./user-facing-errors";
 
-export async function getIdToken(): Promise<string | null> {
+async function getIdToken(): Promise<string | null> {
   const supabase = getSupabaseBrowserClient();
   const {
     data: { session },
@@ -31,7 +28,7 @@ export async function adminFetch(url: string, options: RequestInit = {}) {
     throw new Error(
       getResponseErrorMessage(res, data.error, {
         fallback: USER_FACING_ERROR_MESSAGES.admin,
-      })
+      }),
     );
   }
   return data;
@@ -39,19 +36,14 @@ export async function adminFetch(url: string, options: RequestInit = {}) {
 
 type UploadProgressCallback = (progress: number) => void;
 
-export type AdminUploadResponse = {
+type AdminUploadResponse = {
   success: true;
   id: string;
   path: string;
   url: string;
 };
 
-async function sendUploadRequest(
-  url: string,
-  formData: FormData,
-  headers: Headers,
-  onProgress?: UploadProgressCallback
-) {
+async function sendUploadRequest(url: string, formData: FormData, headers: Headers, onProgress?: UploadProgressCallback) {
   return new Promise<AdminUploadResponse>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);
@@ -82,19 +74,14 @@ async function sendUploadRequest(
 
       reject(
         new Error(
-          getResponseErrorMessage(
-            new Response(null, { status: xhr.status || 500 }),
-            data.error,
-            {
-              fallback: "We couldn't upload that file right now. Please try again shortly.",
-            }
-          )
-        )
+          getResponseErrorMessage(new Response(null, { status: xhr.status || 500 }), data.error, {
+            fallback: "We couldn't upload that file right now. Please try again shortly.",
+          }),
+        ),
       );
     };
 
-    xhr.onerror = () =>
-      reject(new Error(USER_FACING_ERROR_MESSAGES.network));
+    xhr.onerror = () => reject(new Error(USER_FACING_ERROR_MESSAGES.network));
     xhr.onabort = () => reject(new Error("The upload was canceled before it finished."));
     xhr.send(formData);
   });
@@ -107,7 +94,7 @@ export async function adminUpload(
   options: {
     onProgress?: UploadProgressCallback;
     previousUrl?: string;
-  } = {}
+  } = {},
 ) {
   const formData = new FormData();
   formData.append("file", file);

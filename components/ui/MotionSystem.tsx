@@ -11,16 +11,16 @@ export function MotionObserver() {
     if (protectedRoute) return;
     const targets = Array.from(
       document.querySelectorAll<HTMLElement>(
-        "main section, main .page-hero, main .hero-banner, main .esports-card, main .priority-card, main .standard-card, main .light-card"
-      )
+        "main section, main .page-hero, main .hero-banner, main .esports-card, main .priority-card, main .standard-card, main .light-card",
+      ),
     );
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      targets.forEach((target) => target.dataset.revealed = "true");
+      targets.forEach((target) => (target.dataset.revealed = "true"));
       return;
     }
 
-    targets.forEach((target) => target.dataset.motion = "reveal");
+    targets.forEach((target) => (target.dataset.motion = "reveal"));
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -29,7 +29,7 @@ export function MotionObserver() {
           observer.unobserve(entry.target);
         });
       },
-      { rootMargin: "0px 0px -7% 0px", threshold: 0.06 }
+      { rootMargin: "0px 0px -7% 0px", threshold: 0.06 },
     );
     targets.forEach((target) => observer.observe(target));
     return () => observer.disconnect();
@@ -48,13 +48,7 @@ export function RouteTransition({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AnimatedCounter({
-  value,
-  className = "",
-}: {
-  value: number;
-  className?: string;
-}) {
+export function AnimatedCounter({ value, className = "" }: { value: number; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [display, setDisplay] = useState(value);
 
@@ -78,7 +72,7 @@ export function AnimatedCounter({
         frame = requestAnimationFrame(tick);
         observer.disconnect();
       },
-      { threshold: 0.4 }
+      { threshold: 0.4 },
     );
     observer.observe(node);
     return () => {

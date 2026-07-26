@@ -1,8 +1,8 @@
-import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { normalizeNewsDateTime } from "@/lib/news-publishing";
 import { getManagedNewsArticles, saveManagedNewsArticle } from "@/lib/platform-content";
+import { revalidatePath } from "next/cache";
 
 export async function GET(request: Request) {
   const unauthorized = await requireAdmin(request);

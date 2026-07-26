@@ -36,9 +36,9 @@ const config: Config = {
         mono: ["var(--font-jetbrains)", "monospace"],
       },
       fontSize: {
-        "stat": ["28px", { lineHeight: "1.2", fontWeight: "700" }],
-        "label": ["11px", { lineHeight: "1.4", letterSpacing: "0.14em" }],
-        "section": ["24px", { lineHeight: "1.3", letterSpacing: "0.02em", fontWeight: "600" }],
+        stat: ["28px", { lineHeight: "1.2", fontWeight: "700" }],
+        label: ["11px", { lineHeight: "1.4", letterSpacing: "0.14em" }],
+        section: ["24px", { lineHeight: "1.3", letterSpacing: "0.02em", fontWeight: "600" }],
       },
       borderRadius: {
         card: "18px",

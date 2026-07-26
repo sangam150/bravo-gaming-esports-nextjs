@@ -1,9 +1,9 @@
-import { Suspense } from "react";
+import LoginHubClient from "@/components/auth/LoginHubClient";
+import { getServerAuthenticatedSession } from "@/lib/admin-auth";
+import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import LoginHubClient from "@/components/auth/LoginHubClient";
-import { hasTeamWorkspaceAccess } from "@/lib/authz";
-import { getServerAuthenticatedSession } from "@/lib/admin-auth";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Team Login",

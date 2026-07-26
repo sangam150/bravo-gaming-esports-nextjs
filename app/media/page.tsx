@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import { MediaCenterLandingPage } from "@/components/public/PublicLandingPages";
 import { getPlatformHubData } from "@/lib/platform-hub";
+import type { Metadata } from "next";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

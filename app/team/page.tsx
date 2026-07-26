@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation";
 import AccessStateCard from "@/components/auth/AccessStateCard";
 import TeamPanelClient from "@/components/team/TeamPanelClient";
-import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { getServerAuthenticatedSession } from "@/lib/admin-auth";
+import { hasTeamWorkspaceAccess } from "@/lib/authz";
+import { redirect } from "next/navigation";
 
 export default async function TeamPage() {
   const session = await getServerAuthenticatedSession();
@@ -33,7 +33,11 @@ export default async function TeamPage() {
         description="Your Supabase account is authenticated, but Bravo still needs to connect it to the correct team record before the workspace can open fully."
         actions={[
           { href: "/contact", label: "Contact Bravo", tone: "primary" },
-          { href: "/team/login", label: "Back to Team Login", tone: "secondary" },
+          {
+            href: "/team/login",
+            label: "Back to Team Login",
+            tone: "secondary",
+          },
         ]}
       />
     );

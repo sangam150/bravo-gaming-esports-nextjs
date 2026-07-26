@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import Tabs from "@/components/ui/Tabs";
 import StatusBadge from "@/components/ui/StatusBadge";
+import Tabs from "@/components/ui/Tabs";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import type { Tournament } from "@/lib/types";
+import Link from "next/link";
 
 function TournamentRow({ tournament }: { tournament: Tournament }) {
   return (
@@ -61,43 +61,40 @@ function TournamentRow({ tournament }: { tournament: Tournament }) {
 }
 
 export default function TournamentsPageClient({ initialTournaments }: { initialTournaments: Tournament[] }) {
-  const filterByStatuses = (statuses: string[]) =>
-    initialTournaments.filter((tournament) => statuses.includes(tournament.status));
+  const filterByStatuses = (statuses: string[]) => initialTournaments.filter((tournament) => statuses.includes(tournament.status));
 
   return (
     <main className="page-shell">
       <div className="page-inner">
-      <div className="page-hero mb-8">
-        <p className="section-title">PUBG PC</p>
-        <h1 className="hero-h1 mt-2 !text-4xl">Tournaments</h1>
-        <p className="mt-3 text-text-muted">
-          Discover live brackets, register your squad, and follow verified results.
-        </p>
-      </div>
+        <div className="page-hero mb-8">
+          <p className="section-title">PUBG PC</p>
+          <h1 className="hero-h1 mt-2 !text-4xl">Tournaments</h1>
+          <p className="mt-3 text-text-muted">Discover live brackets, register your squad, and follow verified results.</p>
+        </div>
 
-      <Tabs tabs={["Active", "Upcoming", "Past"]}>
-        {(tab) => {
-          const tournaments =
-            tab === "Active"
-              ? filterByStatuses(["LIVE", "OPEN", "REGISTERING"])
-              : tab === "Upcoming"
-                ? filterByStatuses(["UPCOMING"])
-                : filterByStatuses(["COMPLETED"]);
+        <Tabs tabs={["Active", "Upcoming", "Past"]}>
+          {(tab) => {
+            const tournaments =
+              tab === "Active"
+                ? filterByStatuses(["LIVE", "OPEN", "REGISTERING"])
+                : tab === "Upcoming"
+                  ? filterByStatuses(["UPCOMING"])
+                  : filterByStatuses(["COMPLETED"]);
 
-          return (
-            <div className="space-y-4">
-              {tournaments.map((tournament) => (
-                <TournamentRow key={tournament.id} tournament={tournament} />
-              ))}
-              {tournaments.length === 0 && (
-                <p className="text-center text-text-muted">
-                  {tab === "Past" ? "No past tournaments yet." : `No ${tab.toLowerCase()} tournaments right now.`}
-                </p>
-              )}
-            </div>
-          );
-        }}
-      </Tabs>
+            return (
+              <div className="space-y-4">
+                {tournaments.map((tournament) => (
+                  <TournamentRow key={tournament.id} tournament={tournament} />
+                ))}
+                {tournaments.length === 0 && (
+                  <p className="text-center text-text-muted">
+                    {tab === "Past" ? "No past tournaments yet." : `No ${tab.toLowerCase()} tournaments right now.`}
+                  </p>
+                )}
+              </div>
+            );
+          }}
+        </Tabs>
       </div>
     </main>
   );

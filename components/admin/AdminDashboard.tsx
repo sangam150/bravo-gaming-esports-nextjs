@@ -1,34 +1,17 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import AdminDiscordLinkManager from "./AdminDiscordLinkManager";
-import AdminDiscordRoleMappingManager from "./AdminDiscordRoleMappingManager";
-import AdminRegisteredTeamsManager from "./AdminRegisteredTeamsManager";
-import AdminMatchManager from "./AdminMatchManager";
-import AdminTeamRequestsManager from "./AdminTeamRequestsManager";
-import AdminSidebar, { type AdminSection } from "./AdminSidebar";
-import BulkTeamLogoUpload from "./BulkTeamLogoUpload";
-import FileUpload from "./FileUpload";
-import { AdminGamesManager, AdminMediaManager, AdminPlatformEventsManager, AdminSponsorsManager } from "./PlatformCatalogManagers";
-import PubgImportManager from "./PubgImportManager";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { useAdminAuth } from "./AuthProvider";
 import { adminFetch } from "@/lib/admin-api";
 import type { AuditLogRecord } from "@/lib/audit-logs";
 import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
 import { formatAnnouncementDate, formatDisplayDate, formatDisplayDateTime } from "@/lib/display-format";
 import { formatKathmanduDateTimeInput, isManagedNewsArticlePublic } from "@/lib/news-publishing";
-import type {
-  FooterLinkRecord,
-  HomepageContentRecord,
-  HomepageHeroSlideRecord,
-  ManagedNewsArticleRecord,
-} from "@/lib/platform-content";
+import type { FooterLinkRecord, HomepageContentRecord, HomepageHeroSlideRecord, ManagedNewsArticleRecord } from "@/lib/platform-content";
 import { compareTeamLeaderboardPerformance } from "@/lib/ranking-sort";
 import type {
   Announcement,
   ContactMessage,
+  ErrorLogRecord,
   Player,
   PlayerRole,
   PlayerStatus,
@@ -43,9 +26,21 @@ import type {
   Tournament,
   TournamentMatch,
   TournamentStatus,
-  ErrorLogRecord,
   UploadRecord,
 } from "@/lib/types";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import AdminDiscordLinkManager from "./AdminDiscordLinkManager";
+import AdminDiscordRoleMappingManager from "./AdminDiscordRoleMappingManager";
+import AdminMatchManager from "./AdminMatchManager";
+import AdminRegisteredTeamsManager from "./AdminRegisteredTeamsManager";
+import AdminSidebar, { type AdminSection } from "./AdminSidebar";
+import AdminTeamRequestsManager from "./AdminTeamRequestsManager";
+import { useAdminAuth } from "./AuthProvider";
+import BulkTeamLogoUpload from "./BulkTeamLogoUpload";
+import FileUpload from "./FileUpload";
+import { AdminGamesManager, AdminMediaManager, AdminPlatformEventsManager, AdminSponsorsManager } from "./PlatformCatalogManagers";
+import PubgImportManager from "./PubgImportManager";
 
 type DashboardStats = {
   totalTeams: number;
@@ -229,8 +224,16 @@ const defaultHomepageForm: HomepageContentRecord = {
   ],
   footerHighlights: [
     { id: "footer-highlight-flagship", label: "Flagship", value: "PUBG" },
-    { id: "footer-highlight-coverage", label: "Coverage", value: "News + Results" },
-    { id: "footer-highlight-community", label: "Community", value: "Nepal First" },
+    {
+      id: "footer-highlight-coverage",
+      label: "Coverage",
+      value: "News + Results",
+    },
+    {
+      id: "footer-highlight-community",
+      label: "Community",
+      value: "Nepal First",
+    },
   ],
   footerBottomPrimary: "Copyright 2026 Bravo Gaming Esports Nepal",
   footerBottomSecondary: "Daily scrims, major events, rankings, media, sponsors, and community coverage for Nepal esports.",
@@ -260,7 +263,14 @@ const defaultNewsForm: ManagedNewsFormState = {
 };
 
 function splitDelimitedValues(value?: string | null) {
-  return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
+  return Array.from(
+    new Set(
+      (value ?? "")
+        .split(/[\n,]+/g)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 function joinDelimitedValues(values?: string[] | null) {
@@ -310,7 +320,8 @@ function normalizeHomepageFormInput(data?: HomepageContentRecord | null): Homepa
       ...defaultHomepageForm.footerColumns[index],
       ...column,
       id: column.id ?? defaultHomepageForm.footerColumns[index]?.id ?? `footer-column-${index + 1}`,
-      links: Array.isArray(column.links) && column.links.length > 0 ? column.links : defaultHomepageForm.footerColumns[index]?.links ?? [],
+      links:
+        Array.isArray(column.links) && column.links.length > 0 ? column.links : (defaultHomepageForm.footerColumns[index]?.links ?? []),
     })),
     footerHighlights: footerHighlights.slice(0, 3).map((highlight, index) => ({
       ...defaultHomepageForm.footerHighlights[index],
@@ -341,13 +352,18 @@ function buildNewsFormState(article?: ManagedNewsArticleRecord | null): ManagedN
 }
 
 function normalizeMatchIds(value?: string) {
-  return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
+  return Array.from(
+    new Set(
+      (value ?? "")
+        .split(/[\n,]+/g)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 function getScrimMatchIds(scrim?: Partial<Scrim>) {
-  return Array.from(
-    new Set([...(scrim?.pubgMatchIds ?? []), scrim?.pubgMatchId].filter((matchId): matchId is string => Boolean(matchId)))
-  );
+  return Array.from(new Set([...(scrim?.pubgMatchIds ?? []), scrim?.pubgMatchId].filter((matchId): matchId is string => Boolean(matchId))));
 }
 
 function formatScrimMatchIds(scrim?: Partial<Scrim>) {
@@ -450,51 +466,29 @@ export default function AdminDashboard({
         .filter((t) => (t.matches ?? 0) > 0)
         .sort((firstTeam, secondTeam) => compareTeamLeaderboardPerformance(firstTeam, secondTeam))
         .map((t, i) => ({ ...t, rank: i + 1 })),
-    [teams]
+    [teams],
   );
 
-  const teamPlayers = useMemo(
-    () => (selectedTeamId ? players.filter((p) => p.teamId === selectedTeamId) : []),
-    [players, selectedTeamId]
-  );
-  const activeSeason = useMemo(
-    () => seasons.find((season) => season.status === "active") ?? seasons[0] ?? null,
-    [seasons]
-  );
+  const teamPlayers = useMemo(() => (selectedTeamId ? players.filter((p) => p.teamId === selectedTeamId) : []), [players, selectedTeamId]);
+  const activeSeason = useMemo(() => seasons.find((season) => season.status === "active") ?? seasons[0] ?? null, [seasons]);
   const activeSeasonTournaments = useMemo(
     () =>
-      activeSeason
-        ? tournaments.filter((tournament) => tournament.seasonId === activeSeason.id).sort(sortSeasonTournamentsByDay)
-        : [],
-    [activeSeason, tournaments]
+      activeSeason ? tournaments.filter((tournament) => tournament.seasonId === activeSeason.id).sort(sortSeasonTournamentsByDay) : [],
+    [activeSeason, tournaments],
   );
   const activeSeasonScrims = useMemo(
-    () =>
-      activeSeason
-        ? scrims.filter((scrim) => scrim.seasonId === activeSeason.id).sort(sortSeasonScrimsByDay)
-        : [],
-    [activeSeason, scrims]
+    () => (activeSeason ? scrims.filter((scrim) => scrim.seasonId === activeSeason.id).sort(sortSeasonScrimsByDay) : []),
+    [activeSeason, scrims],
   );
-  const pendingImportBatches = useMemo(
-    () => importBatches.filter((batch) => batch.status === "pending"),
-    [importBatches]
-  );
-  const processedImportBatches = useMemo(
-    () => importBatches.filter((batch) => batch.status !== "pending"),
-    [importBatches]
-  );
+  const pendingImportBatches = useMemo(() => importBatches.filter((batch) => batch.status === "pending"), [importBatches]);
+  const processedImportBatches = useMemo(() => importBatches.filter((batch) => batch.status !== "pending"), [importBatches]);
   const focusedImportBatch = useMemo(
-    () => (focusImportBatchId ? importBatches.find((batch) => batch.id === focusImportBatchId) ?? null : null),
-    [focusImportBatchId, importBatches]
+    () => (focusImportBatchId ? (importBatches.find((batch) => batch.id === focusImportBatchId) ?? null) : null),
+    [focusImportBatchId, importBatches],
   );
   const visiblePendingImportBatches = useMemo(
-    () =>
-      focusImportBatchId
-        ? focusedImportBatch?.status === "pending"
-          ? [focusedImportBatch]
-          : []
-        : pendingImportBatches,
-    [focusImportBatchId, focusedImportBatch, pendingImportBatches]
+    () => (focusImportBatchId ? (focusedImportBatch?.status === "pending" ? [focusedImportBatch] : []) : pendingImportBatches),
+    [focusImportBatchId, focusedImportBatch, pendingImportBatches],
   );
   const dashboardOverview = useMemo(() => {
     const publishedArticles = newsArticles.filter((article) => article.state === "published").length;
@@ -506,28 +500,69 @@ export default function AdminDashboard({
 
     return {
       cards: [
-        { label: "Total Events", value: totalPlatformEvents, tone: "text-accent-blue" },
-        { label: "Total Teams", value: stats?.totalTeams ?? teams.length, tone: "text-white" },
-        { label: "Total Players", value: stats?.totalPlayers ?? players.length, tone: "text-white" },
-        { label: "Published Articles", value: publishedArticles, tone: "text-accent-green" },
-        { label: "Pending Requests", value: pendingApprovals, tone: "text-accent-yellow" },
-        { label: "Published Matches", value: liveMatches.length, tone: "text-accent-blue" },
+        {
+          label: "Total Events",
+          value: totalPlatformEvents,
+          tone: "text-accent-blue",
+        },
+        {
+          label: "Total Teams",
+          value: stats?.totalTeams ?? teams.length,
+          tone: "text-white",
+        },
+        {
+          label: "Total Players",
+          value: stats?.totalPlayers ?? players.length,
+          tone: "text-white",
+        },
+        {
+          label: "Published Articles",
+          value: publishedArticles,
+          tone: "text-accent-green",
+        },
+        {
+          label: "Pending Requests",
+          value: pendingApprovals,
+          tone: "text-accent-yellow",
+        },
+        {
+          label: "Published Matches",
+          value: liveMatches.length,
+          tone: "text-accent-blue",
+        },
         { label: "Inbox Messages", value: messages.length, tone: "text-white" },
-        { label: "Recent Uploads", value: recentUploads.length, tone: "text-accent-red" },
+        {
+          label: "Recent Uploads",
+          value: recentUploads.length,
+          tone: "text-accent-red",
+        },
       ],
       publishedArticles,
       draftArticles,
       newInboxItems,
       pendingRegistrations,
     };
-  }, [liveMatches.length, messages, newsArticles, pendingImportBatches.length, players.length, recentUploads.length, registrations, scrims.length, stats?.totalPlayers, stats?.totalTeams, teams.length, tournaments.length]);
+  }, [
+    liveMatches.length,
+    messages,
+    newsArticles,
+    pendingImportBatches.length,
+    players.length,
+    recentUploads.length,
+    registrations,
+    scrims.length,
+    stats?.totalPlayers,
+    stats?.totalTeams,
+    teams.length,
+    tournaments.length,
+  ]);
 
   const hasDemoSeededData = useMemo(
     () =>
       Boolean(activeSeason?.notes?.includes(demoSeedTag)) ||
       tournaments.some((tournament) => tournament.description?.includes(demoSeedTag)) ||
       scrims.some((scrim) => scrim.announcement?.includes(demoSeedTag)),
-    [activeSeason?.notes, demoSeedTag, scrims, tournaments]
+    [activeSeason?.notes, demoSeedTag, scrims, tournaments],
   );
 
   useEffect(() => {
@@ -608,7 +643,7 @@ export default function AdminDashboard({
             seasonId: activeSeason.id,
             seasonTitle: activeSeason.seriesTitle ?? activeSeason.title,
             seasonNumber: activeSeason.seasonNumber,
-          }
+          },
     );
 
     setScrimForm((currentForm) =>
@@ -618,7 +653,7 @@ export default function AdminDashboard({
             ...currentForm,
             seasonId: activeSeason.id,
             seasonTitle: activeSeason.seriesTitle ?? activeSeason.title,
-        }
+          },
     );
   }, [activeSeason]);
 
@@ -668,9 +703,7 @@ export default function AdminDashboard({
     }
 
     setError(null);
-    setMessage(
-      "Opening PUBG import workflow. Stored raw JSON will be reused first, then missing matches will be fetched from PUBG."
-    );
+    setMessage("Opening PUBG import workflow. Stored raw JSON will be reused first, then missing matches will be fetched from PUBG.");
     openTournamentImportWorkflow(editingTournament, normalizedMatchIds.join("\n"));
   }
 
@@ -683,7 +716,7 @@ export default function AdminDashboard({
               ...slide,
               ...patch,
             }
-          : slide
+          : slide,
       ),
     }));
   }
@@ -697,7 +730,7 @@ export default function AdminDashboard({
               ...column,
               ...patch,
             }
-          : column
+          : column,
       ),
     }));
   }
@@ -711,14 +744,17 @@ export default function AdminDashboard({
               ...highlight,
               ...patch,
             }
-          : highlight
+          : highlight,
       ),
     }));
   }
 
   function resetNewsEditor() {
     setEditingNewsId(null);
-    setNewsForm({ ...defaultNewsForm, date: new Date().toISOString().slice(0, 10) });
+    setNewsForm({
+      ...defaultNewsForm,
+      date: new Date().toISOString().slice(0, 10),
+    });
   }
 
   function startNewsEdit(article: ManagedNewsArticleRecord) {
@@ -780,8 +816,8 @@ export default function AdminDashboard({
       const savedArticle = response.data as ManagedNewsArticleRecord;
       setNewsArticles((currentArticles) => {
         const remainingArticles = currentArticles.filter((article) => article.id !== savedArticle.id);
-        return [savedArticle, ...remainingArticles].sort(
-          (firstArticle, secondArticle) => (secondArticle.date ?? "").localeCompare(firstArticle.date ?? "")
+        return [savedArticle, ...remainingArticles].sort((firstArticle, secondArticle) =>
+          (secondArticle.date ?? "").localeCompare(firstArticle.date ?? ""),
         );
       });
       setMessage(editingNewsId ? "News article updated" : "News article created");
@@ -818,9 +854,7 @@ export default function AdminDashboard({
         body: JSON.stringify({ id: messageId, status }),
       });
       const updatedMessage = response.data as ContactMessage;
-      setMessages((currentMessages) =>
-        currentMessages.map((message) => (message.id === updatedMessage.id ? updatedMessage : message))
-      );
+      setMessages((currentMessages) => currentMessages.map((message) => (message.id === updatedMessage.id ? updatedMessage : message)));
       setMessage(status === "reviewed" ? "Inbox item marked reviewed" : "Inbox item reopened");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -840,10 +874,16 @@ export default function AdminDashboard({
       };
 
       if (editingSeason) {
-        await adminFetch(`/api/seasons/${editingSeason}`, { method: "PUT", body: JSON.stringify(payload) });
+        await adminFetch(`/api/seasons/${editingSeason}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
         setMessage("Season updated");
       } else {
-        await adminFetch("/api/seasons", { method: "POST", body: JSON.stringify(payload) });
+        await adminFetch("/api/seasons", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
         setMessage("Season created");
       }
 
@@ -930,8 +970,7 @@ export default function AdminDashboard({
         body: JSON.stringify({ action }),
       });
       setMessage(
-        response.message ??
-          (action === "approve" ? "Pending import approved and imported to draft." : "Pending import rejected.")
+        response.message ?? (action === "approve" ? "Pending import approved and imported to draft." : "Pending import rejected."),
       );
       await loadData();
     } catch (err: unknown) {
@@ -962,10 +1001,7 @@ export default function AdminDashboard({
     e.preventDefault();
     if (!tournamentForm.title) return;
     try {
-      const selectedSeason =
-        seasons.find((season) => season.id === tournamentForm.seasonId) ??
-        activeSeason ??
-        null;
+      const selectedSeason = seasons.find((season) => season.id === tournamentForm.seasonId) ?? activeSeason ?? null;
       const payload = {
         ...tournamentForm,
         seasonId: tournamentForm.seasonId ?? selectedSeason?.id,
@@ -979,7 +1015,10 @@ export default function AdminDashboard({
             method: "PUT",
             body: JSON.stringify(payload),
           })
-        : await adminFetch("/api/tournaments", { method: "POST", body: JSON.stringify(payload) });
+        : await adminFetch("/api/tournaments", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
       const savedTournament = response.data as Tournament;
 
       setTournamentForm(savedTournament);
@@ -988,7 +1027,7 @@ export default function AdminDashboard({
       setMessage(
         editingTournament
           ? "Tournament updated. Match pulls will keep using this editor context."
-          : "Tournament created. Paste PUBG match IDs below, then pull JSONs into the import workflow."
+          : "Tournament created. Paste PUBG match IDs below, then pull JSONs into the import workflow.",
       );
       await loadData();
     } catch (err: unknown) {
@@ -1006,13 +1045,25 @@ export default function AdminDashboard({
         createdAt: teamForm.createdAt ?? new Date().toISOString(),
       };
       if (editingTeam) {
-        await adminFetch(`/api/teams/${editingTeam}`, { method: "PUT", body: JSON.stringify(payload) });
+        await adminFetch(`/api/teams/${editingTeam}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
         setMessage("Team updated");
       } else {
-        await adminFetch("/api/teams", { method: "POST", body: JSON.stringify(payload) });
+        await adminFetch("/api/teams", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
         setMessage("Team created");
       }
-      setTeamForm({ totalPoints: 0, kills: 0, matches: 0, status: "active", registrationStatus: "approved" });
+      setTeamForm({
+        totalPoints: 0,
+        kills: 0,
+        matches: 0,
+        status: "active",
+        registrationStatus: "approved",
+      });
       setEditingTeam(null);
       loadData();
     } catch (err: unknown) {
@@ -1030,13 +1081,26 @@ export default function AdminDashboard({
         avatar: playerForm.avatarUrl ?? playerForm.avatar,
       };
       if (editingPlayer) {
-        await adminFetch(`/api/players/${editingPlayer}`, { method: "PUT", body: JSON.stringify(payload) });
+        await adminFetch(`/api/players/${editingPlayer}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
         setMessage("Player updated");
       } else {
-        await adminFetch("/api/players", { method: "POST", body: JSON.stringify(payload) });
+        await adminFetch("/api/players", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
         setMessage("Player created");
       }
-      setPlayerForm({ kills: 0, damage: 0, mvpCount: 0, chickenDinners: 0, matches: 0, playerStatus: "active" });
+      setPlayerForm({
+        kills: 0,
+        damage: 0,
+        mvpCount: 0,
+        chickenDinners: 0,
+        matches: 0,
+        playerStatus: "active",
+      });
       setEditingPlayer(null);
       loadData();
     } catch (err: unknown) {
@@ -1053,10 +1117,7 @@ export default function AdminDashboard({
         method: "PATCH",
         body: JSON.stringify({ id: registrationId, status }),
       });
-      setMessage(
-        response.message ??
-          (status === "approved" ? "Registration approved and team published." : "Registration updated.")
-      );
+      setMessage(response.message ?? (status === "approved" ? "Registration approved and team published." : "Registration updated."));
       await loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -1069,10 +1130,7 @@ export default function AdminDashboard({
     e.preventDefault();
     if (!scrimForm.title || !scrimForm.date || !scrimForm.map) return;
     try {
-      const selectedSeason =
-        seasons.find((season) => season.id === scrimForm.seasonId) ??
-        activeSeason ??
-        null;
+      const selectedSeason = seasons.find((season) => season.id === scrimForm.seasonId) ?? activeSeason ?? null;
       const pubgMatchIds = getScrimMatchIds(scrimForm);
       const payload = {
         ...scrimForm,
@@ -1083,10 +1141,16 @@ export default function AdminDashboard({
       };
 
       if (editingScrim) {
-        await adminFetch("/api/admin/scrims", { method: "PUT", body: JSON.stringify({ ...payload, id: editingScrim }) });
+        await adminFetch("/api/admin/scrims", {
+          method: "PUT",
+          body: JSON.stringify({ ...payload, id: editingScrim }),
+        });
         setMessage("Scrim updated");
       } else {
-        await adminFetch("/api/admin/scrims", { method: "POST", body: JSON.stringify(payload) });
+        await adminFetch("/api/admin/scrims", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
         setMessage("Scrim created");
       }
       setScrimForm({
@@ -1122,7 +1186,7 @@ export default function AdminDashboard({
 
   async function resetCompetitionData() {
     const confirmed = window.confirm(
-      "This will permanently delete seasons, tournaments, scrims, imported matches, standings, team/player competition records, and cached PUBG imports. Continue?"
+      "This will permanently delete seasons, tournaments, scrims, imported matches, standings, team/player competition records, and cached PUBG imports. Continue?",
     );
     if (!confirmed) return;
 
@@ -1164,7 +1228,11 @@ export default function AdminDashboard({
   function toggleTournamentTeam(teamId: string) {
     const current = tournamentForm.registeredTeamIds ?? [];
     const next = current.includes(teamId) ? current.filter((id) => id !== teamId) : [...current, teamId];
-    setTournamentForm({ ...tournamentForm, registeredTeamIds: next, teamCount: next.length });
+    setTournamentForm({
+      ...tournamentForm,
+      registeredTeamIds: next,
+      teamCount: next.length,
+    });
   }
 
   function toggleScrimTeam(teamId: string) {
@@ -1194,9 +1262,20 @@ export default function AdminDashboard({
         </div>
 
         {(message || error) && (
-          <div className={`rounded-2xl border px-4 py-3 text-sm ${error ? "border-bravoRed/30 bg-bravoRed/10 text-red-300" : "border-bravoGreen/30 bg-bravoGreen/10 text-bravoGreen"}`}>
+          <div
+            className={`rounded-2xl border px-4 py-3 text-sm ${error ? "border-bravoRed/30 bg-bravoRed/10 text-red-300" : "border-bravoGreen/30 bg-bravoGreen/10 text-bravoGreen"}`}
+          >
             {error ?? message}
-            <button type="button" onClick={() => { setMessage(null); setError(null); }} className="ml-4 text-xs underline">Dismiss</button>
+            <button
+              type="button"
+              onClick={() => {
+                setMessage(null);
+                setError(null);
+              }}
+              className="ml-4 text-xs underline"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
@@ -1227,9 +1306,7 @@ export default function AdminDashboard({
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <p className="section-heading !text-sm">Active Season</p>
-                    <h2 className="mt-2 text-2xl font-black text-white">
-                      {activeSeason.seriesTitle ?? activeSeason.title}
-                    </h2>
+                    <h2 className="mt-2 text-2xl font-black text-white">{activeSeason.seriesTitle ?? activeSeason.title}</h2>
                     <p className="mt-2 text-sm text-text-muted">
                       Started {activeSeason.startDate} | Day {activeSeason.currentDay} of {activeSeason.configuredDays}
                     </p>
@@ -1275,13 +1352,31 @@ export default function AdminDashboard({
                 <p className="section-heading !text-sm">Approval Queue</p>
                 <div className="mt-4 space-y-3 text-sm">
                   {[
-                    { label: "Pending registrations", value: dashboardOverview.pendingRegistrations },
-                    { label: "Pending PUBG imports", value: pendingImportBatches.length },
-                    { label: "New inbox messages", value: dashboardOverview.newInboxItems },
-                    { label: "Published news", value: dashboardOverview.publishedArticles },
-                    { label: "Draft articles", value: dashboardOverview.draftArticles },
+                    {
+                      label: "Pending registrations",
+                      value: dashboardOverview.pendingRegistrations,
+                    },
+                    {
+                      label: "Pending PUBG imports",
+                      value: pendingImportBatches.length,
+                    },
+                    {
+                      label: "New inbox messages",
+                      value: dashboardOverview.newInboxItems,
+                    },
+                    {
+                      label: "Published news",
+                      value: dashboardOverview.publishedArticles,
+                    },
+                    {
+                      label: "Draft articles",
+                      value: dashboardOverview.draftArticles,
+                    },
                   ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between rounded-card border border-white/10 bg-bg-primary px-4 py-3">
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between rounded-card border border-white/10 bg-bg-primary px-4 py-3"
+                    >
                       <span className="text-white">{item.label}</span>
                       <span className="font-mono-stat text-accent-yellow">{item.value}</span>
                     </div>
@@ -1299,7 +1394,15 @@ export default function AdminDashboard({
               ) : (
                 <div className="table-scroll">
                   <table className="data-table min-w-full">
-                    <thead><tr><th>Map</th><th>Winner</th><th>KOs</th><th>Synced</th><th>Source</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>Map</th>
+                        <th>Winner</th>
+                        <th>KOs</th>
+                        <th>Synced</th>
+                        <th>Source</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {liveMatches.slice(0, 8).map((m) => (
                         <tr key={m.id}>
@@ -1334,7 +1437,7 @@ export default function AdminDashboard({
               </div>
               <div className="esports-card p-5">
                 <p className="section-heading !text-sm">Recent Uploads</p>
-                {(stats.recentUploads?.length || recentUploads.length) ? (
+                {stats.recentUploads?.length || recentUploads.length ? (
                   <ul className="mt-3 space-y-2 text-sm">
                     {(stats.recentUploads ?? recentUploads).map((u) => (
                       <li key={u.id} className="flex justify-between border-b border-white/5 py-2">
@@ -1375,7 +1478,8 @@ export default function AdminDashboard({
             <div>
               <h2 className="text-2xl font-black text-white">Homepage CMS</h2>
               <p className="mt-1 text-sm text-text-muted">
-                Control the premium homepage hero, live module, featured content rows, and flagship spotlight ordering from Supabase-backed content.
+                Control the premium homepage hero, live module, featured content rows, and flagship spotlight ordering from Supabase-backed
+                content.
               </p>
             </div>
 
@@ -1406,7 +1510,11 @@ export default function AdminDashboard({
                       placeholder="Description"
                       rows={4}
                       value={slide.description}
-                      onChange={(e) => updateHomepageSlide(index, { description: e.target.value })}
+                      onChange={(e) =>
+                        updateHomepageSlide(index, {
+                          description: e.target.value,
+                        })
+                      }
                     />
                     <FileUpload
                       type="hero_slide_asset"
@@ -1425,50 +1533,82 @@ export default function AdminDashboard({
                       className={inputClass}
                       placeholder="Sponsor slug (optional)"
                       value={slide.sponsorSlug ?? ""}
-                      onChange={(e) => updateHomepageSlide(index, { sponsorSlug: e.target.value })}
+                      onChange={(e) =>
+                        updateHomepageSlide(index, {
+                          sponsorSlug: e.target.value,
+                        })
+                      }
                     />
                     <textarea
                       className={inputClass}
                       placeholder="Promo/support text (optional)"
                       rows={3}
                       value={slide.promoText ?? ""}
-                      onChange={(e) => updateHomepageSlide(index, { promoText: e.target.value })}
+                      onChange={(e) =>
+                        updateHomepageSlide(index, {
+                          promoText: e.target.value,
+                        })
+                      }
                     />
                     <input
                       className={inputClass}
                       placeholder="Primary button label"
                       value={slide.primaryLabel}
-                      onChange={(e) => updateHomepageSlide(index, { primaryLabel: e.target.value })}
+                      onChange={(e) =>
+                        updateHomepageSlide(index, {
+                          primaryLabel: e.target.value,
+                        })
+                      }
                     />
                     <input
                       className={inputClass}
                       placeholder="Primary button href"
                       value={slide.primaryHref}
-                      onChange={(e) => updateHomepageSlide(index, { primaryHref: e.target.value })}
+                      onChange={(e) =>
+                        updateHomepageSlide(index, {
+                          primaryHref: e.target.value,
+                        })
+                      }
                     />
                     <input
                       className={inputClass}
                       placeholder="Secondary button label"
                       value={slide.secondaryLabel ?? ""}
-                      onChange={(e) => updateHomepageSlide(index, { secondaryLabel: e.target.value })}
+                      onChange={(e) =>
+                        updateHomepageSlide(index, {
+                          secondaryLabel: e.target.value,
+                        })
+                      }
                     />
                     <input
                       className={inputClass}
                       placeholder="Secondary button href"
                       value={slide.secondaryHref ?? ""}
-                      onChange={(e) => updateHomepageSlide(index, { secondaryHref: e.target.value })}
+                      onChange={(e) =>
+                        updateHomepageSlide(index, {
+                          secondaryHref: e.target.value,
+                        })
+                      }
                     />
                     <input
                       className={inputClass}
                       placeholder="Tertiary button label"
                       value={slide.tertiaryLabel ?? ""}
-                      onChange={(e) => updateHomepageSlide(index, { tertiaryLabel: e.target.value })}
+                      onChange={(e) =>
+                        updateHomepageSlide(index, {
+                          tertiaryLabel: e.target.value,
+                        })
+                      }
                     />
                     <input
                       className={inputClass}
                       placeholder="Tertiary button href"
                       value={slide.tertiaryHref ?? ""}
-                      onChange={(e) => updateHomepageSlide(index, { tertiaryHref: e.target.value })}
+                      onChange={(e) =>
+                        updateHomepageSlide(index, {
+                          tertiaryHref: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 ))}
@@ -1480,24 +1620,143 @@ export default function AdminDashboard({
                     <p className="font-display text-sm font-black uppercase text-white">Live Module</p>
                     <p className="mt-1 text-sm text-text-muted">Override the live-now block without breaking the stream fallback.</p>
                   </div>
-                  <input className={inputClass} placeholder="Live title" value={homepageForm.liveTitle ?? ""} onChange={(e) => setHomepageForm({ ...homepageForm, liveTitle: e.target.value })} />
-                  <textarea className={inputClass} placeholder="Live subtitle" rows={3} value={homepageForm.liveSubtitle ?? ""} onChange={(e) => setHomepageForm({ ...homepageForm, liveSubtitle: e.target.value })} />
-                  <input className={inputClass} placeholder="Viewer label" value={homepageForm.liveViewers ?? ""} onChange={(e) => setHomepageForm({ ...homepageForm, liveViewers: e.target.value })} />
-                  <input className={inputClass} placeholder="Live href" value={homepageForm.liveHref ?? ""} onChange={(e) => setHomepageForm({ ...homepageForm, liveHref: e.target.value })} />
-                  <input className={inputClass} placeholder="Breaking news slug" value={homepageForm.breakingNewsSlug ?? ""} onChange={(e) => setHomepageForm({ ...homepageForm, breakingNewsSlug: e.target.value })} />
+                  <input
+                    className={inputClass}
+                    placeholder="Live title"
+                    value={homepageForm.liveTitle ?? ""}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        liveTitle: e.target.value,
+                      })
+                    }
+                  />
+                  <textarea
+                    className={inputClass}
+                    placeholder="Live subtitle"
+                    rows={3}
+                    value={homepageForm.liveSubtitle ?? ""}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        liveSubtitle: e.target.value,
+                      })
+                    }
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Viewer label"
+                    value={homepageForm.liveViewers ?? ""}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        liveViewers: e.target.value,
+                      })
+                    }
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Live href"
+                    value={homepageForm.liveHref ?? ""}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        liveHref: e.target.value,
+                      })
+                    }
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Breaking news slug"
+                    value={homepageForm.breakingNewsSlug ?? ""}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        breakingNewsSlug: e.target.value,
+                      })
+                    }
+                  />
                 </div>
 
                 <div className="esports-card grid gap-4 p-6">
                   <div>
                     <p className="font-display text-sm font-black uppercase text-white">Featured Ordering</p>
-                    <p className="mt-1 text-sm text-text-muted">Use comma-separated slugs or ids to control exactly what appears on the homepage.</p>
+                    <p className="mt-1 text-sm text-text-muted">
+                      Use comma-separated slugs or ids to control exactly what appears on the homepage.
+                    </p>
                   </div>
-                  <textarea className={inputClass} placeholder="Featured event slugs" rows={2} value={joinDelimitedValues(homepageForm.featuredEventSlugs)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredEventSlugs: splitDelimitedValues(e.target.value) })} />
-                  <textarea className={inputClass} placeholder="Featured news slugs" rows={2} value={joinDelimitedValues(homepageForm.featuredNewsSlugs)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredNewsSlugs: splitDelimitedValues(e.target.value) })} />
-                  <textarea className={inputClass} placeholder="Featured sponsor slugs" rows={2} value={joinDelimitedValues(homepageForm.featuredSponsorSlugs)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredSponsorSlugs: splitDelimitedValues(e.target.value) })} />
-                  <textarea className={inputClass} placeholder="Featured media ids" rows={2} value={joinDelimitedValues(homepageForm.featuredMediaIds)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredMediaIds: splitDelimitedValues(e.target.value) })} />
-                  <textarea className={inputClass} placeholder="Featured team ids" rows={2} value={joinDelimitedValues(homepageForm.featuredTeamIds)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredTeamIds: splitDelimitedValues(e.target.value) })} />
-                  <textarea className={inputClass} placeholder="Featured player ids" rows={2} value={joinDelimitedValues(homepageForm.featuredPlayerIds)} onChange={(e) => setHomepageForm({ ...homepageForm, featuredPlayerIds: splitDelimitedValues(e.target.value) })} />
+                  <textarea
+                    className={inputClass}
+                    placeholder="Featured event slugs"
+                    rows={2}
+                    value={joinDelimitedValues(homepageForm.featuredEventSlugs)}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        featuredEventSlugs: splitDelimitedValues(e.target.value),
+                      })
+                    }
+                  />
+                  <textarea
+                    className={inputClass}
+                    placeholder="Featured news slugs"
+                    rows={2}
+                    value={joinDelimitedValues(homepageForm.featuredNewsSlugs)}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        featuredNewsSlugs: splitDelimitedValues(e.target.value),
+                      })
+                    }
+                  />
+                  <textarea
+                    className={inputClass}
+                    placeholder="Featured sponsor slugs"
+                    rows={2}
+                    value={joinDelimitedValues(homepageForm.featuredSponsorSlugs)}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        featuredSponsorSlugs: splitDelimitedValues(e.target.value),
+                      })
+                    }
+                  />
+                  <textarea
+                    className={inputClass}
+                    placeholder="Featured media ids"
+                    rows={2}
+                    value={joinDelimitedValues(homepageForm.featuredMediaIds)}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        featuredMediaIds: splitDelimitedValues(e.target.value),
+                      })
+                    }
+                  />
+                  <textarea
+                    className={inputClass}
+                    placeholder="Featured team ids"
+                    rows={2}
+                    value={joinDelimitedValues(homepageForm.featuredTeamIds)}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        featuredTeamIds: splitDelimitedValues(e.target.value),
+                      })
+                    }
+                  />
+                  <textarea
+                    className={inputClass}
+                    placeholder="Featured player ids"
+                    rows={2}
+                    value={joinDelimitedValues(homepageForm.featuredPlayerIds)}
+                    onChange={(e) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        featuredPlayerIds: splitDelimitedValues(e.target.value),
+                      })
+                    }
+                  />
                 </div>
               </div>
 
@@ -1533,45 +1792,80 @@ export default function AdminDashboard({
                     className={inputClass}
                     placeholder="Footer title"
                     value={homepageForm.footerTitle}
-                    onChange={(event) => setHomepageForm({ ...homepageForm, footerTitle: event.target.value })}
+                    onChange={(event) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        footerTitle: event.target.value,
+                      })
+                    }
                   />
                   <input
                     className={inputClass}
                     placeholder="Footer tagline"
                     value={homepageForm.footerTagline}
-                    onChange={(event) => setHomepageForm({ ...homepageForm, footerTagline: event.target.value })}
+                    onChange={(event) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        footerTagline: event.target.value,
+                      })
+                    }
                   />
                   <textarea
                     className={inputClass}
                     rows={4}
                     placeholder="Footer description"
                     value={homepageForm.footerDescription}
-                    onChange={(event) => setHomepageForm({ ...homepageForm, footerDescription: event.target.value })}
+                    onChange={(event) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        footerDescription: event.target.value,
+                      })
+                    }
                   />
                   <div className="grid gap-4 sm:grid-cols-2">
                     <input
                       className={inputClass}
                       placeholder="Primary button label"
                       value={homepageForm.footerPrimaryLabel}
-                      onChange={(event) => setHomepageForm({ ...homepageForm, footerPrimaryLabel: event.target.value })}
+                      onChange={(event) =>
+                        setHomepageForm({
+                          ...homepageForm,
+                          footerPrimaryLabel: event.target.value,
+                        })
+                      }
                     />
                     <input
                       className={inputClass}
                       placeholder="Primary button href"
                       value={homepageForm.footerPrimaryHref}
-                      onChange={(event) => setHomepageForm({ ...homepageForm, footerPrimaryHref: event.target.value })}
+                      onChange={(event) =>
+                        setHomepageForm({
+                          ...homepageForm,
+                          footerPrimaryHref: event.target.value,
+                        })
+                      }
                     />
                     <input
                       className={inputClass}
                       placeholder="Secondary button label"
                       value={homepageForm.footerSecondaryLabel}
-                      onChange={(event) => setHomepageForm({ ...homepageForm, footerSecondaryLabel: event.target.value })}
+                      onChange={(event) =>
+                        setHomepageForm({
+                          ...homepageForm,
+                          footerSecondaryLabel: event.target.value,
+                        })
+                      }
                     />
                     <input
                       className={inputClass}
                       placeholder="Secondary button href"
                       value={homepageForm.footerSecondaryHref}
-                      onChange={(event) => setHomepageForm({ ...homepageForm, footerSecondaryHref: event.target.value })}
+                      onChange={(event) =>
+                        setHomepageForm({
+                          ...homepageForm,
+                          footerSecondaryHref: event.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
@@ -1579,20 +1873,32 @@ export default function AdminDashboard({
                 <div className="esports-card grid gap-4 p-6">
                   <div>
                     <p className="font-display text-sm font-black uppercase text-white">Footer Bottom Bar</p>
-                    <p className="mt-1 text-sm text-text-muted">Short ownership and platform summary copy shown beneath the footer columns.</p>
+                    <p className="mt-1 text-sm text-text-muted">
+                      Short ownership and platform summary copy shown beneath the footer columns.
+                    </p>
                   </div>
                   <input
                     className={inputClass}
                     placeholder="Bottom primary text"
                     value={homepageForm.footerBottomPrimary}
-                    onChange={(event) => setHomepageForm({ ...homepageForm, footerBottomPrimary: event.target.value })}
+                    onChange={(event) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        footerBottomPrimary: event.target.value,
+                      })
+                    }
                   />
                   <textarea
                     className={inputClass}
                     rows={3}
                     placeholder="Bottom secondary text"
                     value={homepageForm.footerBottomSecondary}
-                    onChange={(event) => setHomepageForm({ ...homepageForm, footerBottomSecondary: event.target.value })}
+                    onChange={(event) =>
+                      setHomepageForm({
+                        ...homepageForm,
+                        footerBottomSecondary: event.target.value,
+                      })
+                    }
                   />
                   <div className="grid gap-4 sm:grid-cols-3">
                     {homepageForm.footerHighlights.map((highlight, index) => (
@@ -1603,13 +1909,21 @@ export default function AdminDashboard({
                             className={inputClass}
                             placeholder="Label"
                             value={highlight.label}
-                            onChange={(event) => updateFooterHighlight(index, { label: event.target.value })}
+                            onChange={(event) =>
+                              updateFooterHighlight(index, {
+                                label: event.target.value,
+                              })
+                            }
                           />
                           <input
                             className={inputClass}
                             placeholder="Value"
                             value={highlight.value}
-                            onChange={(event) => updateFooterHighlight(index, { value: event.target.value })}
+                            onChange={(event) =>
+                              updateFooterHighlight(index, {
+                                value: event.target.value,
+                              })
+                            }
                           />
                         </div>
                       </div>
@@ -1638,7 +1952,11 @@ export default function AdminDashboard({
                       rows={6}
                       placeholder="Home | /&#10;News | /news"
                       value={serializeFooterLinks(column.links)}
-                      onChange={(event) => updateFooterColumn(index, { links: parseFooterLinks(event.target.value) })}
+                      onChange={(event) =>
+                        updateFooterColumn(index, {
+                          links: parseFooterLinks(event.target.value),
+                        })
+                      }
                     />
                   </div>
                 ))}
@@ -1688,32 +2006,99 @@ export default function AdminDashboard({
                         ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
                         : newsForm.state === "scheduled"
                           ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue"
-                        : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
+                          : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
                     }`}
                   >
                     {newsForm.state ?? "draft"}
                   </span>
                 </div>
-                <input className={inputClass} placeholder="Title" value={newsForm.title ?? ""} onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })} required />
-                <input className={inputClass} placeholder="Slug" value={newsForm.slug ?? ""} onChange={(e) => setNewsForm({ ...newsForm, slug: e.target.value })} />
-                <textarea className={inputClass} placeholder="Summary" rows={3} value={newsForm.summary ?? ""} onChange={(e) => setNewsForm({ ...newsForm, summary: e.target.value })} required />
-                <textarea className={inputClass} placeholder="Excerpt (optional card + SEO fallback)" rows={2} value={newsForm.excerpt ?? ""} onChange={(e) => setNewsForm({ ...newsForm, excerpt: e.target.value })} />
-                <textarea className={inputClass} placeholder="Body paragraphs separated by blank lines" rows={10} value={newsForm.bodyText} onChange={(e) => setNewsForm({ ...newsForm, bodyText: e.target.value })} />
+                <input
+                  className={inputClass}
+                  placeholder="Title"
+                  value={newsForm.title ?? ""}
+                  onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })}
+                  required
+                />
+                <input
+                  className={inputClass}
+                  placeholder="Slug"
+                  value={newsForm.slug ?? ""}
+                  onChange={(e) => setNewsForm({ ...newsForm, slug: e.target.value })}
+                />
+                <textarea
+                  className={inputClass}
+                  placeholder="Summary"
+                  rows={3}
+                  value={newsForm.summary ?? ""}
+                  onChange={(e) => setNewsForm({ ...newsForm, summary: e.target.value })}
+                  required
+                />
+                <textarea
+                  className={inputClass}
+                  placeholder="Excerpt (optional card + SEO fallback)"
+                  rows={2}
+                  value={newsForm.excerpt ?? ""}
+                  onChange={(e) => setNewsForm({ ...newsForm, excerpt: e.target.value })}
+                />
+                <textarea
+                  className={inputClass}
+                  placeholder="Body paragraphs separated by blank lines"
+                  rows={10}
+                  value={newsForm.bodyText}
+                  onChange={(e) => setNewsForm({ ...newsForm, bodyText: e.target.value })}
+                />
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <input className={inputClass} placeholder="Category" value={newsForm.category ?? ""} onChange={(e) => setNewsForm({ ...newsForm, category: e.target.value })} />
-                  <input className={inputClass} placeholder="Tags (comma separated)" value={joinDelimitedValues(newsForm.tags)} onChange={(e) => setNewsForm({ ...newsForm, tags: splitDelimitedValues(e.target.value) })} />
-                  <input className={inputClass} placeholder="Author" value={newsForm.authorName ?? ""} onChange={(e) => setNewsForm({ ...newsForm, authorName: e.target.value })} />
-                  <input className={inputClass} placeholder="Game slug (optional)" value={newsForm.gameSlug ?? ""} onChange={(e) => setNewsForm({ ...newsForm, gameSlug: e.target.value })} />
-                  <input className={inputClass} type="date" value={newsForm.date ?? ""} onChange={(e) => setNewsForm({ ...newsForm, date: e.target.value })} />
-                  <select className={inputClass} value={newsForm.state ?? "draft"} onChange={(e) => setNewsForm({ ...newsForm, state: e.target.value as ManagedNewsArticleRecord["state"] })}>
+                  <input
+                    className={inputClass}
+                    placeholder="Category"
+                    value={newsForm.category ?? ""}
+                    onChange={(e) => setNewsForm({ ...newsForm, category: e.target.value })}
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Tags (comma separated)"
+                    value={joinDelimitedValues(newsForm.tags)}
+                    onChange={(e) =>
+                      setNewsForm({
+                        ...newsForm,
+                        tags: splitDelimitedValues(e.target.value),
+                      })
+                    }
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Author"
+                    value={newsForm.authorName ?? ""}
+                    onChange={(e) => setNewsForm({ ...newsForm, authorName: e.target.value })}
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Game slug (optional)"
+                    value={newsForm.gameSlug ?? ""}
+                    onChange={(e) => setNewsForm({ ...newsForm, gameSlug: e.target.value })}
+                  />
+                  <input
+                    className={inputClass}
+                    type="date"
+                    value={newsForm.date ?? ""}
+                    onChange={(e) => setNewsForm({ ...newsForm, date: e.target.value })}
+                  />
+                  <select
+                    className={inputClass}
+                    value={newsForm.state ?? "draft"}
+                    onChange={(e) =>
+                      setNewsForm({
+                        ...newsForm,
+                        state: e.target.value as ManagedNewsArticleRecord["state"],
+                      })
+                    }
+                  >
                     <option value="draft">Draft</option>
                     <option value="published">Published</option>
                     <option value="scheduled">Scheduled</option>
                   </select>
                   <div className="space-y-2 sm:col-span-2 lg:col-span-3">
-                    <label className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-                      Publish At (NPT)
-                    </label>
+                    <label className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">Publish At (NPT)</label>
                     <input
                       className={inputClass}
                       type="datetime-local"
@@ -1727,19 +2112,52 @@ export default function AdminDashboard({
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="flex items-center gap-3 rounded-card border border-white/10 bg-bg-primary px-4 py-3 text-sm text-white">
-                    <input type="checkbox" checked={Boolean(newsForm.featured)} onChange={(e) => setNewsForm({ ...newsForm, featured: e.target.checked })} />
+                    <input
+                      type="checkbox"
+                      checked={Boolean(newsForm.featured)}
+                      onChange={(e) => setNewsForm({ ...newsForm, featured: e.target.checked })}
+                    />
                     Featured article
                   </label>
                   <label className="flex items-center gap-3 rounded-card border border-white/10 bg-bg-primary px-4 py-3 text-sm text-white">
-                    <input type="checkbox" checked={Boolean(newsForm.breaking)} onChange={(e) => setNewsForm({ ...newsForm, breaking: e.target.checked })} />
+                    <input
+                      type="checkbox"
+                      checked={Boolean(newsForm.breaking)}
+                      onChange={(e) => setNewsForm({ ...newsForm, breaking: e.target.checked })}
+                    />
                     Breaking article
                   </label>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <input className={inputClass} placeholder="SEO title" value={newsForm.seoTitle ?? ""} onChange={(e) => setNewsForm({ ...newsForm, seoTitle: e.target.value })} />
-                  <input className={inputClass} placeholder="SEO description" value={newsForm.seoDescription ?? ""} onChange={(e) => setNewsForm({ ...newsForm, seoDescription: e.target.value })} />
-                  <input className={inputClass} placeholder="Canonical URL (optional)" value={newsForm.canonicalUrl ?? ""} onChange={(e) => setNewsForm({ ...newsForm, canonicalUrl: e.target.value })} />
-                  <input className={inputClass} placeholder="OG image URL (optional)" value={newsForm.ogImageUrl ?? ""} onChange={(e) => setNewsForm({ ...newsForm, ogImageUrl: e.target.value })} />
+                  <input
+                    className={inputClass}
+                    placeholder="SEO title"
+                    value={newsForm.seoTitle ?? ""}
+                    onChange={(e) => setNewsForm({ ...newsForm, seoTitle: e.target.value })}
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="SEO description"
+                    value={newsForm.seoDescription ?? ""}
+                    onChange={(e) =>
+                      setNewsForm({
+                        ...newsForm,
+                        seoDescription: e.target.value,
+                      })
+                    }
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Canonical URL (optional)"
+                    value={newsForm.canonicalUrl ?? ""}
+                    onChange={(e) => setNewsForm({ ...newsForm, canonicalUrl: e.target.value })}
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="OG image URL (optional)"
+                    value={newsForm.ogImageUrl ?? ""}
+                    onChange={(e) => setNewsForm({ ...newsForm, ogImageUrl: e.target.value })}
+                  />
                 </div>
                 <FileUpload
                   type="announcement_image"
@@ -1756,9 +2174,7 @@ export default function AdminDashboard({
                   onUploaded={(url) => setNewsForm({ ...newsForm, ogImageUrl: url })}
                 />
                 {newsForm.publishedAt ? (
-                  <p className="text-xs text-text-muted">
-                    First published {formatDisplayDateTime(newsForm.publishedAt)}
-                  </p>
+                  <p className="text-xs text-text-muted">First published {formatDisplayDateTime(newsForm.publishedAt)}</p>
                 ) : null}
                 <div className="flex flex-wrap gap-3">
                   <button type="submit" disabled={savingNews} className={btnPrimary}>
@@ -1792,13 +2208,21 @@ export default function AdminDashboard({
                                 ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
                                 : article.state === "scheduled"
                                   ? "border-accent-blue/30 bg-accent-blue/10 text-accent-blue"
-                                : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
+                                  : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"
                             }`}
                           >
                             {article.state}
                           </span>
-                          {article.featured ? <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-accent-blue">Featured</span> : null}
-                          {article.breaking ? <span className="rounded-full border border-accent-red/30 bg-accent-red/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-accent-red">Breaking</span> : null}
+                          {article.featured ? (
+                            <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-accent-blue">
+                              Featured
+                            </span>
+                          ) : null}
+                          {article.breaking ? (
+                            <span className="rounded-full border border-accent-red/30 bg-accent-red/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-accent-red">
+                              Breaking
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                       <p className="mt-3 text-sm text-text-muted">{article.summary}</p>
@@ -1822,7 +2246,12 @@ export default function AdminDashboard({
                           Delete
                         </button>
                         {isManagedNewsArticlePublic(article) ? (
-                          <a href={`/news/${article.slug}`} target="_blank" rel="noreferrer" className="text-sm text-accent-blue hover:underline">
+                          <a
+                            href={`/news/${article.slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-accent-blue hover:underline"
+                          >
                             Open Public Story
                           </a>
                         ) : (
@@ -1866,9 +2295,7 @@ export default function AdminDashboard({
             </div>
 
             {messages.length === 0 ? (
-              <div className="esports-card p-8 text-center text-text-muted">
-                No inbox submissions yet.
-              </div>
+              <div className="esports-card p-8 text-center text-text-muted">No inbox submissions yet.</div>
             ) : (
               <div className="space-y-4">
                 {messages.map((messageItem) => (
@@ -1899,12 +2326,17 @@ export default function AdminDashboard({
                     </div>
                     <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-200">{messageItem.message}</p>
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <a href={`mailto:${messageItem.email}?subject=${encodeURIComponent(messageItem.subject || "Bravo Gaming reply")}`} className="btn-secondary !py-2 !text-[11px]">
+                      <a
+                        href={`mailto:${messageItem.email}?subject=${encodeURIComponent(messageItem.subject || "Bravo Gaming reply")}`}
+                        className="btn-secondary !py-2 !text-[11px]"
+                      >
                         Reply by Email
                       </a>
                       <button
                         type="button"
-                        onClick={() => void handleMessageStatusChange(messageItem.id, messageItem.status === "reviewed" ? "new" : "reviewed")}
+                        onClick={() =>
+                          void handleMessageStatusChange(messageItem.id, messageItem.status === "reviewed" ? "new" : "reviewed")
+                        }
                         className={btnPrimary}
                       >
                         {messageItem.status === "reviewed" ? "Mark New" : "Mark Reviewed"}
@@ -1921,9 +2353,7 @@ export default function AdminDashboard({
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-black text-white">
-                  {editingSeason ? "Edit Season" : "Season Manager"}
-                </h2>
+                <h2 className="text-2xl font-black text-white">{editingSeason ? "Edit Season" : "Season Manager"}</h2>
                 <p className="mt-1 text-sm text-text-muted">
                   Configure the active Bravo daily scrim season, extend it, or rebuild stored day data from the imported feed.
                 </p>
@@ -1968,12 +2398,22 @@ export default function AdminDashboard({
                 min={1}
                 placeholder="Season number"
                 value={seasonForm.seasonNumber ?? 1}
-                onChange={(e) => setSeasonForm({ ...seasonForm, seasonNumber: Number(e.target.value) })}
+                onChange={(e) =>
+                  setSeasonForm({
+                    ...seasonForm,
+                    seasonNumber: Number(e.target.value),
+                  })
+                }
               />
               <select
                 className={inputClass}
                 value={seasonForm.status ?? "active"}
-                onChange={(e) => setSeasonForm({ ...seasonForm, status: e.target.value as SeasonStatus })}
+                onChange={(e) =>
+                  setSeasonForm({
+                    ...seasonForm,
+                    status: e.target.value as SeasonStatus,
+                  })
+                }
               >
                 {(["active", "planned", "completed", "archived"] as const).map((status) => (
                   <option key={status} value={status}>
@@ -1990,7 +2430,12 @@ export default function AdminDashboard({
               <select
                 className={inputClass}
                 value={Number(seasonForm.configuredDays ?? 15)}
-                onChange={(e) => setSeasonForm({ ...seasonForm, configuredDays: Number(e.target.value) })}
+                onChange={(e) =>
+                  setSeasonForm({
+                    ...seasonForm,
+                    configuredDays: Number(e.target.value),
+                  })
+                }
               >
                 <option value={15}>15 Days</option>
                 <option value={30}>30 Days</option>
@@ -2001,13 +2446,23 @@ export default function AdminDashboard({
                 min={0}
                 placeholder="Current day"
                 value={seasonForm.currentDay ?? 0}
-                onChange={(e) => setSeasonForm({ ...seasonForm, currentDay: Number(e.target.value) })}
+                onChange={(e) =>
+                  setSeasonForm({
+                    ...seasonForm,
+                    currentDay: Number(e.target.value),
+                  })
+                }
               />
               <input
                 className={inputClass}
                 placeholder="Current tournament ID"
                 value={seasonForm.currentTournamentId ?? ""}
-                onChange={(e) => setSeasonForm({ ...seasonForm, currentTournamentId: e.target.value })}
+                onChange={(e) =>
+                  setSeasonForm({
+                    ...seasonForm,
+                    currentTournamentId: e.target.value,
+                  })
+                }
               />
               <textarea
                 className={`${inputClass} sm:col-span-2`}
@@ -2075,7 +2530,15 @@ export default function AdminDashboard({
                     </div>
 
                     <div className="mt-5 flex flex-wrap gap-3 text-xs">
-                      <button type="button" onClick={() => { setEditingSeason(season.id); setSeasonForm(season); setSection("seasons"); }} className="text-bravoBlue hover:underline">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSeason(season.id);
+                          setSeasonForm(season);
+                          setSection("seasons");
+                        }}
+                        className="text-bravoBlue hover:underline"
+                      >
                         Edit
                       </button>
                       <button type="button" onClick={() => void handleCreateNextDay(season)} className="text-accent-blue hover:underline">
@@ -2085,12 +2548,20 @@ export default function AdminDashboard({
                         Rebuild
                       </button>
                       {season.status !== "completed" && (
-                        <button type="button" onClick={() => void handleSeasonStatusChange(season, "completed")} className="text-amber-300 hover:underline">
+                        <button
+                          type="button"
+                          onClick={() => void handleSeasonStatusChange(season, "completed")}
+                          className="text-amber-300 hover:underline"
+                        >
                           End Season
                         </button>
                       )}
                       {season.status !== "archived" && (
-                        <button type="button" onClick={() => void handleSeasonStatusChange(season, "archived")} className="text-text-muted hover:underline">
+                        <button
+                          type="button"
+                          onClick={() => void handleSeasonStatusChange(season, "archived")}
+                          className="text-text-muted hover:underline"
+                        >
                           Archive
                         </button>
                       )}
@@ -2111,10 +2582,39 @@ export default function AdminDashboard({
               </button>
             </div>
             <form onSubmit={handleTournamentSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
-              <input className={inputClass} placeholder="Title" value={tournamentForm.title ?? ""} onChange={(e) => setTournamentForm({ ...tournamentForm, title: e.target.value })} required />
-              <input className={inputClass} placeholder="Tier" value={tournamentForm.tier ?? ""} onChange={(e) => setTournamentForm({ ...tournamentForm, tier: e.target.value })} />
-              <select className={inputClass} value={tournamentForm.status ?? "UPCOMING"} onChange={(e) => setTournamentForm({ ...tournamentForm, status: e.target.value as TournamentStatus })}>
-                {(["LIVE", "OPEN", "REGISTERING", "UPCOMING", "COMPLETED"] as const).map((s) => <option key={s} value={s}>{s}</option>)}
+              <input
+                className={inputClass}
+                placeholder="Title"
+                value={tournamentForm.title ?? ""}
+                onChange={(e) =>
+                  setTournamentForm({
+                    ...tournamentForm,
+                    title: e.target.value,
+                  })
+                }
+                required
+              />
+              <input
+                className={inputClass}
+                placeholder="Tier"
+                value={tournamentForm.tier ?? ""}
+                onChange={(e) => setTournamentForm({ ...tournamentForm, tier: e.target.value })}
+              />
+              <select
+                className={inputClass}
+                value={tournamentForm.status ?? "UPCOMING"}
+                onChange={(e) =>
+                  setTournamentForm({
+                    ...tournamentForm,
+                    status: e.target.value as TournamentStatus,
+                  })
+                }
+              >
+                {(["LIVE", "OPEN", "REGISTERING", "UPCOMING", "COMPLETED"] as const).map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
               </select>
               <select
                 className={inputClass}
@@ -2130,24 +2630,129 @@ export default function AdminDashboard({
                 }}
               >
                 <option value="">No season</option>
-                {seasons.map((season) => <option key={season.id} value={season.id}>{season.seriesTitle ?? season.title}</option>)}
+                {seasons.map((season) => (
+                  <option key={season.id} value={season.id}>
+                    {season.seriesTitle ?? season.title}
+                  </option>
+                ))}
               </select>
-              <input className={inputClass} placeholder="Prize Pool" value={tournamentForm.prizePool ?? ""} onChange={(e) => setTournamentForm({ ...tournamentForm, prizePool: e.target.value })} />
-              <input className={inputClass} type="number" placeholder="Max Teams" value={tournamentForm.maxTeams ?? 32} onChange={(e) => setTournamentForm({ ...tournamentForm, maxTeams: Number(e.target.value) })} />
-              <input className={inputClass} type="date" value={tournamentForm.startDate ?? ""} onChange={(e) => setTournamentForm({ ...tournamentForm, startDate: e.target.value })} />
-              <input className={inputClass} type="number" min={1} placeholder="Season Day Number" value={tournamentForm.seasonDayNumber ?? tournamentForm.dayNumber ?? ""} onChange={(e) => setTournamentForm({ ...tournamentForm, seasonDayNumber: e.target.value ? Number(e.target.value) : undefined, dayNumber: e.target.value ? Number(e.target.value) : undefined })} />
-              <input className={`${inputClass} sm:col-span-2`} placeholder="Map rotation (comma separated)" value={(tournamentForm.mapRotation ?? []).join(", ")} onChange={(e) => setTournamentForm({ ...tournamentForm, mapRotation: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
-              <textarea className={`${inputClass} sm:col-span-2`} placeholder="Rules" rows={3} value={tournamentForm.rules ?? ""} onChange={(e) => setTournamentForm({ ...tournamentForm, rules: e.target.value })} />
-              <textarea className={`${inputClass} sm:col-span-2`} placeholder="Schedule" rows={2} value={tournamentForm.schedule ?? ""} onChange={(e) => setTournamentForm({ ...tournamentForm, schedule: e.target.value })} />
-              <textarea className={`${inputClass} sm:col-span-2`} placeholder="Description" rows={2} value={tournamentForm.description ?? ""} onChange={(e) => setTournamentForm({ ...tournamentForm, description: e.target.value })} />
+              <input
+                className={inputClass}
+                placeholder="Prize Pool"
+                value={tournamentForm.prizePool ?? ""}
+                onChange={(e) =>
+                  setTournamentForm({
+                    ...tournamentForm,
+                    prizePool: e.target.value,
+                  })
+                }
+              />
+              <input
+                className={inputClass}
+                type="number"
+                placeholder="Max Teams"
+                value={tournamentForm.maxTeams ?? 32}
+                onChange={(e) =>
+                  setTournamentForm({
+                    ...tournamentForm,
+                    maxTeams: Number(e.target.value),
+                  })
+                }
+              />
+              <input
+                className={inputClass}
+                type="date"
+                value={tournamentForm.startDate ?? ""}
+                onChange={(e) =>
+                  setTournamentForm({
+                    ...tournamentForm,
+                    startDate: e.target.value,
+                  })
+                }
+              />
+              <input
+                className={inputClass}
+                type="number"
+                min={1}
+                placeholder="Season Day Number"
+                value={tournamentForm.seasonDayNumber ?? tournamentForm.dayNumber ?? ""}
+                onChange={(e) =>
+                  setTournamentForm({
+                    ...tournamentForm,
+                    seasonDayNumber: e.target.value ? Number(e.target.value) : undefined,
+                    dayNumber: e.target.value ? Number(e.target.value) : undefined,
+                  })
+                }
+              />
+              <input
+                className={`${inputClass} sm:col-span-2`}
+                placeholder="Map rotation (comma separated)"
+                value={(tournamentForm.mapRotation ?? []).join(", ")}
+                onChange={(e) =>
+                  setTournamentForm({
+                    ...tournamentForm,
+                    mapRotation: e.target.value
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+              <textarea
+                className={`${inputClass} sm:col-span-2`}
+                placeholder="Rules"
+                rows={3}
+                value={tournamentForm.rules ?? ""}
+                onChange={(e) =>
+                  setTournamentForm({
+                    ...tournamentForm,
+                    rules: e.target.value,
+                  })
+                }
+              />
+              <textarea
+                className={`${inputClass} sm:col-span-2`}
+                placeholder="Schedule"
+                rows={2}
+                value={tournamentForm.schedule ?? ""}
+                onChange={(e) =>
+                  setTournamentForm({
+                    ...tournamentForm,
+                    schedule: e.target.value,
+                  })
+                }
+              />
+              <textarea
+                className={`${inputClass} sm:col-span-2`}
+                placeholder="Description"
+                rows={2}
+                value={tournamentForm.description ?? ""}
+                onChange={(e) =>
+                  setTournamentForm({
+                    ...tournamentForm,
+                    description: e.target.value,
+                  })
+                }
+              />
               <div className="sm:col-span-2">
-                <FileUpload type="tournament_banner" entityId={editingTournament ?? tournamentForm.title ?? "new"} label="Tournament Banner" currentUrl={tournamentForm.bannerUrl} onUploaded={(url) => setTournamentForm({ ...tournamentForm, bannerUrl: url })} />
+                <FileUpload
+                  type="tournament_banner"
+                  entityId={editingTournament ?? tournamentForm.title ?? "new"}
+                  label="Tournament Banner"
+                  currentUrl={tournamentForm.bannerUrl}
+                  onUploaded={(url) => setTournamentForm({ ...tournamentForm, bannerUrl: url })}
+                />
               </div>
               <div className="sm:col-span-2">
                 <p className="mb-2 text-xs font-semibold uppercase text-text-muted">Registered Teams</p>
                 <div className="flex flex-wrap gap-2">
                   {teams.map((t) => (
-                    <button key={t.id} type="button" onClick={() => toggleTournamentTeam(t.id)} className={`rounded-full px-3 py-1 text-xs ${(tournamentForm.registeredTeamIds ?? []).includes(t.id) ? "bg-accent-blue text-white" : "border border-white/10 text-text-muted"}`}>
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => toggleTournamentTeam(t.id)}
+                      className={`rounded-full px-3 py-1 text-xs ${(tournamentForm.registeredTeamIds ?? []).includes(t.id) ? "bg-accent-blue text-white" : "border border-white/10 text-text-muted"}`}
+                    >
                       {t.name}
                     </button>
                   ))}
@@ -2158,9 +2763,9 @@ export default function AdminDashboard({
                   <div className="max-w-3xl">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">PUBG Match Pull</p>
                     <p className="mt-2 text-sm text-slate-300">
-                      Save the tournament, paste PUBG match IDs, then pull JSONs. The backend checks stored raw payloads
-                      first, fetches missing matches from PUBG only when needed, saves raw JSON, normalizes teams and
-                      players, auto-assigns match numbers, and prepares standings for publish.
+                      Save the tournament, paste PUBG match IDs, then pull JSONs. The backend checks stored raw payloads first, fetches
+                      missing matches from PUBG only when needed, saves raw JSON, normalizes teams and players, auto-assigns match numbers,
+                      and prepares standings for publish.
                     </p>
                   </div>
                   <button
@@ -2206,26 +2811,58 @@ export default function AdminDashboard({
                 </div>
               </div>
               <div className="flex gap-3 sm:col-span-2">
-                <button type="submit" className={btnPrimary}>{editingTournament ? "Update" : "Create"} Tournament</button>
-                {editingTournament && <button type="button" onClick={resetTournamentEditor} className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300">Cancel</button>}
+                <button type="submit" className={btnPrimary}>
+                  {editingTournament ? "Update" : "Create"} Tournament
+                </button>
+                {editingTournament && (
+                  <button
+                    type="button"
+                    onClick={resetTournamentEditor}
+                    className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
             </form>
             <div className="esports-card overflow-hidden">
               <div className="table-scroll">
                 <table className="min-w-full text-left text-sm">
                   <thead className="border-b border-white/10 bg-slate-950/80 text-slate-400">
-                    <tr><th className="px-4 py-3">Tournament</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Teams</th><th className="px-4 py-3">Actions</th></tr>
+                    <tr>
+                      <th className="px-4 py-3">Tournament</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Teams</th>
+                      <th className="px-4 py-3">Actions</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {tournaments.map((t) => (
                       <tr key={t.id} className="border-b border-white/5">
                         <td className="px-4 py-3 font-semibold text-white">{t.title}</td>
-                        <td className="px-4 py-3"><StatusBadge status={t.status} /></td>
-                        <td className="px-4 py-3 text-slate-300">{t.teamCount}/{t.maxTeams}</td>
+                        <td className="px-4 py-3">
+                          <StatusBadge status={t.status} />
+                        </td>
+                        <td className="px-4 py-3 text-slate-300">
+                          {t.teamCount}/{t.maxTeams}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-3">
-                            <button type="button" onClick={() => openTournamentEditor(t)} className="text-bravoBlue hover:underline">Open Tournament Editor</button>
-                            <button type="button" onClick={async () => { await adminFetch(`/api/tournaments/${t.id}`, { method: "DELETE" }); loadData(); }} className="text-bravoRed hover:underline">Delete</button>
+                            <button type="button" onClick={() => openTournamentEditor(t)} className="text-bravoBlue hover:underline">
+                              Open Tournament Editor
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await adminFetch(`/api/tournaments/${t.id}`, {
+                                  method: "DELETE",
+                                });
+                                loadData();
+                              }}
+                              className="text-bravoRed hover:underline"
+                            >
+                              Delete
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -2241,26 +2878,109 @@ export default function AdminDashboard({
             <BulkTeamLogoUpload teams={teams} onComplete={loadData} />
             <h2 className="text-2xl font-black text-white">{editingTeam ? "Edit Team" : "Add Team"}</h2>
             <form onSubmit={handleTeamSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
-              <input className={inputClass} placeholder="Team Name" value={teamForm.name ?? ""} onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })} required />
-              <input className={inputClass} placeholder="Tag" value={teamForm.tag ?? ""} onChange={(e) => setTeamForm({ ...teamForm, tag: e.target.value })} />
-              <input className={inputClass} placeholder="Country" value={teamForm.country ?? ""} onChange={(e) => setTeamForm({ ...teamForm, country: e.target.value })} />
-              <input className={inputClass} placeholder="Captain Name" value={teamForm.captainName ?? ""} onChange={(e) => setTeamForm({ ...teamForm, captainName: e.target.value })} />
-              <input className={inputClass} placeholder="Captain Discord" value={teamForm.captainDiscord ?? ""} onChange={(e) => setTeamForm({ ...teamForm, captainDiscord: e.target.value })} />
-              <input className={inputClass} placeholder="Captain Phone" value={teamForm.captainPhone ?? ""} onChange={(e) => setTeamForm({ ...teamForm, captainPhone: e.target.value })} />
-              <input className={inputClass} placeholder="Captain Email" value={teamForm.captainEmail ?? ""} onChange={(e) => setTeamForm({ ...teamForm, captainEmail: e.target.value })} />
-              <input className={inputClass} type="number" placeholder="Slot Number" value={teamForm.slotNumber ?? ""} onChange={(e) => setTeamForm({ ...teamForm, slotNumber: e.target.value ? Number(e.target.value) : undefined })} />
-              <select className={inputClass} value={teamForm.registrationStatus ?? "approved"} onChange={(e) => setTeamForm({ ...teamForm, registrationStatus: e.target.value as RegistrationStatus })}>
+              <input
+                className={inputClass}
+                placeholder="Team Name"
+                value={teamForm.name ?? ""}
+                onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+                required
+              />
+              <input
+                className={inputClass}
+                placeholder="Tag"
+                value={teamForm.tag ?? ""}
+                onChange={(e) => setTeamForm({ ...teamForm, tag: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="Country"
+                value={teamForm.country ?? ""}
+                onChange={(e) => setTeamForm({ ...teamForm, country: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="Captain Name"
+                value={teamForm.captainName ?? ""}
+                onChange={(e) => setTeamForm({ ...teamForm, captainName: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="Captain Discord"
+                value={teamForm.captainDiscord ?? ""}
+                onChange={(e) => setTeamForm({ ...teamForm, captainDiscord: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="Captain Phone"
+                value={teamForm.captainPhone ?? ""}
+                onChange={(e) => setTeamForm({ ...teamForm, captainPhone: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="Captain Email"
+                value={teamForm.captainEmail ?? ""}
+                onChange={(e) => setTeamForm({ ...teamForm, captainEmail: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                type="number"
+                placeholder="Slot Number"
+                value={teamForm.slotNumber ?? ""}
+                onChange={(e) =>
+                  setTeamForm({
+                    ...teamForm,
+                    slotNumber: e.target.value ? Number(e.target.value) : undefined,
+                  })
+                }
+              />
+              <select
+                className={inputClass}
+                value={teamForm.registrationStatus ?? "approved"}
+                onChange={(e) =>
+                  setTeamForm({
+                    ...teamForm,
+                    registrationStatus: e.target.value as RegistrationStatus,
+                  })
+                }
+              >
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
               </select>
               <div className="sm:col-span-2">
-                <FileUpload type="team_logo" entityId={editingTeam ?? teamForm.name ?? "new"} label="Team Logo" currentUrl={teamForm.logoUrl ?? teamForm.logo} onUploaded={(url) => setTeamForm({ ...teamForm, logoUrl: url })} />
+                <FileUpload
+                  type="team_logo"
+                  entityId={editingTeam ?? teamForm.name ?? "new"}
+                  label="Team Logo"
+                  currentUrl={teamForm.logoUrl ?? teamForm.logo}
+                  onUploaded={(url) => setTeamForm({ ...teamForm, logoUrl: url })}
+                />
               </div>
-              <p className="sm:col-span-2 text-xs text-text-muted">Match stats (points, kills) update automatically from live PUBG imports. Manual edits are for corrections only.</p>
+              <p className="sm:col-span-2 text-xs text-text-muted">
+                Match stats (points, kills) update automatically from live PUBG imports. Manual edits are for corrections only.
+              </p>
               <div className="flex gap-3 sm:col-span-2">
-                <button type="submit" className={btnPrimary}>{editingTeam ? "Update" : "Create"} Team</button>
-                {editingTeam && <button type="button" onClick={() => { setEditingTeam(null); setTeamForm({ totalPoints: 0, kills: 0, matches: 0, status: "active", registrationStatus: "approved" }); }} className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300">Cancel</button>}
+                <button type="submit" className={btnPrimary}>
+                  {editingTeam ? "Update" : "Create"} Team
+                </button>
+                {editingTeam && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingTeam(null);
+                      setTeamForm({
+                        totalPoints: 0,
+                        kills: 0,
+                        matches: 0,
+                        status: "active",
+                        registrationStatus: "approved",
+                      });
+                    }}
+                    className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
             </form>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -2269,7 +2989,13 @@ export default function AdminDashboard({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
                       {team.logoUrl || team.logo ? (
-                        <img src={team.logoUrl ?? team.logo} alt={team.name} loading="lazy" decoding="async" className="h-14 w-14 rounded-xl border border-white/10 object-cover" />
+                        <img
+                          src={team.logoUrl ?? team.logo}
+                          alt={team.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-14 w-14 rounded-xl border border-white/10 object-cover"
+                        />
                       ) : (
                         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/15 text-[10px] uppercase text-text-muted">
                           No Logo
@@ -2279,14 +3005,50 @@ export default function AdminDashboard({
                         <p className="font-semibold text-white">
                           {team.name} {team.tag && <span className="text-accent-blue">[{team.tag}]</span>}
                         </p>
-                        <p className="text-sm text-slate-400">{team.country ?? "—"} · Captain: {team.captainName ?? "—"}</p>
-                        <p className="mt-1 text-xs text-text-muted">Slot #{team.slotNumber ?? "—"} · Rank #{team.rank ?? "—"} · {team.totalPoints ?? 0} pts · {team.matches ?? 0} matches</p>
+                        <p className="text-sm text-slate-400">
+                          {team.country ?? "—"} · Captain: {team.captainName ?? "—"}
+                        </p>
+                        <p className="mt-1 text-xs text-text-muted">
+                          Slot #{team.slotNumber ?? "—"} · Rank #{team.rank ?? "—"} · {team.totalPoints ?? 0} pts · {team.matches ?? 0}{" "}
+                          matches
+                        </p>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => { setEditingTeam(team.id); setTeamForm(team); setSelectedTeamId(team.id); setSection("players"); }} className="text-bravoBlue text-sm hover:underline">Players</button>
-                      <button type="button" onClick={() => { setEditingTeam(team.id); setTeamForm(team); }} className="text-bravoBlue text-sm hover:underline">Edit</button>
-                      <button type="button" onClick={async () => { await adminFetch(`/api/teams/${team.id}`, { method: "DELETE" }); loadData(); }} className="text-bravoRed text-sm hover:underline">Delete</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTeam(team.id);
+                          setTeamForm(team);
+                          setSelectedTeamId(team.id);
+                          setSection("players");
+                        }}
+                        className="text-bravoBlue text-sm hover:underline"
+                      >
+                        Players
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTeam(team.id);
+                          setTeamForm(team);
+                        }}
+                        className="text-bravoBlue text-sm hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await adminFetch(`/api/teams/${team.id}`, {
+                            method: "DELETE",
+                          });
+                          loadData();
+                        }}
+                        className="text-bravoRed text-sm hover:underline"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2302,36 +3064,150 @@ export default function AdminDashboard({
               <p className="text-sm text-accent-blue">Managing players for: {teams.find((t) => t.id === selectedTeamId)?.name}</p>
             )}
             <form onSubmit={handlePlayerSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
-              <input className={inputClass} placeholder="Real Name" value={playerForm.realName ?? ""} onChange={(e) => setPlayerForm({ ...playerForm, realName: e.target.value })} />
-              <input className={inputClass} placeholder="In-Game Name" value={playerForm.inGameName ?? playerForm.name ?? ""} onChange={(e) => setPlayerForm({ ...playerForm, inGameName: e.target.value, name: e.target.value })} required />
-              <input className={inputClass} placeholder="PUBG ID" value={playerForm.pubgId ?? ""} onChange={(e) => setPlayerForm({ ...playerForm, pubgId: e.target.value })} />
-              <select className={inputClass} value={playerForm.role ?? ""} onChange={(e) => setPlayerForm({ ...playerForm, role: e.target.value as PlayerRole })}>
+              <input
+                className={inputClass}
+                placeholder="Real Name"
+                value={playerForm.realName ?? ""}
+                onChange={(e) => setPlayerForm({ ...playerForm, realName: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="In-Game Name"
+                value={playerForm.inGameName ?? playerForm.name ?? ""}
+                onChange={(e) =>
+                  setPlayerForm({
+                    ...playerForm,
+                    inGameName: e.target.value,
+                    name: e.target.value,
+                  })
+                }
+                required
+              />
+              <input
+                className={inputClass}
+                placeholder="PUBG ID"
+                value={playerForm.pubgId ?? ""}
+                onChange={(e) => setPlayerForm({ ...playerForm, pubgId: e.target.value })}
+              />
+              <select
+                className={inputClass}
+                value={playerForm.role ?? ""}
+                onChange={(e) =>
+                  setPlayerForm({
+                    ...playerForm,
+                    role: e.target.value as PlayerRole,
+                  })
+                }
+              >
                 <option value="">Role</option>
-                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
               </select>
-              <select className={inputClass} value={playerForm.teamId ?? selectedTeamId ?? ""} onChange={(e) => { const team = teams.find((t) => t.id === e.target.value); setPlayerForm({ ...playerForm, teamId: e.target.value, teamName: team?.name }); }}>
+              <select
+                className={inputClass}
+                value={playerForm.teamId ?? selectedTeamId ?? ""}
+                onChange={(e) => {
+                  const team = teams.find((t) => t.id === e.target.value);
+                  setPlayerForm({
+                    ...playerForm,
+                    teamId: e.target.value,
+                    teamName: team?.name,
+                  });
+                }}
+              >
                 <option value="">Select Team</option>
-                {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
               </select>
-              <select className={inputClass} value={playerForm.playerStatus ?? "active"} onChange={(e) => setPlayerForm({ ...playerForm, playerStatus: e.target.value as PlayerStatus })}>
+              <select
+                className={inputClass}
+                value={playerForm.playerStatus ?? "active"}
+                onChange={(e) =>
+                  setPlayerForm({
+                    ...playerForm,
+                    playerStatus: e.target.value as PlayerStatus,
+                  })
+                }
+              >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
-              <input className={inputClass} placeholder="Discord" value={playerForm.discord ?? ""} onChange={(e) => setPlayerForm({ ...playerForm, discord: e.target.value })} />
-              <input className={inputClass} placeholder="Phone / Email" value={playerForm.phone ?? playerForm.email ?? ""} onChange={(e) => setPlayerForm({ ...playerForm, phone: e.target.value, email: e.target.value })} />
-              <input className={inputClass} placeholder="Nationality" value={playerForm.nationality ?? ""} onChange={(e) => setPlayerForm({ ...playerForm, nationality: e.target.value })} />
+              <input
+                className={inputClass}
+                placeholder="Discord"
+                value={playerForm.discord ?? ""}
+                onChange={(e) => setPlayerForm({ ...playerForm, discord: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="Phone / Email"
+                value={playerForm.phone ?? playerForm.email ?? ""}
+                onChange={(e) =>
+                  setPlayerForm({
+                    ...playerForm,
+                    phone: e.target.value,
+                    email: e.target.value,
+                  })
+                }
+              />
+              <input
+                className={inputClass}
+                placeholder="Nationality"
+                value={playerForm.nationality ?? ""}
+                onChange={(e) => setPlayerForm({ ...playerForm, nationality: e.target.value })}
+              />
               <div className="sm:col-span-2">
-                <FileUpload type="player_avatar" entityId={editingPlayer ?? playerForm.inGameName ?? "new"} label="Profile Picture" currentUrl={playerForm.avatarUrl ?? playerForm.avatar} onUploaded={(url) => setPlayerForm({ ...playerForm, avatarUrl: url })} />
+                <FileUpload
+                  type="player_avatar"
+                  entityId={editingPlayer ?? playerForm.inGameName ?? "new"}
+                  label="Profile Picture"
+                  currentUrl={playerForm.avatarUrl ?? playerForm.avatar}
+                  onUploaded={(url) => setPlayerForm({ ...playerForm, avatarUrl: url })}
+                />
               </div>
               <div className="flex gap-3 sm:col-span-2">
-                <button type="submit" className={btnPrimary}>{editingPlayer ? "Update" : "Create"} Player</button>
-                {editingPlayer && <button type="button" onClick={() => { setEditingPlayer(null); setPlayerForm({ kills: 0, damage: 0, mvpCount: 0, chickenDinners: 0, matches: 0, playerStatus: "active" }); }} className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300">Cancel</button>}
+                <button type="submit" className={btnPrimary}>
+                  {editingPlayer ? "Update" : "Create"} Player
+                </button>
+                {editingPlayer && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingPlayer(null);
+                      setPlayerForm({
+                        kills: 0,
+                        damage: 0,
+                        mvpCount: 0,
+                        chickenDinners: 0,
+                        matches: 0,
+                        playerStatus: "active",
+                      });
+                    }}
+                    className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
             </form>
             <div className="esports-card overflow-hidden">
               <div className="table-scroll">
                 <table className="min-w-full text-left text-sm">
-                  <thead className="border-b border-white/10 text-slate-400"><tr><th className="px-4 py-3">Player</th><th className="px-4 py-3">Team</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Kills</th><th className="px-4 py-3">Actions</th></tr></thead>
+                  <thead className="border-b border-white/10 text-slate-400">
+                    <tr>
+                      <th className="px-4 py-3">Player</th>
+                      <th className="px-4 py-3">Team</th>
+                      <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3">Kills</th>
+                      <th className="px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {(selectedTeamId ? teamPlayers : players).map((p) => (
                       <tr key={p.id} className="border-b border-white/5">
@@ -2341,8 +3217,28 @@ export default function AdminDashboard({
                         <td className="px-4 py-3 text-slate-300">{p.kills}</td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-3">
-                            <button type="button" onClick={() => { setEditingPlayer(p.id); setPlayerForm(p); }} className="text-bravoBlue hover:underline">Edit</button>
-                            <button type="button" onClick={async () => { await adminFetch(`/api/players/${p.id}`, { method: "DELETE" }); loadData(); }} className="text-bravoRed hover:underline">Delete</button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingPlayer(p.id);
+                                setPlayerForm(p);
+                              }}
+                              className="text-bravoBlue hover:underline"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await adminFetch(`/api/players/${p.id}`, {
+                                  method: "DELETE",
+                                });
+                                loadData();
+                              }}
+                              className="text-bravoRed hover:underline"
+                            >
+                              Delete
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -2382,18 +3278,14 @@ export default function AdminDashboard({
                 activeSeasonTournaments.map((tournament) => {
                   const linkedScrim =
                     activeSeasonScrims.find((scrim) => scrim.tournamentId === tournament.id) ??
-                    activeSeasonScrims.find(
-                      (scrim) => scrim.seasonDayNumber === (tournament.seasonDayNumber ?? tournament.dayNumber)
-                    );
+                    activeSeasonScrims.find((scrim) => scrim.seasonDayNumber === (tournament.seasonDayNumber ?? tournament.dayNumber));
                   const dayNumber = tournament.seasonDayNumber ?? tournament.dayNumber ?? "-";
 
                   return (
                     <div key={tournament.id} className="esports-card p-5">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-blue">
-                            Day {dayNumber}
-                          </p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-blue">Day {dayNumber}</p>
                           <p className="mt-2 font-semibold text-white">{tournament.title}</p>
                           <p className="mt-1 text-sm text-text-muted">
                             {linkedScrim?.date ?? tournament.startDate} | {linkedScrim?.map ?? "Map pending"} |{" "}
@@ -2416,7 +3308,7 @@ export default function AdminDashboard({
                           <p className="mt-2 text-sm font-semibold text-white">
                             {linkedScrim?.status === "waiting_for_data"
                               ? "Waiting for match imports"
-                              : linkedScrim?.status ?? "Not created"}
+                              : (linkedScrim?.status ?? "Not created")}
                           </p>
                         </div>
                       </div>
@@ -2458,8 +3350,20 @@ export default function AdminDashboard({
 
             <h3 className="text-xl font-black text-white">{editingScrim ? "Edit Day Record" : "Manual Day Record"}</h3>
             <form onSubmit={handleScrimSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
-              <input className={inputClass} placeholder="Title" value={scrimForm.title ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, title: e.target.value })} required />
-              <input className={inputClass} type="date" value={scrimForm.date ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, date: e.target.value })} required />
+              <input
+                className={inputClass}
+                placeholder="Title"
+                value={scrimForm.title ?? ""}
+                onChange={(e) => setScrimForm({ ...scrimForm, title: e.target.value })}
+                required
+              />
+              <input
+                className={inputClass}
+                type="date"
+                value={scrimForm.date ?? ""}
+                onChange={(e) => setScrimForm({ ...scrimForm, date: e.target.value })}
+                required
+              />
               <select
                 className={inputClass}
                 value={scrimForm.seasonId ?? activeSeason?.id ?? ""}
@@ -2473,19 +3377,82 @@ export default function AdminDashboard({
                 }}
               >
                 <option value="">No season</option>
-                {seasons.map((season) => <option key={season.id} value={season.id}>{season.seriesTitle ?? season.title}</option>)}
+                {seasons.map((season) => (
+                  <option key={season.id} value={season.id}>
+                    {season.seriesTitle ?? season.title}
+                  </option>
+                ))}
               </select>
-              <input className={inputClass} placeholder="Map" value={scrimForm.map ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, map: e.target.value })} required />
-              <input className={inputClass} placeholder="Lobby Time" value={scrimForm.lobbyTime ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, lobbyTime: e.target.value })} />
-              <input className={inputClass} placeholder="Room ID" value={scrimForm.roomId ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, roomId: e.target.value })} />
-              <input className={inputClass} placeholder="Room Password" value={scrimForm.roomPassword ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, roomPassword: e.target.value })} />
-              <input className={inputClass} type="number" min={1} placeholder="Season Day Number" value={scrimForm.seasonDayNumber ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, seasonDayNumber: e.target.value ? Number(e.target.value) : undefined })} />
-              <select className={inputClass} value={scrimForm.status ?? "scheduled"} onChange={(e) => setScrimForm({ ...scrimForm, status: e.target.value as ScrimStatus })}>
-                {(["scheduled", "live", "completed", "waiting_for_data"] as const).map((s) => <option key={s} value={s}>{s}</option>)}
+              <input
+                className={inputClass}
+                placeholder="Map"
+                value={scrimForm.map ?? ""}
+                onChange={(e) => setScrimForm({ ...scrimForm, map: e.target.value })}
+                required
+              />
+              <input
+                className={inputClass}
+                placeholder="Lobby Time"
+                value={scrimForm.lobbyTime ?? ""}
+                onChange={(e) => setScrimForm({ ...scrimForm, lobbyTime: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="Room ID"
+                value={scrimForm.roomId ?? ""}
+                onChange={(e) => setScrimForm({ ...scrimForm, roomId: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                placeholder="Room Password"
+                value={scrimForm.roomPassword ?? ""}
+                onChange={(e) => setScrimForm({ ...scrimForm, roomPassword: e.target.value })}
+              />
+              <input
+                className={inputClass}
+                type="number"
+                min={1}
+                placeholder="Season Day Number"
+                value={scrimForm.seasonDayNumber ?? ""}
+                onChange={(e) =>
+                  setScrimForm({
+                    ...scrimForm,
+                    seasonDayNumber: e.target.value ? Number(e.target.value) : undefined,
+                  })
+                }
+              />
+              <select
+                className={inputClass}
+                value={scrimForm.status ?? "scheduled"}
+                onChange={(e) =>
+                  setScrimForm({
+                    ...scrimForm,
+                    status: e.target.value as ScrimStatus,
+                  })
+                }
+              >
+                {(["scheduled", "live", "completed", "waiting_for_data"] as const).map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
               </select>
-              <select className={inputClass} value={scrimForm.tournamentId ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, tournamentId: e.target.value || undefined })}>
+              <select
+                className={inputClass}
+                value={scrimForm.tournamentId ?? ""}
+                onChange={(e) =>
+                  setScrimForm({
+                    ...scrimForm,
+                    tournamentId: e.target.value || undefined,
+                  })
+                }
+              >
                 <option value="">Linked tournament (optional)</option>
-                {tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.title}</option>)}
+                {tournaments.map((tournament) => (
+                  <option key={tournament.id} value={tournament.id}>
+                    {tournament.title}
+                  </option>
+                ))}
               </select>
               <textarea
                 className={`${inputClass} sm:col-span-2`}
@@ -2494,24 +3461,69 @@ export default function AdminDashboard({
                 value={formatScrimMatchIds(scrimForm)}
                 onChange={(e) => {
                   const pubgMatchIds = normalizeMatchIds(e.target.value);
-                  setScrimForm({ ...scrimForm, pubgMatchIds, pubgMatchId: pubgMatchIds[0] });
+                  setScrimForm({
+                    ...scrimForm,
+                    pubgMatchIds,
+                    pubgMatchId: pubgMatchIds[0],
+                  });
                 }}
               />
-              <input className={`${inputClass} sm:col-span-2`} placeholder="Map rotation (comma separated)" value={(scrimForm.mapRotation ?? []).join(", ")} onChange={(e) => setScrimForm({ ...scrimForm, mapRotation: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
-              <textarea className={`${inputClass} sm:col-span-2`} placeholder="Announcement" rows={2} value={scrimForm.announcement ?? ""} onChange={(e) => setScrimForm({ ...scrimForm, announcement: e.target.value })} />
+              <input
+                className={`${inputClass} sm:col-span-2`}
+                placeholder="Map rotation (comma separated)"
+                value={(scrimForm.mapRotation ?? []).join(", ")}
+                onChange={(e) =>
+                  setScrimForm({
+                    ...scrimForm,
+                    mapRotation: e.target.value
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+              <textarea
+                className={`${inputClass} sm:col-span-2`}
+                placeholder="Announcement"
+                rows={2}
+                value={scrimForm.announcement ?? ""}
+                onChange={(e) => setScrimForm({ ...scrimForm, announcement: e.target.value })}
+              />
               <div className="sm:col-span-2">
                 <p className="mb-2 text-xs font-semibold uppercase text-text-muted">Assigned Teams</p>
                 <div className="flex flex-wrap gap-2">
                   {teams.map((t) => (
-                    <button key={t.id} type="button" onClick={() => toggleScrimTeam(t.id)} className={`rounded-full px-3 py-1 text-xs ${(scrimForm.teamIds ?? []).includes(t.id) ? "bg-accent-green text-black" : "border border-white/10 text-text-muted"}`}>
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => toggleScrimTeam(t.id)}
+                      className={`rounded-full px-3 py-1 text-xs ${(scrimForm.teamIds ?? []).includes(t.id) ? "bg-accent-green text-black" : "border border-white/10 text-text-muted"}`}
+                    >
                       {t.name}
                     </button>
                   ))}
                 </div>
               </div>
               <div className="flex gap-3 sm:col-span-2">
-                <button type="submit" className={btnPrimary}>{editingScrim ? "Update" : "Create"} Scrim</button>
-                {editingScrim && <button type="button" onClick={() => { setEditingScrim(null); setScrimForm({ ...defaultScrimForm, seasonId: activeSeason?.id, seasonTitle: activeSeason?.seriesTitle ?? activeSeason?.title }); }} className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300">Cancel</button>}
+                <button type="submit" className={btnPrimary}>
+                  {editingScrim ? "Update" : "Create"} Scrim
+                </button>
+                {editingScrim && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingScrim(null);
+                      setScrimForm({
+                        ...defaultScrimForm,
+                        seasonId: activeSeason?.id,
+                        seasonTitle: activeSeason?.seriesTitle ?? activeSeason?.title,
+                      });
+                    }}
+                    className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
             </form>
             <div className="space-y-3">
@@ -2519,9 +3531,15 @@ export default function AdminDashboard({
                 <div key={s.id} className="esports-card flex flex-wrap items-center justify-between gap-4 p-5">
                   <div>
                     <p className="font-semibold text-white">{s.title}</p>
-                    <p className="text-sm text-text-muted">{s.date} - {s.map} - {s.lobbyTime}</p>
-                    <p className="text-xs text-text-muted">Room: {s.roomId ?? "-"} - Match IDs: {getScrimMatchIds(s).join(", ") || "-"}</p>
-                    <span className="mt-2 inline-block rounded-full bg-white/5 px-2 py-0.5 text-[10px] uppercase text-accent-blue">{s.status}</span>
+                    <p className="text-sm text-text-muted">
+                      {s.date} - {s.map} - {s.lobbyTime}
+                    </p>
+                    <p className="text-xs text-text-muted">
+                      Room: {s.roomId ?? "-"} - Match IDs: {getScrimMatchIds(s).join(", ") || "-"}
+                    </p>
+                    <span className="mt-2 inline-block rounded-full bg-white/5 px-2 py-0.5 text-[10px] uppercase text-accent-blue">
+                      {s.status}
+                    </span>
                   </div>
                   <div className="flex gap-2">
                     {getScrimMatchIds(s).length > 0 && (
@@ -2538,8 +3556,32 @@ export default function AdminDashboard({
                         Import Data
                       </button>
                     )}
-                    <button type="button" onClick={() => { setEditingScrim(s.id); setScrimForm({ ...s, pubgMatchIds: getScrimMatchIds(s), pubgMatchId: getScrimMatchIds(s)[0] }); }} className="text-bravoBlue text-sm hover:underline">Edit</button>
-                    <button type="button" onClick={async () => { await adminFetch(`/api/admin/scrims?id=${s.id}`, { method: "DELETE" }); loadData(); }} className="text-bravoRed text-sm hover:underline">Delete</button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingScrim(s.id);
+                        setScrimForm({
+                          ...s,
+                          pubgMatchIds: getScrimMatchIds(s),
+                          pubgMatchId: getScrimMatchIds(s)[0],
+                        });
+                      }}
+                      className="text-bravoBlue text-sm hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await adminFetch(`/api/admin/scrims?id=${s.id}`, {
+                          method: "DELETE",
+                        });
+                        loadData();
+                      }}
+                      className="text-bravoRed text-sm hover:underline"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               ))}
@@ -2550,9 +3592,7 @@ export default function AdminDashboard({
         {section === "pendingImports" && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-black text-white">
-                {focusImportBatchId ? "Import Review" : "Pending Imports"}
-              </h2>
+              <h2 className="text-2xl font-black text-white">{focusImportBatchId ? "Import Review" : "Pending Imports"}</h2>
               <p className="mt-1 text-sm text-text-muted">
                 {focusImportBatchId
                   ? "Review this saved PUBG batch, approve it when ready, and publish standings from the same screen."
@@ -2562,8 +3602,8 @@ export default function AdminDashboard({
             {focusImportBatchId && focusedImportBatch && focusedImportBatch.status !== "pending" ? (
               <div className="esports-card space-y-4 p-6">
                 <p className="text-sm text-text-muted">
-                  This batch is already <span className="font-semibold text-white">{focusedImportBatch.status}</span>.
-                  Open the audit history below to inspect the final result.
+                  This batch is already <span className="font-semibold text-white">{focusedImportBatch.status}</span>. Open the audit
+                  history below to inspect the final result.
                 </p>
                 <button type="button" onClick={() => setSection("approvedImports")} className="btn-secondary w-fit">
                   Open Approved Imports
@@ -2588,8 +3628,8 @@ export default function AdminDashboard({
                           {batch.dayTitle ?? batch.scrimTitle ?? batch.tournamentTitle ?? "Pending PUBG Import"}
                         </p>
                         <p className="mt-1 text-sm text-text-muted">
-                          {batch.dayDate ?? "Date pending"} | {batch.dayMap ?? "Map pending"} |{" "}
-                          {batch.previews?.length ?? 0} match{(batch.previews?.length ?? 0) === 1 ? "" : "es"}
+                          {batch.dayDate ?? "Date pending"} | {batch.dayMap ?? "Map pending"} | {batch.previews?.length ?? 0} match
+                          {(batch.previews?.length ?? 0) === 1 ? "" : "es"}
                         </p>
                       </div>
                       <span className="rounded-full border border-accent-yellow/30 bg-accent-yellow/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-accent-yellow">
@@ -2601,13 +3641,9 @@ export default function AdminDashboard({
                         <div key={`${batch.id}-${preview.sourceMatchId}`} className="rounded-card border border-white/10 bg-bg-primary p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-xs uppercase tracking-[0.14em] text-text-muted">
-                                Match {preview.matchNumber ?? "-"}
-                              </p>
+                              <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match {preview.matchNumber ?? "-"}</p>
                               <p className="mt-2 font-mono text-xs text-white">{preview.matchId}</p>
-                              <p className="mt-1 text-sm text-text-muted">
-                                {preview.map ?? preview.summary.mapName ?? "Map pending"}
-                              </p>
+                              <p className="mt-1 text-sm text-text-muted">{preview.map ?? preview.summary.mapName ?? "Map pending"}</p>
                               <p className="mt-1 text-xs text-text-muted">
                                 {preview.matchDate ?? "Date pending"} {preview.matchTime ?? ""}
                               </p>
@@ -2737,14 +3773,10 @@ export default function AdminDashboard({
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-black text-white">Approved Imports</h2>
-              <p className="mt-1 text-sm text-text-muted">
-                Approved and rejected PUBG import batches stay here as the admin audit trail.
-              </p>
+              <p className="mt-1 text-sm text-text-muted">Approved and rejected PUBG import batches stay here as the admin audit trail.</p>
             </div>
             {processedImportBatches.length === 0 ? (
-              <div className="esports-card p-8 text-center text-text-muted">
-                No approved or rejected import batches yet.
-              </div>
+              <div className="esports-card p-8 text-center text-text-muted">No approved or rejected import batches yet.</div>
             ) : (
               <div className="space-y-4">
                 {processedImportBatches.map((batch) => (
@@ -2758,12 +3790,13 @@ export default function AdminDashboard({
                           {batch.dayTitle ?? batch.scrimTitle ?? batch.tournamentTitle ?? "PUBG Import Batch"}
                         </p>
                         <p className="mt-1 text-sm text-text-muted">
-                          {batch.previews?.length ?? 0} match{(batch.previews?.length ?? 0) === 1 ? "" : "es"} |{" "}
+                          {batch.previews?.length ?? 0} match
+                          {(batch.previews?.length ?? 0) === 1 ? "" : "es"} |{" "}
                           {batch.approvedAt
                             ? `Published ${formatDisplayDateTime(batch.approvedAt)}`
                             : batch.rejectedAt
-                            ? `Rejected ${formatDisplayDateTime(batch.rejectedAt)}`
-                            : "Awaiting timestamp"}
+                              ? `Rejected ${formatDisplayDateTime(batch.rejectedAt)}`
+                              : "Awaiting timestamp"}
                         </p>
                       </div>
                       <span
@@ -2790,9 +3823,7 @@ export default function AdminDashboard({
                         <p className="mt-2 font-mono-stat text-white">{batch.importResult?.failedCount ?? 0}</p>
                       </div>
                     </div>
-                    {batch.rejectedReason && (
-                      <p className="mt-4 text-sm text-text-muted">Rejected reason: {batch.rejectedReason}</p>
-                    )}
+                    {batch.rejectedReason && <p className="mt-4 text-sm text-text-muted">Rejected reason: {batch.rejectedReason}</p>}
                   </div>
                 ))}
               </div>
@@ -2803,9 +3834,7 @@ export default function AdminDashboard({
         {section === "matches" && (
           <div className="space-y-6">
             <h2 className="text-2xl font-black text-white">Statistics</h2>
-            <p className="text-sm text-text-muted">
-              Live published match results and the current overall team leaderboard.
-            </p>
+            <p className="text-sm text-text-muted">Live published match results and the current overall team leaderboard.</p>
             {leaderboardRows.length > 0 && (
               <div className="esports-card overflow-hidden">
                 <div className="border-b border-white/10 px-5 py-4">
@@ -2813,7 +3842,17 @@ export default function AdminDashboard({
                 </div>
                 <div className="table-scroll">
                   <table className="data-table min-w-full">
-                    <thead><tr><th>#</th><th>Slot</th><th>Team</th><th>M</th><th>K</th><th>Place Pts</th><th>Total</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Slot</th>
+                        <th>Team</th>
+                        <th>M</th>
+                        <th>K</th>
+                        <th>Place Pts</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {leaderboardRows.map((team) => (
                         <tr key={team.id}>
@@ -2837,7 +3876,16 @@ export default function AdminDashboard({
               <div className="esports-card overflow-hidden">
                 <div className="table-scroll">
                   <table className="data-table min-w-full">
-                    <thead><tr><th>Match ID</th><th>Map</th><th>Winner</th><th>Points</th><th>KOs</th><th>Synced</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>Match ID</th>
+                        <th>Map</th>
+                        <th>Winner</th>
+                        <th>Points</th>
+                        <th>KOs</th>
+                        <th>Synced</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {liveMatches.map((m) => (
                         <tr key={m.id}>
@@ -2867,7 +3915,16 @@ export default function AdminDashboard({
               <div className="esports-card overflow-hidden">
                 <div className="table-scroll">
                   <table className="data-table min-w-full">
-                    <thead><tr><th>#</th><th>Team</th><th>M</th><th>K</th><th>Place Pts</th><th>Total</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Team</th>
+                        <th>M</th>
+                        <th>K</th>
+                        <th>Place Pts</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {leaderboardRows.map((t) => (
                         <tr key={t.id}>
@@ -2917,16 +3974,12 @@ export default function AdminDashboard({
                             Submitted {formatDisplayDateTime(r.createdAt)}
                           </p>
                           {r.playerNames.length > 0 ? (
-                            <p className="mt-2 text-sm text-slate-300">
-                              Roster: {r.playerNames.join(", ")}
-                            </p>
+                            <p className="mt-2 text-sm text-slate-300">Roster: {r.playerNames.join(", ")}</p>
                           ) : null}
                           {r.tournamentId ? (
                             <p className="mt-1 text-sm text-slate-300">Tournament: {r.tournamentTitle ?? "Published event linked"}</p>
                           ) : null}
-                          {r.approvedTeamId ? (
-                            <p className="mt-1 text-sm text-accent-green">Published team: {r.approvedTeamId}</p>
-                          ) : null}
+                          {r.approvedTeamId ? <p className="mt-1 text-sm text-accent-green">Published team: {r.approvedTeamId}</p> : null}
                           <span
                             className={`mt-3 inline-block rounded-full px-3 py-1 text-xs uppercase ${
                               r.status === "pending"
@@ -2973,9 +4026,34 @@ export default function AdminDashboard({
           <div className="space-y-6">
             <h2 className="text-2xl font-black text-white">Announcements</h2>
             <form onSubmit={handleAnnouncementSubmit} className="esports-card grid gap-4 p-6">
-              <input className={inputClass} placeholder="Title" value={announcementForm.title ?? ""} onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })} required />
-              <textarea className={inputClass} placeholder="Detail" rows={3} value={announcementForm.detail ?? ""} onChange={(e) => setAnnouncementForm({ ...announcementForm, detail: e.target.value })} required />
-              <button type="submit" className={`${btnPrimary} w-fit`}>Publish</button>
+              <input
+                className={inputClass}
+                placeholder="Title"
+                value={announcementForm.title ?? ""}
+                onChange={(e) =>
+                  setAnnouncementForm({
+                    ...announcementForm,
+                    title: e.target.value,
+                  })
+                }
+                required
+              />
+              <textarea
+                className={inputClass}
+                placeholder="Detail"
+                rows={3}
+                value={announcementForm.detail ?? ""}
+                onChange={(e) =>
+                  setAnnouncementForm({
+                    ...announcementForm,
+                    detail: e.target.value,
+                  })
+                }
+                required
+              />
+              <button type="submit" className={`${btnPrimary} w-fit`}>
+                Publish
+              </button>
             </form>
             <div className="space-y-3">
               {announcements.map((a) => (
@@ -2984,7 +4062,18 @@ export default function AdminDashboard({
                     <p className="font-semibold text-white">{a.title}</p>
                     <p className="text-sm text-slate-400">{a.date}</p>
                   </div>
-                  <button type="button" onClick={async () => { await adminFetch(`/api/announcements?id=${a.id}`, { method: "DELETE" }); loadData(); }} className={btnDanger}>Delete</button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await adminFetch(`/api/announcements?id=${a.id}`, {
+                        method: "DELETE",
+                      });
+                      loadData();
+                    }}
+                    className={btnDanger}
+                  >
+                    Delete
+                  </button>
                 </div>
               ))}
             </div>
@@ -3005,9 +4094,7 @@ export default function AdminDashboard({
           />
         )}
 
-        {section === "matchManager" && (
-          <AdminMatchManager tournaments={tournaments} scrims={scrims} onChanged={loadData} />
-        )}
+        {section === "matchManager" && <AdminMatchManager tournaments={tournaments} scrims={scrims} onChanged={loadData} />}
 
         {section === "settings" && (
           <div className="space-y-6">
@@ -3060,7 +4147,9 @@ export default function AdminDashboard({
             </div>
             <div className="esports-card space-y-4 p-6">
               <p className="font-semibold text-white">Auto-Sync Cron</p>
-              <p className="text-sm text-slate-400">Configure Vercel Cron to GET /api/cron/sync-matches with Authorization: Bearer CRON_SECRET</p>
+              <p className="text-sm text-slate-400">
+                Configure Vercel Cron to GET /api/cron/sync-matches with Authorization: Bearer CRON_SECRET
+              </p>
             </div>
           </div>
         )}

@@ -120,16 +120,10 @@ try {
     file: path.basename(outputFile),
     sha256: createHash("sha256").update(json).digest("hex"),
     tableCount: Object.keys(snapshot.tables).length,
-    rowCounts: Object.fromEntries(
-      Object.entries(snapshot.tables).map(([table, rows]) => [table, rows.length])
-    ),
+    rowCounts: Object.fromEntries(Object.entries(snapshot.tables).map(([table, rows]) => [table, rows.length])),
     migrationCount: snapshot.metadata.migrations.length,
   };
-  await writeFile(
-    path.join(outputDirectory, "manifest.json"),
-    JSON.stringify(manifest, null, 2),
-    { encoding: "utf8", flag: "wx" }
-  );
+  await writeFile(path.join(outputDirectory, "manifest.json"), JSON.stringify(manifest, null, 2), { encoding: "utf8", flag: "wx" });
 
   process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
 } catch (error) {

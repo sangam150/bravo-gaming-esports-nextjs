@@ -1,7 +1,7 @@
+import SiteHeaderClient from "@/components/SiteHeaderClient";
 import { getCurrentSeasonOverview } from "@/lib/data";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgDashboardData } from "@/lib/pubg-hub";
-import SiteHeaderClient from "@/components/SiteHeaderClient";
 
 type HeaderFeatureCard = {
   eyebrow: string;
@@ -55,12 +55,8 @@ export default async function SiteHeader() {
   const featuredEventCard: HeaderFeatureCard = {
     eyebrow: "Featured Event",
     title: featuredEvent?.name ?? "Featured PUBG Event",
-    description:
-      featuredEvent?.summary ??
-      "The next flagship PUBG event will be announced here once the schedule is live.",
-    meta: featuredEvent
-      ? `${toTitleCase(featuredEvent.status)} | ${formatShortDate(featuredEvent.startDate)}`
-      : "PUBG event coverage",
+    description: featuredEvent?.summary ?? "The next flagship PUBG event will be announced here once the schedule is live.",
+    meta: featuredEvent ? `${toTitleCase(featuredEvent.status)} | ${formatShortDate(featuredEvent.startDate)}` : "PUBG event coverage",
     href: featuredEvent?.analyticsHref ?? (featuredEvent ? `/events/${featuredEvent.slug}` : "/events"),
     actionLabel: featuredEvent ? "Open Event" : "Browse Events",
     tone: "red",

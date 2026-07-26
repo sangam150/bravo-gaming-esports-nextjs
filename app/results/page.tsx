@@ -1,6 +1,6 @@
+import { buildContentMetadata } from "@/lib/metadata";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { buildContentMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = buildContentMetadata({
   title: "Results | Bravo Gaming Esports",

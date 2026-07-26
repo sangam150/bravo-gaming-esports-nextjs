@@ -1,17 +1,12 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import {
-  deleteSeason,
-  getSeason,
-  getSeasonOverviewBySlug,
-  saveSeason,
-} from "@/lib/data";
+import { deleteSeason, getSeason, getSeasonOverviewBySlug, saveSeason } from "@/lib/data";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: RouteContext) {
   const { id } = await params;
   const overview = await getSeasonOverviewBySlug(id);
-  const season = overview?.season ?? await getSeason(id);
+  const season = overview?.season ?? (await getSeason(id));
 
   if (!season) {
     return Response.json({ error: "Season not found" }, { status: 404 });

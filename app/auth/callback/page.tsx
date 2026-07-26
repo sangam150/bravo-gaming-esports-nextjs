@@ -1,15 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { Suspense, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { extractDiscordUserId } from "@/lib/discord-auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
-import {
-  getResponseErrorMessage,
-  toUserFacingErrorMessage,
-  USER_FACING_ERROR_MESSAGES,
-} from "@/lib/user-facing-errors";
+import { getResponseErrorMessage, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 type SessionResponse = {
   success?: boolean;
@@ -59,7 +55,11 @@ function CallbackPageShell({ state }: { state: CallbackState }) {
           <div className="relative z-10 max-w-3xl">
             <span className="brand-badge">Discord Callback</span>
             <h1 className="hero-h1 mt-5">
-              {state.status === "loading" ? "Completing Discord sign-in" : state.status === "denied" ? "Discord access needs admin linking" : "Discord sign-in could not finish"}
+              {state.status === "loading"
+                ? "Completing Discord sign-in"
+                : state.status === "denied"
+                  ? "Discord access needs admin linking"
+                  : "Discord sign-in could not finish"}
             </h1>
             <p className="mt-4 text-sm leading-relaxed text-text-muted">
               {state.status === "loading"
@@ -71,9 +71,7 @@ function CallbackPageShell({ state }: { state: CallbackState }) {
               <div className="mt-6 rounded-card border border-white/10 bg-bg-primary/75 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Discord user ID</p>
                 <p className="mt-3 break-all font-mono text-sm text-white">{state.discordUserId}</p>
-                <p className="mt-3 text-sm text-text-muted">
-                  Share this ID with a Bravo admin so it can be linked to your team profile.
-                </p>
+                <p className="mt-3 text-sm text-text-muted">Share this ID with a Bravo admin so it can be linked to your team profile.</p>
               </div>
             ) : null}
 
@@ -135,15 +133,13 @@ function DiscordAuthCallbackContent() {
           throw new Error("Unable to establish your Discord session.");
         }
 
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const discordUserId = extractDiscordUserId(user ?? session.user ?? null);
-
         const sessionResponse = await fetch("/api/auth/discord/complete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accessToken: session.access_token, refreshToken: session.refresh_token }),
+          body: JSON.stringify({
+            accessToken: session.access_token,
+            refreshToken: session.refresh_token,
+          }),
           credentials: "include",
         });
         const sessionData = (await sessionResponse.json().catch(() => ({}))) as SessionResponse;
@@ -152,7 +148,7 @@ function DiscordAuthCallbackContent() {
           throw new Error(
             getResponseErrorMessage(sessionResponse, sessionData.error, {
               fallback: USER_FACING_ERROR_MESSAGES.session,
-            })
+            }),
           );
         }
 
@@ -164,7 +160,9 @@ function DiscordAuthCallbackContent() {
         } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
         setState({
           status: "error",
-          message: toUserFacingErrorMessage(error, { fallback: USER_FACING_ERROR_MESSAGES.login }),
+          message: toUserFacingErrorMessage(error, {
+            fallback: USER_FACING_ERROR_MESSAGES.login,
+          }),
           discordUserId: extractDiscordUserId(user),
         });
       }

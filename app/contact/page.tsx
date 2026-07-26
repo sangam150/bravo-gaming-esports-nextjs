@@ -1,13 +1,21 @@
-import type { Metadata } from "next";
 import ContactFormClient from "@/components/forms/ContactFormClient";
 import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
 import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
 
 const contactChannels = [
-  { label: "Tournament & Community Inquiries", value: "bravoxgaming473@gmail.com", href: "mailto:bravoxgaming473@gmail.com" },
+  {
+    label: "Tournament & Community Inquiries",
+    value: "bravoxgaming473@gmail.com",
+    href: "mailto:bravoxgaming473@gmail.com",
+  },
   { label: "Discord", value: "discord.gg/kHRZXbMwK5", href: BRAVO_DISCORD_URL },
   { label: "Instagram", value: "@bravo_esport", href: BRAVO_INSTAGRAM_URL },
-  { label: "Sponsorship", value: "Partner replies target within 2 business days", href: "/sponsor-kit" },
+  {
+    label: "Sponsorship",
+    value: "Partner replies target within 2 business days",
+    href: "/sponsor-kit",
+  },
 ] as const;
 
 export const metadata: Metadata = buildContentMetadata({
@@ -30,31 +38,22 @@ export default function ContactPage() {
                 Contact Bravo Gaming Esports
               </h1>
               <p className="mt-4 max-w-md text-sm leading-7 text-text-secondary">
-                Have questions about tournaments, scrims, sponsorship opportunities, or partnerships? Get in touch
-                with Bravo Gaming Esports.
+                Have questions about tournaments, scrims, sponsorship opportunities, or partnerships? Get in touch with Bravo Gaming
+                Esports.
               </p>
 
               <div className="mt-6 grid gap-3">
                 {contactChannels.map((channel) => (
-                  <div
-                    key={channel.label}
-                    className="rounded-[18px] border border-white/[0.06] bg-black/20 px-4 py-4"
-                  >
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">
-                      {channel.label}
-                    </p>
-                    {channel.href ? (
-                      <a
-                        href={channel.href}
-                        target={channel.href.startsWith("http") ? "_blank" : undefined}
-                        rel={channel.href.startsWith("http") ? "noreferrer" : undefined}
-                        className="mt-2 block text-sm text-white transition hover:text-accent-blue-light"
-                      >
-                        {channel.value}
-                      </a>
-                    ) : (
-                      <p className="mt-2 text-sm text-white">{channel.value}</p>
-                    )}
+                  <div key={channel.label} className="rounded-[18px] border border-white/[0.06] bg-black/20 px-4 py-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">{channel.label}</p>
+                    <a
+                      href={channel.href}
+                      target={channel.href.startsWith("http") ? "_blank" : undefined}
+                      rel={channel.href.startsWith("http") ? "noreferrer" : undefined}
+                      className="mt-2 block text-sm text-white transition hover:text-accent-blue-light"
+                    >
+                      {channel.value}
+                    </a>
                   </div>
                 ))}
               </div>

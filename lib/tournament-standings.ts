@@ -1,7 +1,7 @@
-import { placementPoints, totalPoints } from "./pubg";
 import { resolveBravoTeamIdentity } from "./bravo-teams";
+import { placementPoints, totalPoints } from "./pubg";
 import { compareMatchTeamResults, compareTeamLeaderboardPerformance } from "./ranking-sort";
-import type { LeaderboardRow, TeamMatchResult, TournamentMatch, TournamentStanding } from "./types";
+import type { TeamMatchResult, TournamentMatch, TournamentStanding } from "./types";
 
 const MAP_NAME_LOOKUP: Record<string, string> = {
   Baltic_Main: "Erangel",
@@ -22,7 +22,7 @@ export function toTeamMatchResults(
     slotNumber?: number;
     placement: number;
     kills: number;
-  }>
+  }>,
 ): TeamMatchResult[] {
   return [...results]
     .map((result) => {
@@ -44,11 +44,7 @@ export function toTeamMatchResults(
     .sort((firstResult, secondResult) => compareMatchTeamResults(firstResult, secondResult));
 }
 
-export function buildTournamentStandings(
-  tournamentId: string,
-  tournamentTitle: string,
-  matches: TournamentMatch[]
-): TournamentStanding[] {
+export function buildTournamentStandings(tournamentId: string, tournamentTitle: string, matches: TournamentMatch[]): TournamentStanding[] {
   const standingsMap = new Map<
     string,
     Omit<TournamentStanding, "rank"> & {
@@ -109,24 +105,9 @@ export function buildTournamentStandings(
       bestPlacement: Number.isFinite(standing.bestPlacement) ? standing.bestPlacement : 0,
       rank: 0,
     }))
-    .sort(
-      (firstStanding, secondStanding) => compareTeamLeaderboardPerformance(firstStanding, secondStanding)
-    )
+    .sort((firstStanding, secondStanding) => compareTeamLeaderboardPerformance(firstStanding, secondStanding))
     .map((standing, index) => ({
       ...standing,
       rank: index + 1,
     }));
-}
-
-export function standingsToLeaderboardRows(standings: TournamentStanding[]): LeaderboardRow[] {
-  return standings.map((standing) => ({
-    rank: standing.rank,
-    teamId: standing.teamId,
-    team: standing.teamName,
-    slotNumber: standing.slotNumber,
-    matches: standing.matches,
-    kills: standing.kills,
-    placement: standing.placementPoints,
-    points: standing.totalPoints,
-  }));
 }

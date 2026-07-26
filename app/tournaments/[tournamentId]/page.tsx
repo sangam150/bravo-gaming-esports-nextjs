@@ -1,5 +1,3 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import TournamentDetailClient from "@/components/tournaments/TournamentDetailClient";
 import {
   getPlayers,
@@ -11,6 +9,8 @@ import {
   getTournamentTeams,
 } from "@/lib/data";
 import { buildTournamentStandings } from "@/lib/tournament-standings";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 type PageProps = { params: Promise<{ tournamentId: string }> };
 
@@ -45,25 +45,14 @@ export default async function TournamentDetailPage({ params }: PageProps) {
   if (!tournament) notFound();
 
   const teams =
-    tournamentTeams.length > 0
-      ? tournamentTeams
-      : allTeams.filter((team) => (tournament.registeredTeamIds ?? []).includes(team.id));
+    tournamentTeams.length > 0 ? tournamentTeams : allTeams.filter((team) => (tournament.registeredTeamIds ?? []).includes(team.id));
 
   const players =
     tournamentPlayers.length > 0
       ? tournamentPlayers
       : allPlayers.filter((player) => player.teamId && teams.some((team) => team.id === player.teamId));
 
-  const standings =
-    storedStandings.length > 0 ? storedStandings : buildTournamentStandings(tournamentId, tournament.title, matches);
+  const standings = storedStandings.length > 0 ? storedStandings : buildTournamentStandings(tournamentId, tournament.title, matches);
 
-  return (
-    <TournamentDetailClient
-      tournament={tournament}
-      matches={matches}
-      teams={teams}
-      players={players}
-      standings={standings}
-    />
-  );
+  return <TournamentDetailClient tournament={tournament} matches={matches} teams={teams} players={players} standings={standings} />;
 }

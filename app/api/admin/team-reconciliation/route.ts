@@ -1,14 +1,15 @@
 import { getRequestSession, permissionDeniedResponse } from "@/lib/admin-auth";
 import { writeAuditLog } from "@/lib/audit-logs";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
-import {
-  deterministicTeamId,
-  normalizeCanonicalTeamIdentity,
-} from "@/lib/team-reconciliation";
+import { deterministicTeamId, normalizeCanonicalTeamIdentity } from "@/lib/team-reconciliation";
 
 async function requireOwner(request: Request) {
   const session = await getRequestSession(request);
-  if (!session) return { session: null, response: new Response("Unauthorized", { status: 401 }) };
+  if (!session)
+    return {
+      session: null,
+      response: new Response("Unauthorized", { status: 401 }),
+    };
   if (session.role !== "super_admin") {
     return {
       session: null,
@@ -22,16 +23,7 @@ export async function GET(request: Request) {
   const auth = await requireOwner(request);
   if (auth.response) return auth.response;
   const client = getSupabaseServiceRoleClient();
-  const [
-    candidates,
-    teams,
-    links,
-    aliases,
-    mappings,
-    memberships,
-    registrations,
-    audit,
-  ] = await Promise.all([
+  const [candidates, teams, links, aliases, mappings, memberships, registrations, audit] = await Promise.all([
     client.from("team_reconciliation_candidates").select("*").order("displayed_name"),
     client.from("teams").select("*").order("name"),
     client.from("team_source_links").select("*").order("source_type"),
@@ -61,8 +53,7 @@ export async function GET(request: Request) {
       memberships: memberships.data ?? [],
       registrations: registrations.data ?? [],
       audit: audit.data ?? [],
-      relationalAuthorizationEnabled:
-        process.env.DISCORD_RELATIONAL_TEAM_AUTH_ENABLED?.trim().toLowerCase() === "true",
+      relationalAuthorizationEnabled: process.env.DISCORD_RELATIONAL_TEAM_AUTH_ENABLED?.trim().toLowerCase() === "true",
     },
   });
 }
@@ -74,11 +65,7 @@ export async function POST(request: Request) {
   const candidateId = typeof body.candidateId === "string" ? body.candidateId : "";
   const action = typeof body.action === "string" ? body.action : "";
   const client = getSupabaseServiceRoleClient();
-  const { data: actorProfile } = await client
-    .from("profiles")
-    .select("id")
-    .eq("auth_user_id", auth.session.uid)
-    .maybeSingle();
+  const { data: actorProfile } = await client.from("profiles").select("id").eq("auth_user_id", auth.session.uid).maybeSingle();
   const { data: candidate, error: candidateError } = await client
     .from("team_reconciliation_candidates")
     .select("*")
@@ -89,12 +76,7 @@ export async function POST(request: Request) {
   }
 
   if (action === "leave_unresolved" || action === "request_information" || action === "reject") {
-    const reviewStatus =
-      action === "request_information"
-        ? "changes_requested"
-        : action === "reject"
-          ? "rejected"
-          : "pending";
+    const reviewStatus = action === "request_information" ? "changes_requested" : action === "reject" ? "rejected" : "pending";
     const { error } = await client
       .from("team_reconciliation_candidates")
       .update({
@@ -145,25 +127,27 @@ export async function POST(request: Request) {
       action,
       candidate_id: candidate.id,
       previous_value: candidate,
-      new_value: { discordRoleId: candidate.source_identifier, enabled: false, mappingType: "ignored" },
+      new_value: {
+        discordRoleId: candidate.source_identifier,
+        enabled: false,
+        mappingType: "ignored",
+      },
     });
     return Response.json({ success: true });
   }
 
-  const createsOfficialTeam =
-    action === "approve_create" || action === "preserve_historical" || action === "archive";
+  const createsOfficialTeam = action === "approve_create" || action === "preserve_historical" || action === "archive";
   if (createsOfficialTeam) {
     const canonicalName = typeof body.canonicalName === "string" ? body.canonicalName.trim() : "";
     const tag = typeof body.tag === "string" ? body.tag.trim() : "";
     const slug = typeof body.slug === "string" ? body.slug.trim().toLowerCase() : "";
-    const status =
-      action === "preserve_historical" || action === "archive" || body.status === "archived"
-        ? "archived"
-        : "active";
+    const status = action === "preserve_historical" || action === "archive" || body.status === "archived" ? "archived" : "active";
     if (!canonicalName || !tag || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
       return Response.json(
-        { error: "Canonical name, tag, and a lowercase URL-safe slug are required." },
-        { status: 400 }
+        {
+          error: "Canonical name, tag, and a lowercase URL-safe slug are required.",
+        },
+        { status: 400 },
       );
     }
     teamId = deterministicTeamId(candidate.source_type, candidate.source_identifier);
@@ -188,7 +172,7 @@ export async function POST(request: Request) {
         },
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "id" }
+      { onConflict: "id" },
     );
     if (teamError) {
       const statusCode = teamError.code === "23505" ? 409 : 500;
@@ -215,33 +199,33 @@ export async function POST(request: Request) {
       linked_by: actorProfile?.id ?? null,
       linked_at: now,
     },
-    { onConflict: "source_type,source_identifier" }
+    { onConflict: "source_type,source_identifier" },
   );
   if (linkError) return Response.json({ error: linkError.message }, { status: 500 });
 
   const aliasValues = Array.from(
-    new Set([
-      candidate.displayed_name,
-      candidate.team_tag,
-      candidate.slug,
-      ...(Array.isArray(candidate.aliases)
-        ? candidate.aliases.filter((value): value is string => typeof value === "string")
-        : []),
-    ].filter((value): value is string => Boolean(value)))
+    new Set(
+      [
+        candidate.displayed_name,
+        candidate.team_tag,
+        candidate.slug,
+        ...(Array.isArray(candidate.aliases) ? candidate.aliases.filter((value): value is string => typeof value === "string") : []),
+      ].filter((value): value is string => Boolean(value)),
+    ),
   );
   for (const alias of aliasValues) {
     const sourceIdentifier = `${candidate.source_identifier}:${normalizeCanonicalTeamIdentity(alias)}`;
     const aliasRecord = {
-        team_id: teamId,
-        alias,
-        normalized_alias: normalizeCanonicalTeamIdentity(alias),
-        source: candidate.source_type,
-        source_identifier: sourceIdentifier,
-        is_primary: alias === candidate.displayed_name,
-        previous_name: alias === candidate.displayed_name ? alias : null,
-        previous_tag: alias === candidate.team_tag ? alias : null,
-        previous_slug: alias === candidate.slug ? alias : null,
-      };
+      team_id: teamId,
+      alias,
+      normalized_alias: normalizeCanonicalTeamIdentity(alias),
+      source: candidate.source_type,
+      source_identifier: sourceIdentifier,
+      is_primary: alias === candidate.displayed_name,
+      previous_name: alias === candidate.displayed_name ? alias : null,
+      previous_tag: alias === candidate.team_tag ? alias : null,
+      previous_slug: alias === candidate.slug ? alias : null,
+    };
     const { data: existingAlias, error: aliasLookupError } = await client
       .from("team_aliases")
       .select("id")
@@ -292,7 +276,11 @@ export async function POST(request: Request) {
     entityType: "team",
     entityId: teamId,
     oldValue: candidate,
-    newValue: { teamId, sourceType: candidate.source_type, sourceIdentifier: candidate.source_identifier },
+    newValue: {
+      teamId,
+      sourceType: candidate.source_type,
+      sourceIdentifier: candidate.source_identifier,
+    },
   });
   return Response.json({ success: true, data: { teamId } });
 }

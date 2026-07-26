@@ -1,29 +1,29 @@
-import { randomUUID } from "crypto";
 import { requireTeamWorkspaceUser } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
-import { enforceRateLimit } from "@/lib/rate-limit";
 import { buildPrivateUploadUrl, deleteFromStorageByUrl, uploadPrivateFile, uploadPublicFile } from "@/lib/r2/storage";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
-import { createUploadRecord } from "@/lib/upload-records";
 import { normalizeUploadType, type UploadType } from "@/lib/upload-config";
+import { createUploadRecord } from "@/lib/upload-records";
 import { resolveUploadContentType, validateUpload } from "@/lib/upload-validation";
-import {
-  USER_FACING_ERROR_MESSAGES,
-  toUserFacingErrorMessage,
-} from "@/lib/user-facing-errors";
+import { USER_FACING_ERROR_MESSAGES, toUserFacingErrorMessage } from "@/lib/user-facing-errors";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
 const TEAM_UPLOAD_TYPES = new Set<UploadType>(["team_logo", "moss_file"]);
 
 export async function POST(request: Request) {
-  const limited = await enforceRateLimit(request, { key: "team-upload", maxRequests: 12, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "team-upload",
+    maxRequests: 12,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   const auth = await requireTeamWorkspaceUser(request);
   if (auth.response || !auth.session) {
-    return auth.response ??
-      Response.json({ error: USER_FACING_ERROR_MESSAGES.session }, { status: 401 });
+    return auth.response ?? Response.json({ error: USER_FACING_ERROR_MESSAGES.session }, { status: 401 });
   }
 
   try {
@@ -33,7 +33,13 @@ export async function POST(request: Request) {
     const previousUrl = (formData.get("previousUrl") as string | null) ?? undefined;
 
     if (!file || !type) {
-      return Response.json({ success: false, error: "Please choose a file and upload type before continuing." }, { status: 400 });
+      return Response.json(
+        {
+          success: false,
+          error: "Please choose a file and upload type before continuing.",
+        },
+        { status: 400 },
+      );
     }
 
     if (!TEAM_UPLOAD_TYPES.has(type)) {
@@ -53,15 +59,16 @@ export async function POST(request: Request) {
     }
 
     const contentType =
-      resolveUploadContentType(type, file.name, file.type, { audience: "team" }) || "application/octet-stream";
+      resolveUploadContentType(type, file.name, file.type, {
+        audience: "team",
+      }) || "application/octet-stream";
     const buffer = Buffer.from(await file.arrayBuffer());
     const uploadRecordId = randomUUID();
     const uploadResult =
       type === "moss_file"
         ? await uploadPrivateFile(type, auth.session.teamId, file.name, buffer, contentType)
         : await uploadPublicFile(type, auth.session.teamId, file.name, buffer, contentType);
-    const url =
-      uploadResult.visibility === "private" ? buildPrivateUploadUrl(uploadRecordId) : uploadResult.url;
+    const url = uploadResult.visibility === "private" ? buildPrivateUploadUrl(uploadRecordId) : uploadResult.url;
 
     const record = await createUploadRecord({
       fileUrl: url,
@@ -110,8 +117,7 @@ export async function POST(request: Request) {
           fallback: "We couldn't upload that team file right now. Please try again shortly.",
         }),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

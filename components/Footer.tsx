@@ -1,13 +1,7 @@
-import Link from "next/link";
-import { Camera, MessageCircle, Music2, Play, Users } from "lucide-react";
 import BravoLogo from "@/components/ui/BravoLogo";
-import {
-  BRAVO_DISCORD_URL,
-  BRAVO_FACEBOOK_URL,
-  BRAVO_INSTAGRAM_URL,
-  BRAVO_TIKTOK_URL,
-  BRAVO_YOUTUBE_URL,
-} from "@/lib/brand-links";
+import { BRAVO_DISCORD_URL, BRAVO_FACEBOOK_URL, BRAVO_INSTAGRAM_URL, BRAVO_TIKTOK_URL, BRAVO_YOUTUBE_URL } from "@/lib/brand-links";
+import { Camera, MessageCircle, Music2, Play, Users } from "lucide-react";
+import Link from "next/link";
 
 const quickLinks = [
   { label: "Home", href: "/" },
@@ -36,11 +30,31 @@ const supportLinks = [
 ] as const;
 
 const followLinks = [
-  { label: "Discord", href: BRAVO_DISCORD_URL, icon: <MessageCircle className="h-4 w-4" /> },
-  { label: "Facebook", href: BRAVO_FACEBOOK_URL, icon: <Users className="h-4 w-4" /> },
-  { label: "YouTube", href: BRAVO_YOUTUBE_URL, icon: <Play className="h-4 w-4" /> },
-  { label: "Instagram", href: BRAVO_INSTAGRAM_URL, icon: <Camera className="h-4 w-4" /> },
-  { label: "TikTok", href: BRAVO_TIKTOK_URL, icon: <Music2 className="h-4 w-4" /> },
+  {
+    label: "Discord",
+    href: BRAVO_DISCORD_URL,
+    icon: <MessageCircle className="h-4 w-4" />,
+  },
+  {
+    label: "Facebook",
+    href: BRAVO_FACEBOOK_URL,
+    icon: <Users className="h-4 w-4" />,
+  },
+  {
+    label: "YouTube",
+    href: BRAVO_YOUTUBE_URL,
+    icon: <Play className="h-4 w-4" />,
+  },
+  {
+    label: "Instagram",
+    href: BRAVO_INSTAGRAM_URL,
+    icon: <Camera className="h-4 w-4" />,
+  },
+  {
+    label: "TikTok",
+    href: BRAVO_TIKTOK_URL,
+    icon: <Music2 className="h-4 w-4" />,
+  },
 ] as const;
 
 function FooterNavLink({ href, label }: { href: string; label: string }) {
@@ -51,13 +65,7 @@ function FooterNavLink({ href, label }: { href: string; label: string }) {
   );
 }
 
-function FooterColumn({
-  title,
-  links,
-}: {
-  title: string;
-  links: readonly { label: string; href: string }[];
-}) {
+function FooterColumn({ title, links }: { title: string; links: readonly { label: string; href: string }[] }) {
   return (
     <div>
       <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white">{title}</p>
@@ -87,9 +95,7 @@ export default function Footer() {
               <p className="mt-4 max-w-sm text-sm leading-7 text-text-muted">
                 Building Nepal&apos;s future in competitive PUBG PC esports. Compete. Connect. Conquer.
               </p>
-              <p className="mt-6 text-xs text-text-muted">
-                Copyright (C) 2026 Bravo Gaming Esports Nepal. All rights reserved.
-              </p>
+              <p className="mt-6 text-xs text-text-muted">Copyright (C) 2026 Bravo Gaming Esports Nepal. All rights reserved.</p>
             </section>
 
             <section>

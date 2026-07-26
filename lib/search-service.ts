@@ -2,17 +2,9 @@ import { getSeasons } from "./data";
 import { getPlatformHubData } from "./platform-hub";
 import { getPubgHubDataset } from "./pubg-hub";
 
-export type SearchResultKind =
-  | "team"
-  | "player"
-  | "event"
-  | "match"
-  | "season"
-  | "news"
-  | "sponsor"
-  | "media";
+type SearchResultKind = "team" | "player" | "event" | "match" | "season" | "news" | "sponsor" | "media";
 
-export interface SearchResultItem {
+interface SearchResultItem {
   kind: SearchResultKind;
   title: string;
   href: string;
@@ -23,7 +15,7 @@ export interface SearchResultItem {
   searchText: string;
 }
 
-export interface SearchResultGroup {
+interface SearchResultGroup {
   kind: SearchResultKind;
   label: string;
   items: SearchResultItem[];
@@ -48,31 +40,23 @@ const GROUP_LABELS: Record<SearchResultKind, string> = {
   media: "Media",
 };
 
-const GROUP_ORDER: SearchResultKind[] = [
-  "team",
-  "player",
-  "event",
-  "match",
-  "season",
-  "news",
-  "sponsor",
-  "media",
-];
+const GROUP_ORDER: SearchResultKind[] = ["team", "player", "event", "match", "season", "news", "sponsor", "media"];
 
 function normalizeQuery(query: string) {
   return query.trim().replace(/\s+/g, " ");
 }
 
 function tokenize(query: string) {
-  return normalizeQuery(query)
-    .toLowerCase()
-    .split(" ")
-    .filter(Boolean);
+  return normalizeQuery(query).toLowerCase().split(" ").filter(Boolean);
 }
 
 function buildSearchText(parts: Array<string | number | null | undefined>) {
   return parts
-    .map((part) => String(part ?? "").trim().toLowerCase())
+    .map((part) =>
+      String(part ?? "")
+        .trim()
+        .toLowerCase(),
+    )
     .filter(Boolean)
     .join(" ");
 }
@@ -138,12 +122,7 @@ export async function searchPlatformContent(rawQuery: string): Promise<SearchRes
       description: `${player.kills} kills · ${player.assists} assists · ${player.damage} damage`,
       subtitle: `PUBG Player · ${player.currentTeamName ?? "Free Agent"} · ${player.matches} matches`,
       badge: "Player",
-      searchText: buildSearchText([
-        player.pubgName,
-        player.currentTeamName,
-        player.currentTeamTag,
-        player.previousTeams.join(" "),
-      ]),
+      searchText: buildSearchText([player.pubgName, player.currentTeamName, player.currentTeamTag, player.previousTeams.join(" ")]),
     })),
     ...hub.events.map((event) => ({
       kind: "event" as const,
@@ -152,15 +131,7 @@ export async function searchPlatformContent(rawQuery: string): Promise<SearchRes
       description: `${event.teamsCount} teams · ${event.matchesCount} matches · ${event.prizePool}`,
       subtitle: `${event.gameName} · ${event.type} · ${event.status}`,
       badge: "Event",
-      searchText: buildSearchText([
-        event.name,
-        event.slug,
-        event.gameName,
-        event.type,
-        event.region,
-        event.organizerName,
-        event.status,
-      ]),
+      searchText: buildSearchText([event.name, event.slug, event.gameName, event.type, event.region, event.organizerName, event.status]),
     })),
     ...hub.matches.map((match) => ({
       kind: "match" as const,
@@ -208,13 +179,7 @@ export async function searchPlatformContent(rawQuery: string): Promise<SearchRes
       description: article.summary,
       subtitle: `${article.category} · ${article.date}`,
       badge: "News",
-      searchText: buildSearchText([
-        article.title,
-        article.summary,
-        article.category,
-        article.authorName,
-        article.tags.join(" "),
-      ]),
+      searchText: buildSearchText([article.title, article.summary, article.category, article.authorName, article.tags.join(" ")]),
     })),
     ...hub.sponsors.map((sponsor) => ({
       kind: "sponsor" as const,
@@ -239,13 +204,7 @@ export async function searchPlatformContent(rawQuery: string): Promise<SearchRes
       description: item.summary,
       subtitle: `${item.kind} · ${item.category}${item.duration ? ` · ${item.duration}` : ""}`,
       badge: "Media",
-      searchText: buildSearchText([
-        item.title,
-        item.kind,
-        item.category,
-        item.gameSlug,
-        item.summary,
-      ]),
+      searchText: buildSearchText([item.title, item.kind, item.category, item.gameSlug, item.summary]),
     })),
   ];
 
@@ -256,7 +215,7 @@ export async function searchPlatformContent(rawQuery: string): Promise<SearchRes
       (firstItem, secondItem) =>
         secondItem.score - firstItem.score ||
         firstItem.kind.localeCompare(secondItem.kind) ||
-        firstItem.title.localeCompare(secondItem.title)
+        firstItem.title.localeCompare(secondItem.title),
     )
     .slice(0, 60);
 

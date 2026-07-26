@@ -35,7 +35,6 @@ type MossSubmissionRow = Pick<
   | "updated_at"
 >;
 
-type TeamRow = Pick<Tables<"teams">, "id" | "name">;
 type PlayerRow = Pick<Tables<"players">, "id" | "pubg_name" | "display_name">;
 type ProfileRow = Pick<Tables<"profiles">, "id" | "display_name" | "email">;
 type EventRow = Pick<Tables<"events">, "id" | "name" | "title">;
@@ -52,7 +51,9 @@ export async function GET(request: Request) {
     await Promise.all([
       client
         .from("roster_requests")
-        .select("id,team_id,requested_by,request_type,status,admin_note,old_player_id,new_player_name,new_player_pubg_name,created_at,updated_at,reviewed_at")
+        .select(
+          "id,team_id,requested_by,request_type,status,admin_note,old_player_id,new_player_name,new_player_pubg_name,created_at,updated_at,reviewed_at",
+        )
         .order("created_at", { ascending: false }),
       client
         .from("moss_submissions")
@@ -85,29 +86,26 @@ export async function GET(request: Request) {
 
   const teamNameById = new Map((teamsResponse.data ?? []).map((team) => [team.id, team.name] as const));
   const playerNameById = new Map(
-    ((playersResponse.data ?? []) as PlayerRow[]).map((player) => [player.id, player.display_name ?? player.pubg_name] as const)
+    ((playersResponse.data ?? []) as PlayerRow[]).map((player) => [player.id, player.display_name ?? player.pubg_name] as const),
   );
   const profileById = new Map(
-    ((profilesResponse.data ?? []) as ProfileRow[]).map((profile) => [
-      profile.id,
-      { name: profile.display_name ?? profile.email, email: profile.email },
-    ] as const)
+    ((profilesResponse.data ?? []) as ProfileRow[]).map(
+      (profile) => [profile.id, { name: profile.display_name ?? profile.email, email: profile.email }] as const,
+    ),
   );
-  const eventNameById = new Map(
-    ((eventsResponse.data ?? []) as EventRow[]).map((event) => [event.id, event.name ?? event.title] as const)
-  );
+  const eventNameById = new Map(((eventsResponse.data ?? []) as EventRow[]).map((event) => [event.id, event.name ?? event.title] as const));
 
   const data = {
     rosterRequests: ((rosterRequestsResponse.data ?? []) as RosterRequestRow[]).map((requestRow) => ({
       id: requestRow.id,
       teamId: requestRow.team_id,
       teamName: getUserFacingTeamLabel(teamNameById.get(requestRow.team_id)),
-      requestedByName: requestRow.requested_by ? profileById.get(requestRow.requested_by)?.name ?? null : null,
-      requestedByEmail: requestRow.requested_by ? profileById.get(requestRow.requested_by)?.email ?? null : null,
+      requestedByName: requestRow.requested_by ? (profileById.get(requestRow.requested_by)?.name ?? null) : null,
+      requestedByEmail: requestRow.requested_by ? (profileById.get(requestRow.requested_by)?.email ?? null) : null,
       requestType: requestRow.request_type,
       status: requestRow.status,
       adminNote: requestRow.admin_note,
-      oldPlayerName: requestRow.old_player_id ? playerNameById.get(requestRow.old_player_id) ?? null : null,
+      oldPlayerName: requestRow.old_player_id ? (playerNameById.get(requestRow.old_player_id) ?? null) : null,
       newPlayerName: requestRow.new_player_name,
       newPlayerPubgName: requestRow.new_player_pubg_name,
       createdAt: requestRow.created_at,
@@ -116,12 +114,12 @@ export async function GET(request: Request) {
     mossSubmissions: ((mossSubmissionsResponse.data ?? []) as MossSubmissionRow[]).map((submissionRow) => ({
       id: submissionRow.id,
       eventId: submissionRow.event_id,
-      eventName: submissionRow.event_id ? eventNameById.get(submissionRow.event_id) ?? null : null,
+      eventName: submissionRow.event_id ? (eventNameById.get(submissionRow.event_id) ?? null) : null,
       matchId: submissionRow.match_id,
       teamId: submissionRow.team_id,
       teamName: getUserFacingTeamLabel(teamNameById.get(submissionRow.team_id)),
       playerId: submissionRow.player_id,
-      playerName: submissionRow.player_id ? playerNameById.get(submissionRow.player_id) ?? null : null,
+      playerName: submissionRow.player_id ? (playerNameById.get(submissionRow.player_id) ?? null) : null,
       fileUrl: submissionRow.file_url,
       externalLink: submissionRow.external_link,
       status: submissionRow.status,
@@ -166,7 +164,9 @@ export async function PATCH(request: Request) {
           updated_at: now,
         })
         .eq("id", id)
-        .select("id,team_id,requested_by,request_type,status,admin_note,old_player_id,new_player_name,new_player_pubg_name,created_at,updated_at,reviewed_at")
+        .select(
+          "id,team_id,requested_by,request_type,status,admin_note,old_player_id,new_player_name,new_player_pubg_name,created_at,updated_at,reviewed_at",
+        )
         .single();
 
       if (error) {

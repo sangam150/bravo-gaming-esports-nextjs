@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import type { AdminSection } from "@/components/admin/AdminSidebar";
+import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ section: string }>;

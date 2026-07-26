@@ -10,7 +10,11 @@ function readStatus(value: unknown) {
 }
 
 export async function POST(request: Request) {
-  const limited = await enforceRateLimit(request, { key: "auth-login-events", maxRequests: 30, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "auth-login-events",
+    maxRequests: 30,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {

@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import { PubgAccessPage } from "@/components/pubg/PubgPublicPages";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "PUBG Access",

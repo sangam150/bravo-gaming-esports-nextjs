@@ -6,7 +6,7 @@ const args = new Map(
   process.argv.slice(2).map((argument) => {
     const [key, ...value] = argument.replace(/^--/, "").split("=");
     return [key, value.join("=")];
-  })
+  }),
 );
 
 const email = (args.get("email") ?? "").trim().toLowerCase();
@@ -31,58 +31,55 @@ const client = createClient<Database>(url, serviceRoleKey, {
 });
 
 async function main() {
-const { data: authUsers, error: listError } = await client.auth.admin.listUsers({
-  page: 1,
-  perPage: 1000,
-});
-if (listError) throw listError;
+  const { data: authUsers, error: listError } = await client.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+  if (listError) throw listError;
 
-const authUser = (authUsers.users as User[]).find((candidate) => candidate.email?.trim().toLowerCase() === email);
-if (!authUser) {
-  throw new Error("No matching Supabase Auth user exists. Invite or create the user first.");
-}
+  const authUser = (authUsers.users as User[]).find((candidate) => candidate.email?.trim().toLowerCase() === email);
+  if (!authUser) {
+    throw new Error("No matching Supabase Auth user exists. Invite or create the user first.");
+  }
 
-const now = new Date().toISOString();
-const { data: previousProfile } = await client
-  .from("profiles")
-  .select("id,role,is_active")
-  .eq("auth_user_id", authUser.id)
-  .maybeSingle();
+  const now = new Date().toISOString();
+  const { data: previousProfile } = await client.from("profiles").select("id,role,is_active").eq("auth_user_id", authUser.id).maybeSingle();
 
-const { data: profile, error: profileError } = await client
-  .from("profiles")
-  .upsert(
-    {
-      auth_user_id: authUser.id,
-      email,
-      display_name:
-        previousProfile?.id
+  const { data: profile, error: profileError } = await client
+    .from("profiles")
+    .upsert(
+      {
+        auth_user_id: authUser.id,
+        email,
+        display_name: previousProfile?.id
           ? undefined
           : String(authUser.user_metadata?.display_name ?? authUser.user_metadata?.name ?? "").trim() || null,
-      role: approvedRole,
-      role_source: "manual",
-      is_active: true,
-      updated_at: now,
+        role: approvedRole,
+        role_source: "manual",
+        is_active: true,
+        updated_at: now,
+      },
+      { onConflict: "auth_user_id" },
+    )
+    .select("id,role,is_active")
+    .single();
+  if (profileError) throw profileError;
+
+  const { error: auditError } = await client.from("audit_logs").insert({
+    actor_id: null,
+    action: previousProfile ? "admin_role_changed" : "admin_profile_provisioned",
+    entity_type: "profile",
+    entity_id: profile.id,
+    old_data: previousProfile ? { role: previousProfile.role, isActive: previousProfile.is_active } : null,
+    new_data: {
+      role: profile.role,
+      isActive: profile.is_active,
+      source: "owner_cli",
     },
-    { onConflict: "auth_user_id" }
-  )
-  .select("id,role,is_active")
-  .single();
-if (profileError) throw profileError;
+  });
+  if (auditError) throw auditError;
 
-const { error: auditError } = await client.from("audit_logs").insert({
-  actor_id: null,
-  action: previousProfile ? "admin_role_changed" : "admin_profile_provisioned",
-  entity_type: "profile",
-  entity_id: profile.id,
-  old_data: previousProfile
-    ? { role: previousProfile.role, isActive: previousProfile.is_active }
-    : null,
-  new_data: { role: profile.role, isActive: profile.is_active, source: "owner_cli" },
-});
-if (auditError) throw auditError;
-
-console.log(`Provisioned ${email} as ${role} in Supabase project ${actualProjectRef}.`);
+  console.log(`Provisioned ${email} as ${role} in Supabase project ${actualProjectRef}.`);
 }
 
 void main().catch((error) => {

@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import MatchResultDetailClient from "@/components/results/MatchResultDetailClient";
 import { getMatchResult } from "@/lib/pubg-sync";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ slug: string }>;

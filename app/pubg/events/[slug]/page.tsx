@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { PubgEventDetailPage } from "@/components/pubg/PubgPublicPages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPubgEventBySlug, getPubgHubDataset } from "@/lib/pubg-hub";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ slug: string }>;

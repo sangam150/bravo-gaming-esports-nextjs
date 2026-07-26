@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import { PubgFantasyPage } from "@/components/pubg/PubgPublicPages";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "PUBG Fantasy",

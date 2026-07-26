@@ -1,10 +1,5 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import {
-  COLLECTIONS,
-  deleteDocument,
-  fetchDocumentCollection,
-  saveDocument,
-} from "@/lib/document-store";
+import { COLLECTIONS, deleteDocument, fetchDocumentCollection, saveDocument } from "@/lib/document-store";
 import type { PubgImportWatcher } from "@/lib/types";
 
 function slugify(value: string) {
@@ -36,7 +31,9 @@ export async function POST(request: Request) {
   if (unauthorized) return unauthorized;
 
   try {
-    const body = (await request.json()) as Partial<PubgImportWatcher> & { playerName?: string };
+    const body = (await request.json()) as Partial<PubgImportWatcher> & {
+      playerName?: string;
+    };
     const playerName = body.playerName?.trim();
 
     if (!playerName) {
@@ -74,7 +71,9 @@ export async function PATCH(request: Request) {
   if (unauthorized) return unauthorized;
 
   try {
-    const body = (await request.json()) as Partial<PubgImportWatcher> & { id?: string };
+    const body = (await request.json()) as Partial<PubgImportWatcher> & {
+      id?: string;
+    };
     const watcherId = body.id?.trim();
 
     if (!watcherId) {
@@ -101,6 +100,8 @@ export async function DELETE(request: Request) {
   }
 
   await deleteDocument(COLLECTIONS.pubgImportWatchers, watcherId);
-  return Response.json({ success: true, data: { id: watcherId, deleted: true } });
+  return Response.json({
+    success: true,
+    data: { id: watcherId, deleted: true },
+  });
 }
-

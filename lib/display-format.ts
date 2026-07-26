@@ -22,10 +22,7 @@ export function formatDisplayNumber(value?: number | null, fallback = "—") {
   return value.toLocaleString(DISPLAY_LOCALE);
 }
 
-export function formatDisplayDateTime(
-  value?: string | number | Date | null,
-  fallback = "Time unavailable"
-) {
+export function formatDisplayDateTime(value?: string | number | Date | null, fallback = "Time unavailable") {
   const parsed = parseDateValue(value);
 
   if (!parsed) {
@@ -39,10 +36,7 @@ export function formatDisplayDateTime(
   }).format(parsed);
 }
 
-export function formatDisplayDate(
-  value?: string | number | Date | null,
-  fallback = "Date unavailable"
-) {
+export function formatDisplayDate(value?: string | number | Date | null, fallback = "Date unavailable") {
   const parsed = parseDateValue(value);
 
   if (!parsed) {

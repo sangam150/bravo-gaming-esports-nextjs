@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import StatisticsPageClient from "@/components/statistics/StatisticsPageClient";
 import { getCurrentSeasonOverview, getLeaderboard, getPlayers } from "@/lib/data";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Statistics",
@@ -10,17 +10,7 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function StatisticsPage() {
-  const [overview, leaderboard, players] = await Promise.all([
-    getCurrentSeasonOverview(),
-    getLeaderboard(),
-    getPlayers(),
-  ]);
+  const [overview, leaderboard, players] = await Promise.all([getCurrentSeasonOverview(), getLeaderboard(), getPlayers()]);
 
-  return (
-    <StatisticsPageClient
-      initialOverview={overview}
-      initialLeaderboard={leaderboard}
-      initialPlayers={players}
-    />
-  );
+  return <StatisticsPageClient initialOverview={overview} initialLeaderboard={leaderboard} initialPlayers={players} />;
 }

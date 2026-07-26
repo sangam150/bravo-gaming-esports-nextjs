@@ -3,11 +3,11 @@ import {
   getCurrentSeasonOverview,
   getLeaderboard,
   getMvpOfWeek,
+  getSiteStats,
   getSponsors,
   getStreams,
   getTournaments,
   getVideos,
-  getSiteStats,
 } from "@/lib/data";
 
 export async function GET() {
@@ -25,6 +25,16 @@ export async function GET() {
 
   return Response.json({
     success: true,
-    data: { stats, tournaments, leaderboard, mvp, announcements, streams, videos, sponsors, currentSeason },
+    data: {
+      stats,
+      tournaments,
+      leaderboard,
+      mvp,
+      announcements,
+      streams,
+      videos,
+      sponsors,
+      currentSeason,
+    },
   });
 }

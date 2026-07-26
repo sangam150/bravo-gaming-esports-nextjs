@@ -1,8 +1,6 @@
 import { COLLECTIONS, deleteDocument, fetchDocumentCollection, isDocumentStoreConfigured } from "./document-store";
 
-type ResettableCollectionName =
-  | keyof typeof COLLECTIONS
-  | "siteStats";
+type ResettableCollectionName = keyof typeof COLLECTIONS | "siteStats";
 
 export type AdminResetSummary = {
   deleted: Partial<Record<ResettableCollectionName, number>>;
@@ -48,10 +46,7 @@ export async function resetCompetitionData(): Promise<AdminResetSummary> {
   }
 
   const deletedEntries = await Promise.all(
-    COMPETITION_COLLECTIONS.map(async ([label, collectionName]) => [
-      label,
-      await deleteEntireCollection(collectionName),
-    ] as const)
+    COMPETITION_COLLECTIONS.map(async ([label, collectionName]) => [label, await deleteEntireCollection(collectionName)] as const),
   );
 
   const deleted = Object.fromEntries(deletedEntries) as Partial<Record<ResettableCollectionName, number>>;
@@ -66,4 +61,3 @@ export async function resetCompetitionData(): Promise<AdminResetSummary> {
         : "No competitive records were stored, so nothing needed to be reset.",
   };
 }
-

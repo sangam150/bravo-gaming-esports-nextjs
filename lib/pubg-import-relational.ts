@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Json, Tables, TablesInsert } from "@/types/database.types";
 import { getCompetitionMatch, saveCompetitionMatch } from "./competition-relational";
 import { readJsonObject, sanitizeJsonValue } from "./json-utils";
 import { previewPubgMatches } from "./pubg-sync";
@@ -17,7 +18,6 @@ import type {
   TeamMatchResult,
   TournamentMatch,
 } from "./types";
-import type { Json, Tables, TablesInsert } from "@/types/database.types";
 
 type ImportTargetOptions = {
   tournamentId?: string;
@@ -46,10 +46,7 @@ type PendingImportCachePayload = {
   raw?: unknown;
 };
 
-type ExistingDuplicateMatchRow = Pick<
-  Tables<"matches">,
-  "id" | "event_id" | "external_match_id" | "match_id" | "match_number" | "status"
->;
+type ExistingDuplicateMatchRow = Pick<Tables<"matches">, "id" | "event_id" | "external_match_id" | "match_id" | "match_number" | "status">;
 
 type DuplicateMatchResolution =
   | {
@@ -67,20 +64,9 @@ type DuplicateMatchResolution =
       message: string;
     };
 
-type ImportLifecycleState =
-  | "queued"
-  | "fetching"
-  | "fetched"
-  | "normalized"
-  | "draft"
-  | "published"
-  | "failed"
-  | "repaired"
-  | "reset";
+type ImportLifecycleState = "queued" | "fetching" | "fetched" | "normalized" | "draft" | "published" | "failed" | "repaired" | "reset";
 
-function normalizePendingImportStatus(
-  state: ImportLifecycleState
-): TablesInsert<"pending_imports">["status"] {
+function normalizePendingImportStatus(state: ImportLifecycleState): TablesInsert<"pending_imports">["status"] {
   return state;
 }
 
@@ -90,16 +76,10 @@ function toNullableUuid(value?: string | null) {
   }
 
   const normalizedValue = value.trim();
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedValue)
-    ? normalizedValue
-    : null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedValue) ? normalizedValue : null;
 }
 
-async function resolvePendingImportDayId(input: {
-  seasonId?: string;
-  seasonDayNumber?: number;
-  existingDayId?: string | null;
-}) {
+async function resolvePendingImportDayId(input: { seasonId?: string; seasonDayNumber?: number; existingDayId?: string | null }) {
   const seasonId = toNullableUuid(input.seasonId);
   const seasonDayNumber = typeof input.seasonDayNumber === "number" ? input.seasonDayNumber : null;
 
@@ -108,12 +88,7 @@ async function resolvePendingImportDayId(input: {
   }
 
   const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client
-    .from("days")
-    .select("id")
-    .eq("season_id", seasonId)
-    .eq("day_number", seasonDayNumber)
-    .maybeSingle();
+  const { data, error } = await client.from("days").select("id").eq("season_id", seasonId).eq("day_number", seasonDayNumber).maybeSingle();
 
   if (error) {
     throw error;
@@ -139,16 +114,14 @@ async function appendPendingImportLifecycle(
     preview?: PubgImportPreview;
     raw?: unknown;
     details?: Record<string, unknown>;
-  }
+  },
 ) {
   const client = getSupabaseServiceRoleClient();
   const existing = await getLatestPendingImportCache(matchId);
   const existingNormalized = readJsonObject(existing?.normalized_json) ?? {};
   const existingContext = readJsonObject((existingNormalized.context as Json | undefined) ?? null);
   const existingPreview = readJsonObject((existingNormalized.preview as Json | undefined) ?? null);
-  const existingLifecycle = Array.isArray(existingNormalized.lifecycle)
-    ? [...(existingNormalized.lifecycle as Json[])]
-    : [];
+  const existingLifecycle = Array.isArray(existingNormalized.lifecycle) ? [...(existingNormalized.lifecycle as Json[])] : [];
   const resolvedDayId = await resolvePendingImportDayId({
     seasonId:
       options?.context?.seasonId ??
@@ -188,8 +161,7 @@ async function appendPendingImportLifecycle(
     day_id: resolvedDayId,
     match_id: matchId,
     external_match_id:
-      options?.sourceMatchId ??
-      (typeof existingNormalized.sourceMatchId === "string" ? existingNormalized.sourceMatchId : null),
+      options?.sourceMatchId ?? (typeof existingNormalized.sourceMatchId === "string" ? existingNormalized.sourceMatchId : null),
     match_number: options?.preview?.matchNumber ?? existing?.match_number ?? null,
     map: options?.preview?.summary.mapName ?? existing?.map ?? null,
     match_date: options?.preview?.summary.createdAt ?? existing?.match_date ?? null,
@@ -197,20 +169,14 @@ async function appendPendingImportLifecycle(
     raw_json_id: matchId,
     normalized_json: normalizedJson,
     status: normalizePendingImportStatus(state),
-    source: state === "fetching" ? "pubg_api" : existing?.source ?? "pubg_api",
+    source: state === "fetching" ? "pubg_api" : (existing?.source ?? "pubg_api"),
     normalized_at:
       state === "normalized" || state === "draft" || state === "published" || state === "repaired"
         ? new Date().toISOString()
-        : existing?.normalized_at ?? null,
-    published_at: state === "published" ? new Date().toISOString() : existing?.published_at ?? null,
-    error_message:
-      typeof options?.details?.errorMessage === "string"
-        ? options.details.errorMessage
-        : existing?.error_message ?? null,
-    retry_count:
-      state === "failed"
-        ? (existing?.retry_count ?? 0) + 1
-        : existing?.retry_count ?? 0,
+        : (existing?.normalized_at ?? null),
+    published_at: state === "published" ? new Date().toISOString() : (existing?.published_at ?? null),
+    error_message: typeof options?.details?.errorMessage === "string" ? options.details.errorMessage : (existing?.error_message ?? null),
+    retry_count: state === "failed" ? (existing?.retry_count ?? 0) + 1 : (existing?.retry_count ?? 0),
     created_by: existing?.created_by ?? null,
     updated_at: new Date().toISOString(),
   };
@@ -313,11 +279,10 @@ async function getMatchResultCountByMatchId(matchIds: string[]) {
   }
 
   const client = getSupabaseServiceRoleClient();
-  const [{ data: teamResults, error: teamResultsError }, { data: playerResults, error: playerResultsError }] =
-    await Promise.all([
-      client.from("match_team_results").select("match_id").in("match_id", uniqueMatchIds),
-      client.from("match_player_results").select("match_id").in("match_id", uniqueMatchIds),
-    ]);
+  const [{ data: teamResults, error: teamResultsError }, { data: playerResults, error: playerResultsError }] = await Promise.all([
+    client.from("match_team_results").select("match_id").in("match_id", uniqueMatchIds),
+    client.from("match_player_results").select("match_id").in("match_id", uniqueMatchIds),
+  ]);
 
   if (teamResultsError) {
     throw teamResultsError;
@@ -339,11 +304,7 @@ function isSafeDraftSlotMatch(row: ExistingDuplicateMatchRow, resultCountByMatch
   return !isPublishedMatchStatus(row.status) && !row.external_match_id && (resultCountByMatchId.get(row.id) ?? 0) === 0;
 }
 
-async function findExistingDuplicate(
-  tournamentId: string | undefined,
-  matchId: string,
-  matchNumber: number | undefined
-) {
+async function findExistingDuplicate(tournamentId: string | undefined, matchId: string, matchNumber: number | undefined) {
   const client = getSupabaseServiceRoleClient();
   const { data: byMatchId, error: byMatchIdError } = await client
     .from("matches")
@@ -465,7 +426,7 @@ export async function cachePendingImportPreview(payload: PendingImportCachePaylo
   });
 }
 
-export async function getLatestPendingImportCache(matchId: string) {
+async function getLatestPendingImportCache(matchId: string) {
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client
     .from("pending_imports")
@@ -482,7 +443,7 @@ export async function getLatestPendingImportCache(matchId: string) {
   return data ?? null;
 }
 
-export function parseCachedPreview(cacheRow: Tables<"pending_imports"> | null) {
+function parseCachedPreview(cacheRow: Tables<"pending_imports"> | null) {
   if (!cacheRow) return null;
   const normalized = readJsonObject(cacheRow.normalized_json);
   if (!normalized) return null;
@@ -496,9 +457,7 @@ export function parseCachedPreview(cacheRow: Tables<"pending_imports"> | null) {
 
   const sourceMatchIdValue = normalized.sourceMatchId;
   const sourceMatchId =
-    typeof sourceMatchIdValue === "string" && sourceMatchIdValue.trim().length > 0
-      ? sourceMatchIdValue.trim()
-      : cacheRow.match_id;
+    typeof sourceMatchIdValue === "string" && sourceMatchIdValue.trim().length > 0 ? sourceMatchIdValue.trim() : cacheRow.match_id;
 
   return {
     context: contextValue as PubgImportContext,
@@ -511,10 +470,7 @@ export async function getLatestRawImportPayload(matchId: string) {
   return getRawPubgMatch(matchId);
 }
 
-export async function importPubgMatchesRelational(
-  matchIds: string[],
-  options?: RelationalImportOptions
-): Promise<PubgBulkImportResult> {
+export async function importPubgMatchesRelational(matchIds: string[], options?: RelationalImportOptions): Promise<PubgBulkImportResult> {
   const normalizedMatchIds = Array.from(new Set(matchIds.map((value) => value.trim()).filter(Boolean)));
   if (normalizedMatchIds.length === 0) {
     throw new Error("At least one PUBG match ID is required.");
@@ -631,11 +587,7 @@ export async function importPubgMatchesRelational(
     try {
       const edit = matchEdits.get(preview.matchId);
       const normalized = applyEdit(preview, edit);
-      const duplicateResolution = await findExistingDuplicate(
-        importContext.tournamentId,
-        normalized.matchId,
-        normalized.matchNumber
-      );
+      const duplicateResolution = await findExistingDuplicate(importContext.tournamentId, normalized.matchId, normalized.matchNumber);
 
       if (duplicateResolution.kind === "unsafe_conflict") {
         results.push({
@@ -669,7 +621,10 @@ export async function importPubgMatchesRelational(
         continue;
       }
 
-      const matchPayload: Partial<TournamentMatch> & { pubgMatchId: string; map: string } = {
+      const matchPayload: Partial<TournamentMatch> & {
+        pubgMatchId: string;
+        map: string;
+      } = {
         id: duplicateResolution.kind === "none" ? undefined : duplicateResolution.targetId,
         tournamentId: importContext.tournamentId,
         scrimId: importContext.scrimId,
@@ -753,10 +708,7 @@ export async function repairImportedPubgMatchFromCache(matchId: string, options?
 
   const currentMatch = await getCompetitionMatch(existingRow.id);
   const currentPublished = currentMatch?.status === "published";
-  const nextPublished =
-    typeof options?.publish === "boolean"
-      ? options.publish
-      : currentPublished;
+  const nextPublished = typeof options?.publish === "boolean" ? options.publish : currentPublished;
 
   if (currentPublished && typeof options?.publish === "boolean" && options.publish !== currentPublished && !options?.forcePublished) {
     throw new Error("This operation changes published state. Set forcePublished=true to confirm.");
@@ -778,7 +730,7 @@ export async function repairImportedPubgMatchFromCache(matchId: string, options?
       teamResults: normalizeTeamResults(cache.preview.teamResults),
       playerResults: normalizePlayerResults(cache.preview.playerResults),
     },
-    { publish: nextPublished }
+    { publish: nextPublished },
   );
 
   await appendPendingImportLifecycle(matchId, "repaired", {
@@ -818,18 +770,12 @@ export async function resetImportedPubgMatch(matchId: string, options?: { confir
 
   const before = await getCompetitionMatch(existingRow.id);
 
-  const { error: deleteTeamResultsError } = await client
-    .from("match_team_results")
-    .delete()
-    .eq("match_id", existingRow.id);
+  const { error: deleteTeamResultsError } = await client.from("match_team_results").delete().eq("match_id", existingRow.id);
   if (deleteTeamResultsError) {
     throw deleteTeamResultsError;
   }
 
-  const { error: deletePlayerResultsError } = await client
-    .from("match_player_results")
-    .delete()
-    .eq("match_id", existingRow.id);
+  const { error: deletePlayerResultsError } = await client.from("match_player_results").delete().eq("match_id", existingRow.id);
   if (deletePlayerResultsError) {
     throw deletePlayerResultsError;
   }

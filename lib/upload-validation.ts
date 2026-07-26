@@ -47,7 +47,7 @@ function getMaxUploadBytes(type: UploadType) {
   return getUploadMaxBytes(type);
 }
 
-function getAllowedExtensions(type: UploadType, audience: UploadValidationAudience) {
+function getAllowedExtensions(type: UploadType, _audience: UploadValidationAudience) {
   if (isTeamLogoUploadType(type)) {
     return TEAM_LOGO_EXTENSIONS;
   }
@@ -55,7 +55,7 @@ function getAllowedExtensions(type: UploadType, audience: UploadValidationAudien
   return isImageUploadType(type) ? ALLOWED_IMAGE_EXTENSIONS : ALLOWED_MOSS_EXTENSIONS;
 }
 
-function getAllowedContentTypes(type: UploadType, audience: UploadValidationAudience) {
+function getAllowedContentTypes(type: UploadType, _audience: UploadValidationAudience) {
   if (isTeamLogoUploadType(type)) {
     return TEAM_LOGO_CONTENT_TYPES;
   }
@@ -68,11 +68,7 @@ function isAllowedUploadExtension(type: UploadType, fileName: string, audience: 
   return (getAllowedExtensions(type, audience) as readonly string[]).includes(extension);
 }
 
-function isAllowedUploadContentType(
-  type: UploadType,
-  contentType: string | null | undefined,
-  audience: UploadValidationAudience
-) {
+function isAllowedUploadContentType(type: UploadType, contentType: string | null | undefined, audience: UploadValidationAudience) {
   const normalizedContentType = contentType?.trim().toLowerCase();
   if (!normalizedContentType) {
     return false;
@@ -81,21 +77,19 @@ function isAllowedUploadContentType(
   return (getAllowedContentTypes(type, audience) as readonly string[]).includes(normalizedContentType);
 }
 
-function getUploadValidationMessage(type: UploadType, audience: UploadValidationAudience) {
+function getUploadValidationMessage(type: UploadType, _audience: UploadValidationAudience) {
   if (isImageUploadType(type)) {
     return "Upload a PNG, JPG, JPEG, or WEBP image.";
   }
 
-  return isPrivateUploadType(type)
-    ? "Upload a ZIP, RAR, 7Z, PDF, or TXT file."
-    : "Upload a PNG, JPG, JPEG, or WEBP image.";
+  return isPrivateUploadType(type) ? "Upload a ZIP, RAR, 7Z, PDF, or TXT file." : "Upload a PNG, JPG, JPEG, or WEBP image.";
 }
 
 export function resolveUploadContentType(
   type: UploadType,
   fileName: string,
   contentType: string | null | undefined,
-  options: { audience?: UploadValidationAudience } = {}
+  options: { audience?: UploadValidationAudience } = {},
 ) {
   const audience = options.audience ?? "admin";
   const normalizedContentType = contentType?.trim().toLowerCase();
@@ -115,10 +109,6 @@ export function resolveUploadContentType(
   }
 
   return null;
-}
-
-export function resolveImageContentType(fileName: string, contentType: string | null | undefined) {
-  return resolveUploadContentType("team_logo", fileName, contentType);
 }
 
 export function validateUpload(input: UploadValidationInput) {

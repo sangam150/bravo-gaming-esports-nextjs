@@ -1,20 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import type { User } from "@supabase/supabase-js";
 import { isAdminRole } from "@/lib/authz";
-import {
-  clearBravoSession,
-  createBravoSession,
-  performPasswordLogin,
-} from "@/lib/login-client";
+import { clearBravoSession, createBravoSession, performPasswordLogin } from "@/lib/login-client";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import {
-  getLoginFailureDetails,
-  LOGIN_ERROR_MESSAGES,
-  validateLoginCredentials,
-} from "@/lib/user-facing-errors";
+import { getLoginFailureDetails, validateLoginCredentials } from "@/lib/user-facing-errors";
+import type { User } from "@supabase/supabase-js";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 type AuthContextValue = {
   user: User | null;
@@ -28,10 +20,12 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function buildSessionUser(user?: {
-  uid?: string;
-  email?: string;
-} | null): User | null {
+function buildSessionUser(
+  user?: {
+    uid?: string;
+    email?: string;
+  } | null,
+): User | null {
   if (!user?.uid) {
     return null;
   }
@@ -191,9 +185,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
               }
             : { status: data.status ?? response.status },
           {
-          variant: "admin",
-          stage: "credentials",
-          }
+            variant: "admin",
+            stage: "credentials",
+          },
         );
         throw new Error(details.message);
       }
@@ -201,7 +195,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setUser(buildSessionUser(data.user));
       setRole(data.user?.role ?? null);
     },
-    [configured]
+    [configured],
   );
 
   const logout = useCallback(async () => {
@@ -214,8 +208,16 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   }, [configured, clearSession]);
 
   const value = useMemo(
-    () => ({ user, role, isAdmin: isAdminRole(role), loading, configured, login, logout }),
-    [user, role, loading, configured, login, logout]
+    () => ({
+      user,
+      role,
+      isAdmin: isAdminRole(role),
+      loading,
+      configured,
+      login,
+      logout,
+    }),
+    [user, role, loading, configured, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

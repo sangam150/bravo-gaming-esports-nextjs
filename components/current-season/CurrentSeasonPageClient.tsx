@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import StatusBadge from "@/components/ui/StatusBadge";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { CurrentSeasonOverview } from "@/lib/types";
+import Link from "next/link";
 
 function formatDate(value: string) {
   const date = new Date(`${value}T12:00:00+05:45`);
@@ -34,7 +34,7 @@ export default function CurrentSeasonPageClient({
     matches: false,
     matchResults: false,
   });
-  const activeOverview = enableRealtime ? overview ?? initialOverview : initialOverview;
+  const activeOverview = enableRealtime ? (overview ?? initialOverview) : initialOverview;
 
   if (!activeOverview) {
     return (
@@ -43,17 +43,14 @@ export default function CurrentSeasonPageClient({
           <section className="page-hero p-8 text-center">
             <p className="section-title">Season Overview</p>
             <h1 className="hero-h1 mt-2 !text-4xl">Season details will appear after admin approval</h1>
-            <p className="mt-4 text-text-muted">
-              Results will be published after admin approval.
-            </p>
+            <p className="mt-4 text-text-muted">Results will be published after admin approval.</p>
           </section>
         </div>
       </main>
     );
   }
 
-  const { season, tournaments, leaderboard, currentTournament, registeredTeams, matchesPlayed, recentResults } =
-    activeOverview;
+  const { season, tournaments, leaderboard, currentTournament, registeredTeams, matchesPlayed, recentResults } = activeOverview;
   const seasonEyebrow = season.status === "active" ? "Current Season" : "Season Archive";
 
   return (
@@ -72,7 +69,7 @@ export default function CurrentSeasonPageClient({
                 {currentTournament ? (
                   <StatusBadge status={currentTournament.status} />
                 ) : (
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">
                     Results pending
                   </span>
                 )}
@@ -90,8 +87,14 @@ export default function CurrentSeasonPageClient({
             {[
               { label: "Season Start", value: formatDate(season.startDate) },
               { label: "Current Day", value: `Day ${season.currentDay}` },
-              { label: "Season Status", value: formatSeasonStatus(season.status) },
-              { label: "Season Length", value: `${season.configuredDays} Days` },
+              {
+                label: "Season Status",
+                value: formatSeasonStatus(season.status),
+              },
+              {
+                label: "Season Length",
+                value: `${season.configuredDays} Days`,
+              },
               { label: "Registered Teams", value: `${registeredTeams}` },
               { label: "Matches Stored", value: `${matchesPlayed}` },
             ].map((stat) => (
@@ -172,12 +175,12 @@ export default function CurrentSeasonPageClient({
           <div className="esports-card overflow-hidden !p-0">
             <div className="border-b border-white/10 px-5 py-4">
               <p className="section-heading !text-sm">Overall Season Leaderboard</p>
-              <p className="mt-1 text-sm text-text-muted">
-                Aggregated from every stored Bravo daily scrim day in the active season.
-              </p>
+              <p className="mt-1 text-sm text-text-muted">Aggregated from every stored Bravo daily scrim day in the active season.</p>
             </div>
             {leaderboard.length === 0 ? (
-              <div className="p-8 text-center text-sm text-text-muted">Season standings will appear here after the first approved results are published.</div>
+              <div className="p-8 text-center text-sm text-text-muted">
+                Season standings will appear here after the first approved results are published.
+              </div>
             ) : (
               <div className="table-scroll">
                 <table className="data-table min-w-full">
@@ -197,9 +200,7 @@ export default function CurrentSeasonPageClient({
                   <tbody>
                     {leaderboard.map((row) => (
                       <tr key={row.teamId}>
-                        <td className={row.rank === 1 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>
-                          #{row.rank}
-                        </td>
+                        <td className={row.rank === 1 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>#{row.rank}</td>
                         <td>{row.slotNumber ? `#${row.slotNumber}` : "-"}</td>
                         <td>
                           <Link href={`/pubg/teams/${row.teamId}`} className="flex items-center gap-3 hover:text-accent-blue">
@@ -210,9 +211,7 @@ export default function CurrentSeasonPageClient({
                         <td>{row.matches}</td>
                         <td>{row.killPoints ?? row.kills}</td>
                         <td>{row.placement}</td>
-                        <td className={row.rank <= 5 ? "points-cell" : "font-mono-stat font-bold text-white"}>
-                          {row.points}
-                        </td>
+                        <td className={row.rank <= 5 ? "points-cell" : "font-mono-stat font-bold text-white"}>{row.points}</td>
                         <td>{row.averagePlacement ?? "-"}</td>
                         <td>{row.chickenDinners ?? 0}</td>
                       </tr>
@@ -239,12 +238,8 @@ export default function CurrentSeasonPageClient({
               <Link key={tournament.id} href={`/tournaments/${tournament.id}`} className="tournament-card p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-label uppercase text-accent-blue">
-                      Day {tournament.seasonDayNumber ?? tournament.dayNumber ?? "-"}
-                    </p>
-                    <h3 className="mt-2 line-clamp-2 font-display text-base font-bold uppercase text-white">
-                      {tournament.title}
-                    </h3>
+                    <p className="text-label uppercase text-accent-blue">Day {tournament.seasonDayNumber ?? tournament.dayNumber ?? "-"}</p>
+                    <h3 className="mt-2 line-clamp-2 font-display text-base font-bold uppercase text-white">{tournament.title}</h3>
                   </div>
                   <StatusBadge status={tournament.status} />
                 </div>
@@ -268,7 +263,9 @@ export default function CurrentSeasonPageClient({
                 </div>
                 <div className="mt-4 flex items-center justify-between text-xs uppercase tracking-[0.16em] text-text-muted">
                   <span>{tournament.server}</span>
-                  <span>{tournament.teamCount}/{tournament.maxTeams} teams</span>
+                  <span>
+                    {tournament.teamCount}/{tournament.maxTeams} teams
+                  </span>
                 </div>
               </Link>
             ))}

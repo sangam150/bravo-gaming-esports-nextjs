@@ -1,5 +1,5 @@
-import AuthProvider from "@/components/admin/AuthProvider";
 import AdminGate from "@/components/admin/AdminGate";
+import AuthProvider from "@/components/admin/AuthProvider";
 
 export const metadata = {
   title: "Admin | Bravo Gaming Esports",

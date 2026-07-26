@@ -13,9 +13,7 @@ export type EdgeIdentity = {
 export async function resolveEdgeIdentity(request: NextRequest): Promise<EdgeIdentity | null> {
   const token = request.cookies.get("bravo_session")?.value;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const publicKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const publicKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
   if (!token || !url || !publicKey) return null;
 
   try {

@@ -1,20 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import {
-  formatUploadSize,
-  getUploadMaxBytes,
-  TEAM_LOGO_FILE_INPUT_ACCEPT,
-} from "@/lib/upload-config";
-import { validateUpload } from "@/lib/upload-validation";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { RegistrationTargetSummary } from "@/lib/team-registration";
-import {
-  getResponseErrorMessage,
-  toUserFacingErrorMessage,
-  USER_FACING_ERROR_MESSAGES,
-} from "@/lib/user-facing-errors";
+import { formatUploadSize, getUploadMaxBytes, TEAM_LOGO_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
+import { validateUpload } from "@/lib/upload-validation";
+import { getResponseErrorMessage, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import Link from "next/link";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 type UploadedRegistrationLogo = {
   id: string;
@@ -176,14 +168,13 @@ export default function TeamRegistrationPageClient({
         body: formData,
       });
       const data = (await response.json().catch(() => ({}))) as
-        | ({ error?: string } & Partial<UploadedRegistrationLogo>)
-        | Record<string, never>;
+        ({ error?: string } & Partial<UploadedRegistrationLogo>) | Record<string, never>;
 
       if (!response.ok || !data.id || !data.path || !data.url) {
         throw new Error(
           getResponseErrorMessage(response, (data as { error?: string }).error, {
             fallback: USER_FACING_ERROR_MESSAGES.registration,
-          })
+          }),
         );
       }
 
@@ -200,7 +191,7 @@ export default function TeamRegistrationPageClient({
       setLogoError(
         toUserFacingErrorMessage(uploadError, {
           fallback: USER_FACING_ERROR_MESSAGES.registration,
-        })
+        }),
       );
       setLogoNotice(null);
     } finally {
@@ -246,7 +237,7 @@ export default function TeamRegistrationPageClient({
         throw new Error(
           getResponseErrorMessage(response, (data as { error?: string }).error, {
             fallback: USER_FACING_ERROR_MESSAGES.registration,
-          })
+          }),
         );
       }
 
@@ -255,7 +246,7 @@ export default function TeamRegistrationPageClient({
       setError(
         toUserFacingErrorMessage(submissionError, {
           fallback: USER_FACING_ERROR_MESSAGES.registration,
-        })
+        }),
       );
     } finally {
       setLoading(false);
@@ -269,13 +260,9 @@ export default function TeamRegistrationPageClient({
           Sent
         </div>
         <h2 className="mt-6 text-2xl font-black text-white">Your team registration has been submitted.</h2>
-        <p className="mt-3 text-slate-300">
-          Bravo admins will review your team details and confirm your slot through official channels.
-        </p>
+        <p className="mt-3 text-slate-300">Bravo admins will review your team details and confirm your slot through official channels.</p>
         <p className="mt-2 text-sm text-slate-400">Expected review time: within 24 hours.</p>
-        {selectedTarget?.title ? (
-          <p className="mt-2 text-sm text-accent-blue-light">Selected event: {selectedTarget.title}</p>
-        ) : null}
+        {selectedTarget?.title ? <p className="mt-2 text-sm text-accent-blue-light">Selected event: {selectedTarget.title}</p> : null}
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/contact" className="btn-secondary">
             Contact Bravo
@@ -297,7 +284,8 @@ export default function TeamRegistrationPageClient({
         <p className="section-title">Team Registration</p>
         <h1 className="section-heading mt-3">Register Your Squad</h1>
         <p className="mt-3 text-slate-400">
-          Submit your roster for Bravo Gaming Esports scrims and tournaments. Admins verify event eligibility, team details, and optional logo assets before confirming slots.
+          Submit your roster for Bravo Gaming Esports scrims and tournaments. Admins verify event eligibility, team details, and optional
+          logo assets before confirming slots.
         </p>
       </div>
 
@@ -317,19 +305,14 @@ export default function TeamRegistrationPageClient({
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-sm text-slate-300">
-              Choose an open Bravo event by name below, or keep the form on the general Bravo review queue if you need manual placement during launch prep.
+              Choose an open Bravo event by name below, or keep the form on the general Bravo review queue if you need manual placement
+              during launch prep.
             </div>
           )}
 
           <div>
-            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Select Event
-            </label>
-            <select
-              className="input-esports"
-              value={selectedEventId}
-              onChange={(event) => setSelectedEventId(event.target.value)}
-            >
+            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Select Event</label>
+            <select className="input-esports" value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>
               <option value="">General Bravo review queue (manual placement)</option>
               {availableTournaments.map((tournament) => (
                 <option key={tournament.id} value={tournament.id}>
@@ -338,15 +321,14 @@ export default function TeamRegistrationPageClient({
               ))}
             </select>
             <p className="mt-2 text-xs text-slate-500">
-              Public events are listed by name only. If no live event is open yet, use the general review queue and include your Discord/contact details so Bravo can follow up manually before a slot is confirmed.
+              Public events are listed by name only. If no live event is open yet, use the general review queue and include your
+              Discord/contact details so Bravo can follow up manually before a slot is confirmed.
             </p>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                Team Name *
-              </label>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Team Name *</label>
               <input
                 className="input-esports"
                 value={teamName}
@@ -356,9 +338,7 @@ export default function TeamRegistrationPageClient({
               />
             </div>
             <div>
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                Team Tag / Clan Code
-              </label>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Team Tag / Clan Code</label>
               <input
                 className="input-esports"
                 value={teamTag}
@@ -373,9 +353,7 @@ export default function TeamRegistrationPageClient({
 
           <div className="grid gap-6 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                IGL / Manager Name *
-              </label>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">IGL / Manager Name *</label>
               <input
                 className="input-esports"
                 value={captainName}
@@ -385,9 +363,7 @@ export default function TeamRegistrationPageClient({
               />
             </div>
             <div>
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                Discord Contact *
-              </label>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Discord Contact *</label>
               <input
                 className="input-esports"
                 value={captainDiscord}
@@ -399,9 +375,7 @@ export default function TeamRegistrationPageClient({
           </div>
 
           <div>
-            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Player IGN Fields
-            </label>
+            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Player IGN Fields</label>
             <div className="space-y-3">
               {playerNames.map((name, index) => (
                 <input
@@ -420,9 +394,7 @@ export default function TeamRegistrationPageClient({
           </div>
 
           <div className="space-y-3">
-            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Team Logo (Optional)
-            </label>
+            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Team Logo (Optional)</label>
             <input
               ref={logoInputRef}
               type="file"
@@ -439,11 +411,7 @@ export default function TeamRegistrationPageClient({
             <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 {logoPreview ? (
-                  <img
-                    src={logoPreview}
-                    alt="Team logo preview"
-                    className="h-24 w-24 rounded-2xl border border-white/10 object-cover"
-                  />
+                  <img src={logoPreview} alt="Team logo preview" className="h-24 w-24 rounded-2xl border border-white/10 object-cover" />
                 ) : (
                   <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-dashed border-white/15 text-center text-xs uppercase tracking-[0.14em] text-slate-500">
                     Optional Logo
@@ -457,7 +425,8 @@ export default function TeamRegistrationPageClient({
                     JPG, PNG, and WEBP only. Max size: {teamLogoMaxSize}. You can still submit without a logo.
                   </p>
                   <p className="text-xs text-slate-500">
-                    If you skip the logo now, Bravo can still review your registration and collect branding later through Discord or the contact page.
+                    If you skip the logo now, Bravo can still review your registration and collect branding later through Discord or the
+                    contact page.
                   </p>
                   <button
                     type="button"
@@ -472,21 +441,15 @@ export default function TeamRegistrationPageClient({
             </div>
 
             {logoNotice ? (
-              <div className="rounded-xl border border-bravoGreen/25 bg-bravoGreen/10 px-4 py-3 text-sm text-bravoGreen">
-                {logoNotice}
-              </div>
+              <div className="rounded-xl border border-bravoGreen/25 bg-bravoGreen/10 px-4 py-3 text-sm text-bravoGreen">{logoNotice}</div>
             ) : null}
             {logoError ? (
-              <div className="rounded-xl border border-bravoRed/25 bg-bravoRed/10 px-4 py-3 text-sm text-bravoRed">
-                {logoError}
-              </div>
+              <div className="rounded-xl border border-bravoRed/25 bg-bravoRed/10 px-4 py-3 text-sm text-bravoRed">{logoError}</div>
             ) : null}
           </div>
 
           {error ? (
-            <div className="rounded-xl border border-bravoRed/25 bg-bravoRed/10 px-4 py-3 text-sm text-bravoRed">
-              {error}
-            </div>
+            <div className="rounded-xl border border-bravoRed/25 bg-bravoRed/10 px-4 py-3 text-sm text-bravoRed">{error}</div>
           ) : null}
 
           <div className="flex flex-wrap gap-3">
@@ -501,7 +464,8 @@ export default function TeamRegistrationPageClient({
             </Link>
           </div>
           <p className="text-xs text-slate-500">
-            Registration fallback: if no public event is open or you need manual help, submit here first and Bravo will continue the conversation through Discord or your contact details.
+            Registration fallback: if no public event is open or you need manual help, submit here first and Bravo will continue the
+            conversation through Discord or your contact details.
           </p>
         </form>
       </div>

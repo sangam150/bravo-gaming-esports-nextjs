@@ -14,14 +14,7 @@ function shouldDisableOptimization(src: string) {
   return normalizedSrc.endsWith(".svg") || normalizedSrc.startsWith("data:") || normalizedSrc.startsWith("blob:");
 }
 
-export default function ManagedImage({
-  src,
-  alt,
-  wrapperClassName,
-  className,
-  sizes = "100vw",
-  priority = false,
-}: ManagedImageProps) {
+export default function ManagedImage({ src, alt, wrapperClassName, className, sizes = "100vw", priority = false }: ManagedImageProps) {
   return (
     <div className={wrapperClassName ? `relative overflow-hidden ${wrapperClassName}` : "relative overflow-hidden"}>
       <Image

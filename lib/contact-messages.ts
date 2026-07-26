@@ -1,11 +1,5 @@
 import { randomUUID } from "crypto";
-import {
-  COLLECTIONS,
-  fetchDocumentCollection,
-  getDocument,
-  isDocumentStoreConfigured,
-  saveDocument,
-} from "./document-store";
+import { COLLECTIONS, fetchDocumentCollection, getDocument, isDocumentStoreConfigured, saveDocument } from "./document-store";
 import type { ContactMessage } from "./types";
 
 function cleanString(value?: string | null) {
@@ -14,7 +8,12 @@ function cleanString(value?: string | null) {
 }
 
 function normalizeContactMessage(
-  data: Partial<ContactMessage> & { kind: ContactMessage["kind"]; name: string; email: string; message: string }
+  data: Partial<ContactMessage> & {
+    kind: ContactMessage["kind"];
+    name: string;
+    email: string;
+    message: string;
+  },
 ): ContactMessage {
   const now = new Date().toISOString();
 
@@ -36,7 +35,7 @@ function compareCreatedAtDesc(firstValue: ContactMessage, secondValue: ContactMe
 }
 
 export async function createContactMessage(
-  data: Pick<ContactMessage, "kind" | "name" | "email" | "message"> & Partial<Pick<ContactMessage, "subject">>
+  data: Pick<ContactMessage, "kind" | "name" | "email" | "message"> & Partial<Pick<ContactMessage, "subject">>,
 ) {
   const payload = normalizeContactMessage(data);
   await saveDocument(COLLECTIONS.contactMessages, payload.id, payload as unknown as Record<string, unknown>);

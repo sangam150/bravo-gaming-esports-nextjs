@@ -1,7 +1,7 @@
-import Link from "next/link";
-import type { Metadata } from "next";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+import Link from "next/link";
 
 const policySections = [
   {
@@ -43,7 +43,8 @@ const reviewTimeline = [
 
 export const metadata: Metadata = buildContentMetadata({
   title: "Bravo Gaming Esports Anti-Cheat Policy",
-  description: "Official Bravo Gaming Esports anti-cheat, integrity, investigation, and enforcement policy for PUBG PC scrims and tournaments.",
+  description:
+    "Official Bravo Gaming Esports anti-cheat, integrity, investigation, and enforcement policy for PUBG PC scrims and tournaments.",
   path: "/anti-cheat",
   type: "website",
 });
@@ -62,8 +63,8 @@ export default function AntiCheatPage() {
                 Policy
               </h1>
               <p className="mt-5 max-w-3xl text-sm leading-7 text-text-muted sm:text-base">
-                Bravo PUBG PC scrims and tournaments are built around fair play, evidence-backed review, and strong
-                competitive integrity standards. Every player and team is expected to comply fully.
+                Bravo PUBG PC scrims and tournaments are built around fair play, evidence-backed review, and strong competitive integrity
+                standards. Every player and team is expected to comply fully.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href="/rules" className="btn-primary">
@@ -119,9 +120,8 @@ export default function AntiCheatPage() {
           <p className="section-title">Appeals & Updates</p>
           <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Integrity notices may be updated as events scale</h2>
           <p className="mt-4 max-w-4xl text-sm leading-7 text-text-muted">
-            Event-specific integrity procedures, proof requirements, or appeal windows may be published alongside a
-            tournament announcement. When that happens, the latest official event page and Bravo admin notice should be
-            treated as the current policy reference.
+            Event-specific integrity procedures, proof requirements, or appeal windows may be published alongside a tournament announcement.
+            When that happens, the latest official event page and Bravo admin notice should be treated as the current policy reference.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/events" className="btn-secondary">

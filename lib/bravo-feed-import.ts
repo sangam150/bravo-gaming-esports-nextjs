@@ -1,4 +1,3 @@
-import { savePlayer, saveTeam, saveTournament, saveTournamentMatch } from "./data";
 import {
   BRAVO_FEED_URL,
   buildBravoDayTag,
@@ -9,13 +8,8 @@ import {
   type BravoSourceStanding,
 } from "./bravo-feed";
 import { getBravoCanonicalTeamIds, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
-import {
-  COLLECTIONS,
-  deleteDocument,
-  isDocumentStoreConfigured,
-  queryDocumentCollection,
-  saveDocument,
-} from "./document-store";
+import { savePlayer, saveTeam, saveTournament, saveTournamentMatch } from "./data";
+import { COLLECTIONS, deleteDocument, isDocumentStoreConfigured, queryDocumentCollection, saveDocument } from "./document-store";
 import { buildTournamentStandings, normalizeMapName, toTeamMatchResults } from "./tournament-standings";
 import type { Player, Team, TournamentMatch, TournamentStanding } from "./types";
 
@@ -64,7 +58,7 @@ function toStandingDocument(
   dayNumber: number,
   teamId: string,
   averagePlacement: number,
-  slotNumber?: number
+  slotNumber?: number,
 ) {
   return {
     id: buildStandingId(tournamentId, standing.teamName),
@@ -99,7 +93,7 @@ function buildPlayerDocument(
   teamName: string,
   tournamentId: string,
   tournamentTitle: string,
-  dayNumber: number
+  dayNumber: number,
 ) {
   return {
     id: playerId,
@@ -130,11 +124,7 @@ function buildPlayerDocument(
   } satisfies Partial<Player> & { id: string; name: string };
 }
 
-async function deleteMissingDocuments<T extends { id: string }>(
-  existingDocuments: T[],
-  keepIds: Set<string>,
-  collectionName: string
-) {
+async function deleteMissingDocuments<T extends { id: string }>(existingDocuments: T[], keepIds: Set<string>, collectionName: string) {
   const deletions = existingDocuments
     .filter((document) => !keepIds.has(document.id))
     .map((document) => deleteDocument(collectionName, document.id));
@@ -186,10 +176,7 @@ export async function importBravoGamingFeed(options?: { maxDay?: number }) {
       const resolvedTeam = resolveBravoTeamIdentity(sourceTeamName);
       canonicalTeamIdsBySourceName.set(sourceTeamName, resolvedTeam?.id ?? buildTeamId(tournamentId, sourceTeamName));
       canonicalTeamNamesBySourceName.set(sourceTeamName, resolvedTeam?.name ?? sourceTeamName);
-      canonicalTeamSlotsBySourceName.set(
-        sourceTeamName,
-        resolvedTeam?.slotNumber ?? parseBravoSlotNumber(sourceTeamName)
-      );
+      canonicalTeamSlotsBySourceName.set(sourceTeamName, resolvedTeam?.slotNumber ?? parseBravoSlotNumber(sourceTeamName));
     }
 
     const matchDocuments: TournamentMatch[] = tournamentData.matches.map((match) => {
@@ -199,7 +186,7 @@ export async function importBravoGamingFeed(options?: { maxDay?: number }) {
           teamId: canonicalTeamIdsBySourceName.get(result.teamName) ?? null,
           teamName: canonicalTeamNamesBySourceName.get(result.teamName) ?? result.teamName,
           slotNumber: canonicalTeamSlotsBySourceName.get(result.teamName),
-        }))
+        })),
       );
       const winner = teamResults.find((teamResult) => teamResult.placement === 1)?.teamName ?? teamResults[0]?.teamName ?? "Unknown";
 
@@ -240,7 +227,7 @@ export async function importBravoGamingFeed(options?: { maxDay?: number }) {
             tournamentItem.dayNumber,
             canonicalTeamId,
             computedStanding?.averagePlacement ?? 0,
-            slotNumber
+            slotNumber,
           );
         })
       : computedStandings.map((standing) => ({
@@ -256,8 +243,8 @@ export async function importBravoGamingFeed(options?: { maxDay?: number }) {
         canonicalTeamNamesBySourceName.get(playerStanding.teamName) ?? playerStanding.teamName,
         tournamentId,
         tournamentTitle,
-        tournamentItem.dayNumber
-      )
+        tournamentItem.dayNumber,
+      ),
     );
 
     const playerIdsByTeamName = new Map<string, string[]>();
@@ -361,9 +348,7 @@ export async function importBravoGamingFeed(options?: { maxDay?: number }) {
     await Promise.all(playerDocuments.map((player) => savePlayer(player, player.id)));
     await Promise.all(matchDocuments.map((match) => saveTournamentMatch(match)));
     await Promise.all(
-      standingDocuments.map((standing) =>
-        saveDocument(COLLECTIONS.standings, standing.id, standing as unknown as Record<string, unknown>)
-      )
+      standingDocuments.map((standing) => saveDocument(COLLECTIONS.standings, standing.id, standing as unknown as Record<string, unknown>)),
     );
 
     importSummaries.push({
@@ -383,6 +368,3 @@ export async function importBravoGamingFeed(options?: { maxDay?: number }) {
     tournaments: importSummaries,
   };
 }
-
-export { BRAVO_FEED_URL };
-

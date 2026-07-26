@@ -2,7 +2,7 @@ import type { PubgImportWarning } from "@/lib/types";
 
 type JsonObject = Record<string, unknown>;
 
-export interface ParsedPubgMatchSummary {
+interface ParsedPubgMatchSummary {
   id?: string;
   createdAt?: string;
   duration?: number;
@@ -13,7 +13,7 @@ export interface ParsedPubgMatchSummary {
   telemetryUrl?: string | null;
 }
 
-export interface ParsedPubgMatchTeam {
+interface ParsedPubgMatchTeam {
   rosterId: string;
   teamId?: string;
   teamName: string;
@@ -73,12 +73,7 @@ function readNumber(value: unknown) {
   return Number.isFinite(numericValue) ? numericValue : undefined;
 }
 
-function pushMissingFieldWarning(
-  warnings: PubgImportWarning[],
-  field: string,
-  message: string,
-  extra: Partial<PubgImportWarning> = {}
-) {
+function pushMissingFieldWarning(warnings: PubgImportWarning[], field: string, message: string, extra: Partial<PubgImportWarning> = {}) {
   warnings.push({
     type: "missing_field",
     field,
@@ -145,10 +140,7 @@ export function parsePubgMatch(rawJson: unknown): ParsedPubgMatch {
     const attributes = asObject(item.attributes);
     const stats = asObject(attributes?.stats);
     const placement = readNumber(stats?.rank) ?? readNumber(stats?.winPlace) ?? 99;
-    const teamName =
-      readString(attributes?.teamId) ??
-      readString(stats?.teamId) ??
-      `Roster ${index + 1}`;
+    const teamName = readString(attributes?.teamId) ?? readString(stats?.teamId) ?? `Roster ${index + 1}`;
 
     if (!readString(attributes?.teamId) && !readString(stats?.teamId)) {
       pushMissingFieldWarning(warnings, "roster.teamId", "A PUBG roster is missing a team name.", {
@@ -177,10 +169,7 @@ export function parsePubgMatch(rawJson: unknown): ParsedPubgMatch {
     const rosterRelationship = asObject(asObject(item.relationships)?.roster);
     const rosterId = readString(asObject(rosterRelationship?.data)?.id) ?? "";
     const roster = rosters.get(rosterId);
-    const playerName =
-      readString(attributes?.name) ??
-      readString(stats?.name) ??
-      `Player ${index + 1}`;
+    const playerName = readString(attributes?.name) ?? readString(stats?.name) ?? `Player ${index + 1}`;
     const playerId = readString(item.id) ?? `participant-${index + 1}`;
 
     if (!readString(attributes?.name) && !readString(stats?.name)) {
@@ -243,23 +232,25 @@ export function parsePubgMatch(rawJson: unknown): ParsedPubgMatch {
     teamsFromRosters.length > 0
       ? teamsFromRosters
       : Array.from(
-          players.reduce<Map<string, ParsedPubgMatchTeam>>((result, player) => {
-            const current = result.get(player.teamName) ?? {
-              rosterId: player.rosterId || player.teamName,
-              teamId: player.teamId,
-              teamName: player.teamName,
-              placement: player.placement,
-              wwcd: player.placement === 1,
-              kills: 0,
-              playerIds: [],
-            };
-            current.placement = Math.min(current.placement, player.placement);
-            current.wwcd = current.placement === 1;
-            current.kills += player.kills;
-            current.playerIds.push(player.playerId);
-            result.set(player.teamName, current);
-            return result;
-          }, new Map()).values()
+          players
+            .reduce<Map<string, ParsedPubgMatchTeam>>((result, player) => {
+              const current = result.get(player.teamName) ?? {
+                rosterId: player.rosterId || player.teamName,
+                teamId: player.teamId,
+                teamName: player.teamName,
+                placement: player.placement,
+                wwcd: player.placement === 1,
+                kills: 0,
+                playerIds: [],
+              };
+              current.placement = Math.min(current.placement, player.placement);
+              current.wwcd = current.placement === 1;
+              current.kills += player.kills;
+              current.playerIds.push(player.playerId);
+              result.set(player.teamName, current);
+              return result;
+            }, new Map())
+            .values(),
         );
 
   return {

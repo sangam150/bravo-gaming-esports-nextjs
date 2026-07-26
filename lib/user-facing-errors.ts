@@ -4,8 +4,7 @@ const TECHNICAL_MESSAGE_PATTERN =
 const LOGIN_INVALID_CREDENTIALS_PATTERN =
   /invalid login credentials|invalid email or password|email or password is invalid|invalid credentials|invalid grant|user not found/i;
 const LOGIN_EMAIL_UNCONFIRMED_PATTERN = /email not confirmed|email.*unconfirmed|confirm.*email/i;
-const LOGIN_RATE_LIMIT_PATTERN =
-  /rate limit|too many requests|too many attempts|retry after|over.*rate|429/i;
+const LOGIN_RATE_LIMIT_PATTERN = /rate limit|too many requests|too many attempts|retry after|over.*rate|429/i;
 const LOGIN_BACKEND_UNAVAILABLE_PATTERN =
   /failed to fetch|network request failed|load failed|networkerror|service unavailable|temporarily unavailable|dns|timeout|not configured|connection|fetch failed|supabase/i;
 
@@ -67,18 +66,12 @@ export const USER_FACING_LABELS = {
   playerPendingMapping: "Player pending mapping",
 } as const;
 
-export function getUserFacingTeamLabel(
-  value?: string | null,
-  fallback: string = USER_FACING_LABELS.teamPendingConfirmation
-) {
+export function getUserFacingTeamLabel(value?: string | null, fallback: string = USER_FACING_LABELS.teamPendingConfirmation) {
   const trimmed = typeof value === "string" ? value.trim() : "";
   return trimmed || fallback;
 }
 
-export function getUserFacingPlayerLabel(
-  value?: string | null,
-  fallback: string = USER_FACING_LABELS.playerPendingConfirmation
-) {
+export function getUserFacingPlayerLabel(value?: string | null, fallback: string = USER_FACING_LABELS.playerPendingConfirmation) {
   const trimmed = typeof value === "string" ? value.trim() : "";
   return trimmed || fallback;
 }
@@ -137,7 +130,7 @@ export function toUserFacingErrorMessage(
   options: {
     status?: number;
     fallback?: string;
-  } = {}
+  } = {},
 ) {
   const rawMessage = getRawErrorMessage(error);
 
@@ -173,16 +166,12 @@ export function validateLoginCredentials(email: string, password: string) {
   return null;
 }
 
-export function createRoleAccessError(variant: Exclude<LoginAccessVariant, "hub">) {
-  return new Error(getRoleAccessErrorMessage(variant));
-}
-
 export function getLoginFailureDetails(
   error: unknown,
   options: {
     variant: LoginAccessVariant;
     stage?: LoginErrorStage;
-  }
+  },
 ): LoginFailureDetails {
   const rawMessage = getRawErrorMessage(error);
   const normalizedMessage = rawMessage.toLowerCase();
@@ -207,7 +196,12 @@ export function getLoginFailureDetails(
   ] as const;
   const controlledMatch = controlledMessages.find(([message]) => rawMessage === message);
   if (controlledMatch) {
-    return { message: controlledMatch[0], category: controlledMatch[1], status, code };
+    return {
+      message: controlledMatch[0],
+      category: controlledMatch[1],
+      status,
+      code,
+    };
   }
 
   if (LOGIN_EMAIL_UNCONFIRMED_PATTERN.test(normalizedMessage)) {
@@ -228,10 +222,7 @@ export function getLoginFailureDetails(
     };
   }
 
-  if (
-    LOGIN_INVALID_CREDENTIALS_PATTERN.test(normalizedMessage) ||
-    (options.stage !== "session" && (status === 400 || status === 401))
-  ) {
+  if (LOGIN_INVALID_CREDENTIALS_PATTERN.test(normalizedMessage) || (options.stage !== "session" && (status === 400 || status === 401))) {
     return {
       message: LOGIN_ERROR_MESSAGES.invalidCredentials,
       category: "invalid_credentials",
@@ -266,7 +257,7 @@ export function getResponseErrorMessage(
   error: unknown,
   options: {
     fallback?: string;
-  } = {}
+  } = {},
 ) {
   return toUserFacingErrorMessage(error, {
     status: response.status,
@@ -279,7 +270,7 @@ export function jsonErrorResponse(
   options: {
     status?: number;
     fallback?: string;
-  } = {}
+  } = {},
 ) {
   const status = options.status ?? 500;
   return Response.json(
@@ -289,6 +280,6 @@ export function jsonErrorResponse(
         fallback: options.fallback,
       }),
     },
-    { status }
+    { status },
   );
 }

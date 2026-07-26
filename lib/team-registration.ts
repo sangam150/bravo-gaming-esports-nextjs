@@ -1,12 +1,12 @@
 import "server-only";
 
+import type { Tables } from "@/types/database.types";
 import { getRegistrations, getTournament, getTournamentTeams, getTournaments } from "./data";
-import type { Tournament, TournamentStatus } from "./types";
 import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
-import type { Tables } from "@/types/database.types";
+import type { Tournament, TournamentStatus } from "./types";
 
-export type RegistrationTargetState = "open" | "closed" | "full";
+type RegistrationTargetState = "open" | "closed" | "full";
 
 export type RegistrationTargetSummary = {
   id: string;
@@ -126,15 +126,8 @@ async function getPublishedEventTournament(idOrSlug: string): Promise<Tournament
 
     const slugLookup =
       byId.data ??
-      (
-        await client
-          .from("events")
-          .select("*")
-          .eq("slug", value.toLowerCase())
-          .eq("published", true)
-          .is("deleted_at", null)
-          .maybeSingle()
-      ).data;
+      (await client.from("events").select("*").eq("slug", value.toLowerCase()).eq("published", true).is("deleted_at", null).maybeSingle())
+        .data;
 
     if (slugLookup) {
       const row = slugLookup as Tables<"events">;
@@ -222,7 +215,7 @@ export async function listRegistrationTargets(options: { includeClosed?: boolean
           matchCount: row.match_count ?? undefined,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
-        })
+        }),
       );
     }
   } else {
@@ -231,9 +224,7 @@ export async function listRegistrationTargets(options: { includeClosed?: boolean
   }
 
   const dedupedTargets = Array.from(new Map(targets.map((target) => [target.id, target])).values());
-  const visibleTargets = options.includeClosed
-    ? dedupedTargets
-    : dedupedTargets.filter((target) => target.registrationState === "open");
+  const visibleTargets = options.includeClosed ? dedupedTargets : dedupedTargets.filter((target) => target.registrationState === "open");
 
   return visibleTargets.sort(compareRegistrationTargets);
 }
@@ -242,11 +233,7 @@ export function isValidDiscordHandle(value: string) {
   return /^[a-z0-9._]{2,32}$/i.test(value.trim());
 }
 
-export async function validateRegistrationTarget(options: {
-  tournamentId?: string | null;
-  teamName: string;
-  captainDiscord: string;
-}) {
+export async function validateRegistrationTarget(options: { tournamentId?: string | null; teamName: string; captainDiscord: string }) {
   const tournamentId = cleanString(options.tournamentId);
   if (!tournamentId) {
     return null;
@@ -263,20 +250,14 @@ export async function validateRegistrationTarget(options: {
 
   const normalizedTeamName = normalizeText(options.teamName);
   const normalizedDiscord = normalizeText(options.captainDiscord);
-  const [existingRegistrations, registeredTeams] = await Promise.all([
-    getRegistrations(),
-    getTournamentTeams(target.id).catch(() => []),
-  ]);
+  const [existingRegistrations, registeredTeams] = await Promise.all([getRegistrations(), getTournamentTeams(target.id).catch(() => [])]);
 
   const duplicateRegistration = existingRegistrations.find((registration) => {
     if (registration.tournamentId !== target.id || registration.status === "rejected") {
       return false;
     }
 
-    return (
-      normalizeText(registration.teamName) === normalizedTeamName ||
-      normalizeText(registration.captainDiscord) === normalizedDiscord
-    );
+    return normalizeText(registration.teamName) === normalizedTeamName || normalizeText(registration.captainDiscord) === normalizedDiscord;
   });
 
   if (duplicateRegistration) {

@@ -47,7 +47,7 @@ type YouTubeApiResponse<T> = {
   nextPageToken?: string;
 };
 
-export interface YouTubeSyncResult {
+interface YouTubeSyncResult {
   channelId: string;
   channelUrl: string;
   scannedCount: number;
@@ -163,10 +163,7 @@ function extractExistingYouTubeMatch(existingVideos: VideoItem[], videoId: strin
   );
 }
 
-export async function syncYouTubeChannelDrafts(options?: {
-  limit?: number;
-  defaultGameSlug?: string;
-}) {
+export async function syncYouTubeChannelDrafts(options?: { limit?: number; defaultGameSlug?: string }) {
   if (!isDocumentStoreConfigured()) {
     throw new Error("Supabase document storage is not configured for media sync yet.");
   }
@@ -196,11 +193,7 @@ export async function syncYouTubeChannelDrafts(options?: {
   }
 
   const videoIds = Array.from(
-    new Set(
-      playlistItems
-        .map((item) => item.contentDetails?.videoId?.trim())
-        .filter((value): value is string => Boolean(value))
-    )
+    new Set(playlistItems.map((item) => item.contentDetails?.videoId?.trim()).filter((value): value is string => Boolean(value))),
   );
 
   if (videoIds.length === 0) {
@@ -221,11 +214,7 @@ export async function syncYouTubeChannelDrafts(options?: {
     maxResults: String(videoIds.length),
   });
 
-  const detailsById = new Map(
-    (detailResponse.items ?? [])
-      .map((item) => [item.id ?? "", item] as const)
-      .filter(([id]) => Boolean(id))
-  );
+  const detailsById = new Map((detailResponse.items ?? []).map((item) => [item.id ?? "", item] as const).filter(([id]) => Boolean(id)));
 
   const existingVideos = await getVideos({ includeUnpublished: true });
   const savedItems: VideoItem[] = [];

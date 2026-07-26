@@ -1,9 +1,9 @@
-import Link from "next/link";
-import type { Metadata } from "next";
 import TeamAvatar from "@/components/ui/TeamAvatar";
-import { formatDisplayNumber } from "@/lib/display-format";
 import { getCurrentSeasonOverview } from "@/lib/data";
+import { formatDisplayNumber } from "@/lib/display-format";
 import { getPubgDashboardData } from "@/lib/pubg-hub";
+import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "PUBG Hall of Fame",
@@ -28,7 +28,8 @@ export default async function PubgHallOfFamePage() {
               <p className="section-title">PUBG Hall of Fame</p>
               <h1 className="hero-h1 mt-2 !text-4xl sm:!text-5xl">Bravo&apos;s data-backed legacy board</h1>
               <p className="mt-4 max-w-3xl text-sm leading-relaxed text-text-muted sm:text-base">
-                Hall of Fame standings are generated only from published Bravo PUBG results, so every team and player shown here is traceable to real competitive data.
+                Hall of Fame standings are generated only from published Bravo PUBG results, so every team and player shown here is
+                traceable to real competitive data.
               </p>
             </div>
             <Link href="/pubg/leaderboards" className="btn-primary shrink-0">
@@ -40,9 +41,7 @@ export default async function PubgHallOfFamePage() {
         <section className="grid gap-6 xl:grid-cols-[0.9fr,1.1fr]">
           <div className="esports-card p-6">
             <p className="section-heading !text-sm">Current Season Podium</p>
-            <p className="mt-2 text-sm text-text-muted">
-              The top three teams from the active published season.
-            </p>
+            <p className="mt-2 text-sm text-text-muted">The top three teams from the active published season.</p>
             <div className="mt-5 space-y-3">
               {seasonLeaders.length === 0 ? (
                 <p className="text-sm text-text-muted">Season podium will appear after the first published match results.</p>
@@ -107,7 +106,7 @@ export default async function PubgHallOfFamePage() {
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="font-mono-stat text-sm font-black text-accent-blue">#{index + 1}</div>
-                    <TeamAvatar name={team.name} imageUrl={team.logoUrl} size="sm" />
+                    <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="sm" />
                     <div className="min-w-0">
                       <p className="truncate font-semibold uppercase text-white">{team.name}</p>
                       <p className="text-xs uppercase tracking-[0.16em] text-text-muted">
@@ -138,7 +137,7 @@ export default async function PubgHallOfFamePage() {
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="font-mono-stat text-sm font-black text-accent-blue">#{index + 1}</div>
-                    <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl} size="sm" />
+                    <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="sm" />
                     <div className="min-w-0">
                       <p className="truncate font-semibold uppercase text-white">{player.pubgName}</p>
                       <p className="text-xs uppercase tracking-[0.16em] text-text-muted">

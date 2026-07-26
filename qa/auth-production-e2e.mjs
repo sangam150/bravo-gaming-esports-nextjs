@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { chromium } from "playwright";
+import { chromium } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 const origin = "https://bravo-gaming-esports.vercel.app";
@@ -8,7 +8,9 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !serviceKey) throw new Error("Supabase production QA configuration is incomplete.");
 
-const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+const admin = createClient(url, serviceKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 const users = [];
 let temporaryTeamId = null;
 let temporaryPlayerId = null;
@@ -36,13 +38,10 @@ async function createQaUser(email, role, teamId = null, playerId = null) {
   if (inviteError) throw inviteError;
   const invitedUser = inviteData.user;
   users.push(invitedUser.id);
-  const { data: confirmedData, error: confirmationError } = await admin.auth.admin.updateUserById(
-    invitedUser.id,
-    {
-      password,
-      email_confirm: true,
-    }
-  );
+  const { data: confirmedData, error: confirmationError } = await admin.auth.admin.updateUserById(invitedUser.id, {
+    password,
+    email_confirm: true,
+  });
   if (confirmationError) throw confirmationError;
   assert(Boolean(confirmedData.user.email_confirmed_at), "Invited QA user was not confirmed.");
   const { error: profileError } = await admin
@@ -58,11 +57,7 @@ const browser = await chromium.launch({
 });
 
 try {
-  const { data: teams, error: teamLookupError } = await admin
-    .from("teams")
-    .select("id")
-    .eq("is_active", true)
-    .limit(1);
+  const { data: teams, error: teamLookupError } = await admin.from("teams").select("id").eq("is_active", true).limit(1);
   if (teamLookupError) throw teamLookupError;
   let teamId = teams?.[0]?.id ?? null;
   if (!teamId) {
@@ -101,7 +96,9 @@ try {
   await createQaUser(emails.player, "player", null, temporaryPlayer.id);
 
   const consoleErrors = [];
-  const desktop = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const desktop = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+  });
   const page = await desktop.newPage();
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -120,7 +117,7 @@ try {
   const sessionCookie = cookies.find((cookie) => cookie.name === "bravo_session");
   assert(
     sessionCookie?.httpOnly && sessionCookie.secure && sessionCookie.sameSite === "Strict",
-    `Session cookie security attributes are invalid: ${JSON.stringify(sessionCookie ?? null)}`
+    `Session cookie security attributes are invalid: ${JSON.stringify(sessionCookie ?? null)}`,
   );
 
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -138,38 +135,48 @@ try {
 
   const viewerContext = await browser.newContext();
   const viewerPage = await viewerContext.newPage();
-  await viewerPage.goto(`${origin}/admin/login`, { waitUntil: "domcontentloaded" });
+  await viewerPage.goto(`${origin}/admin/login`, {
+    waitUntil: "domcontentloaded",
+  });
   await viewerPage.getByLabel("Admin email").fill(emails.viewer);
   await viewerPage.getByLabel("Password").fill(password);
   await viewerPage.getByRole("button", { name: "Sign In" }).click();
   await viewerPage.getByText("This account does not have admin access.", { exact: true }).waitFor({ timeout: 20_000 });
   await viewerContext.close();
 
-  const playerContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const playerContext = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+  });
   const playerPage = await playerContext.newPage();
-  await playerPage.goto(`${origin}/player/login`, { waitUntil: "domcontentloaded" });
+  await playerPage.goto(`${origin}/player/login`, {
+    waitUntil: "domcontentloaded",
+  });
   await playerPage.getByRole("button", { name: "Open Player Dashboard" }).waitFor();
-  await playerPage.waitForFunction(
-    () => !document.querySelector('button[type="submit"]')?.hasAttribute("disabled"),
-    { timeout: 20_000 }
-  );
+  await playerPage.waitForFunction(() => !document.querySelector('button[type="submit"]')?.hasAttribute("disabled"), { timeout: 20_000 });
   await playerPage.getByLabel("Email address").fill(emails.player);
   await playerPage.getByLabel("Password").fill(password);
   await playerPage.getByRole("button", { name: "Open Player Dashboard" }).click();
-  await playerPage.waitForURL(`${origin}/dashboard/player`, { timeout: 20_000 });
+  await playerPage.waitForURL(`${origin}/dashboard/player`, {
+    timeout: 20_000,
+  });
   await playerPage.getByRole("heading", { name: "Player access confirmed" }).waitFor();
   await playerPage.reload({ waitUntil: "domcontentloaded" });
   assert(playerPage.url() === `${origin}/dashboard/player`, "Player refresh lost authorization.");
   await playerContext.close();
 
-  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const mobile = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
   const teamPage = await mobile.newPage();
-  await teamPage.goto(`${origin}/team/login`, { waitUntil: "domcontentloaded" });
+  await teamPage.goto(`${origin}/team/login`, {
+    waitUntil: "domcontentloaded",
+  });
   await teamPage.getByRole("button", { name: "Open Team Workspace" }).waitFor({ state: "visible" });
   await teamPage.waitForFunction(
-    () => !(document.querySelector('button[type="submit"]') instanceof HTMLButtonElement) ||
+    () =>
+      !(document.querySelector('button[type="submit"]') instanceof HTMLButtonElement) ||
       !document.querySelector('button[type="submit"]').disabled,
-    { timeout: 20_000 }
+    { timeout: 20_000 },
   );
   await teamPage.getByLabel("Email address").fill(emails.team);
   await teamPage.getByLabel("Password").fill(password);
@@ -185,39 +192,47 @@ try {
       hasTeamId: Boolean(data.teamId ?? data.user?.teamId),
     };
   });
-  const teamFormText = await teamPage.locator("form").innerText().catch(() => "");
+  const teamFormText = await teamPage
+    .locator("form")
+    .innerText()
+    .catch(() => "");
   let directTeamDiagnostic = null;
   if (teamPage.url() !== `${origin}/team`) {
-    directTeamDiagnostic = await teamPage.evaluate(async ({ email, password }) => {
-      const loginResponse = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password, variant: "team" }),
-      });
-      const loginData = await loginResponse.json().catch(() => ({}));
-      const meResponse = await fetch("/api/auth/me", { credentials: "include" });
-      const meData = await meResponse.json().catch(() => ({}));
-      return {
-        loginStatus: loginResponse.status,
-        loginSuccess: Boolean(loginData.success),
-        loginError: loginData.error ?? null,
-        meStatus: meResponse.status,
-        meRole: meData.role ?? meData.user?.role ?? null,
-        meHasTeamId: Boolean(meData.teamId ?? meData.user?.teamId),
-      };
-    }, { email: emails.team, password });
+    directTeamDiagnostic = await teamPage.evaluate(
+      async ({ email, password }) => {
+        const loginResponse = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password, variant: "team" }),
+        });
+        const loginData = await loginResponse.json().catch(() => ({}));
+        const meResponse = await fetch("/api/auth/me", {
+          credentials: "include",
+        });
+        const meData = await meResponse.json().catch(() => ({}));
+        return {
+          loginStatus: loginResponse.status,
+          loginSuccess: Boolean(loginData.success),
+          loginError: loginData.error ?? null,
+          meStatus: meResponse.status,
+          meRole: meData.role ?? meData.user?.role ?? null,
+          meHasTeamId: Boolean(meData.teamId ?? meData.user?.teamId),
+        };
+      },
+      { email: emails.team, password },
+    );
     if (directTeamDiagnostic.meStatus === 200) {
       await teamPage.goto(`${origin}/team`, { waitUntil: "domcontentloaded" });
     }
   }
   assert(
     teamPage.url() === `${origin}/team`,
-    `Team login did not reach the workspace: ${JSON.stringify(teamMe)} ${JSON.stringify(directTeamDiagnostic)} ${teamFormText}`
+    `Team login did not reach the workspace: ${JSON.stringify(teamMe)} ${JSON.stringify(directTeamDiagnostic)} ${teamFormText}`,
   );
   assert(
     directTeamDiagnostic === null,
-    `Team login required a diagnostic retry: ${JSON.stringify({ teamMe, directTeamDiagnostic, teamFormText })}`
+    `Team login required a diagnostic retry: ${JSON.stringify({ teamMe, directTeamDiagnostic, teamFormText })}`,
   );
   await teamPage.goto(`${origin}/admin`, { waitUntil: "domcontentloaded" });
   assert(teamPage.url().includes("/admin/login"), "Team account accessed the admin route.");
@@ -237,7 +252,9 @@ try {
   ]);
   assert(aliasResponse.status >= 300 && aliasResponse.status < 400, "Owner alias did not protect /admin.");
   assert(rawResponse.status >= 300 && rawResponse.status < 400, "Raw deployment did not protect /admin.");
-  console.log("Production browser authentication QA passed: admin login/refresh/direct route/logout, viewer rejection, team isolation, mobile login, reset request, and raw/alias protection.");
+  console.log(
+    "Production browser authentication QA passed: admin login/refresh/direct route/logout, viewer rejection, team isolation, mobile login, reset request, and raw/alias protection.",
+  );
 } finally {
   await browser.close();
   for (const userId of users) {

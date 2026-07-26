@@ -1,22 +1,11 @@
 import { randomUUID } from "crypto";
-import {
-  COLLECTIONS,
-  fetchDocumentCollection,
-  getDocument,
-  isDocumentStoreConfigured,
-  saveDocument,
-} from "./document-store";
-import {
-  ensureUniqueDocumentSlug,
-  filterSoftDeleted,
-  getDocumentByIdOrSlug,
-  softDeleteDocumentEntity,
-} from "./document-entities";
+import { ensureUniqueDocumentSlug, filterSoftDeleted, getDocumentByIdOrSlug, softDeleteDocumentEntity } from "./document-entities";
+import { COLLECTIONS, fetchDocumentCollection, isDocumentStoreConfigured, saveDocument } from "./document-store";
 import { slugify } from "./slug-utils";
 
-export type ManagedPlatformGameStatus = "flagship" | "active" | "building" | "planned";
-export type ManagedPlatformEventStatus = "live" | "upcoming" | "completed" | "planned";
-export type ManagedPlatformContentState = "published" | "planned" | "coming_soon";
+type ManagedPlatformGameStatus = "flagship" | "active" | "building" | "planned";
+type ManagedPlatformEventStatus = "live" | "upcoming" | "completed" | "planned";
+type ManagedPlatformContentState = "published" | "planned" | "coming_soon";
 
 export interface ManagedPlatformGameRecord {
   id: string;
@@ -82,17 +71,16 @@ function cleanString(value?: string | null) {
 }
 
 function cleanStringArray(values?: string[] | string | null) {
-  const normalizedValues = Array.isArray(values)
-    ? values
-    : typeof values === "string"
-      ? values.split(/[\n,]+/g)
-      : [];
+  const normalizedValues = Array.isArray(values) ? values : typeof values === "string" ? values.split(/[\n,]+/g) : [];
 
   return Array.from(new Set(normalizedValues.map((value) => value.trim()).filter(Boolean)));
 }
 
 function normalizeManagedPlatformGame(
-  data: Omit<Partial<ManagedPlatformGameRecord>, "sections"> & { name: string; sections?: string[] | string }
+  data: Omit<Partial<ManagedPlatformGameRecord>, "sections"> & {
+    name: string;
+    sections?: string[] | string;
+  },
 ): ManagedPlatformGameRecord {
   const now = new Date().toISOString();
   const name = data.name.trim();
@@ -103,9 +91,7 @@ function normalizeManagedPlatformGame(
     name,
     shortName: cleanString(data.shortName) ?? name,
     tagline: cleanString(data.tagline) ?? "Bravo game hub",
-    summary:
-      cleanString(data.summary) ??
-      "Published from admin to power the Bravo Gaming multi-title platform directory.",
+    summary: cleanString(data.summary) ?? "Published from admin to power the Bravo Gaming multi-title platform directory.",
     status: data.status ?? "planned",
     flagship: Boolean(data.flagship),
     heroLabel: cleanString(data.heroLabel) ?? "Game Hub",
@@ -125,7 +111,10 @@ function normalizeManagedPlatformGame(
 }
 
 function normalizeManagedPlatformEvent(
-  data: Omit<Partial<ManagedPlatformEventRecord>, "tabs"> & { name: string; tabs?: string[] | string }
+  data: Omit<Partial<ManagedPlatformEventRecord>, "tabs"> & {
+    name: string;
+    tabs?: string[] | string;
+  },
 ): ManagedPlatformEventRecord {
   const now = new Date().toISOString();
   const name = data.name.trim();
@@ -148,9 +137,7 @@ function normalizeManagedPlatformEvent(
     startDate: cleanString(data.startDate) ?? now,
     endDate: cleanString(data.endDate),
     bannerUrl: cleanString(data.bannerUrl),
-    summary:
-      cleanString(data.summary) ??
-      "Published from admin to power the Bravo Gaming event hub with fully managed public context.",
+    summary: cleanString(data.summary) ?? "Published from admin to power the Bravo Gaming event hub with fully managed public context.",
     analyticsHref: cleanString(data.analyticsHref),
     streamHref: cleanString(data.streamHref),
     topTeamName: cleanString(data.topTeamName),
@@ -166,10 +153,7 @@ function normalizeManagedPlatformEvent(
   };
 }
 
-function compareDateDesc<T extends { updatedAt?: string; startDate?: string; createdAt?: string }>(
-  firstValue: T,
-  secondValue: T
-) {
+function compareDateDesc<T extends { updatedAt?: string; startDate?: string; createdAt?: string }>(firstValue: T, secondValue: T) {
   const firstKey = firstValue.startDate ?? firstValue.updatedAt ?? firstValue.createdAt ?? "";
   const secondKey = secondValue.startDate ?? secondValue.updatedAt ?? secondValue.createdAt ?? "";
   return secondKey.localeCompare(firstKey);
@@ -182,16 +166,17 @@ export async function getManagedPlatformGames(options: { includeUnpublished?: bo
 
   try {
     const records = await fetchDocumentCollection<ManagedPlatformGameRecord>(COLLECTIONS.platformGames, 100);
-    const normalized = filterSoftDeleted(records
-      .filter((record) => record?.name)
-      .map((record) =>
-        normalizeManagedPlatformGame({
-          ...record,
-          name: record.name,
-          sections: record.sections,
-        })
-      ))
-      .sort(compareDateDesc);
+    const normalized = filterSoftDeleted(
+      records
+        .filter((record) => record?.name)
+        .map((record) =>
+          normalizeManagedPlatformGame({
+            ...record,
+            name: record.name,
+            sections: record.sections,
+          }),
+        ),
+    ).sort(compareDateDesc);
 
     return options.includeUnpublished ? normalized : normalized.filter((record) => record.published);
   } catch {
@@ -200,8 +185,11 @@ export async function getManagedPlatformGames(options: { includeUnpublished?: bo
 }
 
 export async function saveManagedPlatformGame(
-  data: Omit<Partial<ManagedPlatformGameRecord>, "sections"> & { name: string; sections?: string[] | string },
-  id?: string
+  data: Omit<Partial<ManagedPlatformGameRecord>, "sections"> & {
+    name: string;
+    sections?: string[] | string;
+  },
+  id?: string,
 ) {
   const payload = normalizeManagedPlatformGame({
     ...data,
@@ -236,16 +224,17 @@ export async function getManagedPlatformEvents(options: { includeUnpublished?: b
 
   try {
     const records = await fetchDocumentCollection<ManagedPlatformEventRecord>(COLLECTIONS.platformEvents, 200);
-    const normalized = filterSoftDeleted(records
-      .filter((record) => record?.name)
-      .map((record) =>
-        normalizeManagedPlatformEvent({
-          ...record,
-          name: record.name,
-          tabs: record.tabs,
-        })
-      ))
-      .sort(compareDateDesc);
+    const normalized = filterSoftDeleted(
+      records
+        .filter((record) => record?.name)
+        .map((record) =>
+          normalizeManagedPlatformEvent({
+            ...record,
+            name: record.name,
+            tabs: record.tabs,
+          }),
+        ),
+    ).sort(compareDateDesc);
 
     return options.includeUnpublished ? normalized : normalized.filter((record) => record.published);
   } catch {
@@ -275,8 +264,11 @@ export async function getManagedPlatformEventById(id: string) {
 }
 
 export async function saveManagedPlatformEvent(
-  data: Omit<Partial<ManagedPlatformEventRecord>, "tabs"> & { name: string; tabs?: string[] | string },
-  id?: string
+  data: Omit<Partial<ManagedPlatformEventRecord>, "tabs"> & {
+    name: string;
+    tabs?: string[] | string;
+  },
+  id?: string,
 ) {
   const payload = normalizeManagedPlatformEvent({
     ...data,

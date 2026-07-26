@@ -19,7 +19,7 @@ function canAuthorizeTeam(input: {
     input.mappedTeamId === input.profileTeamId &&
     input.mappedTeamId === input.membershipTeamId &&
     input.membershipActive &&
-    input.teamActive
+    input.teamActive,
   );
 }
 
@@ -40,7 +40,13 @@ const baseAuthorization = {
   teamActive: true,
 };
 assert.equal(canAuthorizeTeam(baseAuthorization), true);
-assert.equal(canAuthorizeTeam({ ...baseAuthorization, profileTeamId: deterministicTeamId("compatibility_team", "team-haku") }), false);
+assert.equal(
+  canAuthorizeTeam({
+    ...baseAuthorization,
+    profileTeamId: deterministicTeamId("compatibility_team", "team-haku"),
+  }),
+  false,
+);
 assert.equal(canAuthorizeTeam({ ...baseAuthorization, membershipActive: false }), false);
 assert.equal(canAuthorizeTeam({ ...baseAuthorization, teamState: "ambiguous" }), false);
 assert.equal(canAuthorizeTeam({ ...baseAuthorization, denied: true }), false);

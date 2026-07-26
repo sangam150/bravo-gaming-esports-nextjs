@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import { PlatformPlayersPage } from "@/components/platform/PlatformPages";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Players",

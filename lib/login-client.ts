@@ -1,10 +1,6 @@
-import type {
-  LoginAccessVariant,
-  LoginErrorStage,
-  LoginFailureCategory,
-} from "./user-facing-errors";
+import type { LoginAccessVariant, LoginErrorStage, LoginFailureCategory } from "./user-facing-errors";
 
-export type LoginSessionResponse = {
+type LoginSessionResponse = {
   success?: boolean;
   status?: number;
   accessToken?: string;
@@ -20,11 +16,7 @@ export type LoginSessionResponse = {
   error?: string;
 };
 
-export async function performPasswordLogin(request: {
-  email: string;
-  password: string;
-  variant: LoginAccessVariant;
-}) {
+export async function performPasswordLogin(request: { email: string; password: string; variant: LoginAccessVariant }) {
   const response = await fetch("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -49,7 +41,10 @@ export async function createBravoSession(accessToken: string, refreshToken?: str
 }
 
 export async function clearBravoSession() {
-  await fetch("/api/auth/session", { method: "DELETE", credentials: "include" }).catch(() => undefined);
+  await fetch("/api/auth/session", {
+    method: "DELETE",
+    credentials: "include",
+  }).catch(() => undefined);
 }
 
 export async function reportLoginFailure(payload: {

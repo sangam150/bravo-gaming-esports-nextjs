@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
-import { notFound, permanentRedirect } from "next/navigation";
 import { PlatformEventDetailPage } from "@/components/platform/PlatformPages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformEventBySlug, getPlatformFallbackEventBySlug, getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ slug: string }>;

@@ -1,20 +1,15 @@
 import { cache } from "react";
 import { getAnnouncements, getLiveStreamFeed, getSponsors, getVideos } from "./data";
-import { getHomepageContent, getPublishedManagedNewsArticles, type HomepageHeroSlideRecord } from "./platform-content";
 import { getManagedPlatformEvents, getManagedPlatformGames } from "./platform-cms";
+import { getHomepageContent, getPublishedManagedNewsArticles, type HomepageHeroSlideRecord } from "./platform-content";
 import { getPubgHubDataset } from "./pubg-hub";
-import {
-  hasPublicDemoMarker,
-  isInternalOnlyCategory,
-  sanitizePublicAssetUrl,
-  sanitizePublicCopy,
-} from "./public-content";
+import { hasPublicDemoMarker, isInternalOnlyCategory, sanitizePublicAssetUrl, sanitizePublicCopy } from "./public-content";
 import type { SponsorItem, SponsorKind } from "./types";
 
-export type PlatformGameStatus = "flagship" | "active" | "building" | "planned";
-export type PlatformEventStatus = "live" | "upcoming" | "completed" | "planned";
-export type PlatformMatchStatus = "live" | "upcoming" | "completed" | "planned";
-export type PlatformContentState = "published" | "planned" | "coming_soon";
+type PlatformGameStatus = "flagship" | "active" | "building" | "planned";
+type PlatformEventStatus = "live" | "upcoming" | "completed" | "planned";
+type PlatformMatchStatus = "live" | "upcoming" | "completed" | "planned";
+type PlatformContentState = "published" | "planned" | "coming_soon";
 
 export interface PlatformGame {
   slug: string;
@@ -113,7 +108,7 @@ export interface PlatformMatch {
   updatedAt?: string;
 }
 
-export interface PlatformCalendarItem {
+interface PlatformCalendarItem {
   id: string;
   title: string;
   subtitle: string;
@@ -223,8 +218,7 @@ const GAME_BLUEPRINTS = [
     name: "PUBG PC",
     shortName: "PUBG",
     tagline: "Flagship stats hub for Nepal PUBG coverage",
-    summary:
-      "Official Bravo PUBG coverage with events, teams, players, results, rankings, and public match data in one place.",
+    summary: "Official Bravo PUBG coverage with events, teams, players, results, rankings, and public match data in one place.",
     status: "flagship",
     flagship: true,
     heroLabel: "Flagship Coverage",
@@ -238,8 +232,7 @@ const GAME_BLUEPRINTS = [
     name: "Valorant",
     shortName: "VAL",
     tagline: "Tournament-ready tactical FPS hub",
-    summary:
-      "Planned as the next full game hub with event listings, team profiles, match center, rankings, media, and organizer support.",
+    summary: "Planned as the next full game hub with event listings, team profiles, match center, rankings, media, and organizer support.",
     status: "building",
     flagship: false,
     heroLabel: "Coming Soon",
@@ -252,8 +245,7 @@ const GAME_BLUEPRINTS = [
     name: "CS2",
     shortName: "CS2",
     tagline: "LAN and league ecosystem support",
-    summary:
-      "Prepared for Nepal CS2 circuits, LAN brackets, roster tracking, rankings, and match center coverage.",
+    summary: "Prepared for Nepal CS2 circuits, LAN brackets, roster tracking, rankings, and match center coverage.",
     status: "building",
     flagship: false,
     heroLabel: "Coming Soon",
@@ -266,8 +258,7 @@ const GAME_BLUEPRINTS = [
     name: "Dota 2",
     shortName: "Dota",
     tagline: "MOBA ecosystem and event directory",
-    summary:
-      "Ready for seasonal competition coverage, roster history, organizer profiles, and match archives once live data is added.",
+    summary: "Ready for seasonal competition coverage, roster history, organizer profiles, and match archives once live data is added.",
     status: "planned",
     flagship: false,
     heroLabel: "Coming Soon",
@@ -280,8 +271,7 @@ const GAME_BLUEPRINTS = [
     name: "Mobile Legends",
     shortName: "MLBB",
     tagline: "Mobile circuit growth lane",
-    summary:
-      "Prepared for mobile competition calendars, team directories, match center views, and sponsor-facing event packages.",
+    summary: "Prepared for mobile competition calendars, team directories, match center views, and sponsor-facing event packages.",
     status: "planned",
     flagship: false,
     heroLabel: "Coming Soon",
@@ -303,7 +293,9 @@ const GAME_BLUEPRINTS = [
     sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
     completionLabel: "Coverage opening soon",
   },
-] as const satisfies ReadonlyArray<Omit<PlatformGame, "activeEvents" | "trackedMatches" | "trackedTeams" | "trackedPlayers" | "featuredNewsCount">>;
+] as const satisfies ReadonlyArray<
+  Omit<PlatformGame, "activeEvents" | "trackedMatches" | "trackedTeams" | "trackedPlayers" | "featuredNewsCount">
+>;
 
 const PLANNED_EVENTS: PlatformEvent[] = [];
 
@@ -399,9 +391,7 @@ const PUBLIC_FALLBACK_SPONSOR_ITEMS: SponsorItem[] = [
   },
 ];
 
-const PUBLIC_FALLBACK_EVENTS_BY_SLUG = new Map(
-  PUBLIC_FALLBACK_EVENTS.map((event) => [event.slug.toLowerCase(), event] as const)
-);
+const PUBLIC_FALLBACK_EVENTS_BY_SLUG = new Map(PUBLIC_FALLBACK_EVENTS.map((event) => [event.slug.toLowerCase(), event] as const));
 
 function slugify(value: string) {
   return value
@@ -435,20 +425,6 @@ function sortSponsorProfiles(firstSponsor: PlatformSponsorProfile, secondSponsor
     (secondSponsor.updatedAt ?? "").localeCompare(firstSponsor.updatedAt ?? "") ||
     firstSponsor.name.localeCompare(secondSponsor.name)
   );
-}
-
-function formatIsoDate(value: string) {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "Asia/Kathmandu",
-  }).format(parsed);
 }
 
 function toTimestamp(value?: string) {
@@ -543,7 +519,7 @@ function selectOrderedItems<T>(items: T[], orderedKeys: string[], getKey: (item:
   }
 
   const itemByKey = new Map(items.map((item) => [getKey(item), item]));
-  return orderedKeys.map((key) => itemByKey.get(key) ?? null).filter((item): item is T => Boolean(item));
+  return orderedKeys.map((key) => itemByKey.get(key) ?? null).filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
 function dedupeArticlesBySlug(articles: PlatformArticle[]) {
@@ -570,7 +546,7 @@ function sanitizeArticleForPublicDisplay(article: PlatformArticle): PlatformArti
       article.imageUrl,
       article.ogImageUrl,
       ...article.tags,
-      ...article.body
+      ...article.body,
     )
   ) {
     return null;
@@ -589,23 +565,14 @@ function sanitizeArticleForPublicDisplay(article: PlatformArticle): PlatformArti
     ...article,
     summary,
     excerpt,
-    imageUrl: sanitizePublicAssetUrl(article.imageUrl),
-    ogImageUrl: sanitizePublicAssetUrl(article.ogImageUrl),
+    imageUrl: sanitizePublicAssetUrl(article.imageUrl) ?? undefined,
+    ogImageUrl: sanitizePublicAssetUrl(article.ogImageUrl) ?? undefined,
     body: body.length > 0 ? body : [excerpt],
   };
 }
 
 function sanitizeEventForPublicDisplay(event: PlatformEvent): PlatformEvent | null {
-  if (
-    hasPublicDemoMarker(
-      event.name,
-      event.slug,
-      event.type,
-      event.region,
-      event.organizerName,
-      event.sponsorName ?? undefined
-    )
-  ) {
+  if (hasPublicDemoMarker(event.name, event.slug, event.type, event.region, event.organizerName, event.sponsorName ?? undefined)) {
     return null;
   }
 
@@ -617,7 +584,7 @@ function sanitizeEventForPublicDisplay(event: PlatformEvent): PlatformEvent | nu
         event.summary,
         event.status === "completed"
           ? "Official event results and standings will appear here after publication."
-          : "Official event details will appear here after publication."
+          : "Official event details will appear here after publication.",
       ) ??
       (event.status === "completed"
         ? "Official event results and standings will appear here after publication."
@@ -635,7 +602,7 @@ function sanitizeSponsorProfileForPublicDisplay(sponsor: PlatformSponsorProfile)
       sponsor.bannerUrl ?? undefined,
       sponsor.designAssetUrl ?? undefined,
       ...sponsor.supportedEvents,
-      ...sponsor.partnershipHistory
+      ...sponsor.partnershipHistory,
     )
   ) {
     return null;
@@ -662,14 +629,11 @@ function sanitizeMediaItemForPublicDisplay(item: PlatformMediaItem): PlatformMed
     summary:
       sanitizePublicCopy(item.summary, "Published Bravo media coverage will appear here soon.") ??
       "Published Bravo media coverage will appear here soon.",
-    imageUrl: sanitizePublicAssetUrl(item.imageUrl),
+    imageUrl: sanitizePublicAssetUrl(item.imageUrl) ?? undefined,
   };
 }
 
-function buildSponsorProfiles(
-  sponsorRows: Awaited<ReturnType<typeof getSponsors>>,
-  eventRows: PlatformEvent[]
-): PlatformSponsorProfile[] {
+function buildSponsorProfiles(sponsorRows: Awaited<ReturnType<typeof getSponsors>>, eventRows: PlatformEvent[]): PlatformSponsorProfile[] {
   const eventBySlug = new Map(eventRows.map((eventRow) => [eventRow.slug, eventRow]));
   const eventByName = new Map(eventRows.map((eventRow) => [eventRow.name.toLowerCase(), eventRow]));
 
@@ -691,10 +655,8 @@ function buildSponsorProfiles(
         ...(row.supportedEvents ?? [])
           .map((eventName) => eventByName.get(eventName.toLowerCase())?.slug ?? null)
           .filter((eventSlug): eventSlug is string => Boolean(eventSlug)),
-        ...eventRows
-          .filter((eventRow) => eventRow.sponsorName && eventRow.sponsorName === row.name)
-          .map((eventRow) => eventRow.slug),
-      ])
+        ...eventRows.filter((eventRow) => eventRow.sponsorName && eventRow.sponsorName === row.name).map((eventRow) => eventRow.slug),
+      ]),
     ),
     supportedEvents: row.supportedEvents ?? [],
     partnershipHistory: row.partnershipHistory?.length ? row.partnershipHistory : [],
@@ -718,12 +680,7 @@ function buildSponsorProfiles(
 
     return {
       ...row,
-      supportedEvents:
-        supportedEvents.length > 0
-          ? supportedEvents
-          : row.supportedEvents?.length
-            ? row.supportedEvents
-            : [],
+      supportedEvents: supportedEvents.length > 0 ? supportedEvents : row.supportedEvents?.length ? row.supportedEvents : [],
       showOnEventPage: row.showOnEventPage || row.eventSlugs.length > 0,
       showOnPubgPage: row.showOnPubgPage || includesPubgEvent,
     };
@@ -733,17 +690,18 @@ function buildSponsorProfiles(
 }
 
 export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
-  const [pubg, announcements, liveStream, sponsors, videos, homepageContent, managedNewsArticles, managedGames, managedPlatformEvents] = await Promise.all([
-    getPubgHubDataset(),
-    getAnnouncements(),
-    getLiveStreamFeed(),
-    getSponsors(),
-    getVideos(),
-    getHomepageContent(),
-    getPublishedManagedNewsArticles(),
-    getManagedPlatformGames(),
-    getManagedPlatformEvents(),
-  ]);
+  const [pubg, announcements, liveStream, sponsors, videos, homepageContent, managedNewsArticles, managedGames, managedPlatformEvents] =
+    await Promise.all([
+      getPubgHubDataset(),
+      getAnnouncements(),
+      getLiveStreamFeed(),
+      getSponsors(),
+      getVideos(),
+      getHomepageContent(),
+      getPublishedManagedNewsArticles(),
+      getManagedPlatformGames(),
+      getManagedPlatformEvents(),
+    ]);
 
   const managedNews: PlatformArticle[] = managedNewsArticles.map((article) => ({
     id: article.id,
@@ -820,12 +778,15 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
 
   const news = dedupeArticlesBySlug([...managedNews, ...newsFromAnnouncements, ...seededArticles])
     .map((article) => sanitizeArticleForPublicDisplay(article))
-    .filter((article): article is PlatformArticle => Boolean(article))
+    .filter((article): article is PlatformArticle => article !== null)
     .sort(compareByDateDesc)
     .map((article, _, allArticles) => ({
       ...article,
       relatedSlugs: allArticles
-        .filter((candidate) => candidate.slug !== article.slug && (candidate.category === article.category || candidate.gameSlug === article.gameSlug))
+        .filter(
+          (candidate) =>
+            candidate.slug !== article.slug && (candidate.category === article.category || candidate.gameSlug === article.gameSlug),
+        )
         .slice(0, 3)
         .map((candidate) => candidate.slug),
     }));
@@ -892,27 +853,23 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
 
   const baseEvents = [...pubgEvents, ...(managedEvents.length > 0 ? managedEvents : PLANNED_EVENTS)]
     .map((event) => sanitizeEventForPublicDisplay(event))
-    .filter((event): event is PlatformEvent => Boolean(event));
+    .filter((event): event is PlatformEvent => event !== null);
   const events = mergeFallbackItems(PUBLIC_FALLBACK_EVENTS, baseEvents, (event) => event.slug.toLowerCase()).sort(
-    compareEventsForPublicDisplay
+    compareEventsForPublicDisplay,
   );
   const sponsorProfiles = buildSponsorProfiles(
-    mergeFallbackItems(
-      PUBLIC_FALLBACK_SPONSOR_ITEMS,
-      sponsors,
-      (sponsor) => (sponsor.slug ?? sponsor.name).trim().toLowerCase()
-    ),
-    events
+    mergeFallbackItems(PUBLIC_FALLBACK_SPONSOR_ITEMS, sponsors, (sponsor) => (sponsor.slug ?? sponsor.name).trim().toLowerCase()),
+    events,
   )
     .map((sponsor) => sanitizeSponsorProfileForPublicDisplay(sponsor))
-    .filter((sponsor): sponsor is PlatformSponsorProfile => Boolean(sponsor));
+    .filter((sponsor): sponsor is PlatformSponsorProfile => sponsor !== null);
 
   const pubgMatches: PlatformMatch[] = pubg.matches.map((match) => {
     const orderedTeams = [...match.teamResults].sort(
-      (firstValue, secondValue) => firstValue.placement - secondValue.placement || secondValue.totalPoints - firstValue.totalPoints
+      (firstValue, secondValue) => firstValue.placement - secondValue.placement || secondValue.totalPoints - firstValue.totalPoints,
     );
     const topFragger = [...match.playerResults].sort(
-      (firstValue, secondValue) => secondValue.kills - firstValue.kills || secondValue.damage - firstValue.damage
+      (firstValue, secondValue) => secondValue.kills - firstValue.kills || secondValue.damage - firstValue.damage,
     )[0];
 
     return {
@@ -934,7 +891,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       mvpName: topFragger?.pubgName ?? null,
       analyticsHref: `/pubg/events/${match.eventSlug}?tab=matches`,
       vodHref: match.vodUrl ?? null,
-      viewerCount: liveStream.isLive && match.eventStatus === "ongoing" ? liveStream.viewers ?? "Live" : null,
+      viewerCount: liveStream.isLive && match.eventStatus === "ongoing" ? (liveStream.viewers ?? "Live") : null,
       summary:
         match.status === "published"
           ? `Published ${match.mapName} result from ${match.eventName} with ${match.totalKills} total kills tracked.`
@@ -971,7 +928,10 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
   const games: PlatformGame[] = gameBlueprints.map((gameBlueprint) => {
     const relatedEvents = events.filter((event) => event.gameSlug === gameBlueprint.slug);
     const relatedMatches = matches.filter((match) => match.gameSlug === gameBlueprint.slug);
-    const relatedArticles = news.filter((article) => article.gameSlug === gameBlueprint.slug || article.category === gameBlueprint.name || article.category === gameBlueprint.shortName);
+    const relatedArticles = news.filter(
+      (article) =>
+        article.gameSlug === gameBlueprint.slug || article.category === gameBlueprint.name || article.category === gameBlueprint.shortName,
+    );
 
     if (gameBlueprint.slug === "pubg-pc") {
       return {
@@ -999,9 +959,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
           ? gameBlueprint.trackedTeams
           : relatedEvents.reduce((sum, event) => Math.max(sum, event.teamsCount), 0),
       trackedPlayers:
-        "trackedPlayers" in gameBlueprint && typeof gameBlueprint.trackedPlayers === "number"
-          ? gameBlueprint.trackedPlayers
-          : 0,
+        "trackedPlayers" in gameBlueprint && typeof gameBlueprint.trackedPlayers === "number" ? gameBlueprint.trackedPlayers : 0,
       featuredNewsCount:
         "featuredNewsCount" in gameBlueprint && typeof gameBlueprint.featuredNewsCount === "number"
           ? gameBlueprint.featuredNewsCount
@@ -1038,36 +996,37 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
   ].sort(compareByDateDesc);
 
   const managedMedia: PlatformMediaItem[] = videos.map((video, index) => ({
-      id: video.id,
-      slug: video.slug ?? slugify(video.title),
-      title: video.title,
-      kind: video.kind ?? "Video",
-      category: video.category,
-      gameSlug: video.gameSlug ?? "pubg-pc",
-      duration: video.duration,
-      summary: video.summary ?? "Published Bravo media content ready for event, sponsor, and community distribution.",
-      imageUrl: video.imageUrl,
-      url: video.url,
-      featured: video.featured ?? index < 2,
-      publishedAt: video.publishedAt,
-      updatedAt: video.updatedAt ?? video.publishedAt ?? video.createdAt,
-    }));
+    id: video.id,
+    slug: video.slug ?? slugify(video.title),
+    title: video.title,
+    kind: video.kind ?? "Video",
+    category: video.category,
+    gameSlug: video.gameSlug ?? "pubg-pc",
+    duration: video.duration,
+    summary: video.summary ?? "Published Bravo media content ready for event, sponsor, and community distribution.",
+    imageUrl: video.imageUrl,
+    url: video.url,
+    featured: video.featured ?? index < 2,
+    publishedAt: video.publishedAt,
+    updatedAt: video.updatedAt ?? video.publishedAt ?? video.createdAt,
+  }));
 
   const media: PlatformMediaItem[] = (managedMedia.length > 0 ? managedMedia : MEDIA_SEEDS)
     .map((item) => sanitizeMediaItemForPublicDisplay(item))
-    .filter((item): item is PlatformMediaItem => Boolean(item));
+    .filter((item): item is PlatformMediaItem => item !== null);
 
-  const curatedFeaturedNews =
-    selectOrderedItems(news, homepageContent.featuredNewsSlugs, (article) => article.slug) ??
-    [];
+  const curatedFeaturedNews = selectOrderedItems(news, homepageContent.featuredNewsSlugs, (article) => article.slug) ?? [];
   const curatedFeaturedEvents = selectOrderedItems(events, homepageContent.featuredEventSlugs, (event) => event.slug);
   const homepageSponsorProfiles = sponsorProfiles.filter((sponsor) => sponsor.showOnHomepage);
-  const curatedFeaturedSponsors = selectOrderedItems(homepageSponsorProfiles, homepageContent.featuredSponsorSlugs, (sponsor) => sponsor.slug);
+  const curatedFeaturedSponsors = selectOrderedItems(
+    homepageSponsorProfiles,
+    homepageContent.featuredSponsorSlugs,
+    (sponsor) => sponsor.slug,
+  );
   const curatedFeaturedMedia = selectOrderedItems(media, homepageContent.featuredMediaIds, (item) => item.id);
-  const configuredBreakingNews =
-    homepageContent.breakingNewsSlug
-      ? news.find((article) => article.slug === homepageContent.breakingNewsSlug) ?? null
-      : null;
+  const configuredBreakingNews = homepageContent.breakingNewsSlug
+    ? (news.find((article) => article.slug === homepageContent.breakingNewsSlug) ?? null)
+    : null;
 
   return {
     brand: {
@@ -1087,8 +1046,10 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     home: {
       heroSlides: homepageContent.heroSlides,
       breakingNews: configuredBreakingNews ?? news.find((article) => article.breaking) ?? news[0] ?? null,
-      featuredNews: curatedFeaturedNews.length > 0 ? curatedFeaturedNews.slice(0, 4) : news.filter((article) => article.featured).slice(0, 4),
-      featuredEvents: curatedFeaturedEvents.length > 0 ? curatedFeaturedEvents.slice(0, 4) : events.filter((event) => event.featured).slice(0, 4),
+      featuredNews:
+        curatedFeaturedNews.length > 0 ? curatedFeaturedNews.slice(0, 4) : news.filter((article) => article.featured).slice(0, 4),
+      featuredEvents:
+        curatedFeaturedEvents.length > 0 ? curatedFeaturedEvents.slice(0, 4) : events.filter((event) => event.featured).slice(0, 4),
       upcomingEvents: events.filter((event) => event.status === "upcoming" || event.status === "planned").slice(0, 5),
       featuredSponsors:
         curatedFeaturedSponsors.length > 0
@@ -1130,11 +1091,6 @@ export async function getPlatformEventBySlug(slug: string) {
 
 export function getPlatformFallbackEventBySlug(slug: string) {
   return PUBLIC_FALLBACK_EVENTS_BY_SLUG.get(slug.trim().toLowerCase()) ?? null;
-}
-
-export async function getPlatformMatchById(id: string) {
-  const hub = await getPlatformHubData();
-  return hub.matches.find((match) => match.id === id) ?? null;
 }
 
 export async function getPlatformOrganizationBySlug(slug: string) {

@@ -9,7 +9,11 @@ export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = await enforceRateLimit(request, { key: "admin-pubg-repair", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "admin-pubg-repair",
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -32,11 +36,14 @@ export async function POST(request: Request) {
     });
 
     revalidateCompetitionPaths(repaired.id);
-    return Response.json({ success: true, data: repaired, message: "Match repaired from cached payload." });
+    return Response.json({
+      success: true,
+      data: repaired,
+      message: "Match repaired from cached payload.",
+    });
   } catch (error: unknown) {
     await logServerError("admin.pubg.import.repair", error, request);
     const message = error instanceof Error ? error.message : String(error);
     return Response.json({ error: message }, { status: 500 });
   }
 }
-

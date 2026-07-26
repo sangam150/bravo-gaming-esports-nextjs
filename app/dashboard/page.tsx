@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import { PlatformDashboardIndexPage } from "@/components/platform/PlatformPages";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Dashboard",

@@ -1,18 +1,7 @@
 import { randomUUID } from "crypto";
-import {
-  COLLECTIONS,
-  fetchDocumentCollection,
-  getDocument,
-  isDocumentStoreConfigured,
-  saveDocument,
-} from "./document-store";
-import {
-  ensureUniqueDocumentSlug,
-  filterSoftDeleted,
-  getDocumentByIdOrSlug,
-  softDeleteDocumentEntity,
-} from "./document-entities";
 import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "./brand-links";
+import { ensureUniqueDocumentSlug, filterSoftDeleted, getDocumentByIdOrSlug, softDeleteDocumentEntity } from "./document-entities";
+import { COLLECTIONS, fetchDocumentCollection, getDocument, isDocumentStoreConfigured, saveDocument } from "./document-store";
 import {
   getManagedNewsSortValue,
   isManagedNewsArticlePublic,
@@ -22,7 +11,7 @@ import {
 } from "./news-publishing";
 import { slugify } from "./slug-utils";
 
-export type ManagedNewsState = ManagedNewsStateValue;
+type ManagedNewsState = ManagedNewsStateValue;
 
 export interface HomepageHeroSlideRecord {
   id: string;
@@ -46,13 +35,13 @@ export interface FooterLinkRecord {
   href: string;
 }
 
-export interface FooterColumnRecord {
+interface FooterColumnRecord {
   id: string;
   title: string;
   links: FooterLinkRecord[];
 }
 
-export interface FooterHighlightRecord {
+interface FooterHighlightRecord {
   id: string;
   label: string;
   value: string;
@@ -233,8 +222,16 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
   ],
   footerHighlights: [
     { id: "footer-highlight-flagship", label: "Flagship", value: "PUBG" },
-    { id: "footer-highlight-coverage", label: "Coverage", value: "News + Results" },
-    { id: "footer-highlight-community", label: "Community", value: "Nepal First" },
+    {
+      id: "footer-highlight-coverage",
+      label: "Coverage",
+      value: "News + Results",
+    },
+    {
+      id: "footer-highlight-community",
+      label: "Community",
+      value: "Nepal First",
+    },
   ],
   footerBottomPrimary: "Copyright 2026 Bravo Gaming Esports Nepal",
   footerBottomSecondary: "Daily scrims, major events, rankings, media, sponsors, and community coverage for Nepal esports.",
@@ -275,11 +272,7 @@ function cleanUrlReference(value?: string | null) {
 }
 
 function cleanStringArray(values?: string[] | string | null) {
-  const normalizedValues = Array.isArray(values)
-    ? values
-    : typeof values === "string"
-      ? values.split(/[\n,]+/g)
-      : [];
+  const normalizedValues = Array.isArray(values) ? values : typeof values === "string" ? values.split(/[\n,]+/g) : [];
 
   return Array.from(new Set(normalizedValues.map((value) => value.trim()).filter(Boolean)));
 }
@@ -327,9 +320,7 @@ function normalizeFooterLink(link: Partial<FooterLinkRecord>): FooterLinkRecord 
 function normalizeFooterColumn(column: Partial<FooterColumnRecord>, index: number): FooterColumnRecord {
   const fallbackColumn = DEFAULT_HOMEPAGE_CONTENT.footerColumns[index] ?? DEFAULT_HOMEPAGE_CONTENT.footerColumns[0];
   const links = Array.isArray(column.links)
-    ? column.links
-        .map((link) => normalizeFooterLink(link))
-        .filter((link): link is FooterLinkRecord => Boolean(link))
+    ? column.links.map((link) => normalizeFooterLink(link)).filter((link): link is FooterLinkRecord => Boolean(link))
     : [];
 
   return {
@@ -350,7 +341,8 @@ function normalizeFooterHighlight(highlight: Partial<FooterHighlightRecord>, ind
 }
 
 function normalizeHomepageContent(data?: Partial<HomepageContentRecord> | null): HomepageContentRecord {
-  const heroSlidesInput = Array.isArray(data?.heroSlides) && data.heroSlides.length > 0 ? data.heroSlides : DEFAULT_HOMEPAGE_CONTENT.heroSlides;
+  const heroSlidesInput =
+    Array.isArray(data?.heroSlides) && data.heroSlides.length > 0 ? data.heroSlides : DEFAULT_HOMEPAGE_CONTENT.heroSlides;
   const footerColumnsInput =
     Array.isArray(data?.footerColumns) && data.footerColumns.length > 0 ? data.footerColumns : DEFAULT_HOMEPAGE_CONTENT.footerColumns;
   const footerHighlightsInput =
@@ -388,7 +380,11 @@ function normalizeHomepageContent(data?: Partial<HomepageContentRecord> | null):
 }
 
 function normalizeManagedNewsArticle(
-  data: Omit<Partial<ManagedNewsArticleRecord>, "body"> & { title: string; summary: string; body?: string[] | string }
+  data: Omit<Partial<ManagedNewsArticleRecord>, "body"> & {
+    title: string;
+    summary: string;
+    body?: string[] | string;
+  },
 ): ManagedNewsArticleRecord {
   const now = new Date().toISOString();
   const title = data.title.trim();
@@ -401,15 +397,15 @@ function normalizeManagedNewsArticle(
       ? "scheduled"
       : data.state === "scheduled"
         ? "draft"
-      : data.state === "draft"
-        ? "draft"
-        : "published";
+        : data.state === "draft"
+          ? "draft"
+          : "published";
   const publishedAt =
     normalizeNewsDateTime(data.publishedAt) ??
     (storedState === "published"
       ? publishAt && Date.parse(publishAt) <= Date.parse(now)
         ? publishAt
-        : normalizeNewsDateTime(data.updatedAt) ?? normalizeNewsDateTime(data.date) ?? now
+        : (normalizeNewsDateTime(data.updatedAt) ?? normalizeNewsDateTime(data.date) ?? now)
       : nextState === "published"
         ? publishAt
         : undefined);
@@ -479,17 +475,17 @@ export async function getManagedNewsArticles(options: { includeDrafts?: boolean 
 
   try {
     const articles = await fetchDocumentCollection<ManagedNewsArticleRecord>(COLLECTIONS.newsArticles, 200);
-    const normalizedArticles = filterSoftDeleted(articles.map((article) =>
-      normalizeManagedNewsArticle({
-        ...article,
-        title: article.title,
-        summary: article.summary,
-      })
-    ));
+    const normalizedArticles = filterSoftDeleted(
+      articles.map((article) =>
+        normalizeManagedNewsArticle({
+          ...article,
+          title: article.title,
+          summary: article.summary,
+        }),
+      ),
+    );
 
-    return normalizedArticles
-      .filter((article) => options.includeDrafts || isManagedNewsArticlePublic(article))
-      .sort(compareDateDesc);
+    return normalizedArticles.filter((article) => options.includeDrafts || isManagedNewsArticlePublic(article)).sort(compareDateDesc);
   } catch {
     return [];
   }
@@ -521,8 +517,12 @@ export async function getManagedNewsArticleById(id: string) {
 }
 
 export async function saveManagedNewsArticle(
-  data: Omit<Partial<ManagedNewsArticleRecord>, "body"> & { title: string; summary: string; body?: string[] | string },
-  id?: string
+  data: Omit<Partial<ManagedNewsArticleRecord>, "body"> & {
+    title: string;
+    summary: string;
+    body?: string[] | string;
+  },
+  id?: string,
 ) {
   const existingArticle = id ? await getManagedNewsArticleById(id) : null;
   const payload = normalizeManagedNewsArticle({

@@ -1,6 +1,6 @@
-import Link from "next/link";
-import type { Metadata } from "next";
 import { searchPlatformContent } from "@/lib/search-service";
+import type { Metadata } from "next";
+import Link from "next/link";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 function getSingleSearchParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
 export default async function SearchPage({ searchParams }: PageProps) {
@@ -63,9 +63,21 @@ export default async function SearchPage({ searchParams }: PageProps) {
         {!results.query ? (
           <section className="mt-8 grid gap-4 md:grid-cols-3">
             {[
-              { title: "PUBG Teams", href: "/pubg/teams", description: "Track rosters, form, and standings." },
-              { title: "Latest Events", href: "/events", description: "Open published event pages and schedules." },
-              { title: "Media Hub", href: "/media", description: "Browse highlights, VODs, posters, and interviews." },
+              {
+                title: "PUBG Teams",
+                href: "/pubg/teams",
+                description: "Track rosters, form, and standings.",
+              },
+              {
+                title: "Latest Events",
+                href: "/events",
+                description: "Open published event pages and schedules.",
+              },
+              {
+                title: "Media Hub",
+                href: "/media",
+                description: "Browse highlights, VODs, posters, and interviews.",
+              },
             ].map((item) => (
               <Link key={item.href} href={item.href} className="esports-card p-6 transition hover:border-accent-blue/30 hover:bg-bg-hover">
                 <p className="font-display text-lg font-black uppercase text-white">{item.title}</p>
@@ -76,9 +88,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
         ) : results.total === 0 ? (
           <section className="mt-8 esports-card p-8 text-center">
             <h2 className="text-2xl font-black text-white">No results found</h2>
-            <p className="mt-3 text-sm text-text-muted">
-              No results found. Try adjusting your search or browse available categories.
-            </p>
+            <p className="mt-3 text-sm text-text-muted">No results found. Try adjusting your search or browse available categories.</p>
           </section>
         ) : (
           <section className="mt-8 space-y-8">
@@ -86,7 +96,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
               <div>
                 <p className="section-title">Search Results</p>
                 <h2 className="mt-2 text-3xl font-black text-white">
-                  {results.total} result{results.total === 1 ? "" : "s"} for "{results.query}"
+                  {results.total} result{results.total === 1 ? "" : "s"} for &ldquo;{results.query}&rdquo;
                 </h2>
               </div>
             </div>
@@ -110,9 +120,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
                         <span className="rounded-full border border-accent-blue/20 bg-accent-blue/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-accent-blue">
                           {item.badge}
                         </span>
-                        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">
-                          {item.subtitle}
-                        </span>
+                        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">{item.subtitle}</span>
                       </div>
                       <h4 className="mt-4 text-lg font-black text-white">{item.title}</h4>
                       <p className="mt-3 text-sm leading-6 text-text-muted">{item.description}</p>

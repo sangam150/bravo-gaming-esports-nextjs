@@ -1,26 +1,16 @@
-import type {
-  MatchPlayerResult,
-  Player,
-  ScrimDayStanding,
-  Team,
-  TeamMatchResult,
-  TournamentMatch,
-  TournamentStanding,
-} from "./types";
 import { compareBravoTeamSlotOrder } from "./bravo-teams";
+import type { MatchPlayerResult, Player, ScrimDayStanding, TeamMatchResult, TournamentMatch, TournamentStanding } from "./types";
 
 function compareOptionalNumberDesc(firstValue?: number | null, secondValue?: number | null) {
   const normalizedFirstValue = typeof firstValue === "number" && Number.isFinite(firstValue) ? firstValue : Number.NEGATIVE_INFINITY;
-  const normalizedSecondValue =
-    typeof secondValue === "number" && Number.isFinite(secondValue) ? secondValue : Number.NEGATIVE_INFINITY;
+  const normalizedSecondValue = typeof secondValue === "number" && Number.isFinite(secondValue) ? secondValue : Number.NEGATIVE_INFINITY;
 
   return normalizedSecondValue - normalizedFirstValue;
 }
 
 function compareOptionalNumberAsc(firstValue?: number | null, secondValue?: number | null) {
   const normalizedFirstValue = typeof firstValue === "number" && Number.isFinite(firstValue) ? firstValue : Number.POSITIVE_INFINITY;
-  const normalizedSecondValue =
-    typeof secondValue === "number" && Number.isFinite(secondValue) ? secondValue : Number.POSITIVE_INFINITY;
+  const normalizedSecondValue = typeof secondValue === "number" && Number.isFinite(secondValue) ? secondValue : Number.POSITIVE_INFINITY;
 
   return normalizedFirstValue - normalizedSecondValue;
 }
@@ -29,22 +19,11 @@ function compareOptionalIsoDateDesc(firstValue?: string | null, secondValue?: st
   return (secondValue ?? "").localeCompare(firstValue ?? "");
 }
 
-function getStableTeamKey(value: {
-  teamId?: string;
-  id?: string;
-  teamName?: string;
-  name?: string;
-}) {
+function getStableTeamKey(value: { teamId?: string; id?: string; teamName?: string; name?: string }) {
   return value.teamId ?? value.id ?? value.teamName ?? value.name ?? "";
 }
 
-function getStablePlayerKey(value: {
-  playerId?: string;
-  pubgPlayerId?: string;
-  id?: string;
-  playerName?: string;
-  name?: string;
-}) {
+function getStablePlayerKey(value: { playerId?: string; pubgPlayerId?: string; id?: string; playerName?: string; name?: string }) {
   return value.playerId ?? value.pubgPlayerId ?? value.id ?? value.playerName ?? value.name ?? "";
 }
 
@@ -79,11 +58,11 @@ export function compareTeamLeaderboardPerformance<T extends TeamPerformanceLike>
     compareBravoTeamSlotOrder(firstValue, secondValue) ||
     compareOptionalNumberDesc(
       firstValue.latestDayNumber ?? firstValue.seasonDayNumber,
-      secondValue.latestDayNumber ?? secondValue.seasonDayNumber
+      secondValue.latestDayNumber ?? secondValue.seasonDayNumber,
     ) ||
     compareOptionalIsoDateDesc(
       firstValue.latestPlayedAt ?? firstValue.latestUpdatedAt ?? firstValue.updatedAt,
-      secondValue.latestPlayedAt ?? secondValue.latestUpdatedAt ?? secondValue.updatedAt
+      secondValue.latestPlayedAt ?? secondValue.latestUpdatedAt ?? secondValue.updatedAt,
     ) ||
     compareOptionalNumberDesc(firstValue.sequenceNumber, secondValue.sequenceNumber) ||
     getStableTeamKey(firstValue).localeCompare(getStableTeamKey(secondValue))
@@ -159,7 +138,7 @@ export function compareMatchPlayerResults<T extends MatchPlayerResult>(firstValu
 
 export function compareMatchSequenceOrder<T extends Pick<TournamentMatch, "id" | "sequenceNumber" | "playedAt" | "syncedAt">>(
   firstValue: T,
-  secondValue: T
+  secondValue: T,
 ) {
   return (
     compareOptionalNumberAsc(firstValue.sequenceNumber, secondValue.sequenceNumber) ||
@@ -169,43 +148,14 @@ export function compareMatchSequenceOrder<T extends Pick<TournamentMatch, "id" |
   );
 }
 
-export function compareNewestMatchFirst<T extends Pick<TournamentMatch, "id" | "sequenceNumber" | "playedAt" | "syncedAt">>(
-  firstValue: T,
-  secondValue: T
-) {
-  return (
-    compareOptionalIsoDateDesc(firstValue.playedAt ?? firstValue.syncedAt, secondValue.playedAt ?? secondValue.syncedAt) ||
-    compareOptionalNumberDesc(firstValue.sequenceNumber, secondValue.sequenceNumber) ||
-    secondValue.id.localeCompare(firstValue.id)
-  );
-}
-
-export function sortTeamLeaderboardRows(teams: Team[]) {
-  return [...teams].sort((firstTeam, secondTeam) => compareTeamLeaderboardPerformance(firstTeam, secondTeam));
-}
-
-export function sortPlayerLeaderboardRows(players: Player[]) {
-  return [...players].sort((firstPlayer, secondPlayer) =>
-    comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer)
-  );
-}
-
-export function sortTopFraggers(players: Player[]) {
-  return [...players].sort((firstPlayer, secondPlayer) => compareTopFraggerPerformance(firstPlayer, secondPlayer));
-}
-
 export function sortMvpRanking(players: Player[]) {
   return [...players].sort((firstPlayer, secondPlayer) => compareMvpRankingPlayers(firstPlayer, secondPlayer));
 }
 
 export function sortTournamentStandings(standings: TournamentStanding[]) {
-  return [...standings].sort((firstStanding, secondStanding) =>
-    compareTeamLeaderboardPerformance(firstStanding, secondStanding)
-  );
+  return [...standings].sort((firstStanding, secondStanding) => compareTeamLeaderboardPerformance(firstStanding, secondStanding));
 }
 
 export function sortScrimDayStandings(standings: ScrimDayStanding[]) {
-  return [...standings].sort((firstStanding, secondStanding) =>
-    compareTeamLeaderboardPerformance(firstStanding, secondStanding)
-  );
+  return [...standings].sort((firstStanding, secondStanding) => compareTeamLeaderboardPerformance(firstStanding, secondStanding));
 }

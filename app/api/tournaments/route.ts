@@ -1,5 +1,5 @@
-import { getTournaments, saveTournament } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
+import { getTournaments, saveTournament } from "@/lib/data";
 import { revalidateTournamentPaths } from "@/lib/revalidate-public";
 import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
@@ -22,6 +22,9 @@ export async function POST(request: Request) {
     revalidateTournamentPaths(result.id);
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
-    return jsonErrorResponse(error, { status: 500, fallback: USER_FACING_ERROR_MESSAGES.admin });
+    return jsonErrorResponse(error, {
+      status: 500,
+      fallback: USER_FACING_ERROR_MESSAGES.admin,
+    });
   }
 }

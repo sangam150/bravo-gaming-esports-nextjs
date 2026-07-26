@@ -9,7 +9,11 @@ export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = await enforceRateLimit(request, { key: "admin-pubg-reset", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "admin-pubg-reset",
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -31,11 +35,14 @@ export async function POST(request: Request) {
     });
 
     revalidateCompetitionPaths(result.id);
-    return Response.json({ success: true, data: { id: result.id }, message: "Imported match reset successfully." });
+    return Response.json({
+      success: true,
+      data: { id: result.id },
+      message: "Imported match reset successfully.",
+    });
   } catch (error: unknown) {
     await logServerError("admin.pubg.import.reset", error, request);
     const message = error instanceof Error ? error.message : String(error);
     return Response.json({ error: message }, { status: 500 });
   }
 }
-

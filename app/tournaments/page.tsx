@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import TournamentsPageClient from "@/components/tournaments/TournamentsPage";
 import { getTournaments } from "@/lib/data";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Tournaments",

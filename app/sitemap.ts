@@ -1,8 +1,8 @@
-import type { MetadataRoute } from "next";
 import { getSeasons } from "@/lib/data";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 import { getSiteUrl } from "@/lib/site";
+import type { MetadataRoute } from "next";
 
 const staticRoutes = [
   "",
@@ -30,11 +30,7 @@ const staticRoutes = [
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getSiteUrl();
-  const [seasons, hub, pubg] = await Promise.all([
-    getSeasons(),
-    getPlatformHubData(),
-    getPubgHubDataset(),
-  ]);
+  const [seasons, hub, pubg] = await Promise.all([getSeasons(), getPlatformHubData(), getPubgHubDataset()]);
 
   const now = new Date();
   const staticEntries = staticRoutes.map((route) => ({
@@ -63,18 +59,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.7,
     })),
-    ...pubg.matches.filter((match) => match.status === "published").map((match) => ({
-      url: `${siteUrl}/pubg/matches/${match.id}`,
-      lastModified: new Date(match.startTime ?? now),
-      changeFrequency: "daily" as const,
-      priority: 0.8,
-    })),
-    ...hub.events.filter((event) => event.state === "published").map((event) => ({
-      url: `${siteUrl}/events/${event.slug}`,
-      lastModified: new Date(event.updatedAt ?? event.startDate ?? now),
-      changeFrequency: "daily" as const,
-      priority: event.status === "live" ? 0.9 : event.featured ? 0.8 : 0.7,
-    })),
+    ...pubg.matches
+      .filter((match) => match.status === "published")
+      .map((match) => ({
+        url: `${siteUrl}/pubg/matches/${match.id}`,
+        lastModified: new Date(match.startTime ?? now),
+        changeFrequency: "daily" as const,
+        priority: 0.8,
+      })),
+    ...hub.events
+      .filter((event) => event.state === "published")
+      .map((event) => ({
+        url: `${siteUrl}/events/${event.slug}`,
+        lastModified: new Date(event.updatedAt ?? event.startDate ?? now),
+        changeFrequency: "daily" as const,
+        priority: event.status === "live" ? 0.9 : event.featured ? 0.8 : 0.7,
+      })),
     ...hub.sponsors.map((sponsor) => ({
       url: `${siteUrl}/sponsors/${sponsor.slug}`,
       lastModified: new Date(sponsor.updatedAt ?? now),

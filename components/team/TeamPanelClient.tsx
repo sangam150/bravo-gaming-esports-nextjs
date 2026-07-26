@@ -1,21 +1,17 @@
 "use client";
 
+import BravoLogo from "@/components/ui/BravoLogo";
+import { hasTeamWorkspaceAccess } from "@/lib/authz";
+import { formatDisplayDateTime } from "@/lib/display-format";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import type { AuthenticatedUserProfile, TeamWorkspaceData } from "@/lib/types";
+import { IMAGE_FILE_INPUT_ACCEPT, MOSS_FILE_INPUT_ACCEPT, TEAM_LOGO_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
+import { getResponseErrorMessage, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import type { Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { hasTeamWorkspaceAccess } from "@/lib/authz";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { formatDisplayDateTime } from "@/lib/display-format";
-import type { AuthenticatedUserProfile, TeamWorkspaceData } from "@/lib/types";
-import { IMAGE_FILE_INPUT_ACCEPT, MOSS_FILE_INPUT_ACCEPT, TEAM_LOGO_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
-import {
-  getResponseErrorMessage,
-  toUserFacingErrorMessage,
-  USER_FACING_ERROR_MESSAGES,
-} from "@/lib/user-facing-errors";
-import BravoLogo from "@/components/ui/BravoLogo";
 
 type TeamUploadType = "team_logo" | "moss_file";
 
@@ -50,12 +46,14 @@ const defaultMossForm: MossFormState = {
 };
 
 async function readJsonResponse<T>(response: Response) {
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+  const data = (await response.json().catch(() => ({}))) as T & {
+    error?: string;
+  };
   if (!response.ok) {
     throw new Error(
       getResponseErrorMessage(response, data.error, {
         fallback: USER_FACING_ERROR_MESSAGES.teamWorkspace,
-      })
+      }),
     );
   }
   return data;
@@ -110,7 +108,11 @@ export default function TeamPanelClient() {
       credentials: "include",
     });
 
-    return readJsonResponse<{ success?: boolean; data?: TeamWorkspaceData; user?: AuthenticatedUserProfile }>(response);
+    return readJsonResponse<{
+      success?: boolean;
+      data?: TeamWorkspaceData;
+      user?: AuthenticatedUserProfile;
+    }>(response);
   }
 
   async function syncSession(session: Session | null) {
@@ -132,7 +134,10 @@ export default function TeamPanelClient() {
       credentials: "include",
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
-    const meData = await readJsonResponse<{ authenticated: boolean; user: AuthenticatedUserProfile }>(meResponse);
+    const meData = await readJsonResponse<{
+      authenticated: boolean;
+      user: AuthenticatedUserProfile;
+    }>(meResponse);
     setProfile(meData.user);
     return meData.user;
   }
@@ -172,7 +177,7 @@ export default function TeamPanelClient() {
       setAuthError(
         toUserFacingErrorMessage(error, {
           fallback: USER_FACING_ERROR_MESSAGES.teamWorkspace,
-        })
+        }),
       );
     } finally {
       setLoading(false);
@@ -208,7 +213,7 @@ export default function TeamPanelClient() {
           setAuthError(
             toUserFacingErrorMessage(error, {
               fallback: USER_FACING_ERROR_MESSAGES.teamWorkspace,
-            })
+            }),
           );
         } finally {
           setLoading(false);
@@ -252,7 +257,7 @@ export default function TeamPanelClient() {
       setAuthError(
         toUserFacingErrorMessage(error, {
           fallback: USER_FACING_ERROR_MESSAGES.login,
-        })
+        }),
       );
     } finally {
       setAuthLoading(false);
@@ -263,7 +268,10 @@ export default function TeamPanelClient() {
     if (!supabase) return;
     setNotice(null);
     setAuthError(null);
-    await fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
+    await fetch("/api/auth/session", {
+      method: "DELETE",
+      credentials: "include",
+    });
     await supabase.auth.signOut();
     setProfile(null);
     setWorkspace(null);
@@ -325,7 +333,7 @@ export default function TeamPanelClient() {
       setAuthError(
         toUserFacingErrorMessage(error, {
           fallback: "We couldn't upload the team logo right now. Please try again shortly.",
-        })
+        }),
       );
     } finally {
       setLogoUploading(false);
@@ -358,18 +366,14 @@ export default function TeamPanelClient() {
       setAuthError(
         toUserFacingErrorMessage(error, {
           fallback: "We couldn't submit that roster request right now. Please try again shortly.",
-        })
+        }),
       );
     } finally {
       setRequestSubmitting(false);
     }
   }
 
-  async function handleRosterAvatarSelected(
-    playerId: string,
-    previousUrl: string | undefined,
-    event: React.ChangeEvent<HTMLInputElement>
-  ) {
+  async function handleRosterAvatarSelected(playerId: string, previousUrl: string | undefined, event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
 
@@ -407,7 +411,7 @@ export default function TeamPanelClient() {
       setAuthError(
         toUserFacingErrorMessage(error, {
           fallback: "We couldn't upload that player image right now. Please try again shortly.",
-        })
+        }),
       );
     } finally {
       setAvatarUploadingPlayerId(null);
@@ -448,7 +452,7 @@ export default function TeamPanelClient() {
       setAuthError(
         toUserFacingErrorMessage(error, {
           fallback: "We couldn't submit that MOSS report right now. Please try again shortly.",
-        })
+        }),
       );
     } finally {
       setMossUploading(false);
@@ -474,9 +478,7 @@ export default function TeamPanelClient() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center px-4 py-12 text-sm text-text-muted">
-        Preparing team workspace...
-      </div>
+      <div className="flex min-h-[70vh] items-center justify-center px-4 py-12 text-sm text-text-muted">Preparing team workspace...</div>
     );
   }
 
@@ -485,12 +487,10 @@ export default function TeamPanelClient() {
       <div className="mx-auto grid min-h-[70vh] max-w-6xl gap-8 px-4 py-10 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(0,163,255,0.18),transparent_50%),rgba(9,12,18,0.95)] p-8 shadow-2xl shadow-black/30">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-blue">Bravo Gaming Esports Nepal</p>
-          <h1 className="mt-4 font-display text-4xl font-black uppercase leading-none text-white sm:text-5xl">
-            Team Workspace
-          </h1>
+          <h1 className="mt-4 font-display text-4xl font-black uppercase leading-none text-white sm:text-5xl">Team Workspace</h1>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300">
-            Manage roster requests, update team branding, review schedules, and track published match results from one
-            team-first Bravo workspace. Tournament operations like MOSS stay available without dominating the panel.
+            Manage roster requests, update team branding, review schedules, and track published match results from one team-first Bravo
+            workspace. Tournament operations like MOSS stay available without dominating the panel.
           </p>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             {[
@@ -519,9 +519,7 @@ export default function TeamPanelClient() {
           </div>
 
           {authError && (
-            <div className="mt-5 rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200">
-              {authError}
-            </div>
+            <div className="mt-5 rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200">{authError}</div>
           )}
 
           <div className="mt-6 space-y-4">
@@ -570,9 +568,7 @@ export default function TeamPanelClient() {
           <p className="mt-3 text-sm text-text-muted">
             {profile.displayName ?? profile.email} | Role: {profile.role}
           </p>
-          <p className="mt-1 text-sm text-slate-300">
-            Public changes stay pending until a Bravo admin approves them.
-          </p>
+          <p className="mt-1 text-sm text-slate-300">Public changes stay pending until a Bravo admin approves them.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -596,21 +592,16 @@ export default function TeamPanelClient() {
         </div>
       </div>
 
-      {authError && (
-        <div className="rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200">
-          {authError}
-        </div>
-      )}
+      {authError && <div className="rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200">{authError}</div>}
 
       {notice && (
-        <div className="rounded-2xl border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-200">
-          {notice}
-        </div>
+        <div className="rounded-2xl border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-200">{notice}</div>
       )}
 
       {profileLinkPending && (
         <div className="rounded-2xl border border-accent-yellow/30 bg-accent-yellow/10 px-4 py-3 text-sm text-yellow-100">
-          Your account can view the workspace, but Bravo still needs to finish linking your profile record before roster requests can be submitted.
+          Your account can view the workspace, but Bravo still needs to finish linking your profile record before roster requests can be
+          submitted.
         </div>
       )}
 
@@ -645,9 +636,7 @@ export default function TeamPanelClient() {
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-[0.14em] text-text-muted">Status</p>
-                <p className="mt-1 text-sm font-semibold text-white">
-                  {workspace?.team?.isActive === false ? "Inactive" : "Active"}
-                </p>
+                <p className="mt-1 text-sm font-semibold text-white">{workspace?.team?.isActive === false ? "Inactive" : "Active"}</p>
               </div>
             </div>
           </div>
@@ -655,9 +644,7 @@ export default function TeamPanelClient() {
           <div className="mt-6">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-display text-xl font-black uppercase text-white">Current Roster</h2>
-              <span className="text-xs uppercase tracking-[0.14em] text-text-muted">
-                {workspace?.roster.length ?? 0} players
-              </span>
+              <span className="text-xs uppercase tracking-[0.14em] text-text-muted">{workspace?.roster.length ?? 0} players</span>
             </div>
             {workspaceLoading ? (
               <p className="text-sm text-text-muted">Refreshing roster...</p>
@@ -682,9 +669,7 @@ export default function TeamPanelClient() {
                         <p className="mt-1 text-xs uppercase tracking-[0.14em] text-text-muted">
                           {player.isActive === false ? "Inactive" : "Active"}
                         </p>
-                        <p className="mt-2 text-xs text-slate-300">
-                          Team staff can manage this player's public image.
-                        </p>
+                        <p className="mt-2 text-xs text-slate-300">Team staff can manage this player&apos;s public image.</p>
                       </div>
                     </div>
                     <div className="mt-4">
@@ -698,9 +683,7 @@ export default function TeamPanelClient() {
                           type="file"
                           accept={IMAGE_FILE_INPUT_ACCEPT}
                           className="hidden"
-                          onChange={(event) =>
-                            void handleRosterAvatarSelected(player.id, player.avatarUrl ?? undefined, event)
-                          }
+                          onChange={(event) => void handleRosterAvatarSelected(player.id, player.avatarUrl ?? undefined, event)}
                         />
                       </label>
                     </div>
@@ -721,16 +704,19 @@ export default function TeamPanelClient() {
             Submit roster updates here. Admins review every change before it reaches public pages.
           </p>
           {profileLinkPending && (
-            <p className="mt-3 text-sm text-accent-yellow">
-              Roster requests unlock automatically after your profile link is completed.
-            </p>
+            <p className="mt-3 text-sm text-accent-yellow">Roster requests unlock automatically after your profile link is completed.</p>
           )}
 
           <form onSubmit={handleRequestSubmit} className="mt-5 space-y-4">
             <select
               className="input-esports"
               value={requestForm.requestType}
-              onChange={(event) => setRequestForm((current) => ({ ...current, requestType: event.target.value }))}
+              onChange={(event) =>
+                setRequestForm((current) => ({
+                  ...current,
+                  requestType: event.target.value,
+                }))
+              }
             >
               <option value="add_player">Add New Player</option>
               <option value="remove_player">Remove Player</option>
@@ -741,7 +727,12 @@ export default function TeamPanelClient() {
             <select
               className="input-esports"
               value={requestForm.oldPlayerId}
-              onChange={(event) => setRequestForm((current) => ({ ...current, oldPlayerId: event.target.value }))}
+              onChange={(event) =>
+                setRequestForm((current) => ({
+                  ...current,
+                  oldPlayerId: event.target.value,
+                }))
+              }
             >
               <option value="">Select current player if applicable</option>
               {(workspace?.roster ?? []).map((player) => (
@@ -755,21 +746,36 @@ export default function TeamPanelClient() {
               className="input-esports"
               placeholder="New player name"
               value={requestForm.newPlayerName}
-              onChange={(event) => setRequestForm((current) => ({ ...current, newPlayerName: event.target.value }))}
+              onChange={(event) =>
+                setRequestForm((current) => ({
+                  ...current,
+                  newPlayerName: event.target.value,
+                }))
+              }
             />
 
             <input
               className="input-esports"
               placeholder="New PUBG name"
               value={requestForm.newPlayerPubgName}
-              onChange={(event) => setRequestForm((current) => ({ ...current, newPlayerPubgName: event.target.value }))}
+              onChange={(event) =>
+                setRequestForm((current) => ({
+                  ...current,
+                  newPlayerPubgName: event.target.value,
+                }))
+              }
             />
 
             <textarea
               className="input-esports min-h-28"
               placeholder="Notes for admin review"
               value={requestForm.notes}
-              onChange={(event) => setRequestForm((current) => ({ ...current, notes: event.target.value }))}
+              onChange={(event) =>
+                setRequestForm((current) => ({
+                  ...current,
+                  notes: event.target.value,
+                }))
+              }
             />
 
             <button
@@ -787,9 +793,7 @@ export default function TeamPanelClient() {
         <section className="esports-card p-6">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-xl font-black uppercase text-white">Upcoming Schedule</h2>
-            <span className="text-xs uppercase tracking-[0.14em] text-text-muted">
-              {(workspace?.upcomingEvents ?? []).length} event(s)
-            </span>
+            <span className="text-xs uppercase tracking-[0.14em] text-text-muted">{(workspace?.upcomingEvents ?? []).length} event(s)</span>
           </div>
           <div className="mt-5 space-y-3">
             {(workspace?.upcomingEvents ?? []).length === 0 ? (
@@ -817,9 +821,7 @@ export default function TeamPanelClient() {
         <section className="esports-card p-6">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-xl font-black uppercase text-white">Recent Match Results</h2>
-            <span className="text-xs uppercase tracking-[0.14em] text-text-muted">
-              {(workspace?.recentMatches ?? []).length} match(es)
-            </span>
+            <span className="text-xs uppercase tracking-[0.14em] text-text-muted">{(workspace?.recentMatches ?? []).length} match(es)</span>
           </div>
           <div className="mt-5 space-y-3">
             {(workspace?.recentMatches ?? []).length === 0 ? (
@@ -857,7 +859,12 @@ export default function TeamPanelClient() {
                     </div>
                   </div>
                   {match.vodUrl ? (
-                    <a href={match.vodUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm text-accent-blue hover:underline">
+                    <a
+                      href={match.vodUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 inline-flex text-sm text-accent-blue hover:underline"
+                    >
                       Open VOD
                     </a>
                   ) : null}
@@ -879,7 +886,12 @@ export default function TeamPanelClient() {
             <select
               className="input-esports"
               value={mossForm.eventId}
-              onChange={(event) => setMossForm((current) => ({ ...current, eventId: event.target.value }))}
+              onChange={(event) =>
+                setMossForm((current) => ({
+                  ...current,
+                  eventId: event.target.value,
+                }))
+              }
             >
               <option value="">Select event</option>
               {(workspace?.upcomingEvents ?? []).map((event) => (
@@ -893,13 +905,23 @@ export default function TeamPanelClient() {
               className="input-esports"
               placeholder="Match ID (optional)"
               value={mossForm.matchId}
-              onChange={(event) => setMossForm((current) => ({ ...current, matchId: event.target.value }))}
+              onChange={(event) =>
+                setMossForm((current) => ({
+                  ...current,
+                  matchId: event.target.value,
+                }))
+              }
             />
 
             <select
               className="input-esports"
               value={mossForm.playerId}
-              onChange={(event) => setMossForm((current) => ({ ...current, playerId: event.target.value }))}
+              onChange={(event) =>
+                setMossForm((current) => ({
+                  ...current,
+                  playerId: event.target.value,
+                }))
+              }
             >
               <option value="">Player (optional)</option>
               {(workspace?.roster ?? []).map((player) => (
@@ -913,7 +935,12 @@ export default function TeamPanelClient() {
               className="input-esports"
               placeholder="External MOSS link"
               value={mossForm.externalLink}
-              onChange={(event) => setMossForm((current) => ({ ...current, externalLink: event.target.value }))}
+              onChange={(event) =>
+                setMossForm((current) => ({
+                  ...current,
+                  externalLink: event.target.value,
+                }))
+              }
             />
 
             <label className="block rounded-3xl border border-dashed border-white/15 bg-bg-primary/60 px-4 py-5 text-sm text-text-muted">
@@ -957,9 +984,7 @@ export default function TeamPanelClient() {
                   {request.newPlayerPubgName && (
                     <p className="mt-3 text-sm text-slate-300">Requested PUBG name: {request.newPlayerPubgName}</p>
                   )}
-                  {request.adminNote && (
-                    <p className="mt-2 text-sm text-slate-300">Admin note: {request.adminNote}</p>
-                  )}
+                  {request.adminNote && <p className="mt-2 text-sm text-slate-300">Admin note: {request.adminNote}</p>}
                 </div>
               ))
             )}
@@ -971,20 +996,28 @@ export default function TeamPanelClient() {
                   {workspace?.mossSubmissions.map((submission) => (
                     <div key={submission.id} className="rounded-3xl border border-white/10 bg-bg-primary/70 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
-                        <p className="font-semibold text-white">
-                          {submission.eventName ?? submission.matchId ?? "Submission"}
-                        </p>
+                        <p className="font-semibold text-white">{submission.eventName ?? submission.matchId ?? "Submission"}</p>
                         <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-text-muted">
                           {submission.status}
                         </span>
                       </div>
                       {submission.fileUrl && (
-                        <a href={submission.fileUrl} target="_blank" rel="noreferrer" className="mt-3 block text-sm text-accent-blue hover:underline">
+                        <a
+                          href={submission.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 block text-sm text-accent-blue hover:underline"
+                        >
                           Open uploaded file
                         </a>
                       )}
                       {submission.externalLink && (
-                        <a href={submission.externalLink} target="_blank" rel="noreferrer" className="mt-2 block text-sm text-accent-blue hover:underline">
+                        <a
+                          href={submission.externalLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 block text-sm text-accent-blue hover:underline"
+                        >
                           Open external link
                         </a>
                       )}
@@ -996,7 +1029,6 @@ export default function TeamPanelClient() {
           </div>
         </section>
       </div>
-
     </div>
   );
 }

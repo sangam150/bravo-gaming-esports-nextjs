@@ -1,17 +1,24 @@
 "use client";
 
-import { useCallback, useDeferredValue, useEffect, useState } from "react";
-import FileUpload from "./FileUpload";
 import { adminFetch } from "@/lib/admin-api";
 import type { ManagedPlatformEventRecord, ManagedPlatformGameRecord } from "@/lib/platform-cms";
-import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import type { SponsorItem, VideoItem } from "@/lib/types";
+import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import { useCallback, useDeferredValue, useEffect, useState } from "react";
+import FileUpload from "./FileUpload";
 
 const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
 
 function splitDelimitedValues(value?: string | null) {
-  return Array.from(new Set((value ?? "").split(/[\n,]+/g).map((item) => item.trim()).filter(Boolean)));
+  return Array.from(
+    new Set(
+      (value ?? "")
+        .split(/[\n,]+/g)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 function joinDelimitedValues(values?: string[] | null) {
@@ -104,7 +111,11 @@ export function AdminGamesManager() {
       const response = await adminFetch("/api/admin/games");
       setGames(response.data ?? []);
     } catch (loadError: unknown) {
-      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(loadError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -138,10 +149,16 @@ export function AdminGamesManager() {
       });
       setMessage(editingId ? "Game updated" : "Game created");
       resetForm();
-      setGames((response.data ? [response.data, ...games.filter((game) => game.id !== response.data.id)] : games) as ManagedPlatformGameRecord[]);
+      setGames(
+        (response.data ? [response.data, ...games.filter((game) => game.id !== response.data.id)] : games) as ManagedPlatformGameRecord[],
+      );
       await loadGames();
     } catch (submissionError: unknown) {
-      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(submissionError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setSaving(false);
     }
@@ -158,7 +175,11 @@ export function AdminGamesManager() {
       }
       setMessage("Game removed");
     } catch (deleteError: unknown) {
-      setError(toUserFacingErrorMessage(deleteError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(deleteError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     }
   }
 
@@ -178,36 +199,105 @@ export function AdminGamesManager() {
           </div>
           <MessageLine message={message} error={error} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <input className={inputClass} placeholder="Game name" value={form.name ?? ""} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
-            <input className={inputClass} placeholder="Slug" value={form.slug ?? ""} onChange={(event) => setForm({ ...form, slug: event.target.value })} />
-            <input className={inputClass} placeholder="Short name" value={form.shortName ?? ""} onChange={(event) => setForm({ ...form, shortName: event.target.value })} />
-            <select className={inputClass} value={form.status ?? "planned"} onChange={(event) => setForm({ ...form, status: event.target.value as ManagedPlatformGameRecord["status"] })}>
+            <input
+              className={inputClass}
+              placeholder="Game name"
+              value={form.name ?? ""}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+              required
+            />
+            <input
+              className={inputClass}
+              placeholder="Slug"
+              value={form.slug ?? ""}
+              onChange={(event) => setForm({ ...form, slug: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Short name"
+              value={form.shortName ?? ""}
+              onChange={(event) => setForm({ ...form, shortName: event.target.value })}
+            />
+            <select
+              className={inputClass}
+              value={form.status ?? "planned"}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  status: event.target.value as ManagedPlatformGameRecord["status"],
+                })
+              }
+            >
               <option value="flagship">Flagship</option>
               <option value="active">Active</option>
               <option value="building">Building</option>
               <option value="planned">Planned</option>
             </select>
-            <input className={`${inputClass} sm:col-span-2`} placeholder="Tagline" value={form.tagline ?? ""} onChange={(event) => setForm({ ...form, tagline: event.target.value })} />
-            <textarea className={`${inputClass} sm:col-span-2`} rows={4} placeholder="Summary" value={form.summary ?? ""} onChange={(event) => setForm({ ...form, summary: event.target.value })} />
-            <input className={inputClass} placeholder="Hero label" value={form.heroLabel ?? ""} onChange={(event) => setForm({ ...form, heroLabel: event.target.value })} />
-            <input className={inputClass} placeholder="Primary href" value={form.primaryHref ?? ""} onChange={(event) => setForm({ ...form, primaryHref: event.target.value })} />
-            <input className={inputClass} placeholder="Analytics href" value={form.analyticsHref ?? ""} onChange={(event) => setForm({ ...form, analyticsHref: event.target.value })} />
-            <input className={inputClass} placeholder="Completion label" value={form.completionLabel ?? ""} onChange={(event) => setForm({ ...form, completionLabel: event.target.value })} />
+            <input
+              className={`${inputClass} sm:col-span-2`}
+              placeholder="Tagline"
+              value={form.tagline ?? ""}
+              onChange={(event) => setForm({ ...form, tagline: event.target.value })}
+            />
+            <textarea
+              className={`${inputClass} sm:col-span-2`}
+              rows={4}
+              placeholder="Summary"
+              value={form.summary ?? ""}
+              onChange={(event) => setForm({ ...form, summary: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Hero label"
+              value={form.heroLabel ?? ""}
+              onChange={(event) => setForm({ ...form, heroLabel: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Primary href"
+              value={form.primaryHref ?? ""}
+              onChange={(event) => setForm({ ...form, primaryHref: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Analytics href"
+              value={form.analyticsHref ?? ""}
+              onChange={(event) => setForm({ ...form, analyticsHref: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Completion label"
+              value={form.completionLabel ?? ""}
+              onChange={(event) => setForm({ ...form, completionLabel: event.target.value })}
+            />
             <textarea
               className={`${inputClass} sm:col-span-2`}
               rows={3}
               placeholder="Sections (comma separated)"
               value={joinDelimitedValues(form.sections)}
-              onChange={(event) => setForm({ ...form, sections: splitDelimitedValues(event.target.value) })}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  sections: splitDelimitedValues(event.target.value),
+                })
+              }
             />
           </div>
           <div className="flex flex-wrap gap-5 text-sm text-slate-300">
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={Boolean(form.flagship)} onChange={(event) => setForm({ ...form, flagship: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={Boolean(form.flagship)}
+                onChange={(event) => setForm({ ...form, flagship: event.target.checked })}
+              />
               Flagship game
             </label>
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={form.published !== false} onChange={(event) => setForm({ ...form, published: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={form.published !== false}
+                onChange={(event) => setForm({ ...form, published: event.target.checked })}
+              />
               Published
             </label>
           </div>
@@ -230,7 +320,14 @@ export function AdminGamesManager() {
                     </p>
                   </div>
                   <div className="flex gap-3 text-sm">
-                    <button type="button" onClick={() => { setEditingId(game.id); setForm(game); }} className="text-accent-blue hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(game.id);
+                        setForm(game);
+                      }}
+                      className="text-accent-blue hover:underline"
+                    >
                       Edit
                     </button>
                     <button type="button" onClick={() => void handleDelete(game.id)} className="text-bravoRed hover:underline">
@@ -298,7 +395,11 @@ export function AdminPlatformEventsManager() {
       const response = await adminFetch("/api/admin/platform-events");
       setEvents(response.data ?? []);
     } catch (loadError: unknown) {
-      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(loadError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -322,13 +423,10 @@ export function AdminPlatformEventsManager() {
     setError(null);
 
     try {
-      const response = await adminFetch(
-        editingId ? `/api/admin/platform-events/${editingId}` : "/api/admin/platform-events",
-        {
-          method: editingId ? "PUT" : "POST",
-          body: JSON.stringify({ ...form, tabs: form.tabs ?? [] }),
-        }
-      );
+      const response = await adminFetch(editingId ? `/api/admin/platform-events/${editingId}` : "/api/admin/platform-events", {
+        method: editingId ? "PUT" : "POST",
+        body: JSON.stringify({ ...form, tabs: form.tabs ?? [] }),
+      });
       setMessage(editingId ? "Event updated" : "Event created");
       setEvents((currentEvents) => {
         const savedEvent = response.data as ManagedPlatformEventRecord;
@@ -337,7 +435,11 @@ export function AdminPlatformEventsManager() {
       resetForm();
       await loadEvents();
     } catch (submissionError: unknown) {
-      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(submissionError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setSaving(false);
     }
@@ -347,14 +449,20 @@ export function AdminPlatformEventsManager() {
     if (!window.confirm("Delete this platform event?")) return;
 
     try {
-      await adminFetch(`/api/admin/platform-events/${id}`, { method: "DELETE" });
+      await adminFetch(`/api/admin/platform-events/${id}`, {
+        method: "DELETE",
+      });
       setEvents((currentEvents) => currentEvents.filter((event) => event.id !== id));
       if (editingId === id) {
         resetForm();
       }
       setMessage("Event removed");
     } catch (deleteError: unknown) {
-      setError(toUserFacingErrorMessage(deleteError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(deleteError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     }
   }
 
@@ -376,43 +484,170 @@ export function AdminPlatformEventsManager() {
           </div>
           <MessageLine message={message} error={error} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <input className={inputClass} placeholder="Event name" value={form.name ?? ""} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
-            <input className={inputClass} placeholder="Slug" value={form.slug ?? ""} onChange={(event) => setForm({ ...form, slug: event.target.value })} />
-            <input className={inputClass} placeholder="Game name" value={form.gameName ?? ""} onChange={(event) => setForm({ ...form, gameName: event.target.value })} />
-            <input className={inputClass} placeholder="Game slug" value={form.gameSlug ?? ""} onChange={(event) => setForm({ ...form, gameSlug: event.target.value })} />
-            <input className={inputClass} placeholder="Type" value={form.type ?? ""} onChange={(event) => setForm({ ...form, type: event.target.value })} />
-            <select className={inputClass} value={form.status ?? "upcoming"} onChange={(event) => setForm({ ...form, status: event.target.value as ManagedPlatformEventRecord["status"] })}>
+            <input
+              className={inputClass}
+              placeholder="Event name"
+              value={form.name ?? ""}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+              required
+            />
+            <input
+              className={inputClass}
+              placeholder="Slug"
+              value={form.slug ?? ""}
+              onChange={(event) => setForm({ ...form, slug: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Game name"
+              value={form.gameName ?? ""}
+              onChange={(event) => setForm({ ...form, gameName: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Game slug"
+              value={form.gameSlug ?? ""}
+              onChange={(event) => setForm({ ...form, gameSlug: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Type"
+              value={form.type ?? ""}
+              onChange={(event) => setForm({ ...form, type: event.target.value })}
+            />
+            <select
+              className={inputClass}
+              value={form.status ?? "upcoming"}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  status: event.target.value as ManagedPlatformEventRecord["status"],
+                })
+              }
+            >
               <option value="live">Live</option>
               <option value="upcoming">Upcoming</option>
               <option value="completed">Completed</option>
               <option value="planned">Planned</option>
             </select>
-            <select className={inputClass} value={form.state ?? "published"} onChange={(event) => setForm({ ...form, state: event.target.value as ManagedPlatformEventRecord["state"] })}>
+            <select
+              className={inputClass}
+              value={form.state ?? "published"}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  state: event.target.value as ManagedPlatformEventRecord["state"],
+                })
+              }
+            >
               <option value="published">Published</option>
               <option value="planned">Planned</option>
               <option value="coming_soon">Draft</option>
             </select>
-            <input className={inputClass} placeholder="Region" value={form.region ?? ""} onChange={(event) => setForm({ ...form, region: event.target.value })} />
-            <input className={inputClass} placeholder="Organizer" value={form.organizerName ?? ""} onChange={(event) => setForm({ ...form, organizerName: event.target.value })} />
-            <input className={inputClass} placeholder="Prize pool" value={form.prizePool ?? ""} onChange={(event) => setForm({ ...form, prizePool: event.target.value })} />
-            <input className={inputClass} type="number" placeholder="Teams count" value={form.teamsCount ?? 0} onChange={(event) => setForm({ ...form, teamsCount: Number(event.target.value) })} />
-            <input className={inputClass} type="number" placeholder="Matches count" value={form.matchesCount ?? 0} onChange={(event) => setForm({ ...form, matchesCount: Number(event.target.value) })} />
-            <input className={inputClass} type="datetime-local" value={(form.startDate ?? "").slice(0, 16)} onChange={(event) => setForm({ ...form, startDate: event.target.value })} />
-            <input className={inputClass} type="datetime-local" value={(form.endDate ?? "").slice(0, 16)} onChange={(event) => setForm({ ...form, endDate: event.target.value })} />
-            <textarea className={`${inputClass} sm:col-span-2`} rows={4} placeholder="Summary" value={form.summary ?? ""} onChange={(event) => setForm({ ...form, summary: event.target.value })} />
-            <input className={inputClass} placeholder="Analytics href" value={form.analyticsHref ?? ""} onChange={(event) => setForm({ ...form, analyticsHref: event.target.value })} />
-            <input className={inputClass} placeholder="Stream href" value={form.streamHref ?? ""} onChange={(event) => setForm({ ...form, streamHref: event.target.value })} />
-            <input className={inputClass} placeholder="Top team name" value={form.topTeamName ?? ""} onChange={(event) => setForm({ ...form, topTeamName: event.target.value })} />
-            <input className={inputClass} placeholder="Top player name" value={form.topPlayerName ?? ""} onChange={(event) => setForm({ ...form, topPlayerName: event.target.value })} />
-            <input className={inputClass} placeholder="Sponsor name" value={form.sponsorName ?? ""} onChange={(event) => setForm({ ...form, sponsorName: event.target.value })} />
-            <input className={inputClass} placeholder="Point system id" value={form.pointSystemId ?? ""} onChange={(event) => setForm({ ...form, pointSystemId: event.target.value })} />
-            <input className={inputClass} placeholder="Point system name" value={form.pointSystemName ?? ""} onChange={(event) => setForm({ ...form, pointSystemName: event.target.value })} />
+            <input
+              className={inputClass}
+              placeholder="Region"
+              value={form.region ?? ""}
+              onChange={(event) => setForm({ ...form, region: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Organizer"
+              value={form.organizerName ?? ""}
+              onChange={(event) => setForm({ ...form, organizerName: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Prize pool"
+              value={form.prizePool ?? ""}
+              onChange={(event) => setForm({ ...form, prizePool: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              type="number"
+              placeholder="Teams count"
+              value={form.teamsCount ?? 0}
+              onChange={(event) => setForm({ ...form, teamsCount: Number(event.target.value) })}
+            />
+            <input
+              className={inputClass}
+              type="number"
+              placeholder="Matches count"
+              value={form.matchesCount ?? 0}
+              onChange={(event) => setForm({ ...form, matchesCount: Number(event.target.value) })}
+            />
+            <input
+              className={inputClass}
+              type="datetime-local"
+              value={(form.startDate ?? "").slice(0, 16)}
+              onChange={(event) => setForm({ ...form, startDate: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              type="datetime-local"
+              value={(form.endDate ?? "").slice(0, 16)}
+              onChange={(event) => setForm({ ...form, endDate: event.target.value })}
+            />
+            <textarea
+              className={`${inputClass} sm:col-span-2`}
+              rows={4}
+              placeholder="Summary"
+              value={form.summary ?? ""}
+              onChange={(event) => setForm({ ...form, summary: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Analytics href"
+              value={form.analyticsHref ?? ""}
+              onChange={(event) => setForm({ ...form, analyticsHref: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Stream href"
+              value={form.streamHref ?? ""}
+              onChange={(event) => setForm({ ...form, streamHref: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Top team name"
+              value={form.topTeamName ?? ""}
+              onChange={(event) => setForm({ ...form, topTeamName: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Top player name"
+              value={form.topPlayerName ?? ""}
+              onChange={(event) => setForm({ ...form, topPlayerName: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Sponsor name"
+              value={form.sponsorName ?? ""}
+              onChange={(event) => setForm({ ...form, sponsorName: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Point system id"
+              value={form.pointSystemId ?? ""}
+              onChange={(event) => setForm({ ...form, pointSystemId: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Point system name"
+              value={form.pointSystemName ?? ""}
+              onChange={(event) => setForm({ ...form, pointSystemName: event.target.value })}
+            />
             <textarea
               className={`${inputClass} sm:col-span-2`}
               rows={3}
               placeholder="Tabs (comma separated)"
               value={joinDelimitedValues(form.tabs)}
-              onChange={(event) => setForm({ ...form, tabs: splitDelimitedValues(event.target.value) })}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  tabs: splitDelimitedValues(event.target.value),
+                })
+              }
             />
           </div>
           <FileUpload
@@ -424,11 +659,19 @@ export function AdminPlatformEventsManager() {
           />
           <div className="flex flex-wrap gap-5 text-sm text-slate-300">
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={Boolean(form.featured)} onChange={(event) => setForm({ ...form, featured: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={Boolean(form.featured)}
+                onChange={(event) => setForm({ ...form, featured: event.target.checked })}
+              />
               Featured
             </label>
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={form.published !== false} onChange={(event) => setForm({ ...form, published: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={form.published !== false}
+                onChange={(event) => setForm({ ...form, published: event.target.checked })}
+              />
               Published
             </label>
           </div>
@@ -447,11 +690,19 @@ export function AdminPlatformEventsManager() {
                   <div>
                     <p className="font-semibold text-white">{event.name}</p>
                     <p className="text-sm text-text-muted">
-                      {event.gameName} | {event.status} | {event.pointSystemName ?? "Point system pending"} | {event.published ? "published" : "draft"}
+                      {event.gameName} | {event.status} | {event.pointSystemName ?? "Point system pending"} |{" "}
+                      {event.published ? "published" : "draft"}
                     </p>
                   </div>
                   <div className="flex gap-3 text-sm">
-                    <button type="button" onClick={() => { setEditingId(event.id); setForm(event); }} className="text-accent-blue hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(event.id);
+                        setForm(event);
+                      }}
+                      className="text-accent-blue hover:underline"
+                    >
                       Edit
                     </button>
                     <button type="button" onClick={() => void handleDelete(event.id)} className="text-bravoRed hover:underline">
@@ -536,7 +787,11 @@ export function AdminSponsorsManager() {
       const response = await adminFetch("/api/admin/sponsors");
       setSponsors(response.data ?? []);
     } catch (loadError: unknown) {
-      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(loadError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -548,7 +803,11 @@ export function AdminSponsorsManager() {
       const response = await adminFetch("/api/admin/platform-event-options");
       setEventOptions(response.data ?? []);
     } catch (loadError: unknown) {
-      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(loadError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoadingEvents(false);
     }
@@ -564,7 +823,6 @@ export function AdminSponsorsManager() {
 
   const optionBySlug = new Map(eventOptions.map((eventOption) => [eventOption.slug, eventOption]));
   const selectedEventSlugs = form.eventSlugs ?? [];
-  const selectedEvents = selectedEventSlugs.map((eventSlug) => optionBySlug.get(eventSlug) ?? null);
   const filteredEventOptions = eventOptions.filter((eventOption) => {
     const searchNeedle = deferredEventSearch.trim().toLowerCase();
     if (!searchNeedle) return true;
@@ -633,7 +891,11 @@ export function AdminSponsorsManager() {
       resetForm();
       await loadSponsors();
     } catch (submissionError: unknown) {
-      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(submissionError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setSaving(false);
     }
@@ -650,7 +912,11 @@ export function AdminSponsorsManager() {
       }
       setMessage("Sponsor removed");
     } catch (deleteError: unknown) {
-      setError(toUserFacingErrorMessage(deleteError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(deleteError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     }
   }
 
@@ -694,19 +960,50 @@ export function AdminSponsorsManager() {
           </div>
           <MessageLine message={message} error={error} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <input className={inputClass} placeholder="Sponsor or partner name" value={form.name ?? ""} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
-            <input className={inputClass} placeholder="Slug" value={form.slug ?? ""} onChange={(event) => setForm({ ...form, slug: event.target.value })} />
-            <select className={inputClass} value={form.kind ?? "partner"} onChange={(event) => setForm({ ...form, kind: event.target.value as SponsorItem["kind"] })}>
+            <input
+              className={inputClass}
+              placeholder="Sponsor or partner name"
+              value={form.name ?? ""}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+              required
+            />
+            <input
+              className={inputClass}
+              placeholder="Slug"
+              value={form.slug ?? ""}
+              onChange={(event) => setForm({ ...form, slug: event.target.value })}
+            />
+            <select
+              className={inputClass}
+              value={form.kind ?? "partner"}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  kind: event.target.value as SponsorItem["kind"],
+                })
+              }
+            >
               <option value="sponsor">Sponsor</option>
               <option value="partner">Partner</option>
               <option value="design">Design</option>
             </select>
-            <input className={inputClass} placeholder="Tier" value={form.tier ?? ""} onChange={(event) => setForm({ ...form, tier: event.target.value })} />
+            <input
+              className={inputClass}
+              placeholder="Tier"
+              value={form.tier ?? ""}
+              onChange={(event) => setForm({ ...form, tier: event.target.value })}
+            />
             <input
               className={inputClass}
               placeholder="Website URL (https://...)"
               value={form.websiteUrl ?? form.url ?? ""}
-              onChange={(event) => setForm({ ...form, websiteUrl: event.target.value, url: event.target.value })}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  websiteUrl: event.target.value,
+                  url: event.target.value,
+                })
+              }
             />
             <input
               className={inputClass}
@@ -726,18 +1023,23 @@ export function AdminSponsorsManager() {
               rows={3}
               placeholder="Partnership history"
               value={joinDelimitedValues(form.partnershipHistory)}
-              onChange={(event) => setForm({ ...form, partnershipHistory: splitDelimitedValues(event.target.value) })}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  partnershipHistory: splitDelimitedValues(event.target.value),
+                })
+              }
             />
           </div>
           <div className="rounded-card border border-white/10 bg-bg-primary p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Event Assignment</p>
-                <p className="mt-1 text-sm text-text-muted">Search and assign events here. The sponsor saves event slugs internally and shows event names publicly.</p>
+                <p className="mt-1 text-sm text-text-muted">
+                  Search and assign events here. The sponsor saves event slugs internally and shows event names publicly.
+                </p>
               </div>
-              <div className="text-xs uppercase tracking-[0.12em] text-text-muted">
-                {selectedEventSlugs.length} selected
-              </div>
+              <div className="text-xs uppercase tracking-[0.12em] text-text-muted">{selectedEventSlugs.length} selected</div>
             </div>
             <input
               className={`${inputClass} mt-4`}
@@ -817,37 +1119,70 @@ export function AdminSponsorsManager() {
             entityId={uploadEntityId}
             label="Design asset"
             currentUrl={form.designAssetUrl ?? undefined}
-            onUploaded={(url) => setForm((currentForm) => ({ ...currentForm, designAssetUrl: url }))}
+            onUploaded={(url) =>
+              setForm((currentForm) => ({
+                ...currentForm,
+                designAssetUrl: url,
+              }))
+            }
           />
           <div className="flex flex-wrap gap-5 text-sm text-slate-300">
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={form.visible !== false} onChange={(event) => setForm({ ...form, visible: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={form.visible !== false}
+                onChange={(event) => setForm({ ...form, visible: event.target.checked })}
+              />
               Show publicly
             </label>
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={Boolean(form.featured)} onChange={(event) => setForm({ ...form, featured: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={Boolean(form.featured)}
+                onChange={(event) => setForm({ ...form, featured: event.target.checked })}
+              />
               Featured
             </label>
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={form.published !== false} onChange={(event) => setForm({ ...form, published: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={form.published !== false}
+                onChange={(event) => setForm({ ...form, published: event.target.checked })}
+              />
               Published
             </label>
           </div>
           <div className="grid gap-3 rounded-card border border-white/10 bg-bg-primary p-4 sm:grid-cols-2">
             <label className="inline-flex items-center gap-2 text-sm text-slate-300">
-              <input type="checkbox" checked={Boolean(form.showOnHomepage)} onChange={(event) => setForm({ ...form, showOnHomepage: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={Boolean(form.showOnHomepage)}
+                onChange={(event) => setForm({ ...form, showOnHomepage: event.target.checked })}
+              />
               Homepage section
             </label>
             <label className="inline-flex items-center gap-2 text-sm text-slate-300">
-              <input type="checkbox" checked={form.showOnSponsorsPage !== false} onChange={(event) => setForm({ ...form, showOnSponsorsPage: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={form.showOnSponsorsPage !== false}
+                onChange={(event) => setForm({ ...form, showOnSponsorsPage: event.target.checked })}
+              />
               Sponsors page
             </label>
             <label className="inline-flex items-center gap-2 text-sm text-slate-300">
-              <input type="checkbox" checked={Boolean(form.showOnEventPage)} onChange={(event) => setForm({ ...form, showOnEventPage: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={Boolean(form.showOnEventPage)}
+                onChange={(event) => setForm({ ...form, showOnEventPage: event.target.checked })}
+              />
               Event sponsor sections
             </label>
             <label className="inline-flex items-center gap-2 text-sm text-slate-300">
-              <input type="checkbox" checked={Boolean(form.showOnPubgPage)} onChange={(event) => setForm({ ...form, showOnPubgPage: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={Boolean(form.showOnPubgPage)}
+                onChange={(event) => setForm({ ...form, showOnPubgPage: event.target.checked })}
+              />
               PUBG page partner section
             </label>
           </div>
@@ -866,11 +1201,19 @@ export function AdminSponsorsManager() {
                   <div>
                     <p className="font-semibold text-white">{sponsor.name}</p>
                     <p className="text-sm text-text-muted">
-                      {(sponsor.kind ?? "partner").toUpperCase()} | {sponsor.tier} | {sponsor.published !== false ? "published" : "draft"} | {sponsor.visible !== false ? "visible" : "hidden"}
+                      {(sponsor.kind ?? "partner").toUpperCase()} | {sponsor.tier} | {sponsor.published !== false ? "published" : "draft"} |{" "}
+                      {sponsor.visible !== false ? "visible" : "hidden"}
                     </p>
                   </div>
                   <div className="flex gap-3 text-sm">
-                    <button type="button" onClick={() => { setEditingId(sponsor.id); setForm(sponsor); }} className="text-accent-blue hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(sponsor.id);
+                        setForm(sponsor);
+                      }}
+                      className="text-accent-blue hover:underline"
+                    >
                       Edit
                     </button>
                     <button type="button" onClick={() => void handleDelete(sponsor.id)} className="text-bravoRed hover:underline">
@@ -897,9 +1240,7 @@ export function AdminSponsorsManager() {
               </div>
             ))}
             {!loading && sponsors.length === 0 ? (
-              <div className="rounded-card border border-white/10 bg-bg-primary p-4 text-sm text-text-muted">
-                No sponsor records yet.
-              </div>
+              <div className="rounded-card border border-white/10 bg-bg-primary p-4 text-sm text-text-muted">No sponsor records yet.</div>
             ) : null}
           </div>
         </div>
@@ -938,7 +1279,11 @@ export function AdminMediaManager() {
       const response = await adminFetch("/api/admin/media");
       setMediaItems(response.data ?? []);
     } catch (loadError: unknown) {
-      setError(toUserFacingErrorMessage(loadError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(loadError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -974,7 +1319,11 @@ export function AdminMediaManager() {
       resetForm();
       await loadMedia();
     } catch (submissionError: unknown) {
-      setError(toUserFacingErrorMessage(submissionError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(submissionError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setSaving(false);
     }
@@ -991,7 +1340,11 @@ export function AdminMediaManager() {
       }
       setMessage("Media item removed");
     } catch (deleteError: unknown) {
-      setError(toUserFacingErrorMessage(deleteError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(deleteError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     }
   }
 
@@ -1011,11 +1364,15 @@ export function AdminMediaManager() {
         skippedCount: number;
       };
       setMessage(
-        `YouTube sync imported ${result.importedCount} draft video${result.importedCount === 1 ? "" : "s"}, refreshed ${result.updatedCount}, and skipped ${result.skippedCount}.`
+        `YouTube sync imported ${result.importedCount} draft video${result.importedCount === 1 ? "" : "s"}, refreshed ${result.updatedCount}, and skipped ${result.skippedCount}.`,
       );
       await loadMedia();
     } catch (syncError: unknown) {
-      setError(toUserFacingErrorMessage(syncError, { fallback: USER_FACING_ERROR_MESSAGES.admin }));
+      setError(
+        toUserFacingErrorMessage(syncError, {
+          fallback: USER_FACING_ERROR_MESSAGES.admin,
+        }),
+      );
     } finally {
       setSyncingYouTube(false);
     }
@@ -1047,18 +1404,53 @@ export function AdminMediaManager() {
               ) : null}
             </div>
           </div>
-          <p className="text-xs text-text-muted">
-            Import channel videos as draft media first, then publish only the approved records.
-          </p>
+          <p className="text-xs text-text-muted">Import channel videos as draft media first, then publish only the approved records.</p>
           <MessageLine message={message} error={error} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <input className={inputClass} placeholder="Title" value={form.title ?? ""} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
-            <input className={inputClass} placeholder="Kind" value={form.kind ?? ""} onChange={(event) => setForm({ ...form, kind: event.target.value })} />
-            <input className={inputClass} placeholder="Category" value={form.category ?? ""} onChange={(event) => setForm({ ...form, category: event.target.value })} />
-            <input className={inputClass} placeholder="Game slug" value={form.gameSlug ?? ""} onChange={(event) => setForm({ ...form, gameSlug: event.target.value })} />
-            <input className={inputClass} placeholder="Duration" value={form.duration ?? ""} onChange={(event) => setForm({ ...form, duration: event.target.value })} />
-            <input className={inputClass} placeholder="Public URL / YouTube / VOD" value={form.url ?? ""} onChange={(event) => setForm({ ...form, url: event.target.value })} />
-            <textarea className={`${inputClass} sm:col-span-2`} rows={4} placeholder="Summary" value={form.summary ?? ""} onChange={(event) => setForm({ ...form, summary: event.target.value })} />
+            <input
+              className={inputClass}
+              placeholder="Title"
+              value={form.title ?? ""}
+              onChange={(event) => setForm({ ...form, title: event.target.value })}
+              required
+            />
+            <input
+              className={inputClass}
+              placeholder="Kind"
+              value={form.kind ?? ""}
+              onChange={(event) => setForm({ ...form, kind: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Category"
+              value={form.category ?? ""}
+              onChange={(event) => setForm({ ...form, category: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Game slug"
+              value={form.gameSlug ?? ""}
+              onChange={(event) => setForm({ ...form, gameSlug: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Duration"
+              value={form.duration ?? ""}
+              onChange={(event) => setForm({ ...form, duration: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              placeholder="Public URL / YouTube / VOD"
+              value={form.url ?? ""}
+              onChange={(event) => setForm({ ...form, url: event.target.value })}
+            />
+            <textarea
+              className={`${inputClass} sm:col-span-2`}
+              rows={4}
+              placeholder="Summary"
+              value={form.summary ?? ""}
+              onChange={(event) => setForm({ ...form, summary: event.target.value })}
+            />
           </div>
           <FileUpload
             type="media_asset"
@@ -1069,11 +1461,19 @@ export function AdminMediaManager() {
           />
           <div className="flex flex-wrap gap-5 text-sm text-slate-300">
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={Boolean(form.featured)} onChange={(event) => setForm({ ...form, featured: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={Boolean(form.featured)}
+                onChange={(event) => setForm({ ...form, featured: event.target.checked })}
+              />
               Featured
             </label>
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={form.published !== false} onChange={(event) => setForm({ ...form, published: event.target.checked })} />
+              <input
+                type="checkbox"
+                checked={form.published !== false}
+                onChange={(event) => setForm({ ...form, published: event.target.checked })}
+              />
               Published
             </label>
           </div>
@@ -1096,7 +1496,14 @@ export function AdminMediaManager() {
                     </p>
                   </div>
                   <div className="flex gap-3 text-sm">
-                    <button type="button" onClick={() => { setEditingId(item.id); setForm(item); }} className="text-accent-blue hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(item.id);
+                        setForm(item);
+                      }}
+                      className="text-accent-blue hover:underline"
+                    >
                       Edit
                     </button>
                     <button type="button" onClick={() => void handleDelete(item.id)} className="text-bravoRed hover:underline">

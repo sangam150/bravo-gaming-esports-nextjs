@@ -13,9 +13,7 @@ export function extractDiscordUserId(user: Pick<User, "identities"> | null | und
     }
 
     const identityData =
-      identity.identity_data && typeof identity.identity_data === "object"
-        ? (identity.identity_data as Record<string, unknown>)
-        : null;
+      identity.identity_data && typeof identity.identity_data === "object" ? (identity.identity_data as Record<string, unknown>) : null;
 
     return (
       normalizeTextValue(identityData?.sub) ??

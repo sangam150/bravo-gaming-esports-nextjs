@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
 import CurrentSeasonPageClient from "@/components/current-season/CurrentSeasonPageClient";
 import { getCurrentSeasonOverview, getSeasonOverviewBySlug } from "@/lib/data";
+import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ slug: string }>;

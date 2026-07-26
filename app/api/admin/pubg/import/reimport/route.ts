@@ -10,7 +10,11 @@ export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = await enforceRateLimit(request, { key: "admin-pubg-reimport", maxRequests: 20, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "admin-pubg-reimport",
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -29,10 +33,7 @@ export async function POST(request: Request) {
       tournamentId: typeof body.tournamentId === "string" ? body.tournamentId : undefined,
       scrimId: typeof body.scrimId === "string" ? body.scrimId : undefined,
       seasonId: typeof body.seasonId === "string" ? body.seasonId : undefined,
-      seasonDayNumber:
-        typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber)
-          ? body.seasonDayNumber
-          : undefined,
+      seasonDayNumber: typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber) ? body.seasonDayNumber : undefined,
       autoCreateDay: body.autoCreateDay !== false,
       dayTitle: typeof body.dayTitle === "string" ? body.dayTitle : undefined,
       dayDate: typeof body.dayDate === "string" ? body.dayDate : undefined,
@@ -61,4 +62,3 @@ export async function POST(request: Request) {
     return Response.json({ error: message }, { status: 500 });
   }
 }
-

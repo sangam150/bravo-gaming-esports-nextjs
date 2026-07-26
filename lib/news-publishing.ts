@@ -85,7 +85,7 @@ function getPublicationTimestamp(value?: string | null) {
 
 export function resolveManagedNewsEffectiveState(
   article: Pick<NewsPublicationShape, "state" | "publishAt">,
-  referenceDate = new Date()
+  referenceDate = new Date(),
 ): ManagedNewsStateValue {
   if (article.state === "published") {
     return "published";
@@ -103,14 +103,11 @@ export function resolveManagedNewsEffectiveState(
   return "draft";
 }
 
-export function isManagedNewsArticlePublic(
-  article: Pick<NewsPublicationShape, "state" | "publishAt">,
-  referenceDate = new Date()
-) {
+export function isManagedNewsArticlePublic(article: Pick<NewsPublicationShape, "state" | "publishAt">, referenceDate = new Date()) {
   return resolveManagedNewsEffectiveState(article, referenceDate) === "published";
 }
 
-export function getManagedNewsPublishedAt(article: NewsPublicationShape) {
+function getManagedNewsPublishedAt(article: NewsPublicationShape) {
   return normalizeNewsDateTime(article.publishedAt) ?? normalizeNewsDateTime(article.publishAt);
 }
 
@@ -122,13 +119,4 @@ export function getManagedNewsSortValue(article: NewsPublicationShape) {
     article.updatedAt?.trim() ??
     ""
   );
-}
-
-export function getManagedNewsExcerpt(article: Pick<NewsPublicationShape, "excerpt" | "summary">) {
-  const excerpt = article.excerpt?.trim();
-  if (excerpt) {
-    return excerpt;
-  }
-
-  return article.summary?.trim() ?? "";
 }

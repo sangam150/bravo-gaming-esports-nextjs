@@ -1,6 +1,6 @@
 import { compareBravoTeamSlotOrder } from "./bravo-teams";
 import { getCompetitionMatchesForEvent, saveCompetitionMatch } from "./competition-relational";
-import { getSeason, getSeasonTeams, getSeasonTournaments, getScrims, saveSeason, saveTournament } from "./data";
+import { getScrims, getSeason, getSeasonTeams, getSeasonTournaments, saveSeason, saveTournament } from "./data";
 import { COLLECTIONS, isDocumentStoreConfigured, saveDocument } from "./document-store";
 import type { Scrim, Season, Team, Tournament, TournamentMatch } from "./types";
 
@@ -60,11 +60,11 @@ function hasSeasonDayOverrides(overrides?: SeasonDayOverrides) {
   const normalizedOverrides = normalizeSeasonDayOverrides(overrides);
   return Boolean(
     normalizedOverrides.dayTitle ||
-      normalizedOverrides.dayDate ||
-      normalizedOverrides.dayMap ||
-      normalizedOverrides.dayLobbyTime ||
-      normalizedOverrides.dayMapRotation?.length ||
-      normalizedOverrides.dayMatchCount
+    normalizedOverrides.dayDate ||
+    normalizedOverrides.dayMap ||
+    normalizedOverrides.dayLobbyTime ||
+    normalizedOverrides.dayMapRotation?.length ||
+    normalizedOverrides.dayMatchCount,
   );
 }
 
@@ -97,11 +97,13 @@ function resolveDayMatchMap(mapRotation: string[], matchIndex: number) {
 }
 
 function getLatestTemplate<T extends Tournament | Scrim>(items: T[]) {
-  return [...items].sort((firstItem, secondItem) => {
-    const firstDay = "seasonDayNumber" in firstItem ? firstItem.seasonDayNumber ?? 0 : 0;
-    const secondDay = "seasonDayNumber" in secondItem ? secondItem.seasonDayNumber ?? 0 : 0;
-    return secondDay - firstDay;
-  })[0] ?? null;
+  return (
+    [...items].sort((firstItem, secondItem) => {
+      const firstDay = "seasonDayNumber" in firstItem ? (firstItem.seasonDayNumber ?? 0) : 0;
+      const secondDay = "seasonDayNumber" in secondItem ? (secondItem.seasonDayNumber ?? 0) : 0;
+      return secondDay - firstDay;
+    })[0] ?? null
+  );
 }
 
 async function loadSeasonDayCollections(seasonId: string) {
@@ -140,10 +142,10 @@ function buildScrimPayloadForDay(input: {
     overrides.dayMapRotation && overrides.dayMapRotation.length > 0
       ? overrides.dayMapRotation
       : latestScrim?.mapRotation && latestScrim.mapRotation.length > 0
-      ? latestScrim.mapRotation
-      : tournament.mapRotation && tournament.mapRotation.length > 0
-        ? tournament.mapRotation
-        : DEFAULT_MAP_ROTATION;
+        ? latestScrim.mapRotation
+        : tournament.mapRotation && tournament.mapRotation.length > 0
+          ? tournament.mapRotation
+          : DEFAULT_MAP_ROTATION;
   const title = overrides.dayTitle ?? buildDayTitle(season, seasonDayNumber);
   const now = new Date().toISOString();
 
@@ -170,29 +172,24 @@ function buildScrimPayloadForDay(input: {
   } satisfies Scrim;
 }
 
-async function ensureDraftMatchSlotsForDay(input: {
-  tournament: Tournament;
-  scrim: Scrim;
-  overrides?: SeasonDayOverrides;
-}) {
+async function ensureDraftMatchSlotsForDay(input: { tournament: Tournament; scrim: Scrim; overrides?: SeasonDayOverrides }) {
   const existingMatches = await getCompetitionMatchesForEvent(input.tournament.id, { includeDrafts: true });
   const existingMatchNumbers = new Set(
     existingMatches
       .map((match) => match.matchNumber ?? match.sequenceNumber)
-      .filter((matchNumber): matchNumber is number => Number.isFinite(matchNumber))
+      .filter((matchNumber): matchNumber is number => Number.isFinite(matchNumber)),
   );
   const mapRotation =
     input.scrim.mapRotation && input.scrim.mapRotation.length > 0
       ? input.scrim.mapRotation
       : input.tournament.mapRotation && input.tournament.mapRotation.length > 0
-      ? input.tournament.mapRotation
-      : DEFAULT_MAP_ROTATION;
+        ? input.tournament.mapRotation
+        : DEFAULT_MAP_ROTATION;
   const overrideMatchCount =
     typeof input.overrides?.dayMatchCount === "number" && Number.isFinite(input.overrides.dayMatchCount)
       ? Math.max(1, Math.round(input.overrides.dayMatchCount))
       : undefined;
-  const desiredMatchCount =
-    overrideMatchCount ?? Math.max(DEFAULT_DAY_MATCH_COUNT, mapRotation.length);
+  const desiredMatchCount = overrideMatchCount ?? Math.max(DEFAULT_DAY_MATCH_COUNT, mapRotation.length);
   const createdMatches: TournamentMatch[] = [];
 
   for (let matchNumber = 1; matchNumber <= desiredMatchCount; matchNumber += 1) {
@@ -215,7 +212,7 @@ async function ensureDraftMatchSlotsForDay(input: {
         teamResults: [],
         playerResults: [],
       },
-      { publish: false }
+      { publish: false },
     );
 
     createdMatches.push(createdMatch);
@@ -227,14 +224,10 @@ async function ensureDraftMatchSlotsForDay(input: {
 
 export async function getSeasonDayContext(seasonId: string, seasonDayNumber: number) {
   const { season, seasonTournaments, seasonTeams, seasonScrims } = await loadSeasonDayCollections(seasonId);
-  const tournament =
-    seasonTournaments.find((item) => (item.seasonDayNumber ?? item.dayNumber) === seasonDayNumber) ?? null;
+  const tournament = seasonTournaments.find((item) => (item.seasonDayNumber ?? item.dayNumber) === seasonDayNumber) ?? null;
   const scrim =
-    seasonScrims.find(
-      (item) =>
-        item.seasonDayNumber === seasonDayNumber ||
-        (tournament ? item.tournamentId === tournament.id : false)
-    ) ?? null;
+    seasonScrims.find((item) => item.seasonDayNumber === seasonDayNumber || (tournament ? item.tournamentId === tournament.id : false)) ??
+    null;
 
   return {
     season,
@@ -251,7 +244,7 @@ async function applySeasonDayOverrides(
     tournament: Tournament;
     scrim: Scrim;
   },
-  overrides?: SeasonDayOverrides
+  overrides?: SeasonDayOverrides,
 ) {
   if (!hasSeasonDayOverrides(overrides)) {
     return context;
@@ -289,7 +282,7 @@ async function applySeasonDayOverrides(
 export async function ensureSeasonDay(
   seasonId: string,
   seasonDayNumber: number,
-  options?: { createIfMissing?: boolean; overrides?: SeasonDayOverrides }
+  options?: { createIfMissing?: boolean; overrides?: SeasonDayOverrides },
 ) {
   if (!isDocumentStoreConfigured()) {
     throw new Error("Supabase is not configured. Connect the Supabase data store before creating a new scrim day.");
@@ -338,7 +331,7 @@ export async function ensureSeasonDay(
         tournament: context.tournament,
         scrim: context.scrim,
       },
-      options?.overrides
+      options?.overrides,
     );
     context = {
       ...context,
@@ -375,12 +368,10 @@ export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDa
   const highestExistingDay = Math.max(
     season.currentDay ?? 0,
     ...seasonTournaments.map((tournament) => tournament.seasonDayNumber ?? tournament.dayNumber ?? 0),
-    ...seasonScrims.map((scrim) => scrim.seasonDayNumber ?? 0)
+    ...seasonScrims.map((scrim) => scrim.seasonDayNumber ?? 0),
   );
   const nextDayNumber = highestExistingDay + 1;
-  const existingTournament = seasonTournaments.find(
-    (tournament) => (tournament.seasonDayNumber ?? tournament.dayNumber) === nextDayNumber
-  );
+  const existingTournament = seasonTournaments.find((tournament) => (tournament.seasonDayNumber ?? tournament.dayNumber) === nextDayNumber);
   const existingScrim = seasonScrims.find((scrim) => scrim.seasonDayNumber === nextDayNumber);
 
   if (existingTournament || existingScrim) {
@@ -394,20 +385,15 @@ export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDa
   const title = normalizedOverrides.dayTitle ?? buildDayTitle(season, nextDayNumber);
   const scrimId = buildDayScrimId(season, nextDayNumber);
   const startDate = normalizedOverrides.dayDate ?? addDays(season.startDate, Math.max(nextDayNumber - 1, 0));
-  const teamCapacity = Math.max(
-    latestTournament?.maxTeams ?? 0,
-    latestTournament?.teamCount ?? 0,
-    registeredTeamIds.length,
-    16
-  );
+  const teamCapacity = Math.max(latestTournament?.maxTeams ?? 0, latestTournament?.teamCount ?? 0, registeredTeamIds.length, 16);
   const mapRotation =
     normalizedOverrides.dayMapRotation && normalizedOverrides.dayMapRotation.length > 0
       ? normalizedOverrides.dayMapRotation
       : latestScrim?.mapRotation && latestScrim.mapRotation.length > 0
-      ? latestScrim.mapRotation
-      : latestTournament?.mapRotation && latestTournament.mapRotation.length > 0
-        ? latestTournament.mapRotation
-        : DEFAULT_MAP_ROTATION;
+        ? latestScrim.mapRotation
+        : latestTournament?.mapRotation && latestTournament.mapRotation.length > 0
+          ? latestTournament.mapRotation
+          : DEFAULT_MAP_ROTATION;
   const now = new Date().toISOString();
 
   const previousCurrentTournament =
@@ -423,7 +409,7 @@ export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDa
         title: previousCurrentTournament.title,
         status: "COMPLETED",
       },
-      previousCurrentTournament.id
+      previousCurrentTournament.id,
     );
   }
 
@@ -432,8 +418,8 @@ export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDa
       saveDocument(COLLECTIONS.scrims, scrim.id, {
         ...scrim,
         status: "completed",
-      } as Record<string, unknown>)
-    )
+      } as Record<string, unknown>),
+    ),
   );
 
   const tournament = await saveTournament(
@@ -462,7 +448,7 @@ export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDa
       sourceProvider: "admin_manual",
       createdAt: now,
     },
-    undefined
+    undefined,
   );
 
   const scrimPayload = buildScrimPayloadForDay({
@@ -486,7 +472,7 @@ export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDa
       tournamentIds: Array.from(new Set([...(season.tournamentIds ?? []), tournament.id])),
       status: "active",
     },
-    season.id
+    season.id,
   );
 
   const createdMatches = await ensureDraftMatchSlotsForDay({
@@ -504,4 +490,3 @@ export async function createNextSeasonDay(seasonId: string, overrides?: SeasonDa
     createdMatches,
   };
 }
-

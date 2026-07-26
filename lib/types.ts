@@ -1,16 +1,7 @@
 import type { UploadType } from "./upload-config";
 
-export type PlatformRole =
-  | "super_admin"
-  | "admin"
-  | "moderator"
-  | "organizer"
-  | "coach"
-  | "team_manager"
-  | "team_igl"
-  | "player"
-  | "caster"
-  | "viewer";
+type PlatformRole =
+  "super_admin" | "admin" | "moderator" | "organizer" | "coach" | "team_manager" | "team_igl" | "player" | "caster" | "viewer";
 export type TournamentStatus = "LIVE" | "OPEN" | "REGISTERING" | "UPCOMING" | "COMPLETED";
 export type RegistrationStatus = "pending" | "approved" | "rejected";
 export type PlayerRole = "IGL" | "Assaulter" | "Support" | "Sniper" | "Substitute";
@@ -19,7 +10,7 @@ export type ScrimStatus = "scheduled" | "live" | "completed" | "waiting_for_data
 export type ScrimDayStatus = ScrimStatus | "mixed";
 export type MatchDataSource = "pubg_api" | "manual_correction" | "external_feed";
 export type SeasonStatus = "active" | "completed" | "archived" | "planned";
-export type SeasonLength = 15 | 30 | number;
+type SeasonLength = 15 | 30 | number;
 
 export interface Season {
   id: string;
@@ -474,14 +465,9 @@ export interface AuthenticatedUserProfile {
   isAdmin: boolean;
 }
 
-export type RosterRequestType =
-  | "add_player"
-  | "remove_player"
-  | "update_pubg_name"
-  | "roster_change"
-  | "logo_update";
+type RosterRequestType = "add_player" | "remove_player" | "update_pubg_name" | "roster_change" | "logo_update";
 
-export type ReviewStatus = "pending" | "approved" | "rejected" | "review_later";
+type ReviewStatus = "pending" | "approved" | "rejected" | "review_later";
 
 export interface TeamRosterRequest {
   id: string;
@@ -572,7 +558,7 @@ export interface ErrorLogRecord {
   details?: Record<string, unknown>;
 }
 
-export type ImportReviewStatus = "needs_review" | "approved" | "published" | "rejected";
+type ImportReviewStatus = "needs_review" | "approved" | "published" | "rejected";
 
 export interface SourceImportAuditRecord {
   id: string;
@@ -641,7 +627,7 @@ export interface MatchPlayerRecord {
   updatedAt?: string;
 }
 
-export interface PubgPlayerMatchSummary {
+interface PubgPlayerMatchSummary {
   matchId: string;
   mapName: string;
   gameMode: string;
@@ -677,13 +663,7 @@ export interface PubgImportWatcher {
   updatedAt?: string;
 }
 
-export type PubgImportCandidateStatus =
-  | "ignored"
-  | "candidate"
-  | "draft"
-  | "needs_review"
-  | "auto_published"
-  | "failed";
+export type PubgImportCandidateStatus = "ignored" | "candidate" | "draft" | "needs_review" | "auto_published" | "failed";
 
 export interface PubgImportCandidateSignal {
   label: string;
@@ -856,7 +836,7 @@ export interface PubgBulkImportResult {
   failedCount: number;
 }
 
-export type PubgImportBatchStatus = "pending" | "approved" | "rejected";
+type PubgImportBatchStatus = "pending" | "approved" | "rejected";
 
 export interface PubgImportBatchPreviewMatch {
   sourceMatchId: string;

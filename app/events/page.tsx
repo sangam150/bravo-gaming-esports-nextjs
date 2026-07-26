@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import { EventsLandingPage } from "@/components/public/PublicLandingPages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
+import type { Metadata } from "next";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

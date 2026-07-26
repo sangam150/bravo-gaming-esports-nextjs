@@ -1,7 +1,7 @@
-import Link from "next/link";
-import type { Metadata } from "next";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = buildContentMetadata({
   title: "Tournament Partners | Bravo Gaming Esports",
@@ -93,8 +93,8 @@ export default function TournamentPartnersPage() {
                 and event operations
               </h1>
               <p className="mt-5 max-w-3xl text-sm leading-7 text-text-muted sm:text-base">
-                This page is built for sponsors, organizers, and operational partners who need more than a highlight reel.
-                It outlines how Bravo handles rules governance, review gates, disputes, anti-cheat, and public event support.
+                This page is built for sponsors, organizers, and operational partners who need more than a highlight reel. It outlines how
+                Bravo handles rules governance, review gates, disputes, anti-cheat, and public event support.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href="/contact" className="btn-primary">
@@ -156,9 +156,9 @@ export default function TournamentPartnersPage() {
           <p className="section-title">Partner Notes</p>
           <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Need exact audience or campaign numbers?</h2>
           <p className="mt-4 max-w-4xl text-sm leading-7 text-text-muted">
-            The operational trust layer lives here; the commercial package and public proof layer lives in the sponsor
-            kit. If your team needs exact audience stats, reach, or campaign planning inputs, Bravo can provide them
-            directly instead of publishing incomplete figures.
+            The operational trust layer lives here; the commercial package and public proof layer lives in the sponsor kit. If your team
+            needs exact audience stats, reach, or campaign planning inputs, Bravo can provide them directly instead of publishing incomplete
+            figures.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/sponsor-kit" className="btn-primary">

@@ -9,7 +9,11 @@ export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
-  const limited = await enforceRateLimit(request, { key: "admin-pubg-player", maxRequests: 12, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "admin-pubg-player",
+    maxRequests: 12,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -18,7 +22,9 @@ export async function POST(request: Request) {
     const shouldSaveLookup = Boolean(body.saveLookup ?? body.saveToDocumentStore);
 
     if (!playerName) {
-      return new Response(JSON.stringify({ error: "playerName is required" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "playerName is required" }), {
+        status: 400,
+      });
     }
 
     const lookup = await fetchPubgPlayerRecentMatches(playerName, 10);
@@ -26,7 +32,7 @@ export async function POST(request: Request) {
       lookup.recentMatches.map(async (match) => ({
         ...match,
         alreadyImported: Boolean(await getDocument(COLLECTIONS.pubgMatches, match.matchId)),
-      }))
+      })),
     );
 
     let savedLookup = null;
@@ -45,17 +51,20 @@ export async function POST(request: Request) {
       recentMatches,
     };
 
-    return new Response(
-      JSON.stringify({ success: true, data: playerLookup, savedLookup }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  } catch (error: unknown) {
-    await logServerError("admin.pubg.player", error, request);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
-      status: 500,
+    return new Response(JSON.stringify({ success: true, data: playerLookup, savedLookup }), {
+      status: 200,
       headers: { "Content-Type": "application/json" },
     });
+  } catch (error: unknown) {
+    await logServerError("admin.pubg.player", error, request);
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : String(error),
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }
-
-

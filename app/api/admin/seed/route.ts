@@ -5,7 +5,9 @@ export async function POST(request: Request) {
   if (unauthorized) return unauthorized;
 
   return Response.json(
-    { error: "Seed mode is disabled. Import real Bravo match data through the admin dashboard instead." },
-    { status: 410 }
+    {
+      error: "Seed mode is disabled. Import real Bravo match data through the admin dashboard instead.",
+    },
+    { status: 410 },
   );
 }

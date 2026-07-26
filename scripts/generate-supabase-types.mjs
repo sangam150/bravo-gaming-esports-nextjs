@@ -34,7 +34,7 @@ const output = execFileSync(
     env: process.env,
     shell: process.platform === "win32",
     maxBuffer: 8 * 1024 * 1024,
-  }
+  },
 );
 
 writeFileSync(resolve(cwd, "types/database.types.ts"), output);

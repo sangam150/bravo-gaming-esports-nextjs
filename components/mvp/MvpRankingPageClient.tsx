@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { formatDisplayNumber } from "@/lib/display-format";
 import { compareMvpRankingPlayers } from "@/lib/ranking-sort";
 import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { CurrentSeasonOverview, Player } from "@/lib/types";
+import Link from "next/link";
 
 export default function MvpRankingPageClient({
   initialOverview,
@@ -24,14 +24,12 @@ export default function MvpRankingPageClient({
       scrims: false,
       matches: false,
       matchResults: false,
-    }
+    },
   );
 
   const activeOverview = overview ?? initialOverview;
   const activePlayers = (
-    activeOverview?.players?.length
-      ? activeOverview.players
-      : livePlayers.filter((player) => player.scope !== "tournament")
+    activeOverview?.players?.length ? activeOverview.players : livePlayers.filter((player) => player.scope !== "tournament")
   ).sort((firstPlayer, secondPlayer) => compareMvpRankingPlayers(firstPlayer, secondPlayer));
 
   return (
@@ -55,9 +53,7 @@ export default function MvpRankingPageClient({
         {activePlayers.length === 0 ? (
           <section className="esports-card mt-8 p-10 text-center">
             <p className="font-display text-lg font-bold uppercase text-white">Rankings pending</p>
-            <p className="mt-2 text-sm text-text-muted">
-              MVP rankings will appear automatically after player statistics are imported.
-            </p>
+            <p className="mt-2 text-sm text-text-muted">MVP rankings will appear automatically after player statistics are imported.</p>
           </section>
         ) : (
           <section className="esports-card mt-8 overflow-hidden !p-0">
@@ -78,9 +74,7 @@ export default function MvpRankingPageClient({
                 <tbody>
                   {activePlayers.map((player, index) => (
                     <tr key={player.id}>
-                      <td className={index === 0 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>
-                        #{index + 1}
-                      </td>
+                      <td className={index === 0 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>#{index + 1}</td>
                       <td>
                         <Link href={`/players/${player.slug ?? player.id}`} className="flex items-center gap-2 hover:text-accent-blue">
                           <TeamAvatar name={player.name} size="sm" />

@@ -1,8 +1,9 @@
+import type { Tables } from "@/types/database.types";
 import "server-only";
 import { hasTeamWorkspaceAccess } from "./authz";
-import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { sanitizeJsonObject } from "./json-utils";
-import { getUserFacingPlayerLabel } from "./user-facing-errors";
+import type { VerifiedSession } from "./supabase-auth-server";
+import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import type {
   AuthenticatedUserProfile,
   MossSubmission,
@@ -11,24 +12,11 @@ import type {
   TeamRosterRequest,
   TeamWorkspaceData,
 } from "./types";
-import type { VerifiedSession } from "./supabase-auth-server";
-import type { Tables } from "@/types/database.types";
+import { getUserFacingPlayerLabel } from "./user-facing-errors";
 
 type TeamRecord = Pick<Tables<"teams">, "id" | "name" | "tag" | "logo_url" | "region" | "slot_number" | "is_active" | "status">;
 
 type PlayerRecord = Pick<Tables<"players">, "id" | "pubg_name" | "avatar_url" | "photo_url" | "is_active">;
-
-type EventRecord = Pick<
-  Tables<"events">,
-  "id" | "name" | "title" | "slug" | "status" | "type" | "event_type" | "start_date" | "end_date" | "rules" | "published"
->;
-
-type MatchRecord = Pick<
-  Tables<"matches">,
-  "id" | "event_id" | "match_number" | "map_name" | "map" | "start_time" | "match_date" | "vod_url"
->;
-
-type MatchTeamResultRecord = Pick<Tables<"match_team_results">, "match_id" | "placement" | "kills" | "total_points" | "wwcd">;
 
 function buildProfile(session: VerifiedSession): AuthenticatedUserProfile {
   return {
@@ -43,7 +31,7 @@ function buildProfile(session: VerifiedSession): AuthenticatedUserProfile {
   };
 }
 
-function ensureTeamWorkspaceSession(session: VerifiedSession) {
+function ensureTeamWorkspaceSession(session: VerifiedSession): asserts session is VerifiedSession & { teamId: string } {
   if (!hasTeamWorkspaceAccess(session.role, session.isAdmin)) {
     throw new Error("Only admins, coaches, team managers, and team IGLs can access the team workspace.");
   }
@@ -53,7 +41,7 @@ function ensureTeamWorkspaceSession(session: VerifiedSession) {
   }
 }
 
-function ensureTeamMutationSession(session: VerifiedSession) {
+function ensureTeamMutationSession(session: VerifiedSession): asserts session is VerifiedSession & { teamId: string; profileId: string } {
   ensureTeamWorkspaceSession(session);
 
   if (!session.profileId) {
@@ -76,7 +64,7 @@ async function safeListUpcomingEvents(teamId: string) {
     }
 
     const eventIds = Array.from(
-      new Set((eventLinks ?? []).map((item) => item.event_id).filter((value): value is string => Boolean(value)))
+      new Set((eventLinks ?? []).map((item) => item.event_id).filter((value): value is string => Boolean(value))),
     );
 
     if (eventIds.length === 0) {
@@ -125,9 +113,7 @@ async function safeListRecentMatches(teamId: string) {
       throw resultsError;
     }
 
-    const matchIds = Array.from(
-      new Set((results ?? []).map((item) => item.match_id).filter((value): value is string => Boolean(value)))
-    );
+    const matchIds = Array.from(new Set((results ?? []).map((item) => item.match_id).filter((value): value is string => Boolean(value))));
 
     if (matchIds.length === 0) {
       return [] satisfies TeamRecentMatch[];
@@ -142,16 +128,12 @@ async function safeListRecentMatches(teamId: string) {
       throw matchesError;
     }
 
-    const eventIds = Array.from(
-      new Set((matches ?? []).map((match) => match.event_id).filter((value): value is string => Boolean(value)))
-    );
+    const eventIds = Array.from(new Set((matches ?? []).map((match) => match.event_id).filter((value): value is string => Boolean(value))));
 
     let eventsById = new Map<string, string>();
     if (eventIds.length > 0) {
       const { data: events } = await client.from("events").select("id,name,title").in("id", eventIds);
-      eventsById = new Map(
-        (events ?? []).map((event) => [event.id, event.name ?? event.title ?? "Event"] as const)
-      );
+      eventsById = new Map((events ?? []).map((event) => [event.id, event.name ?? event.title ?? "Event"] as const));
     }
 
     const matchesById = new Map((matches ?? []).map((match) => [match.id, match] as const));
@@ -161,7 +143,7 @@ async function safeListRecentMatches(teamId: string) {
 
       return {
         matchId: result.match_id,
-        eventName: match?.event_id ? eventsById.get(match.event_id) ?? null : null,
+        eventName: match?.event_id ? (eventsById.get(match.event_id) ?? null) : null,
         matchNumber: match?.match_number ?? null,
         mapName: match?.map_name ?? match?.map ?? null,
         startTime: match?.start_time ?? match?.match_date ?? null,
@@ -192,43 +174,42 @@ export async function getTeamWorkspace(session: VerifiedSession): Promise<TeamWo
     throw teamError;
   }
 
-  const [{ data: players }, { data: requests }, { data: mossSubmissions }, upcomingEvents, recentMatches] =
-    await Promise.all([
-      client
-        .from("players")
-        .select("id,pubg_name,avatar_url,photo_url,is_active")
-        .eq("current_team_id", session.teamId)
-        .order("pubg_name", { ascending: true }),
-      client
-        .from("roster_requests")
-        .select("id,team_id,requested_by,request_type,status,admin_note,old_player_id,new_player_name,new_player_pubg_name,payload,created_at,updated_at")
-        .eq("team_id", session.teamId)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      client
-        .from("moss_submissions")
-        .select("id,event_id,match_id,team_id,player_id,file_url,external_link,status,admin_note,created_at")
-        .eq("team_id", session.teamId)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      safeListUpcomingEvents(session.teamId),
-      safeListRecentMatches(session.teamId),
-    ]);
+  const [{ data: players }, { data: requests }, { data: mossSubmissions }, upcomingEvents, recentMatches] = await Promise.all([
+    client
+      .from("players")
+      .select("id,pubg_name,avatar_url,photo_url,is_active")
+      .eq("current_team_id", session.teamId)
+      .order("pubg_name", { ascending: true }),
+    client
+      .from("roster_requests")
+      .select(
+        "id,team_id,requested_by,request_type,status,admin_note,old_player_id,new_player_name,new_player_pubg_name,payload,created_at,updated_at",
+      )
+      .eq("team_id", session.teamId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    client
+      .from("moss_submissions")
+      .select("id,event_id,match_id,team_id,player_id,file_url,external_link,status,admin_note,created_at")
+      .eq("team_id", session.teamId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    safeListUpcomingEvents(session.teamId),
+    safeListRecentMatches(session.teamId),
+  ]);
 
   const mossEventIds = Array.from(
     new Set(
       ((mossSubmissions ?? []) as Array<Record<string, unknown>>)
         .map((submission) => submission.event_id)
-        .filter((value): value is string => typeof value === "string" && value.length > 0)
-    )
+        .filter((value): value is string => typeof value === "string" && value.length > 0),
+    ),
   );
 
   let mossEventNames = new Map<string, string>();
   if (mossEventIds.length > 0) {
     const { data: mossEvents } = await client.from("events").select("id,name,title").in("id", mossEventIds);
-    mossEventNames = new Map(
-      (mossEvents ?? []).map((event) => [event.id, event.name ?? event.title ?? "Event"] as const)
-    );
+    mossEventNames = new Map((mossEvents ?? []).map((event) => [event.id, event.name ?? event.title ?? "Event"] as const));
   }
 
   return {
@@ -267,8 +248,7 @@ export async function getTeamWorkspace(session: VerifiedSession): Promise<TeamWo
     mossSubmissions: ((mossSubmissions ?? []) as Array<Record<string, unknown>>).map((submission) => ({
       id: String(submission.id),
       eventId: submission.event_id ? String(submission.event_id) : null,
-      eventName:
-        typeof submission.event_id === "string" ? mossEventNames.get(submission.event_id) ?? null : null,
+      eventName: typeof submission.event_id === "string" ? (mossEventNames.get(submission.event_id) ?? null) : null,
       matchId: submission.match_id ? String(submission.match_id) : null,
       teamId: String(submission.team_id),
       playerId: submission.player_id ? String(submission.player_id) : null,
@@ -291,7 +271,7 @@ export async function createTeamRosterRequest(
     newPlayerName?: string | null;
     newPlayerPubgName?: string | null;
     payload?: Record<string, unknown>;
-  }
+  },
 ) {
   ensureTeamMutationSession(session);
 
@@ -313,7 +293,9 @@ export async function createTeamRosterRequest(
       created_at: now,
       updated_at: now,
     })
-    .select("id,team_id,requested_by,request_type,status,admin_note,old_player_id,new_player_name,new_player_pubg_name,payload,created_at,updated_at")
+    .select(
+      "id,team_id,requested_by,request_type,status,admin_note,old_player_id,new_player_name,new_player_pubg_name,payload,created_at,updated_at",
+    )
     .single();
 
   if (error) {
@@ -344,7 +326,7 @@ export async function createMossSubmission(
     playerId?: string | null;
     fileUrl?: string | null;
     externalLink?: string | null;
-  }
+  },
 ) {
   ensureTeamWorkspaceSession(session);
 

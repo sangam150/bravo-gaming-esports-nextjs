@@ -1,6 +1,6 @@
-import { deletePlayer, getPlayer, getPublicPlayer, savePlayer } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { deletePlayer, getPlayer, getPublicPlayer, savePlayer } from "@/lib/data";
 import { revalidatePlayerPaths } from "@/lib/revalidate-public";
 
 type RouteParams = { params: Promise<{ id: string }> };

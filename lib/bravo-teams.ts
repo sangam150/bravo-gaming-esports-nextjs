@@ -2,10 +2,15 @@ import type { Team } from "./types";
 
 type BravoCanonicalTeam = Pick<Team, "id" | "name" | "tag" | "slotNumber">;
 
-export const BRAVO_CANONICAL_TEAMS: BravoCanonicalTeam[] = [
+const BRAVO_CANONICAL_TEAMS: BravoCanonicalTeam[] = [
   { id: "fyb-esports", name: "FYB Esports", tag: "FYB", slotNumber: 1 },
   { id: "mandem", name: "Mandem BoyZ", tag: "MBZ", slotNumber: 2 },
-  { id: "the-lost-mc-esports", name: "The Lost MC Esports", tag: "LMC", slotNumber: 3 },
+  {
+    id: "the-lost-mc-esports",
+    name: "The Lost MC Esports",
+    tag: "LMC",
+    slotNumber: 3,
+  },
   { id: "fyb-fan-boy", name: "FYB FAN BOY", tag: "FYBFB", slotNumber: 4 },
   { id: "omega-tactix", name: "Omega Tactix", tag: "OTX", slotNumber: 5 },
   { id: "npl", name: "NPL", slotNumber: 6 },
@@ -16,22 +21,35 @@ export const BRAVO_CANONICAL_TEAMS: BravoCanonicalTeam[] = [
   { id: "lang-tang-gang-ltg", name: "LTG", tag: "LTG", slotNumber: 11 },
   { id: "kaal", name: "Kaal", slotNumber: 12 },
   { id: "bir-gorkhali", name: "Bir Gorkhali", tag: "BG", slotNumber: 13 },
-  { id: "illumaniti-gamers", name: "Illumaniti Gamers", tag: "IG", slotNumber: 14 },
+  {
+    id: "illumaniti-gamers",
+    name: "Illumaniti Gamers",
+    tag: "IG",
+    slotNumber: 14,
+  },
   { id: "sons", name: "Sons", slotNumber: 15 },
   { id: "ace", name: "Ace", slotNumber: 16 },
   { id: "m8", name: "M8", slotNumber: 17 },
-  { id: "arabpati-esports", name: "Arabpati Esports", tag: "AE", slotNumber: 18 },
+  {
+    id: "arabpati-esports",
+    name: "Arabpati Esports",
+    tag: "AE",
+    slotNumber: 18,
+  },
   { id: "gedagudi", name: "GedaGudi", tag: "GG", slotNumber: 19 },
   { id: "the-young-man", name: "The Young Man", tag: "TYM", slotNumber: 20 },
-  { id: "aia-apex-in-action", name: "AIA ( APEX IN ACTION )", tag: "AIA", slotNumber: 21 },
+  {
+    id: "aia-apex-in-action",
+    name: "AIA ( APEX IN ACTION )",
+    tag: "AIA",
+    slotNumber: 21,
+  },
   { id: "team-69", name: "Team 69", tag: "T69", slotNumber: 22 },
   { id: "fam", name: "Fam", slotNumber: 23 },
   { id: "families", name: "Families", slotNumber: 24 },
 ];
 
-const bravoTeamsBySlot = new Map(
-  BRAVO_CANONICAL_TEAMS.map((team) => [team.slotNumber ?? Number.NaN, team])
-);
+const bravoTeamsBySlot = new Map(BRAVO_CANONICAL_TEAMS.map((team) => [team.slotNumber ?? Number.NaN, team]));
 
 function normalizeTeamKey(value?: string | null) {
   return value
@@ -116,9 +134,7 @@ export function resolveBravoTeamIdentity(value?: string | null) {
 function getComparableSlotNumber(value?: { slotNumber?: number; name?: string; teamName?: string }) {
   if (typeof value?.slotNumber === "number") return value.slotNumber;
   return (
-    resolveBravoTeamIdentity(value?.name)?.slotNumber ??
-    resolveBravoTeamIdentity(value?.teamName)?.slotNumber ??
-    Number.POSITIVE_INFINITY
+    resolveBravoTeamIdentity(value?.name)?.slotNumber ?? resolveBravoTeamIdentity(value?.teamName)?.slotNumber ?? Number.POSITIVE_INFINITY
   );
 }
 
@@ -128,7 +144,7 @@ function getComparableName(value?: { name?: string; teamName?: string }) {
 
 export function compareBravoTeamSlotOrder(
   firstValue?: { slotNumber?: number; name?: string; teamName?: string },
-  secondValue?: { slotNumber?: number; name?: string; teamName?: string }
+  secondValue?: { slotNumber?: number; name?: string; teamName?: string },
 ) {
   const firstSlot = getComparableSlotNumber(firstValue);
   const secondSlot = getComparableSlotNumber(secondValue);

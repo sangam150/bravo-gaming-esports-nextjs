@@ -15,16 +15,15 @@ import { buildSeasonLeaderboard, seasonLeaderboardToRows } from "./season-standi
 import type {
   CurrentSeasonOverview,
   LeaderboardRow,
-  MatchPlayerResult,
   Player,
   Scrim,
   ScrimDayResult,
   ScrimDayStanding,
+  Season,
   Team,
   Tournament,
   TournamentMatch,
   TournamentStanding,
-  Season,
 } from "./types";
 
 const kathmanduDateFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -46,7 +45,7 @@ function compareIsoDateDesc(firstValue?: string, secondValue?: string) {
   return (secondValue ?? "").localeCompare(firstValue ?? "");
 }
 
-export function getCurrentSeasonFromCollections(seasons: Season[]) {
+function getCurrentSeasonFromCollections(seasons: Season[]) {
   return (
     seasons.find((season) => season.status === "active") ??
     seasons.find((season) => season.status === "planned") ??
@@ -61,8 +60,7 @@ export function getCurrentSeasonFromCollections(seasons: Season[]) {
 
 function sortTournamentsByDay(firstTournament: Tournament, secondTournament: Tournament) {
   return (
-    (firstTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) -
-      (secondTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) ||
+    (firstTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) - (secondTournament.seasonDayNumber ?? Number.POSITIVE_INFINITY) ||
     firstTournament.startDate.localeCompare(secondTournament.startDate)
   );
 }
@@ -100,7 +98,7 @@ function hasManagedTeamProfile(team: Team) {
     team.captainName?.trim() ||
     team.captainDiscord?.trim() ||
     team.captainEmail?.trim() ||
-    team.captainPhone?.trim()
+    team.captainPhone?.trim(),
   );
 }
 
@@ -129,8 +127,7 @@ function normalizeTournamentMatch(match: TournamentMatch): TournamentMatch {
     winner: canonicalizeBravoTeamName(match.winner),
     teamResults: (match.teamResults ?? []).map((teamResult) => {
       const resolvedTeam = resolveBravoTeamIdentity(teamResult.teamName);
-      const inferredSlotNumber =
-        resolvedTeam?.slotNumber ?? teamResult.slotNumber ?? parseBravoSlotNumber(teamResult.teamName);
+      const inferredSlotNumber = resolvedTeam?.slotNumber ?? teamResult.slotNumber ?? parseBravoSlotNumber(teamResult.teamName);
 
       return {
         ...teamResult,
@@ -141,14 +138,12 @@ function normalizeTournamentMatch(match: TournamentMatch): TournamentMatch {
     }),
     playerResults: (match.playerResults ?? []).map((playerResult) => {
       const resolvedTeam = resolveBravoTeamIdentity(playerResult.teamName);
-      const inferredSlotNumber =
-        resolvedTeam?.slotNumber ?? playerResult.slotNumber ?? parseBravoSlotNumber(playerResult.teamName);
+      const inferredSlotNumber = resolvedTeam?.slotNumber ?? playerResult.slotNumber ?? parseBravoSlotNumber(playerResult.teamName);
 
       return {
         ...playerResult,
         teamId: resolvedTeam?.id ?? playerResult.teamId,
-        teamName:
-          resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? playerResult.teamName,
+        teamName: resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? playerResult.teamName,
         slotNumber: inferredSlotNumber,
       };
     }),
@@ -187,9 +182,7 @@ export function buildCurrentSeasonOverviewFromCollections(input: {
   const currentSeason = getCurrentSeasonFromCollections(input.seasons);
   if (!currentSeason) return null;
 
-  const seasonTournaments = input.tournaments
-    .filter((tournament) => tournament.seasonId === currentSeason.id)
-    .sort(sortTournamentsByDay);
+  const seasonTournaments = input.tournaments.filter((tournament) => tournament.seasonId === currentSeason.id).sort(sortTournamentsByDay);
 
   const seasonStandings = input.standings
     .filter((standing) => standing.seasonId === currentSeason.id && standing.scope !== "season")
@@ -212,10 +205,7 @@ export function buildCurrentSeasonOverviewFromCollections(input: {
     seasonTournaments.find((tournament) => tournament.seasonDayNumber === currentSeason.currentDay) ??
     null;
 
-  const matchesPlayed = seasonTournaments.reduce(
-    (totalMatches, tournament) => totalMatches + (tournament.matchCount ?? 0),
-    0
-  );
+  const matchesPlayed = seasonTournaments.reduce((totalMatches, tournament) => totalMatches + (tournament.matchCount ?? 0), 0);
   const completedDays = seasonTournaments.filter((tournament) => (tournament.matchCount ?? 0) > 0).length;
 
   return {
@@ -235,16 +225,13 @@ export function buildCurrentSeasonOverviewFromCollections(input: {
   };
 }
 
-export function buildTournamentLeaderboardGroups(input: {
-  tournaments: Tournament[];
-  standings: TournamentStanding[];
-}) {
+export function buildTournamentLeaderboardGroups(input: { tournaments: Tournament[]; standings: TournamentStanding[] }) {
   return input.tournaments
     .filter((tournament) => typeof (tournament.seasonDayNumber ?? tournament.dayNumber) === "number")
     .sort(
       (firstTournament, secondTournament) =>
         (firstTournament.seasonDayNumber ?? firstTournament.dayNumber ?? 99) -
-        (secondTournament.seasonDayNumber ?? secondTournament.dayNumber ?? 99)
+        (secondTournament.seasonDayNumber ?? secondTournament.dayNumber ?? 99),
     )
     .map((tournament) => ({
       id: tournament.id,
@@ -293,9 +280,7 @@ function formatKathmanduDate(value: string) {
 }
 
 function getScrimLinkedMatchIds(scrim: Pick<Scrim, "pubgMatchId" | "pubgMatchIds">) {
-  return Array.from(
-    new Set([...(scrim.pubgMatchIds ?? []), scrim.pubgMatchId].filter((matchId): matchId is string => Boolean(matchId)))
-  );
+  return Array.from(new Set([...(scrim.pubgMatchIds ?? []), scrim.pubgMatchId].filter((matchId): matchId is string => Boolean(matchId))));
 }
 
 function buildScrimDayStatus(scrims: Scrim[]): ScrimDayResult["status"] {
@@ -372,15 +357,14 @@ function aggregateScrimDayLeaderboard(matches: TournamentMatch[]): ScrimDayStand
   }
 
   return sortScrimDayStandings(
-    Array.from(standingsMap.values())
-    .map(({ placementTotal, ...standing }) => ({
+    Array.from(standingsMap.values()).map(({ placementTotal, ...standing }) => ({
       ...standing,
       averagePlacement: Number((placementTotal / standing.matches).toFixed(2)),
-    }))
+    })),
   );
 }
 
-export function mergeUniqueMatches(matchCollections: TournamentMatch[][]) {
+function mergeUniqueMatches(matchCollections: TournamentMatch[][]) {
   const uniqueMatches = new Map<string, TournamentMatch>();
 
   for (const matches of matchCollections) {
@@ -392,10 +376,7 @@ export function mergeUniqueMatches(matchCollections: TournamentMatch[][]) {
   return Array.from(uniqueMatches.values());
 }
 
-export function buildScrimDayResultsFromCollections(
-  scrims: Scrim[],
-  matchCollections: TournamentMatch[][]
-): ScrimDayResult[] {
+export function buildScrimDayResultsFromCollections(scrims: Scrim[], matchCollections: TournamentMatch[][]): ScrimDayResult[] {
   if (scrims.length === 0) return [];
   const matchResults = mergeUniqueMatches(matchCollections).map(normalizeTournamentMatch);
 
@@ -407,9 +388,7 @@ export function buildScrimDayResultsFromCollections(
     scrimsByDate.set(dateKey, existingScrims);
   }
 
-  const orderedDateKeys = Array.from(scrimsByDate.keys()).sort((firstDate, secondDate) =>
-    firstDate.localeCompare(secondDate)
-  );
+  const orderedDateKeys = Array.from(scrimsByDate.keys()).sort((firstDate, secondDate) => firstDate.localeCompare(secondDate));
 
   return orderedDateKeys
     .map((dateKey, dayIndex) => {
@@ -417,7 +396,7 @@ export function buildScrimDayResultsFromCollections(
         (firstScrim, secondScrim) =>
           firstScrim.date.localeCompare(secondScrim.date) ||
           (firstScrim.lobbyTime ?? "").localeCompare(secondScrim.lobbyTime ?? "") ||
-          firstScrim.title.localeCompare(secondScrim.title)
+          firstScrim.title.localeCompare(secondScrim.title),
       );
 
       const scrimIds = new Set(dayScrims.map((scrim) => scrim.id));
@@ -426,8 +405,7 @@ export function buildScrimDayResultsFromCollections(
       const dayMatchesMap = new Map<string, TournamentMatch>();
       for (const matchResult of matchResults) {
         const playedAtDateKey = toKathmanduDateKey(matchResult.playedAt);
-        const isStandaloneScrimMatch =
-          playedAtDateKey === dateKey && !matchResult.tournamentId && !matchResult.scrimId;
+        const isStandaloneScrimMatch = playedAtDateKey === dateKey && !matchResult.tournamentId && !matchResult.scrimId;
         const belongsToDay =
           (matchResult.scrimId ? scrimIds.has(matchResult.scrimId) : false) ||
           linkedMatchIds.has(matchResult.pubgMatchId) ||
@@ -439,16 +417,14 @@ export function buildScrimDayResultsFromCollections(
       }
 
       const dayMatches = Array.from(dayMatchesMap.values()).sort((firstMatch, secondMatch) =>
-        compareMatchSequenceOrder(firstMatch, secondMatch)
+        compareMatchSequenceOrder(firstMatch, secondMatch),
       );
 
       const announcements = dayScrims
         .map((scrim) => scrim.announcement?.trim())
         .filter((announcement): announcement is string => Boolean(announcement));
 
-      const syncedScrimIds = new Set(
-        dayMatches.map((match) => match.scrimId).filter((scrimId): scrimId is string => Boolean(scrimId))
-      );
+      const syncedScrimIds = new Set(dayMatches.map((match) => match.scrimId).filter((scrimId): scrimId is string => Boolean(scrimId)));
       const syncedMatchIds = new Set(dayMatches.map((match) => match.pubgMatchId));
       const pendingMatches = dayScrims.reduce((pendingTotal, scrim) => {
         const configuredMatchIds = getScrimLinkedMatchIds(scrim);
@@ -458,13 +434,10 @@ export function buildScrimDayResultsFromCollections(
         return pendingTotal + Math.max(expectedMatches - syncedConfiguredMatches - syncedStandaloneMatch, 0);
       }, 0);
 
-      const latestUpdatedAt = [
-        ...dayMatches.map((match) => match.syncedAt),
-        ...dayScrims.map((scrim) => scrim.updatedAt),
-      ]
+      const latestUpdatedAt = [...dayMatches.map((match) => match.syncedAt), ...dayScrims.map((scrim) => scrim.updatedAt)]
         .filter((timestamp): timestamp is string => Boolean(timestamp))
-          .sort((firstTimestamp, secondTimestamp) => firstTimestamp.localeCompare(secondTimestamp))
-          .at(-1);
+        .sort((firstTimestamp, secondTimestamp) => firstTimestamp.localeCompare(secondTimestamp))
+        .at(-1);
       const resolvedDayNumber = resolveScrimDayNumber(dayScrims, dayIndex + 1);
 
       return {
@@ -486,24 +459,5 @@ export function buildScrimDayResultsFromCollections(
         lastUpdatedAt: latestUpdatedAt,
       } satisfies ScrimDayResult;
     })
-    .sort(
-      (firstDay, secondDay) =>
-        secondDay.dayNumber - firstDay.dayNumber || secondDay.date.localeCompare(firstDay.date)
-    );
-}
-
-export function getMatchMvp(match: TournamentMatch): MatchPlayerResult | null {
-  const playerResults = [...(match.playerResults ?? [])];
-  if (playerResults.length === 0) return null;
-
-  return (
-    playerResults.sort(
-      (firstPlayer, secondPlayer) =>
-        secondPlayer.totalPoints - firstPlayer.totalPoints ||
-        secondPlayer.kills - firstPlayer.kills ||
-        secondPlayer.damage - firstPlayer.damage ||
-        secondPlayer.assists - firstPlayer.assists ||
-        firstPlayer.playerName.localeCompare(secondPlayer.playerName)
-    )[0] ?? null
-  );
+    .sort((firstDay, secondDay) => secondDay.dayNumber - firstDay.dayNumber || secondDay.date.localeCompare(firstDay.date));
 }

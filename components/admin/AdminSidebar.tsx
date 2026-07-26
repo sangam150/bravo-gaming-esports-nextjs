@@ -66,9 +66,7 @@ export default function AdminSidebar({
             type="button"
             onClick={() => onChange(section.id)}
             className={`shrink-0 rounded-btn px-3 py-2.5 text-left font-display text-xs font-bold uppercase tracking-wide transition ${
-              active === section.id
-                ? "bg-accent-blue text-white"
-                : "text-text-muted hover:bg-bg-hover hover:text-white"
+              active === section.id ? "bg-accent-blue text-white" : "text-text-muted hover:bg-bg-hover hover:text-white"
             }`}
           >
             {section.label}
@@ -79,10 +77,14 @@ export default function AdminSidebar({
         {adminEmail && <p className="truncate text-[10px] text-text-muted">{adminEmail}</p>}
         <div className="flex items-center gap-2 text-[10px] text-text-muted">
           <span className={`h-1.5 w-1.5 rounded-full ${dataConnected ? "bg-accent-green" : "bg-accent-yellow"}`} />
-          {dataConnected ? backendLabel ?? "Live data connected" : "Seed data mode"}
+          {dataConnected ? (backendLabel ?? "Live data connected") : "Seed data mode"}
         </div>
         {onLogout && (
-          <button type="button" onClick={onLogout} className="w-full rounded-btn border border-white/10 px-3 py-2 text-left text-[10px] font-bold uppercase text-text-muted hover:bg-bg-hover hover:text-white">
+          <button
+            type="button"
+            onClick={onLogout}
+            className="w-full rounded-btn border border-white/10 px-3 py-2 text-left text-[10px] font-bold uppercase text-text-muted hover:bg-bg-hover hover:text-white"
+          >
             Sign Out
           </button>
         )}

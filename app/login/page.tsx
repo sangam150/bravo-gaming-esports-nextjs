@@ -1,9 +1,9 @@
-import { Suspense } from "react";
+import LoginHubClient from "@/components/auth/LoginHubClient";
+import { getServerAuthenticatedSession } from "@/lib/admin-auth";
+import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import LoginHubClient from "@/components/auth/LoginHubClient";
-import { hasTeamWorkspaceAccess } from "@/lib/authz";
-import { getServerAuthenticatedSession } from "@/lib/admin-auth";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Login",
@@ -53,7 +53,9 @@ export default async function LoginPage() {
                       <p className="section-title">Access Hub</p>
                       <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Preparing secure workspace</h2>
                     </div>
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-accent-blue/25 bg-accent-blue/10 text-accent-blue-light">•</span>
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-accent-blue/25 bg-accent-blue/10 text-accent-blue-light">
+                      •
+                    </span>
                   </div>
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     {[

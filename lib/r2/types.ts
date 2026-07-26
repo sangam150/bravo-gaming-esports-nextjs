@@ -1,15 +1,6 @@
 export type StorageVisibility = "public" | "private";
 
-export type ManagedUploadFolder =
-  | "teams"
-  | "players"
-  | "sponsors"
-  | "events"
-  | "news"
-  | "media"
-  | "hero"
-  | "moss"
-  | "evidence";
+export type ManagedUploadFolder = "teams" | "players" | "sponsors" | "events" | "news" | "media" | "hero" | "moss" | "evidence";
 
 export type StorageTarget = {
   folder: ManagedUploadFolder;

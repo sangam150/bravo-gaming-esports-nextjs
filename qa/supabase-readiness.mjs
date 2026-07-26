@@ -112,10 +112,7 @@ function loadEnvFile(filePath) {
     if (!match) continue;
 
     let [, key, value] = match;
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
     }
 
@@ -196,19 +193,13 @@ async function safeJsonRequest(url, apiKey, label) {
 }
 
 async function checkTable(baseUrl, apiKey, tableName) {
-  const result = await safeJsonRequest(
-    `${baseUrl}/rest/v1/${tableName}?select=*&limit=1`,
-    apiKey,
-    `table:${tableName}`
-  );
+  const result = await safeJsonRequest(`${baseUrl}/rest/v1/${tableName}?select=*&limit=1`, apiKey, `table:${tableName}`);
 
   return {
     table: tableName,
     status: result.status,
     ok: result.ok,
-    missingFromSchemaCache:
-      typeof result.bodyPreview === "string" &&
-      result.bodyPreview.includes("Could not find the table"),
+    missingFromSchemaCache: typeof result.bodyPreview === "string" && result.bodyPreview.includes("Could not find the table"),
   };
 }
 
@@ -226,23 +217,17 @@ async function main() {
 
   const firebaseKeys = Object.keys(env).filter((key) => key.startsWith("NEXT_PUBLIC_FIREBASE_") || key.startsWith("FIREBASE_"));
 
-  const authSettings = supabaseUrl && authPublicKey
-    ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, authPublicKey, "auth-settings")
-    : null;
-  const publishableAuth = supabaseUrl && publishableKey
-    ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, publishableKey, "publishable-auth")
-    : null;
-  const anonAuth = supabaseUrl && anonKey
-    ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, anonKey, "anon-auth")
-    : null;
+  const authSettings =
+    supabaseUrl && authPublicKey ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, authPublicKey, "auth-settings") : null;
+  const publishableAuth =
+    supabaseUrl && publishableKey ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, publishableKey, "publishable-auth") : null;
+  const anonAuth = supabaseUrl && anonKey ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, anonKey, "anon-auth") : null;
   const privilegedKey = secretKey || serviceRoleKey;
-  const serviceAuth = supabaseUrl && privilegedKey
-    ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, privilegedKey, "service-auth")
-    : null;
+  const serviceAuth =
+    supabaseUrl && privilegedKey ? await safeJsonRequest(`${supabaseUrl}/auth/v1/settings`, privilegedKey, "service-auth") : null;
   const storageAdminKey = privilegedKey || restPublicKey;
-  const bucketsResponse = supabaseUrl && storageAdminKey
-    ? await safeJsonRequest(`${supabaseUrl}/storage/v1/bucket`, storageAdminKey, "storage-buckets")
-    : null;
+  const bucketsResponse =
+    supabaseUrl && storageAdminKey ? await safeJsonRequest(`${supabaseUrl}/storage/v1/bucket`, storageAdminKey, "storage-buckets") : null;
   const authSettingsJson = authSettings?.json ?? anonAuth?.json ?? publishableAuth?.json;
 
   const existingBuckets = Array.isArray(bucketsResponse?.json)
@@ -254,15 +239,25 @@ async function main() {
       APP_CRITICAL_TABLES.map((tableName) =>
         supabaseUrl && restPublicKey
           ? checkTable(supabaseUrl, restPublicKey, tableName)
-          : Promise.resolve({ table: tableName, status: "SKIPPED", ok: false, missingFromSchemaCache: false })
-      )
+          : Promise.resolve({
+              table: tableName,
+              status: "SKIPPED",
+              ok: false,
+              missingFromSchemaCache: false,
+            }),
+      ),
     ),
     Promise.all(
       LAUNCH_COMPATIBILITY_TABLES.map((tableName) =>
         supabaseUrl && restPublicKey
           ? checkTable(supabaseUrl, restPublicKey, tableName)
-          : Promise.resolve({ table: tableName, status: "SKIPPED", ok: false, missingFromSchemaCache: false })
-      )
+          : Promise.resolve({
+              table: tableName,
+              status: "SKIPPED",
+              ok: false,
+              missingFromSchemaCache: false,
+            }),
+      ),
     ),
   ]);
 
@@ -286,10 +281,7 @@ async function main() {
       secretKeyPreview: maskPreview(secretKey),
       serviceRoleKeyPreview: maskPreview(serviceRoleKey),
       serviceRoleKeyShape,
-      serviceRoleKeyWarning:
-        serviceRoleKeyShape.looksMalformedJwt
-          ? "Service role key looks truncated or copied incorrectly."
-          : null,
+      serviceRoleKeyWarning: serviceRoleKeyShape.looksMalformedJwt ? "Service role key looks truncated or copied incorrectly." : null,
       hasLegacyFirebaseEnv: firebaseKeys.length > 0,
       firebaseEnvKeysPresent: firebaseKeys,
     },

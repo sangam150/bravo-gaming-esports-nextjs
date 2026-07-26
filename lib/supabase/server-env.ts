@@ -6,15 +6,15 @@ function normalizeEnvValue(value?: string) {
   return value?.trim() || "";
 }
 
-export function getSupabaseSecretKey() {
+function getSupabaseSecretKey() {
   return normalizeEnvValue(process.env.SUPABASE_SECRET_KEY);
 }
 
-export function getSupabaseServiceRoleKey() {
+function getSupabaseServiceRoleKey() {
   return normalizeEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
-export function getSupabasePrivilegedKey() {
+function getSupabasePrivilegedKey() {
   return getSupabaseSecretKey() || getSupabaseServiceRoleKey();
 }
 
@@ -28,7 +28,7 @@ export function requireSupabaseServiceRoleEnv() {
 
   if (!serviceRoleKey) {
     throw new Error(
-      "Supabase privileged server key is not configured. Set SUPABASE_SECRET_KEY (preferred) or SUPABASE_SERVICE_ROLE_KEY for secure admin/server actions."
+      "Supabase privileged server key is not configured. Set SUPABASE_SECRET_KEY (preferred) or SUPABASE_SERVICE_ROLE_KEY for secure admin/server actions.",
     );
   }
 

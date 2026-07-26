@@ -20,7 +20,7 @@ async function main() {
   assert.equal(pubgEvent.playerTable[0]?.kills, 53);
   assert.ok(
     pubgEvent.matches.every((match) => match.playerResults.length === 0 && match.totalDamage === null),
-    "Unavailable per-match player damage must remain null instead of being presented as zero."
+    "Unavailable per-match player damage must remain null instead of being presented as zero.",
   );
 
   const [topTeamProfile, topPlayerProfile] = await Promise.all([

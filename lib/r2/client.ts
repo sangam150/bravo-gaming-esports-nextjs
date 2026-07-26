@@ -33,11 +33,9 @@ function resolveR2PublicDeliveryMode() {
   return process.env.R2_PUBLIC_DELIVERY_MODE?.trim().toLowerCase() === "proxy" ? "proxy" : "direct";
 }
 
-export function getR2Environment(): R2Environment {
+function getR2Environment(): R2Environment {
   const accountId = getRequiredEnvironmentValue("R2_ACCOUNT_ID");
-  const endpoint = trimTrailingSlash(
-    process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`
-  );
+  const endpoint = trimTrailingSlash(process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`);
 
   return {
     accountId,

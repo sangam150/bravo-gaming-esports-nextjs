@@ -44,8 +44,7 @@ function writeSummary() {
 
 async function settlePage(page) {
   await page.waitForLoadState("domcontentloaded").catch(() => undefined);
-  await page.waitForLoadState("load").catch(() => undefined);
-  await page.waitForTimeout(750).catch(() => undefined);
+  await page.waitForTimeout(350).catch(() => undefined);
 }
 
 async function captureIssue(page, label, details) {
@@ -109,10 +108,17 @@ async function gotoAndCheck(page, route, label) {
   const observers = attachObservers(page);
 
   try {
-    const response = await page.goto(`${baseURL}${route}`, { waitUntil: "domcontentloaded", timeout: 45000 });
+    const response = await page.goto(`${baseURL}${route}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45000,
+    });
     await settlePage(page);
     const status = response?.status() ?? 0;
-    const bodyText = (await page.locator("body").innerText().catch(() => "")) || "";
+    const bodyText =
+      (await page
+        .locator("body")
+        .innerText()
+        .catch(() => "")) || "";
     const routeIssues = [];
 
     if (!status || status >= 400) {
@@ -161,9 +167,11 @@ async function submitSearchAndFilters(page, routeLabel) {
     }
   }
 
-  const submitButton =
-    page.locator('button[type="submit"]').filter({ hasText: /apply|search|filter/i }).first()
-      .or(page.locator('button[type="submit"]').first());
+  const submitButton = page
+    .locator('button[type="submit"]')
+    .filter({ hasText: /apply|search|filter/i })
+    .first()
+    .or(page.locator('button[type="submit"]').first());
 
   if (await submitButton.count()) {
     await submitButton.click().catch(() => undefined);
@@ -176,7 +184,10 @@ async function submitSearchAndFilters(page, routeLabel) {
 async function clickFirstDetailLink(page, prefix, label) {
   const link = page.locator(`main a[href^="${prefix}"]`).first();
   if (!(await link.count())) {
-    summary.skipped.push({ label, reason: `No detail links found for prefix ${prefix}` });
+    summary.skipped.push({
+      label,
+      reason: `No detail links found for prefix ${prefix}`,
+    });
     writeSummary();
     return null;
   }
@@ -188,11 +199,11 @@ async function clickFirstDetailLink(page, prefix, label) {
     return null;
   }
 
-  await Promise.all([
-    page.waitForLoadState("domcontentloaded"),
-    link.click(),
-  ]).catch(async () => {
-    await page.goto(`${baseURL}${href}`, { waitUntil: "domcontentloaded", timeout: 45000 });
+  await Promise.all([page.waitForLoadState("domcontentloaded"), link.click()]).catch(async () => {
+    await page.goto(`${baseURL}${href}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45000,
+    });
   });
   await settlePage(page);
 
@@ -203,34 +214,92 @@ async function clickFirstDetailLink(page, prefix, label) {
 
 test.describe.configure({ mode: "serial" });
 
-test("Public route and navigation QA", async ({ page }) => {
-  test.setTimeout(240000);
-  const routes = [
-    ["/", "Homepage"],
-    ["/news", "News"],
-    ["/games", "Games"],
-    ["/pubg", "PUBG"],
-    ["/events", "Events"],
-    ["/calendar", "Calendar"],
-    ["/matches", "Matches"],
-    ["/teams", "Teams"],
-    ["/players", "Players"],
-    ["/rankings", "Rankings"],
-    ["/media", "Media"],
-    ["/sponsors", "Sponsors"],
-    ["/community", "Community"],
-    ["/about", "About"],
-    ["/contact", "Contact"],
-    ["/dashboard/player", "Player Dashboard"],
-    ["/admin", "Admin"],
-    ["/team", "Team Panel"],
-  ];
+const publicStaticRoutes = [
+  ["/", "Homepage"],
+  ["/about", "About"],
+  ["/about/founder", "Founder"],
+  ["/about/media-kit", "Media kit"],
+  ["/about/sponsor-us", "Sponsor us"],
+  ["/anti-cheat", "Anti-cheat"],
+  ["/calendar", "Calendar"],
+  ["/championships", "Championships"],
+  ["/community", "Community"],
+  ["/community/announcements", "Announcements"],
+  ["/community/highlights", "Community highlights"],
+  ["/compare", "Compare"],
+  ["/contact", "Contact"],
+  ["/current-season", "Current season"],
+  ["/events", "Events"],
+  ["/fantasy", "Fantasy"],
+  ["/feedback", "Feedback"],
+  ["/games", "Games"],
+  ["/giveaways", "Giveaways"],
+  ["/gta-rp", "GTA RP"],
+  ["/hall-of-fame", "Hall of fame"],
+  ["/highlights", "Highlights"],
+  ["/leaderboard", "Leaderboard"],
+  ["/live-stream", "Live stream"],
+  ["/login", "Login"],
+  ["/matches", "Matches"],
+  ["/media", "Media"],
+  ["/mvp-ranking", "MVP ranking"],
+  ["/news", "News"],
+  ["/news-media", "News media"],
+  ["/organizations", "Organizations"],
+  ["/partners", "Partners"],
+  ["/player/login", "Player login"],
+  ["/players", "Players"],
+  ["/privacy", "Privacy"],
+  ["/pubg", "PUBG"],
+  ["/pubg/access", "PUBG access"],
+  ["/pubg/community", "PUBG community"],
+  ["/pubg/compare", "PUBG compare"],
+  ["/pubg/events", "PUBG events"],
+  ["/pubg/fantasy", "PUBG fantasy"],
+  ["/pubg/hall-of-fame", "PUBG hall of fame"],
+  ["/pubg/leaderboards", "PUBG leaderboards"],
+  ["/pubg/players", "PUBG players"],
+  ["/pubg/results", "PUBG results"],
+  ["/pubg/seasons/current", "Current PUBG season"],
+  ["/pubg/teams", "PUBG teams"],
+  ["/pubg-scrims", "PUBG scrims"],
+  ["/rankings", "Rankings"],
+  ["/reset-password", "Reset password"],
+  ["/results", "Results"],
+  ["/rules", "Rules"],
+  ["/schedule", "Schedule"],
+  ["/search", "Search"],
+  ["/sponsor-kit", "Sponsor kit"],
+  ["/sponsors", "Sponsors"],
+  ["/statistics", "Statistics"],
+  ["/stats", "Stats"],
+  ["/stream-schedule", "Stream schedule"],
+  ["/team/login", "Team login"],
+  ["/teams", "Teams"],
+  ["/teams/register", "Team registration"],
+  ["/terms", "Terms"],
+  ["/tournament-partners", "Tournament partners"],
+  ["/tournaments", "Tournaments"],
+  ["/videos", "Videos"],
+];
 
-  for (const [route, label] of routes) {
+for (const [route, label] of publicStaticRoutes) {
+  test(`Public route: ${label}`, async ({ page }) => {
+    test.setTimeout(75000);
     await gotoAndCheck(page, route, label);
-  }
+    expect(
+      summary.failed.some((failure) => failure.label === label),
+      `${label} produced a route, browser-console, or request failure`,
+    ).toBe(false);
+  });
+}
 
-  await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded", timeout: 45000 });
+test("Public navigation and interaction QA", async ({ page }) => {
+  test.setTimeout(240000);
+  await page.goto(`${baseURL}/`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
   await settlePage(page);
   const navClicks = [
     { name: "News", url: "/news" },
@@ -247,23 +316,29 @@ test("Public route and navigation QA", async ({ page }) => {
   ];
 
   for (const item of navClicks) {
-    await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.goto(`${baseURL}/`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45000,
+    });
     await settlePage(page);
     const link = page.getByRole("link", { name: item.name, exact: true }).first();
     if (await link.count()) {
-      await Promise.all([
-        page.waitForURL(`**${item.url}`),
-        link.click(),
-      ]);
+      await Promise.all([page.waitForURL(`**${item.url}`), link.click()]);
       await settlePage(page);
       pushUnique(summary.notes, `Clicked header nav item ${item.name}.`);
     } else {
-      summary.skipped.push({ label: `Header nav ${item.name}`, reason: "Link not found" });
+      summary.skipped.push({
+        label: `Header nav ${item.name}`,
+        reason: "Link not found",
+      });
     }
     writeSummary();
   }
 
-  await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded", timeout: 45000 });
+  await page.goto(`${baseURL}/`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
   await settlePage(page);
   for (const cta of ["Watch Live", "Explore Events", "Join Community"]) {
     const button = page.getByRole("link", { name: new RegExp(cta, "i") }).first();
@@ -271,15 +346,24 @@ test("Public route and navigation QA", async ({ page }) => {
       const href = await button.getAttribute("href");
       if (href) {
         await page
-          .goto(href.startsWith("http") ? href : `${baseURL}${href}`, { waitUntil: "domcontentloaded", timeout: 45000 })
+          .goto(href.startsWith("http") ? href : `${baseURL}${href}`, {
+            waitUntil: "domcontentloaded",
+            timeout: 45000,
+          })
           .catch(() => undefined);
         await settlePage(page);
         pushUnique(summary.notes, `Opened homepage CTA ${cta}.`);
       }
-      await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded", timeout: 45000 });
+      await page.goto(`${baseURL}/`, {
+        waitUntil: "domcontentloaded",
+        timeout: 45000,
+      });
       await settlePage(page);
     } else {
-      summary.skipped.push({ label: `Homepage CTA ${cta}`, reason: "CTA not visible in current data state" });
+      summary.skipped.push({
+        label: `Homepage CTA ${cta}`,
+        reason: "CTA not visible in current data state",
+      });
     }
     writeSummary();
   }
@@ -298,20 +382,42 @@ test("Public route and navigation QA", async ({ page }) => {
   ];
 
   for (const [route, label] of searchableRoutes) {
-    await page.goto(`${baseURL}${route}`, { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.goto(`${baseURL}${route}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45000,
+    });
     await settlePage(page);
     await submitSearchAndFilters(page, label);
   }
 
-  await page.goto(`${baseURL}/contact`, { waitUntil: "domcontentloaded", timeout: 45000 });
+  await page.goto(`${baseURL}/contact`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
   await settlePage(page);
-  if (await page.locator('form').count()) {
+  if (await page.locator("form").count()) {
     const timestamp = Date.now();
-    await page.locator('input[placeholder="Your Name"]').fill("QA Browser Runner").catch(() => undefined);
-    await page.locator('input[placeholder="Email Address"]').fill(`qa-browser-${timestamp}@example.com`).catch(() => undefined);
-    await page.locator('input[placeholder]').nth(2).fill("Live QA pass").catch(() => undefined);
-    await page.locator('textarea[placeholder="Message"]').fill("Browser automation contact-form QA submission.").catch(() => undefined);
-    await page.locator('button[type="submit"]').click().catch(() => undefined);
+    await page
+      .locator('input[placeholder="Your Name"]')
+      .fill("QA Browser Runner")
+      .catch(() => undefined);
+    await page
+      .locator('input[placeholder="Email Address"]')
+      .fill(`qa-browser-${timestamp}@example.com`)
+      .catch(() => undefined);
+    await page
+      .locator("input[placeholder]")
+      .nth(2)
+      .fill("Live QA pass")
+      .catch(() => undefined);
+    await page
+      .locator('textarea[placeholder="Message"]')
+      .fill("Browser automation contact-form QA submission.")
+      .catch(() => undefined);
+    await page
+      .locator('button[type="submit"]')
+      .click()
+      .catch(() => undefined);
     await settlePage(page);
     pushUnique(summary.notes, "Submitted the public contact form.");
     writeSummary();
@@ -327,7 +433,10 @@ test("Public route and navigation QA", async ({ page }) => {
   ];
 
   for (const [route, prefix, label] of detailRoutes) {
-    await page.goto(`${baseURL}${route}`, { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.goto(`${baseURL}${route}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45000,
+    });
     await settlePage(page);
     const href = await clickFirstDetailLink(page, prefix, label);
     if (href) {
@@ -338,27 +447,40 @@ test("Public route and navigation QA", async ({ page }) => {
 
 test("Auth entry-point smoke QA", async ({ page }) => {
   test.setTimeout(120000);
-  await page.goto(`${baseURL}/admin`, { waitUntil: "domcontentloaded", timeout: 45000 });
+  await page.goto(`${baseURL}/admin`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
   await settlePage(page);
   await expect(page.getByRole("heading", { name: /Admin Login/i })).toBeVisible();
   summary.passed.push({ label: "Admin login screen renders", route: "/admin" });
   writeSummary();
 
-  await page.locator('input[placeholder="Admin email"]').fill("qa.viewer.browser+1@gmail.com");
-  await page.locator('input[placeholder="Password"]').fill("BravoQA123!");
+  await page.getByLabel("Admin email", { exact: true }).fill("qa.viewer.browser+1@gmail.com");
+  await page.getByLabel("Password", { exact: true }).fill("BravoQA123!");
   await page.locator('button[type="submit"]').click();
   await page.waitForTimeout(1500);
-  const adminError = await page.locator("text=/Login failed|Email not confirmed|This account does not have admin access|Invalid API key/i").first().textContent().catch(() => null);
+  const adminError = await page
+    .locator("text=/Login failed|Invalid login credentials|Email not confirmed|This account does not have admin access|Invalid API key/i")
+    .first()
+    .textContent({ timeout: 5000 })
+    .catch(() => null);
   if (adminError) {
     await captureIssue(page, "admin-login-attempt", [`Admin login did not complete: ${adminError}`]);
   } else {
-    summary.skipped.push({ label: "Admin login role test", reason: "Could not determine auth result from UI" });
+    summary.skipped.push({
+      label: "Admin login role test",
+      reason: "Could not determine auth result from UI",
+    });
     writeSummary();
   }
 
-  await page.goto(`${baseURL}/team`, { waitUntil: "domcontentloaded", timeout: 45000 });
+  await page.goto(`${baseURL}/team`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
   await settlePage(page);
-  await expect(page.getByText(/Team IGL Workspace/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Open the Bravo team workspace/i })).toBeVisible();
   summary.passed.push({ label: "Team login screen renders", route: "/team" });
   writeSummary();
 });
@@ -382,7 +504,10 @@ test("Mobile layout screenshots", async ({ browser }) => {
   for (const [route, name] of mobileTargets) {
     await page.goto(route, { waitUntil: "domcontentloaded", timeout: 45000 });
     await settlePage(page);
-    await page.screenshot({ path: path.join(mobileDir, `${name}.png`), fullPage: true });
+    await page.screenshot({
+      path: path.join(mobileDir, `${name}.png`),
+      fullPage: true,
+    });
     summary.passed.push({ label: `Captured ${name}`, route });
     writeSummary();
   }
@@ -391,17 +516,32 @@ test("Mobile layout screenshots", async ({ browser }) => {
   await settlePage(page);
   const eventHref = await clickFirstDetailLink(page, "/events/", "Mobile event detail");
   if (eventHref) {
-    await page.screenshot({ path: path.join(mobileDir, "mobile-event-detail.png"), fullPage: true });
-    summary.passed.push({ label: "Captured mobile event detail", route: eventHref });
+    await page.screenshot({
+      path: path.join(mobileDir, "mobile-event-detail.png"),
+      fullPage: true,
+    });
+    summary.passed.push({
+      label: "Captured mobile event detail",
+      route: eventHref,
+    });
     writeSummary();
   }
 
-  await page.goto("/matches", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await page.goto("/matches", {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
   await settlePage(page);
   const matchHref = await clickFirstDetailLink(page, "/matches/", "Mobile match detail");
   if (matchHref) {
-    await page.screenshot({ path: path.join(mobileDir, "mobile-match-detail.png"), fullPage: true });
-    summary.passed.push({ label: "Captured mobile match detail", route: matchHref });
+    await page.screenshot({
+      path: path.join(mobileDir, "mobile-match-detail.png"),
+      fullPage: true,
+    });
+    summary.passed.push({
+      label: "Captured mobile match detail",
+      route: matchHref,
+    });
     writeSummary();
   }
 

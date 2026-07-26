@@ -3,20 +3,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import vm from "node:vm";
 import { Client } from "pg";
+import { compareBravoTeamSlotOrder } from "./bravo-teams";
 import { COLLECTIONS } from "./document-store-collections";
 import { normalizeMapName, toTeamMatchResults } from "./tournament-standings";
-import { compareBravoTeamSlotOrder } from "./bravo-teams";
-import type {
-  Player,
-  SourceImportAuditRecord,
-  Team,
-  Tournament,
-  TournamentMatch,
-  TournamentStanding,
-} from "./types";
+import type { Player, SourceImportAuditRecord, Team, Tournament, TournamentMatch, TournamentStanding } from "./types";
 
-const FIRST_OFFICIAL_TOURNAMENT_SOURCE_URL =
-  "https://www.birajlamsal0.com.np/tournaments/53821?tab=leaderboard";
+const FIRST_OFFICIAL_TOURNAMENT_SOURCE_URL = "https://www.birajlamsal0.com.np/tournaments/53821?tab=leaderboard";
 const SOURCE_PROVIDER = "birajlamsal0.com.np";
 const IMPORTER_VERSION = "official-tournament-import/v1";
 const PUBLIC_TOURNAMENT_ID = "pubg-mahasangram-53821";
@@ -131,7 +123,7 @@ type PersistedRecordCounts = {
   auditsUpdated: number;
 };
 
-export type FirstOfficialTournamentImportResult = {
+type FirstOfficialTournamentImportResult = {
   sourceUrl: string;
   fetchedAt: string;
   sourceDataType: "HTML / JSON / API";
@@ -180,11 +172,13 @@ function slugify(value: string) {
 }
 
 function normalizeKey(value?: string | null) {
-  return value
-    ?.toLowerCase()
-    .replace(/[()[\]#]/g, " ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim() ?? "";
+  return (
+    value
+      ?.toLowerCase()
+      .replace(/[()[\]#]/g, " ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim() ?? ""
+  );
 }
 
 function cleanString(value?: string | null) {
@@ -236,7 +230,7 @@ function normalizeTournamentStatus(
   sourceStatus: string | undefined,
   startDate: string | undefined,
   endDate: string | undefined,
-  fetchedAt: string
+  fetchedAt: string,
 ): Tournament["status"] {
   const normalizedSourceStatus = sourceStatus?.trim().toLowerCase() ?? "";
   if (normalizedSourceStatus === "completed" || normalizedSourceStatus === "finished") {
@@ -349,7 +343,7 @@ function extractTournamentPayloadFromHtml(html: string) {
       typeof entry[1] === "string" &&
       entry[1].includes('"tournament"') &&
       entry[1].includes('"standings"') &&
-      entry[1].includes('"playerStandings"')
+      entry[1].includes('"playerStandings"'),
   );
 
   if (!payloadContainer || !Array.isArray(payloadContainer) || typeof payloadContainer[1] !== "string") {
@@ -420,11 +414,9 @@ async function ensureAppDocumentsTable(client: Client) {
     )
   `);
 
+  await client.query(`create index if not exists app_documents_collection_name_idx on public.app_documents (collection_name)`);
   await client.query(
-    `create index if not exists app_documents_collection_name_idx on public.app_documents (collection_name)`
-  );
-  await client.query(
-    `create index if not exists app_documents_collection_updated_at_idx on public.app_documents (collection_name, updated_at desc)`
+    `create index if not exists app_documents_collection_updated_at_idx on public.app_documents (collection_name, updated_at desc)`,
   );
 
   await client.query(`notify pgrst, 'reload schema'`).catch(() => undefined);
@@ -439,7 +431,7 @@ async function fetchCollectionDirect<T>(client: Client, collectionName: string, 
       order by updated_at desc
       limit $2
     `,
-    [collectionName, limit]
+    [collectionName, limit],
   );
 
   return result.rows.map((row) => mapAppDocumentRow<T>(row));
@@ -454,7 +446,7 @@ async function getDocumentDirect<T>(client: Client, collectionName: string, docI
         and id = $2
       limit 1
     `,
-    [collectionName, docId]
+    [collectionName, docId],
   );
 
   if (result.rows.length === 0) {
@@ -483,13 +475,7 @@ async function saveDocumentDirect(client: Client, collectionName: string, docId:
         set data = excluded.data,
             updated_at = excluded.updated_at
     `,
-    [
-      collectionName,
-      docId,
-      JSON.stringify(mergedData),
-      (existingDocument as { createdAt?: string } | null)?.createdAt ?? now,
-      now,
-    ]
+    [collectionName, docId, JSON.stringify(mergedData), (existingDocument as { createdAt?: string } | null)?.createdAt ?? now, now],
   );
 
   return { id: docId, collection: collectionName };
@@ -502,7 +488,7 @@ async function deleteDocumentDirect(client: Client, collectionName: string, docI
       where collection_name = $1
         and id = $2
     `,
-    [collectionName, docId]
+    [collectionName, docId],
   );
 }
 
@@ -524,7 +510,7 @@ async function writeArtifacts(
   artifactPaths: ReturnType<typeof buildArtifactPaths>,
   rawHtml: string,
   rawJson: SourceTournamentPayload,
-  normalizedImportJson: Record<string, unknown>
+  normalizedImportJson: Record<string, unknown>,
 ) {
   await mkdir(artifactPaths.baseDirectory, { recursive: true });
   await Promise.all([
@@ -574,646 +560,614 @@ function summarizePrizePool(prizePool?: number | null) {
   return typeof prizePool === "number" && prizePool > 0 ? `NPR ${prizePool.toLocaleString("en-US")}` : "TBD";
 }
 
-export async function importFirstOfficialTournament(options?: {
-  sourceUrl?: string;
-  importedBy?: string;
-}) {
+export async function importFirstOfficialTournament(options?: { sourceUrl?: string; importedBy?: string }) {
   const sourceUrl = options?.sourceUrl ?? FIRST_OFFICIAL_TOURNAMENT_SOURCE_URL;
   const fetchedAt = new Date().toISOString();
   const importedBy = cleanString(options?.importedBy) ?? cleanString(process.env.USERNAME) ?? "codex";
   const client = await createDatabaseClient();
 
   try {
-  await ensureAppDocumentsTable(client);
-  const rawHtml = await fetchTournamentSourceHtml(sourceUrl);
-  const payload = extractTournamentPayloadFromHtml(rawHtml);
-  const checksum = buildChecksum(rawHtml);
-  const startDate = cleanString(payload.tournament.startDate)?.slice(0, 10);
-  const endDate = cleanString(payload.tournament.endDate)?.slice(0, 10);
-  const eventStatus = normalizeTournamentStatus(cleanString(payload.tournament.status), startDate, endDate, fetchedAt);
-  const publicTournamentTitle = payload.tournament.name.trim();
-  const auditId = buildAuditId(payload.tournament.code, fetchedAt);
-  const artifactPaths = buildArtifactPaths(PUBLIC_TOURNAMENT_ID, auditId);
-  const pointSystemAvailable = payload.standings.every(
-    (standing) =>
-      typeof standing.placementPoints === "number" &&
-      Number.isFinite(standing.placementPoints) &&
-      typeof standing.totalPoints === "number" &&
-      Number.isFinite(standing.totalPoints)
-  );
+    await ensureAppDocumentsTable(client);
+    const rawHtml = await fetchTournamentSourceHtml(sourceUrl);
+    const payload = extractTournamentPayloadFromHtml(rawHtml);
+    const checksum = buildChecksum(rawHtml);
+    const startDate = cleanString(payload.tournament.startDate)?.slice(0, 10);
+    const endDate = cleanString(payload.tournament.endDate)?.slice(0, 10);
+    const eventStatus = normalizeTournamentStatus(cleanString(payload.tournament.status), startDate, endDate, fetchedAt);
+    const publicTournamentTitle = payload.tournament.name.trim();
+    const auditId = buildAuditId(payload.tournament.code, fetchedAt);
+    const artifactPaths = buildArtifactPaths(PUBLIC_TOURNAMENT_ID, auditId);
+    const pointSystemAvailable = payload.standings.every(
+      (standing) =>
+        typeof standing.placementPoints === "number" &&
+        Number.isFinite(standing.placementPoints) &&
+        typeof standing.totalPoints === "number" &&
+        Number.isFinite(standing.totalPoints),
+    );
 
-  const allTeams = await fetchCollectionDirect<Team>(client, COLLECTIONS.teams, 1000);
-  const allPlayers = await fetchCollectionDirect<Player>(client, COLLECTIONS.players, 2500);
-  const existingTournament = await getDocumentDirect<Tournament>(client, COLLECTIONS.tournaments, PUBLIC_TOURNAMENT_ID);
-  const existingMatches = await fetchCollectionDirect<TournamentMatch>(client, COLLECTIONS.matches, 1000);
-  const existingTournamentMatches = await fetchCollectionDirect<TournamentMatch>(
-    client,
-    COLLECTIONS.tournamentMatches,
-    1000
-  );
-  const existingStandings = await fetchCollectionDirect<TournamentStanding>(client, COLLECTIONS.standings, 1000);
-  const existingTournamentTeams = allTeams;
-  const existingTournamentPlayers = allPlayers;
-  const scopedExistingMatches = existingMatches.filter((match) => match.tournamentId === PUBLIC_TOURNAMENT_ID);
-  const scopedExistingTournamentMatches = existingTournamentMatches.filter(
-    (match) => match.tournamentId === PUBLIC_TOURNAMENT_ID
-  );
-  const scopedExistingStandings = existingStandings.filter(
-    (standing) => standing.tournamentId === PUBLIC_TOURNAMENT_ID
-  );
-  const scopedExistingTournamentTeams = existingTournamentTeams.filter(
-    (team) => team.sourceTournamentId === PUBLIC_TOURNAMENT_ID
-  );
-  const scopedExistingTournamentPlayers = existingTournamentPlayers.filter(
-    (player) => player.sourceTournamentId === PUBLIC_TOURNAMENT_ID
-  );
+    const allTeams = await fetchCollectionDirect<Team>(client, COLLECTIONS.teams, 1000);
+    const allPlayers = await fetchCollectionDirect<Player>(client, COLLECTIONS.players, 2500);
+    const existingTournament = await getDocumentDirect<Tournament>(client, COLLECTIONS.tournaments, PUBLIC_TOURNAMENT_ID);
+    const existingMatches = await fetchCollectionDirect<TournamentMatch>(client, COLLECTIONS.matches, 1000);
+    const existingTournamentMatches = await fetchCollectionDirect<TournamentMatch>(client, COLLECTIONS.tournamentMatches, 1000);
+    const existingStandings = await fetchCollectionDirect<TournamentStanding>(client, COLLECTIONS.standings, 1000);
+    const existingTournamentTeams = allTeams;
+    const existingTournamentPlayers = allPlayers;
+    const scopedExistingMatches = existingMatches.filter((match) => match.tournamentId === PUBLIC_TOURNAMENT_ID);
+    const scopedExistingTournamentMatches = existingTournamentMatches.filter((match) => match.tournamentId === PUBLIC_TOURNAMENT_ID);
+    const scopedExistingStandings = existingStandings.filter((standing) => standing.tournamentId === PUBLIC_TOURNAMENT_ID);
+    const scopedExistingTournamentTeams = existingTournamentTeams.filter((team) => team.sourceTournamentId === PUBLIC_TOURNAMENT_ID);
+    const scopedExistingTournamentPlayers = existingTournamentPlayers.filter(
+      (player) => player.sourceTournamentId === PUBLIC_TOURNAMENT_ID,
+    );
 
-  const teamsBySourceId = new Map<string, SourceTournamentTeam>();
-  const teamRecordsByNormalizedKey = new Map<string, ResolvedTeamRecord>();
-  const existingTeamsBySourceTeamId = new Map<string, Team>();
-  const existingTeamsByName = new Map<string, Team>();
-  for (const team of allTeams) {
-    if (team.sourceTeamId) {
-      existingTeamsBySourceTeamId.set(team.sourceTeamId, team);
-    }
-    const normalizedExistingTeamName = normalizeKey(team.name);
-    if (normalizedExistingTeamName) {
-      existingTeamsByName.set(normalizedExistingTeamName, team);
-    }
-  }
-
-  for (const sourceTeam of payload.tournament.teams ?? []) {
-    teamsBySourceId.set(sourceTeam.id, sourceTeam);
-  }
-
-  const registerTeamRecord = (teamName: string, sourceTeamId?: string | null) => {
-    const normalizedName = normalizeKey(teamName);
-    if (!normalizedName) {
-      return null;
-    }
-
-    const sourceTeam = sourceTeamId ? teamsBySourceId.get(sourceTeamId) : undefined;
-    const currentRecord =
-      teamRecordsByNormalizedKey.get(normalizedName) ??
-      (sourceTeamId ? teamRecordsByNormalizedKey.get(sourceTeamId) : undefined) ??
-      null;
-
-    const existingTeam =
-      (sourceTeamId ? existingTeamsBySourceTeamId.get(sourceTeamId) : undefined) ??
-      existingTeamsByName.get(normalizedName) ??
-      null;
-
-    const resolvedRecord: ResolvedTeamRecord = {
-      id: currentRecord?.id ?? existingTeam?.id ?? slugify(teamName),
-      sourceTeamId: sourceTeamId ?? sourceTeam?.id ?? currentRecord?.sourceTeamId,
-      teamName: currentRecord?.teamName ?? sourceTeam?.name ?? existingTeam?.name ?? teamName,
-      normalizedName,
-      slotNumber:
-        currentRecord?.slotNumber ??
-        toOptionalNumber(sourceTeam?.teamKey) ??
-        toOptionalNumber(sourceTeam?.teamKey?.replace(/[^\d]/g, "")) ??
-        undefined,
-    };
-
-    teamRecordsByNormalizedKey.set(normalizedName, resolvedRecord);
-    if (resolvedRecord.sourceTeamId) {
-      teamRecordsByNormalizedKey.set(resolvedRecord.sourceTeamId, resolvedRecord);
-    }
-
-    return resolvedRecord;
-  };
-
-  for (const sourceTeam of payload.tournament.teams ?? []) {
-    registerTeamRecord(sourceTeam.name, sourceTeam.id);
-  }
-
-  for (const standing of payload.standings) {
-    registerTeamRecord(standing.teamName, standing.teamId);
-  }
-
-  for (const match of payload.tournament.matches ?? []) {
-    for (const result of match.results) {
-      registerTeamRecord(result.teamName, result.teamId);
-    }
-  }
-
-  const teamRecordIndex = new Map<string, ResolvedTeamRecord>();
-  for (const record of teamRecordsByNormalizedKey.values()) {
-    teamRecordIndex.set(record.id, record);
-  }
-
-  const matchDocuments: TournamentMatch[] = (payload.tournament.matches ?? [])
-    .slice()
-    .sort((firstMatch, secondMatch) => {
-      const firstSequence = firstMatch.sequenceNumber ?? Number.POSITIVE_INFINITY;
-      const secondSequence = secondMatch.sequenceNumber ?? Number.POSITIVE_INFINITY;
-      if (firstSequence !== secondSequence) {
-        return firstSequence - secondSequence;
+    const teamsBySourceId = new Map<string, SourceTournamentTeam>();
+    const teamRecordsByNormalizedKey = new Map<string, ResolvedTeamRecord>();
+    const existingTeamsBySourceTeamId = new Map<string, Team>();
+    const existingTeamsByName = new Map<string, Team>();
+    for (const team of allTeams) {
+      if (team.sourceTeamId) {
+        existingTeamsBySourceTeamId.set(team.sourceTeamId, team);
       }
-      return (firstMatch.scheduledAt ?? "").localeCompare(secondMatch.scheduledAt ?? "");
-    })
-    .map((match, index) => {
-      const teamResults = toTeamMatchResults(
-        match.results.map((result) => {
-          const resolvedTeam =
-            (result.teamId ? teamRecordsByNormalizedKey.get(result.teamId) : undefined) ??
-            teamRecordsByNormalizedKey.get(normalizeKey(result.teamName));
+      const normalizedExistingTeamName = normalizeKey(team.name);
+      if (normalizedExistingTeamName) {
+        existingTeamsByName.set(normalizedExistingTeamName, team);
+      }
+    }
 
-          return {
-            teamId: resolvedTeam?.id ?? slugify(result.teamName),
-            teamName: resolvedTeam?.teamName ?? result.teamName,
-            slotNumber: resolvedTeam?.slotNumber,
-            placement: result.placement,
-            kills: result.kills,
-          };
-        })
-      );
-      const winner = teamResults.find((teamResult) => teamResult.placement === 1)?.teamName ?? teamResults[0]?.teamName ?? "Unknown";
+    for (const sourceTeam of payload.tournament.teams ?? []) {
+      teamsBySourceId.set(sourceTeam.id, sourceTeam);
+    }
 
-      return {
-        id: `${PUBLIC_TOURNAMENT_ID}--match-${String(index + 1).padStart(2, "0")}`,
-        tournamentId: PUBLIC_TOURNAMENT_ID,
-        pubgMatchId: match.id,
-        externalMatchId: match.id,
-        sequenceNumber: match.sequenceNumber ?? undefined,
-        matchNumber: index + 1,
-        map: normalizeMapName(match.mapName ?? "Unknown"),
-        eventName: publicTournamentTitle,
-        eventSlug: PUBLIC_TOURNAMENT_ID,
-        status: "published",
-        winner,
-        points: teamResults[0]?.totalPoints ?? 0,
-        knockouts: teamResults.reduce((sum, teamResult) => sum + teamResult.kills, 0),
-        placementPoints: teamResults[0]?.placementPoints ?? 0,
-        killPoints: teamResults[0]?.killPoints ?? 0,
-        playedAt: cleanString(match.scheduledAt),
-        sourceUrl,
-        dataSource: "external_feed",
-        syncedAt: fetchedAt,
-        publishedAt: fetchedAt,
-        pointSystemName: pointSystemAvailable ? "Bravo PUBG Placement + Kills" : undefined,
-        teamResults,
-      } satisfies TournamentMatch;
-    });
+    const registerTeamRecord = (teamName: string, sourceTeamId?: string | null) => {
+      const normalizedName = normalizeKey(teamName);
+      if (!normalizedName) {
+        return null;
+      }
 
-  const computedStandingsByTeamId = new Map(
-    matchDocuments
-      .flatMap((match) => match.teamResults ?? [])
-      .reduce<
-        Array<{
-          teamId: string;
-          teamName: string;
-          slotNumber?: number;
-          placements: number[];
-        }>
-      >((summary, teamResult) => {
-        const current = summary.find((item) => item.teamId === (teamResult.teamId ?? slugify(teamResult.teamName)));
-        if (current) {
-          current.placements.push(teamResult.placement);
-        } else {
-          summary.push({
-            teamId: teamResult.teamId ?? slugify(teamResult.teamName),
-            teamName: teamResult.teamName,
-            slotNumber: teamResult.slotNumber,
-            placements: [teamResult.placement],
-          });
+      const sourceTeam = sourceTeamId ? teamsBySourceId.get(sourceTeamId) : undefined;
+      const currentRecord =
+        teamRecordsByNormalizedKey.get(normalizedName) ?? (sourceTeamId ? teamRecordsByNormalizedKey.get(sourceTeamId) : undefined) ?? null;
+
+      const existingTeam =
+        (sourceTeamId ? existingTeamsBySourceTeamId.get(sourceTeamId) : undefined) ?? existingTeamsByName.get(normalizedName) ?? null;
+
+      const resolvedRecord: ResolvedTeamRecord = {
+        id: currentRecord?.id ?? existingTeam?.id ?? slugify(teamName),
+        sourceTeamId: sourceTeamId ?? sourceTeam?.id ?? currentRecord?.sourceTeamId,
+        teamName: currentRecord?.teamName ?? sourceTeam?.name ?? existingTeam?.name ?? teamName,
+        normalizedName,
+        slotNumber:
+          currentRecord?.slotNumber ??
+          toOptionalNumber(sourceTeam?.teamKey) ??
+          toOptionalNumber(sourceTeam?.teamKey?.replace(/[^\d]/g, "")) ??
+          undefined,
+      };
+
+      teamRecordsByNormalizedKey.set(normalizedName, resolvedRecord);
+      if (resolvedRecord.sourceTeamId) {
+        teamRecordsByNormalizedKey.set(resolvedRecord.sourceTeamId, resolvedRecord);
+      }
+
+      return resolvedRecord;
+    };
+
+    for (const sourceTeam of payload.tournament.teams ?? []) {
+      registerTeamRecord(sourceTeam.name, sourceTeam.id);
+    }
+
+    for (const standing of payload.standings) {
+      registerTeamRecord(standing.teamName, standing.teamId);
+    }
+
+    for (const match of payload.tournament.matches ?? []) {
+      for (const result of match.results) {
+        registerTeamRecord(result.teamName, result.teamId);
+      }
+    }
+
+    const teamRecordIndex = new Map<string, ResolvedTeamRecord>();
+    for (const record of teamRecordsByNormalizedKey.values()) {
+      teamRecordIndex.set(record.id, record);
+    }
+
+    const matchDocuments: TournamentMatch[] = (payload.tournament.matches ?? [])
+      .slice()
+      .sort((firstMatch, secondMatch) => {
+        const firstSequence = firstMatch.sequenceNumber ?? Number.POSITIVE_INFINITY;
+        const secondSequence = secondMatch.sequenceNumber ?? Number.POSITIVE_INFINITY;
+        if (firstSequence !== secondSequence) {
+          return firstSequence - secondSequence;
         }
-        return summary;
-      }, [])
-      .map((item) => [
-        item.teamId,
-        {
-          averagePlacement: Number(
-            (item.placements.reduce((sum, placement) => sum + placement, 0) / Math.max(item.placements.length, 1)).toFixed(2)
-          ),
-        },
-      ] as const)
-  );
+        return (firstMatch.scheduledAt ?? "").localeCompare(secondMatch.scheduledAt ?? "");
+      })
+      .map((match, index) => {
+        const teamResults = toTeamMatchResults(
+          match.results.map((result) => {
+            const resolvedTeam =
+              (result.teamId ? teamRecordsByNormalizedKey.get(result.teamId) : undefined) ??
+              teamRecordsByNormalizedKey.get(normalizeKey(result.teamName));
 
-  const standingDocuments: TournamentStanding[] = payload.standings.map((standing) => {
-    const resolvedTeam =
-      (standing.teamId ? teamRecordsByNormalizedKey.get(standing.teamId) : undefined) ??
-      teamRecordsByNormalizedKey.get(normalizeKey(standing.teamName));
-    const teamId = resolvedTeam?.id ?? slugify(standing.teamName);
+            return {
+              teamId: resolvedTeam?.id ?? slugify(result.teamName),
+              teamName: resolvedTeam?.teamName ?? result.teamName,
+              slotNumber: resolvedTeam?.slotNumber,
+              placement: result.placement,
+              kills: result.kills,
+            };
+          }),
+        );
+        const winner = teamResults.find((teamResult) => teamResult.placement === 1)?.teamName ?? teamResults[0]?.teamName ?? "Unknown";
 
-    return {
-      id: `${PUBLIC_TOURNAMENT_ID}--standing-${teamId}`,
-      tournamentId: PUBLIC_TOURNAMENT_ID,
-      teamId,
-      teamName: resolvedTeam?.teamName ?? standing.teamName,
-      slotNumber: resolvedTeam?.slotNumber,
-      matches: standing.matchesPlayed,
-      wins: standing.chickenDinners,
-      kills: standing.totalKills,
-      killPoints: standing.totalKills,
-      placementPoints: standing.placementPoints,
-      totalPoints: standing.totalPoints,
-      bestPlacement: standing.bestPlacement,
-      averagePlacement: computedStandingsByTeamId.get(teamId)?.averagePlacement ?? 0,
-      rank: standing.rank,
-      sourceRank: standing.rank,
-      scope: "tournament",
-      sourceTournamentId: PUBLIC_TOURNAMENT_ID,
-      sourceTournamentTitle: publicTournamentTitle,
-      sourceProvider: SOURCE_PROVIDER,
-      createdAt: fetchedAt,
-      updatedAt: fetchedAt,
-    };
-  });
+        return {
+          id: `${PUBLIC_TOURNAMENT_ID}--match-${String(index + 1).padStart(2, "0")}`,
+          tournamentId: PUBLIC_TOURNAMENT_ID,
+          pubgMatchId: match.id,
+          externalMatchId: match.id,
+          sequenceNumber: match.sequenceNumber ?? undefined,
+          matchNumber: index + 1,
+          map: normalizeMapName(match.mapName ?? "Unknown"),
+          eventName: publicTournamentTitle,
+          eventSlug: PUBLIC_TOURNAMENT_ID,
+          status: "published",
+          winner,
+          points: teamResults[0]?.totalPoints ?? 0,
+          knockouts: teamResults.reduce((sum, teamResult) => sum + teamResult.kills, 0),
+          placementPoints: teamResults[0]?.placementPoints ?? 0,
+          killPoints: teamResults[0]?.killPoints ?? 0,
+          playedAt: cleanString(match.scheduledAt),
+          sourceUrl,
+          dataSource: "external_feed",
+          syncedAt: fetchedAt,
+          publishedAt: fetchedAt,
+          pointSystemName: pointSystemAvailable ? "Bravo PUBG Placement + Kills" : undefined,
+          teamResults,
+        } satisfies TournamentMatch;
+      });
 
-  const existingPlayersBySourcePlayerId = new Map<string, Player>();
-  const existingPlayersByName = new Map<string, Player>();
-  for (const player of allPlayers) {
-    if (player.sourcePlayerId) {
-      existingPlayersBySourcePlayerId.set(player.sourcePlayerId, player);
-    }
-    const normalizedExistingPlayerName = normalizeKey(player.pubgName ?? player.inGameName ?? player.name);
-    if (normalizedExistingPlayerName) {
-      existingPlayersByName.set(normalizedExistingPlayerName, player);
-    }
-  }
+    const computedStandingsByTeamId = new Map(
+      matchDocuments
+        .flatMap((match) => match.teamResults ?? [])
+        .reduce<
+          Array<{
+            teamId: string;
+            teamName: string;
+            slotNumber?: number;
+            placements: number[];
+          }>
+        >((summary, teamResult) => {
+          const current = summary.find((item) => item.teamId === (teamResult.teamId ?? slugify(teamResult.teamName)));
+          if (current) {
+            current.placements.push(teamResult.placement);
+          } else {
+            summary.push({
+              teamId: teamResult.teamId ?? slugify(teamResult.teamName),
+              teamName: teamResult.teamName,
+              slotNumber: teamResult.slotNumber,
+              placements: [teamResult.placement],
+            });
+          }
+          return summary;
+        }, [])
+        .map(
+          (item) =>
+            [
+              item.teamId,
+              {
+                averagePlacement: Number(
+                  (item.placements.reduce((sum, placement) => sum + placement, 0) / Math.max(item.placements.length, 1)).toFixed(2),
+                ),
+              },
+            ] as const,
+        ),
+    );
 
-  const playerDocuments: Player[] = payload.playerStandings.map((playerStanding) => {
-    const normalizedPlayerName = normalizeKey(playerStanding.playerName);
-    const resolvedTeam =
-      (playerStanding.teamId ? teamRecordsByNormalizedKey.get(playerStanding.teamId) : undefined) ??
-      teamRecordsByNormalizedKey.get(normalizeKey(playerStanding.teamName));
-    const existingPlayer =
-      (playerStanding.playerId ? existingPlayersBySourcePlayerId.get(playerStanding.playerId) : undefined) ??
-      existingPlayersByName.get(normalizedPlayerName) ??
-      null;
-    const playerId = existingPlayer?.id ?? cleanString(playerStanding.playerId) ?? slugify(playerStanding.playerName);
-
-    return {
-      id: playerId,
-      name: playerStanding.playerName,
-      inGameName: playerStanding.playerName,
-      teamId: resolvedTeam?.id,
-      teamName: resolvedTeam?.teamName ?? playerStanding.teamName,
-      pubgId: cleanString(playerStanding.playerId),
-      pubgName: playerStanding.playerName,
-      assists: playerStanding.totalAssists,
-      knocks: playerStanding.totalKnocks,
-      placementPoints: playerStanding.placementPoints,
-      totalPoints: playerStanding.totalPoints,
-      averageDamage: Number(playerStanding.averageDamageDealt.toFixed(2)),
-      bestPlacement: playerStanding.bestPlacement,
-      kills: playerStanding.totalKills,
-      damage: Math.round(playerStanding.totalDamageDealt),
-      mvpCount: existingPlayer?.mvpCount ?? 0,
-      chickenDinners: existingPlayer?.chickenDinners ?? 0,
-      matches: playerStanding.matchesPlayed,
-      rating: playerStanding.totalPoints,
-      scope: "tournament",
-      sourceTournamentId: PUBLIC_TOURNAMENT_ID,
-      sourceTournamentTitle: publicTournamentTitle,
-      sourcePlayerId: cleanString(playerStanding.playerId),
-      sourceRank: playerStanding.rank,
-      sourceProvider: SOURCE_PROVIDER,
-      playerStatus: "active",
-      createdAt: existingPlayer?.createdAt ?? fetchedAt,
-      updatedAt: fetchedAt,
-    };
-  });
-
-  const playerIdsByTeamId = new Map<string, string[]>();
-  for (const player of playerDocuments) {
-    if (!player.teamId) {
-      continue;
-    }
-    const currentPlayerIds = playerIdsByTeamId.get(player.teamId) ?? [];
-    currentPlayerIds.push(player.id);
-    playerIdsByTeamId.set(player.teamId, currentPlayerIds);
-  }
-
-  const standingsByTeamId = new Map(standingDocuments.map((standing) => [standing.teamId, standing] as const));
-  const teamDocuments: Array<Partial<Team> & { id: string; name: string }> = Array.from(teamRecordIndex.values())
-    .sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam))
-    .map((record) => {
-      const standing = standingsByTeamId.get(record.id);
+    const standingDocuments: TournamentStanding[] = payload.standings.map((standing) => {
+      const resolvedTeam =
+        (standing.teamId ? teamRecordsByNormalizedKey.get(standing.teamId) : undefined) ??
+        teamRecordsByNormalizedKey.get(normalizeKey(standing.teamName));
+      const teamId = resolvedTeam?.id ?? slugify(standing.teamName);
 
       return {
-        id: record.id,
-        name: record.teamName,
-        tag: inferTeamTag(record.teamName),
-        slotNumber: record.slotNumber,
-        country: cleanString(payload.tournament.region) ?? "Nepal & South Asia",
-        rank: standing?.rank,
-        totalPoints: standing?.totalPoints ?? 0,
-        kills: standing?.kills ?? 0,
-        matches: standing?.matches ?? 0,
-        killPoints: standing?.killPoints ?? standing?.kills ?? 0,
-        placementPoints: standing?.placementPoints ?? 0,
-        averagePlacement: standing?.averagePlacement ?? 0,
-        chickenDinners: standing?.wins ?? 0,
-        status: "active" as const,
-        registrationStatus: "approved" as const,
-        playerIds: playerIdsByTeamId.get(record.id) ?? [],
-        scope: "tournament" as const,
+        id: `${PUBLIC_TOURNAMENT_ID}--standing-${teamId}`,
+        tournamentId: PUBLIC_TOURNAMENT_ID,
+        teamId,
+        teamName: resolvedTeam?.teamName ?? standing.teamName,
+        slotNumber: resolvedTeam?.slotNumber,
+        matches: standing.matchesPlayed,
+        wins: standing.chickenDinners,
+        kills: standing.totalKills,
+        killPoints: standing.totalKills,
+        placementPoints: standing.placementPoints,
+        totalPoints: standing.totalPoints,
+        bestPlacement: standing.bestPlacement,
+        averagePlacement: computedStandingsByTeamId.get(teamId)?.averagePlacement ?? 0,
+        rank: standing.rank,
+        sourceRank: standing.rank,
+        scope: "tournament",
         sourceTournamentId: PUBLIC_TOURNAMENT_ID,
         sourceTournamentTitle: publicTournamentTitle,
-        sourceTeamId: record.sourceTeamId,
-        sourceTeamName: record.teamName,
-        sourceRank: standing?.rank,
         sourceProvider: SOURCE_PROVIDER,
         createdAt: fetchedAt,
         updatedAt: fetchedAt,
       };
     });
 
-  const uniqueImportedTeamNames = new Set([
-    ...payload.standings.map((standing) => normalizeKey(standing.teamName)),
-    ...matchDocuments.flatMap((match) => (match.teamResults ?? []).map((teamResult) => normalizeKey(teamResult.teamName))),
-  ]);
-  const teamCountMismatch =
-    typeof payload.tournament.teamCount === "number" && payload.tournament.teamCount !== uniqueImportedTeamNames.size;
+    const existingPlayersBySourcePlayerId = new Map<string, Player>();
+    const existingPlayersByName = new Map<string, Player>();
+    for (const player of allPlayers) {
+      if (player.sourcePlayerId) {
+        existingPlayersBySourcePlayerId.set(player.sourcePlayerId, player);
+      }
+      const normalizedExistingPlayerName = normalizeKey(player.pubgName ?? player.inGameName ?? player.name);
+      if (normalizedExistingPlayerName) {
+        existingPlayersByName.set(normalizedExistingPlayerName, player);
+      }
+    }
 
-  const reviewNotes = [
-    eventStatus === "COMPLETED" &&
-    (payload.tournament.status?.trim().toLowerCase() === "ongoing" ||
-      payload.tournament.status?.trim().toLowerCase() === "live")
-      ? `Source status is "${payload.tournament.status}" but the tournament end date ${endDate ?? "unknown"} is already in the past as of ${fetchedAt.slice(0, 10)}. Public event status was normalized to COMPLETED.`
-      : null,
-    teamCountMismatch
-      ? `Source tournament.teamCount is ${payload.tournament.teamCount}, but ${uniqueImportedTeamNames.size} unique teams were parsed from the published standings and match results.`
-      : null,
-    (payload.tournament.prizePool ?? 0) <= 0
-      ? "Prize pool is not available from the source payload. Public prize pool was stored as TBD."
-      : null,
-    "Per-match player results were not present in the source payload. Player leaderboard rows were imported from the published aggregate player standings only.",
-  ].filter((note): note is string => Boolean(note));
+    const playerDocuments: Player[] = payload.playerStandings.map((playerStanding) => {
+      const normalizedPlayerName = normalizeKey(playerStanding.playerName);
+      const resolvedTeam =
+        (playerStanding.teamId ? teamRecordsByNormalizedKey.get(playerStanding.teamId) : undefined) ??
+        teamRecordsByNormalizedKey.get(normalizeKey(playerStanding.teamName));
+      const existingPlayer =
+        (playerStanding.playerId ? existingPlayersBySourcePlayerId.get(playerStanding.playerId) : undefined) ??
+        existingPlayersByName.get(normalizedPlayerName) ??
+        null;
+      const playerId = existingPlayer?.id ?? cleanString(playerStanding.playerId) ?? slugify(playerStanding.playerName);
 
-  const fieldsUnavailableFromSource = [
-    "Per-match player results",
-    (payload.tournament.prizePool ?? 0) <= 0 ? "Prize pool" : null,
-    cleanString(payload.tournament.rules) ? null : "Rules / point system text",
-    "Verified player WWCD counts",
-    "Verified player MVP counts",
-  ].filter((field): field is string => Boolean(field));
+      return {
+        id: playerId,
+        name: playerStanding.playerName,
+        inGameName: playerStanding.playerName,
+        teamId: resolvedTeam?.id,
+        teamName: resolvedTeam?.teamName ?? playerStanding.teamName,
+        pubgId: cleanString(playerStanding.playerId),
+        pubgName: playerStanding.playerName,
+        assists: playerStanding.totalAssists,
+        knocks: playerStanding.totalKnocks,
+        placementPoints: playerStanding.placementPoints,
+        totalPoints: playerStanding.totalPoints,
+        averageDamage: Number(playerStanding.averageDamageDealt.toFixed(2)),
+        bestPlacement: playerStanding.bestPlacement,
+        kills: playerStanding.totalKills,
+        damage: Math.round(playerStanding.totalDamageDealt),
+        mvpCount: existingPlayer?.mvpCount ?? 0,
+        chickenDinners: existingPlayer?.chickenDinners ?? 0,
+        matches: playerStanding.matchesPlayed,
+        rating: playerStanding.totalPoints,
+        scope: "tournament",
+        sourceTournamentId: PUBLIC_TOURNAMENT_ID,
+        sourceTournamentTitle: publicTournamentTitle,
+        sourcePlayerId: cleanString(playerStanding.playerId),
+        sourceRank: playerStanding.rank,
+        sourceProvider: SOURCE_PROVIDER,
+        playerStatus: "active",
+        createdAt: existingPlayer?.createdAt ?? fetchedAt,
+        updatedAt: fetchedAt,
+      };
+    });
 
-  const tournamentDocument = {
-    id: PUBLIC_TOURNAMENT_ID,
-    title: publicTournamentTitle,
-    tier: cleanString(payload.tournament.tier) ?? "S",
-    status: eventStatus,
-    prizePool: summarizePrizePool(payload.tournament.prizePool),
-    teamCount: uniqueImportedTeamNames.size,
-    maxTeams: Math.max(toOptionalNumber(payload.tournament.maxSlots) ?? 0, uniqueImportedTeamNames.size || 1),
-    startDate: startDate ?? payload.tournament.createdAt.slice(0, 10),
-    endDate,
-    format: cleanString(payload.tournament.mode) ?? "Squad",
-    mode: "PUBG PC",
-    server: cleanString(payload.tournament.region) ?? "Nepal & South Asia",
-    perspective: cleanString(payload.tournament.perspective) ?? "TPP",
-    description: cleanString(payload.tournament.description),
-    rules: cleanString(payload.tournament.rules),
-    mapRotation: Array.from(new Set(matchDocuments.map((match) => match.map).filter(Boolean))),
-    bannerUrl: cleanString(payload.tournament.bannerUrl),
-    registeredTeamIds: teamDocuments.map((team) => team.id),
-    matchCount: matchDocuments.length,
-    sourceId: payload.tournament.code,
-    sourceName: payload.tournament.name.trim(),
-    sourceStatus: cleanString(payload.tournament.status),
-    sourceUrl,
-    sourceProvider: SOURCE_PROVIDER,
-    createdAt: payload.tournament.createdAt,
-    updatedAt: fetchedAt,
-  } satisfies Partial<Tournament> & { id: string; title: string };
+    const playerIdsByTeamId = new Map<string, string[]>();
+    for (const player of playerDocuments) {
+      if (!player.teamId) {
+        continue;
+      }
+      const currentPlayerIds = playerIdsByTeamId.get(player.teamId) ?? [];
+      currentPlayerIds.push(player.id);
+      playerIdsByTeamId.set(player.teamId, currentPlayerIds);
+    }
 
-  const top3Teams = standingDocuments.slice(0, 3).map((standing) => standing.teamName);
-  const topFragger = playerDocuments
-    .slice()
-    .sort((firstPlayer, secondPlayer) => (secondPlayer.kills ?? 0) - (firstPlayer.kills ?? 0) || firstPlayer.name.localeCompare(secondPlayer.name))[0];
-  const normalizedImportJson = {
-    sourceUrl,
-    sourceProvider: SOURCE_PROVIDER,
-    fetchedAt,
-    checksum,
-    checksumAlgorithm: "sha256",
-    tournament: {
-      publicId: PUBLIC_TOURNAMENT_ID,
-      publicSlug: PUBLIC_TOURNAMENT_ID,
-      publicStatus: eventStatus,
-      publicTitle: publicTournamentTitle,
-      sourceCode: payload.tournament.code,
-      sourceUuid: payload.tournament.id,
-      sourceStatus: payload.tournament.status,
-      startDate: tournamentDocument.startDate,
-      endDate: tournamentDocument.endDate ?? null,
-      teamCountDeclared: payload.tournament.teamCount ?? null,
-      teamCountImported: teamDocuments.length,
-      matchCountDeclared: payload.tournament.matchCount ?? null,
-      matchCountImported: matchDocuments.length,
-      region: tournamentDocument.server,
-      mode: tournamentDocument.format,
-      perspective: tournamentDocument.perspective ?? null,
-      tier: tournamentDocument.tier,
-      prizePool: tournamentDocument.prizePool,
-    },
-    summary: {
-      winner: standingDocuments[0]?.teamName ?? null,
-      top3Teams,
-      topFragger: topFragger ? { playerName: topFragger.pubgName, kills: topFragger.kills } : null,
-      fieldsUnavailableFromSource,
+    const standingsByTeamId = new Map(standingDocuments.map((standing) => [standing.teamId, standing] as const));
+    const teamDocuments: Array<Partial<Team> & { id: string; name: string }> = Array.from(teamRecordIndex.values())
+      .sort((firstTeam, secondTeam) => compareBravoTeamSlotOrder(firstTeam, secondTeam))
+      .map((record) => {
+        const standing = standingsByTeamId.get(record.id);
+
+        return {
+          id: record.id,
+          name: record.teamName,
+          tag: inferTeamTag(record.teamName),
+          slotNumber: record.slotNumber,
+          country: cleanString(payload.tournament.region) ?? "Nepal & South Asia",
+          rank: standing?.rank,
+          totalPoints: standing?.totalPoints ?? 0,
+          kills: standing?.kills ?? 0,
+          matches: standing?.matches ?? 0,
+          killPoints: standing?.killPoints ?? standing?.kills ?? 0,
+          placementPoints: standing?.placementPoints ?? 0,
+          averagePlacement: standing?.averagePlacement ?? 0,
+          chickenDinners: standing?.wins ?? 0,
+          status: "active" as const,
+          registrationStatus: "approved" as const,
+          playerIds: playerIdsByTeamId.get(record.id) ?? [],
+          scope: "tournament" as const,
+          sourceTournamentId: PUBLIC_TOURNAMENT_ID,
+          sourceTournamentTitle: publicTournamentTitle,
+          sourceTeamId: record.sourceTeamId,
+          sourceTeamName: record.teamName,
+          sourceRank: standing?.rank,
+          sourceProvider: SOURCE_PROVIDER,
+          createdAt: fetchedAt,
+          updatedAt: fetchedAt,
+        };
+      });
+
+    const uniqueImportedTeamNames = new Set([
+      ...payload.standings.map((standing) => normalizeKey(standing.teamName)),
+      ...matchDocuments.flatMap((match) => (match.teamResults ?? []).map((teamResult) => normalizeKey(teamResult.teamName))),
+    ]);
+    const teamCountMismatch =
+      typeof payload.tournament.teamCount === "number" && payload.tournament.teamCount !== uniqueImportedTeamNames.size;
+
+    const reviewNotes = [
+      eventStatus === "COMPLETED" &&
+      (payload.tournament.status?.trim().toLowerCase() === "ongoing" || payload.tournament.status?.trim().toLowerCase() === "live")
+        ? `Source status is "${payload.tournament.status}" but the tournament end date ${endDate ?? "unknown"} is already in the past as of ${fetchedAt.slice(0, 10)}. Public event status was normalized to COMPLETED.`
+        : null,
+      teamCountMismatch
+        ? `Source tournament.teamCount is ${payload.tournament.teamCount}, but ${uniqueImportedTeamNames.size} unique teams were parsed from the published standings and match results.`
+        : null,
+      (payload.tournament.prizePool ?? 0) <= 0
+        ? "Prize pool is not available from the source payload. Public prize pool was stored as TBD."
+        : null,
+      "Per-match player results were not present in the source payload. Player leaderboard rows were imported from the published aggregate player standings only.",
+    ].filter((note): note is string => Boolean(note));
+
+    const fieldsUnavailableFromSource = [
+      "Per-match player results",
+      (payload.tournament.prizePool ?? 0) <= 0 ? "Prize pool" : null,
+      cleanString(payload.tournament.rules) ? null : "Rules / point system text",
+      "Verified player WWCD counts",
+      "Verified player MVP counts",
+    ].filter((field): field is string => Boolean(field));
+
+    const tournamentDocument = {
+      id: PUBLIC_TOURNAMENT_ID,
+      title: publicTournamentTitle,
+      tier: cleanString(payload.tournament.tier) ?? "S",
+      status: eventStatus,
+      prizePool: summarizePrizePool(payload.tournament.prizePool),
+      teamCount: uniqueImportedTeamNames.size,
+      maxTeams: Math.max(toOptionalNumber(payload.tournament.maxSlots) ?? 0, uniqueImportedTeamNames.size || 1),
+      startDate: startDate ?? payload.tournament.createdAt.slice(0, 10),
+      endDate,
+      format: cleanString(payload.tournament.mode) ?? "Squad",
+      mode: "PUBG PC",
+      server: cleanString(payload.tournament.region) ?? "Nepal & South Asia",
+      perspective: cleanString(payload.tournament.perspective) ?? "TPP",
+      description: cleanString(payload.tournament.description),
+      rules: cleanString(payload.tournament.rules),
+      mapRotation: Array.from(new Set(matchDocuments.map((match) => match.map).filter(Boolean))),
+      bannerUrl: cleanString(payload.tournament.bannerUrl),
+      registeredTeamIds: teamDocuments.map((team) => team.id),
+      matchCount: matchDocuments.length,
+      sourceId: payload.tournament.code,
+      sourceName: payload.tournament.name.trim(),
+      sourceStatus: cleanString(payload.tournament.status),
+      sourceUrl,
+      sourceProvider: SOURCE_PROVIDER,
+      createdAt: payload.tournament.createdAt,
+      updatedAt: fetchedAt,
+    } satisfies Partial<Tournament> & { id: string; title: string };
+
+    const top3Teams = standingDocuments.slice(0, 3).map((standing) => standing.teamName);
+    const topFragger = playerDocuments
+      .slice()
+      .sort(
+        (firstPlayer, secondPlayer) =>
+          (secondPlayer.kills ?? 0) - (firstPlayer.kills ?? 0) || firstPlayer.name.localeCompare(secondPlayer.name),
+      )[0];
+    const normalizedImportJson = {
+      sourceUrl,
+      sourceProvider: SOURCE_PROVIDER,
+      fetchedAt,
+      checksum,
+      checksumAlgorithm: "sha256",
+      tournament: {
+        publicId: PUBLIC_TOURNAMENT_ID,
+        publicSlug: PUBLIC_TOURNAMENT_ID,
+        publicStatus: eventStatus,
+        publicTitle: publicTournamentTitle,
+        sourceCode: payload.tournament.code,
+        sourceUuid: payload.tournament.id,
+        sourceStatus: payload.tournament.status,
+        startDate: tournamentDocument.startDate,
+        endDate: tournamentDocument.endDate ?? null,
+        teamCountDeclared: payload.tournament.teamCount ?? null,
+        teamCountImported: teamDocuments.length,
+        matchCountDeclared: payload.tournament.matchCount ?? null,
+        matchCountImported: matchDocuments.length,
+        region: tournamentDocument.server,
+        mode: tournamentDocument.format,
+        perspective: tournamentDocument.perspective ?? null,
+        tier: tournamentDocument.tier,
+        prizePool: tournamentDocument.prizePool,
+      },
+      summary: {
+        winner: standingDocuments[0]?.teamName ?? null,
+        top3Teams,
+        topFragger: topFragger ? { playerName: topFragger.pubgName, kills: topFragger.kills } : null,
+        fieldsUnavailableFromSource,
+        reviewNotes,
+      },
+      counts: {
+        teams: teamDocuments.length,
+        players: playerDocuments.length,
+        matches: matchDocuments.length,
+        standings: standingDocuments.length,
+      },
+      sourceFlags: {
+        playersTabEnabled: payload.playersTabEnabled ?? false,
+        rulesTabEnabled: payload.rulesTabEnabled ?? false,
+        showCompetitionSections: payload.showCompetitionSections ?? false,
+        initialTab: payload.initialTab ?? null,
+        tournamentState: payload.tournamentState ?? null,
+      },
+      docs: {
+        tournament: tournamentDocument,
+        standings: standingDocuments,
+        teams: teamDocuments,
+        players: playerDocuments,
+        matches: matchDocuments,
+      },
+    } satisfies Record<string, unknown>;
+
+    await writeArtifacts(artifactPaths, rawHtml, payload, normalizedImportJson);
+
+    const existingTeamsById = new Map(allTeams.map((team) => [team.id, team] as const));
+    const existingPlayersById = new Map(allPlayers.map((player) => [player.id, player] as const));
+    const previousState = {
+      tournament: existingTournament,
+      matches: scopedExistingMatches,
+      tournamentMatches: scopedExistingTournamentMatches,
+      standings: scopedExistingStandings,
+      teams: teamDocuments.map((team) => existingTeamsById.get(team.id) ?? null).filter((team): team is Team => Boolean(team)),
+      players: playerDocuments
+        .map((player) => existingPlayersById.get(player.id) ?? null)
+        .filter((player): player is Player => Boolean(player)),
+    };
+
+    const auditRecord = {
+      id: auditId,
+      sourceUrl,
+      sourceTournamentId: payload.tournament.code,
+      sourceProvider: SOURCE_PROVIDER,
+      fetchedAt,
+      importerVersion: IMPORTER_VERSION,
+      checksum,
+      checksumAlgorithm: "sha256",
+      importStatus: "needs_review",
+      importedBy,
+      rawHtml,
+      rawJson: payload,
+      normalizedImportJson,
+      previousState,
       reviewNotes,
-    },
-    counts: {
-      teams: teamDocuments.length,
-      players: playerDocuments.length,
-      matches: matchDocuments.length,
-      standings: standingDocuments.length,
-    },
-    sourceFlags: {
-      playersTabEnabled: payload.playersTabEnabled ?? false,
-      rulesTabEnabled: payload.rulesTabEnabled ?? false,
-      showCompetitionSections: payload.showCompetitionSections ?? false,
-      initialTab: payload.initialTab ?? null,
-      tournamentState: payload.tournamentState ?? null,
-    },
-    docs: {
-      tournament: tournamentDocument,
-      standings: standingDocuments,
-      teams: teamDocuments,
-      players: playerDocuments,
-      matches: matchDocuments,
-    },
-  } satisfies Record<string, unknown>;
+      localArtifactPaths: [artifactPaths.rawHtmlPath, artifactPaths.rawJsonPath, artifactPaths.normalizedJsonPath],
+      createdAt: fetchedAt,
+      updatedAt: fetchedAt,
+    } satisfies SourceImportAuditRecord;
 
-  await writeArtifacts(artifactPaths, rawHtml, payload, normalizedImportJson);
+    const createdCounts = buildEmptyCounts();
+    const updatedCounts = buildEmptyCounts();
+    const existingAuditRecord = await getDocumentDirect<SourceImportAuditRecord>(client, COLLECTIONS.importAudits, auditId);
 
-  const existingTeamsById = new Map(allTeams.map((team) => [team.id, team] as const));
-  const existingPlayersById = new Map(allPlayers.map((player) => [player.id, player] as const));
-  const previousState = {
-    tournament: existingTournament,
-    matches: scopedExistingMatches,
-    tournamentMatches: scopedExistingTournamentMatches,
-    standings: scopedExistingStandings,
-    teams: teamDocuments.map((team) => existingTeamsById.get(team.id) ?? null).filter((team): team is Team => Boolean(team)),
-    players: playerDocuments.map((player) => existingPlayersById.get(player.id) ?? null).filter((player): player is Player => Boolean(player)),
-  };
+    incrementCounts(existingTournament ? updatedCounts : createdCounts, existingTournament ? "tournamentsUpdated" : "tournamentsCreated");
+    incrementCounts(existingAuditRecord ? updatedCounts : createdCounts, existingAuditRecord ? "auditsUpdated" : "auditsCreated");
 
-  const auditRecord = {
-    id: auditId,
-    sourceUrl,
-    sourceTournamentId: payload.tournament.code,
-    sourceProvider: SOURCE_PROVIDER,
-    fetchedAt,
-    importerVersion: IMPORTER_VERSION,
-    checksum,
-    checksumAlgorithm: "sha256",
-    importStatus: "needs_review",
-    importedBy,
-    rawHtml,
-    rawJson: payload,
-    normalizedImportJson,
-    previousState,
-    reviewNotes,
-    localArtifactPaths: [artifactPaths.rawHtmlPath, artifactPaths.rawJsonPath, artifactPaths.normalizedJsonPath],
-    createdAt: fetchedAt,
-    updatedAt: fetchedAt,
-  } satisfies SourceImportAuditRecord;
+    for (const matchDocument of matchDocuments) {
+      const existingMatch =
+        scopedExistingMatches.find((match) => match.id === matchDocument.id) ??
+        scopedExistingTournamentMatches.find((match) => match.id === matchDocument.id) ??
+        null;
+      incrementCounts(existingMatch ? updatedCounts : createdCounts, existingMatch ? "matchesUpdated" : "matchesCreated");
+    }
 
-  const createdCounts = buildEmptyCounts();
-  const updatedCounts = buildEmptyCounts();
-  const existingAuditRecord = await getDocumentDirect<SourceImportAuditRecord>(client, COLLECTIONS.importAudits, auditId);
+    for (const standingDocument of standingDocuments) {
+      const existingStanding = scopedExistingStandings.find((standing) => standing.id === standingDocument.id) ?? null;
+      incrementCounts(existingStanding ? updatedCounts : createdCounts, existingStanding ? "standingsUpdated" : "standingsCreated");
+    }
 
-  incrementCounts(
-    existingTournament ? updatedCounts : createdCounts,
-    existingTournament ? "tournamentsUpdated" : "tournamentsCreated"
-  );
-  incrementCounts(
-    existingAuditRecord ? updatedCounts : createdCounts,
-    existingAuditRecord ? "auditsUpdated" : "auditsCreated"
-  );
+    for (const teamDocument of teamDocuments) {
+      const existingTeam = existingTeamsById.get(teamDocument.id) ?? null;
+      incrementCounts(existingTeam ? updatedCounts : createdCounts, existingTeam ? "teamsUpdated" : "teamsCreated");
+    }
 
-  for (const matchDocument of matchDocuments) {
-    const existingMatch =
-      scopedExistingMatches.find((match) => match.id === matchDocument.id) ??
-      scopedExistingTournamentMatches.find((match) => match.id === matchDocument.id) ??
-      null;
-    incrementCounts(
-      existingMatch ? updatedCounts : createdCounts,
-      existingMatch ? "matchesUpdated" : "matchesCreated"
-    );
-  }
+    for (const playerDocument of playerDocuments) {
+      const existingPlayer = existingPlayersById.get(playerDocument.id) ?? null;
+      incrementCounts(existingPlayer ? updatedCounts : createdCounts, existingPlayer ? "playersUpdated" : "playersCreated");
+    }
 
-  for (const standingDocument of standingDocuments) {
-    const existingStanding = scopedExistingStandings.find((standing) => standing.id === standingDocument.id) ?? null;
-    incrementCounts(
-      existingStanding ? updatedCounts : createdCounts,
-      existingStanding ? "standingsUpdated" : "standingsCreated"
-    );
-  }
-
-  for (const teamDocument of teamDocuments) {
-    const existingTeam = existingTeamsById.get(teamDocument.id) ?? null;
-    incrementCounts(existingTeam ? updatedCounts : createdCounts, existingTeam ? "teamsUpdated" : "teamsCreated");
-  }
-
-  for (const playerDocument of playerDocuments) {
-    const existingPlayer = existingPlayersById.get(playerDocument.id) ?? null;
-    incrementCounts(
-      existingPlayer ? updatedCounts : createdCounts,
-      existingPlayer ? "playersUpdated" : "playersCreated"
-    );
-  }
-
-  await saveDocumentDirect(client, COLLECTIONS.importAudits, auditId, auditRecord as unknown as Record<string, unknown>);
-  await saveDocumentDirect(client, COLLECTIONS.tournaments, PUBLIC_TOURNAMENT_ID, tournamentDocument as unknown as Record<string, unknown>);
-
-  for (const team of teamDocuments) {
-    await saveDocumentDirect(client, COLLECTIONS.teams, team.id, team as Record<string, unknown>);
-  }
-
-  for (const player of playerDocuments) {
-    await saveDocumentDirect(client, COLLECTIONS.players, player.id, player as unknown as Record<string, unknown>);
-  }
-
-  for (const match of matchDocuments) {
-    await saveDocumentDirect(client, COLLECTIONS.matches, match.id, match as unknown as Record<string, unknown>);
+    await saveDocumentDirect(client, COLLECTIONS.importAudits, auditId, auditRecord as unknown as Record<string, unknown>);
     await saveDocumentDirect(
       client,
-      COLLECTIONS.tournamentMatches,
-      match.id,
-      match as unknown as Record<string, unknown>
+      COLLECTIONS.tournaments,
+      PUBLIC_TOURNAMENT_ID,
+      tournamentDocument as unknown as Record<string, unknown>,
     );
-  }
 
-  for (const standing of standingDocuments) {
-    await saveDocumentDirect(client, COLLECTIONS.standings, standing.id, standing as unknown as Record<string, unknown>);
-  }
+    for (const team of teamDocuments) {
+      await saveDocumentDirect(client, COLLECTIONS.teams, team.id, team as Record<string, unknown>);
+    }
 
-  await deleteMissingDocuments(client, scopedExistingMatches, new Set(matchDocuments.map((match) => match.id)), COLLECTIONS.matches);
-  await deleteMissingDocuments(
-    client,
-    scopedExistingTournamentMatches,
-    new Set(matchDocuments.map((match) => match.id)),
-    COLLECTIONS.tournamentMatches
-  );
-  await deleteMissingDocuments(
-    client,
-    scopedExistingStandings,
-    new Set(standingDocuments.map((standing) => standing.id)),
-    COLLECTIONS.standings
-  );
-  await deleteMissingDocuments(
-    client,
-    scopedExistingTournamentTeams,
-    new Set(teamDocuments.map((team) => team.id)),
-    COLLECTIONS.teams
-  );
-  await deleteMissingDocuments(
-    client,
-    scopedExistingTournamentPlayers,
-    new Set(playerDocuments.map((player) => player.id)),
-    COLLECTIONS.players
-  );
+    for (const player of playerDocuments) {
+      await saveDocumentDirect(client, COLLECTIONS.players, player.id, player as unknown as Record<string, unknown>);
+    }
 
-  return {
-    sourceUrl,
-    fetchedAt,
-    sourceDataType: "HTML / JSON / API",
-    rawSourceSaved: true,
-    normalizedSourceSaved: true,
-    tournamentName: publicTournamentTitle,
-    sourceTournamentCode: payload.tournament.code,
-    sourceTournamentUuid: payload.tournament.id,
-    tournamentSlug: PUBLIC_TOURNAMENT_ID,
-    eventStatus,
-    game: "PUBG PC",
-    mode: tournamentDocument.format,
-    perspective: tournamentDocument.perspective ?? "TPP",
-    startDate: tournamentDocument.startDate,
-    endDate: tournamentDocument.endDate ?? null,
-    teamsImported: teamDocuments.length,
-    playersImported: playerDocuments.length,
-    matchesImported: matchDocuments.length,
-    leaderboardRowsImported: standingDocuments.length,
-    winner: standingDocuments[0]?.teamName ?? null,
-    top3Teams,
-    topFragger: topFragger?.pubgName ?? null,
-    prizePoolAvailable: (payload.tournament.prizePool ?? 0) > 0 ? tournamentDocument.prizePool : null,
-    pointSystemAvailable,
-    sourceRankPreserved: true,
-    importAuditId: auditId,
-    importStatus: "needs_review",
-    duplicateSummary:
-      createdCounts.teamsCreated === teamDocuments.length && createdCounts.playersCreated === playerDocuments.length
-        ? "No existing tournament-scoped team or player records matched this source import."
-        : "Existing team and/or player records were reused when source IDs or normalized names matched.",
-    reviewNotes,
-    fieldsUnavailableFromSource,
-    created: createdCounts,
-    updated: updatedCounts,
-    artifactPaths: {
-      rawHtmlPath: artifactPaths.rawHtmlPath,
-      rawJsonPath: artifactPaths.rawJsonPath,
-      normalizedJsonPath: artifactPaths.normalizedJsonPath,
-    },
-  } satisfies FirstOfficialTournamentImportResult;
+    for (const match of matchDocuments) {
+      await saveDocumentDirect(client, COLLECTIONS.matches, match.id, match as unknown as Record<string, unknown>);
+      await saveDocumentDirect(client, COLLECTIONS.tournamentMatches, match.id, match as unknown as Record<string, unknown>);
+    }
+
+    for (const standing of standingDocuments) {
+      await saveDocumentDirect(client, COLLECTIONS.standings, standing.id, standing as unknown as Record<string, unknown>);
+    }
+
+    await deleteMissingDocuments(client, scopedExistingMatches, new Set(matchDocuments.map((match) => match.id)), COLLECTIONS.matches);
+    await deleteMissingDocuments(
+      client,
+      scopedExistingTournamentMatches,
+      new Set(matchDocuments.map((match) => match.id)),
+      COLLECTIONS.tournamentMatches,
+    );
+    await deleteMissingDocuments(
+      client,
+      scopedExistingStandings,
+      new Set(standingDocuments.map((standing) => standing.id)),
+      COLLECTIONS.standings,
+    );
+    await deleteMissingDocuments(client, scopedExistingTournamentTeams, new Set(teamDocuments.map((team) => team.id)), COLLECTIONS.teams);
+    await deleteMissingDocuments(
+      client,
+      scopedExistingTournamentPlayers,
+      new Set(playerDocuments.map((player) => player.id)),
+      COLLECTIONS.players,
+    );
+
+    return {
+      sourceUrl,
+      fetchedAt,
+      sourceDataType: "HTML / JSON / API",
+      rawSourceSaved: true,
+      normalizedSourceSaved: true,
+      tournamentName: publicTournamentTitle,
+      sourceTournamentCode: payload.tournament.code,
+      sourceTournamentUuid: payload.tournament.id,
+      tournamentSlug: PUBLIC_TOURNAMENT_ID,
+      eventStatus,
+      game: "PUBG PC",
+      mode: tournamentDocument.format,
+      perspective: tournamentDocument.perspective ?? "TPP",
+      startDate: tournamentDocument.startDate,
+      endDate: tournamentDocument.endDate ?? null,
+      teamsImported: teamDocuments.length,
+      playersImported: playerDocuments.length,
+      matchesImported: matchDocuments.length,
+      leaderboardRowsImported: standingDocuments.length,
+      winner: standingDocuments[0]?.teamName ?? null,
+      top3Teams,
+      topFragger: topFragger?.pubgName ?? null,
+      prizePoolAvailable: (payload.tournament.prizePool ?? 0) > 0 ? tournamentDocument.prizePool : null,
+      pointSystemAvailable,
+      sourceRankPreserved: true,
+      importAuditId: auditId,
+      importStatus: "needs_review",
+      duplicateSummary:
+        createdCounts.teamsCreated === teamDocuments.length && createdCounts.playersCreated === playerDocuments.length
+          ? "No existing tournament-scoped team or player records matched this source import."
+          : "Existing team and/or player records were reused when source IDs or normalized names matched.",
+      reviewNotes,
+      fieldsUnavailableFromSource,
+      created: createdCounts,
+      updated: updatedCounts,
+      artifactPaths: {
+        rawHtmlPath: artifactPaths.rawHtmlPath,
+        rawJsonPath: artifactPaths.rawJsonPath,
+        normalizedJsonPath: artifactPaths.normalizedJsonPath,
+      },
+    } satisfies FirstOfficialTournamentImportResult;
   } finally {
     await client.end().catch(() => undefined);
   }
 }
-
-export { FIRST_OFFICIAL_TOURNAMENT_SOURCE_URL, PUBLIC_TOURNAMENT_ID, SOURCE_PROVIDER };

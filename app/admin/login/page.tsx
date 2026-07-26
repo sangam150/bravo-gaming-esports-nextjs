@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import AdminLogin from "@/components/admin/AdminLogin";
 import { getServerAdminSession } from "@/lib/admin-auth";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Admin Login",

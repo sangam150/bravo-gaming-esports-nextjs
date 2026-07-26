@@ -35,9 +35,7 @@ try {
       from public.discord_role_mappings
       order by role_position desc
     `);
-  const linksResult = await client.query(
-    "select * from public.team_source_links order by source_type, source_identifier"
-  );
+  const linksResult = await client.query("select * from public.team_source_links order by source_type, source_identifier");
   const teamsResult = await client.query("select * from public.teams order by name");
 
   const documents = documentsResult.rows;
@@ -57,9 +55,8 @@ try {
     const team = row.data || {};
     const teamStandings = standings.filter((entry) => entry.data?.teamId === row.id);
     const teamPlayers = players.filter((entry) => entry.data?.teamId === row.id);
-    const matchCount = matches.filter((entry) =>
-      Array.isArray(entry.data?.teamResults) &&
-      entry.data.teamResults.some((result) => result?.teamId === row.id)
+    const matchCount = matches.filter(
+      (entry) => Array.isArray(entry.data?.teamResults) && entry.data.teamResults.some((result) => result?.teamId === row.id),
     ).length;
     const exactRoleMatches = teamRoles.filter((role) => {
       const roleName = normalize(role.discord_role_name);
@@ -85,26 +82,23 @@ try {
         roleName: role.discord_role_name,
       })),
       possibleRelationalMatches: teamsResult.rows
-        .filter((official) =>
-          normalize(official.name) === normalize(team.name) ||
-          (official.tag && normalize(official.tag) === normalize(team.tag))
+        .filter(
+          (official) =>
+            normalize(official.name) === normalize(team.name) || (official.tag && normalize(official.tag) === normalize(team.tag)),
         )
         .map((official) => official.id),
       confidence: exactRoleMatches.length === 1 && conflictWarnings.length === 0 ? 0.95 : 0.5,
       conflictWarnings,
       proposedAction: "unresolved",
       linkedTeamId:
-        linksResult.rows.find(
-          (link) => link.source_type === "compatibility_team" && link.source_identifier === row.id
-        )?.team_id || null,
+        linksResult.rows.find((link) => link.source_type === "compatibility_team" && link.source_identifier === row.id)?.team_id || null,
     };
   });
 
   const unmatchedDiscordRoles = teamRoles
-    .filter((role) =>
-      !candidates.some((candidate) =>
-        candidate.discordRoles.some((candidateRole) => candidateRole.roleId === role.discord_role_id)
-      )
+    .filter(
+      (role) =>
+        !candidates.some((candidate) => candidate.discordRoles.some((candidateRole) => candidateRole.roleId === role.discord_role_id)),
     )
     .map((role) => ({
       sourceType: "discord_role",
@@ -160,7 +154,7 @@ try {
         candidate.confidence,
         JSON.stringify(candidate.conflictWarnings),
         candidate.proposedAction,
-      ]
+      ],
     );
   }
   await client.query("commit");
@@ -181,18 +175,21 @@ try {
   };
 
   await mkdir("qa-artifacts/team-reconciliation", { recursive: true });
-  await writeFile(
-    "qa-artifacts/team-reconciliation/inventory.json",
-    `${JSON.stringify(inventory, null, 2)}\n`
+  await writeFile("qa-artifacts/team-reconciliation/inventory.json", `${JSON.stringify(inventory, null, 2)}\n`);
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        compatibilityTeams: inventory.compatibilityTeams,
+        eventTeamIdentities: inventory.eventTeamIdentities,
+        playerTeamIdentities: inventory.playerTeamIdentities,
+        discordTeamRoleCandidates: inventory.discordTeamRoleCandidates,
+        unmatchedDiscordRoles: unmatchedDiscordRoles.length,
+        unresolved: inventory.unresolved,
+      },
+      null,
+      2,
+    )}\n`,
   );
-  process.stdout.write(`${JSON.stringify({
-    compatibilityTeams: inventory.compatibilityTeams,
-    eventTeamIdentities: inventory.eventTeamIdentities,
-    playerTeamIdentities: inventory.playerTeamIdentities,
-    discordTeamRoleCandidates: inventory.discordTeamRoleCandidates,
-    unmatchedDiscordRoles: unmatchedDiscordRoles.length,
-    unresolved: inventory.unresolved,
-  }, null, 2)}\n`);
 } catch (error) {
   await client.query("rollback").catch(() => {});
   throw error;

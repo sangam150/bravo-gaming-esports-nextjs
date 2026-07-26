@@ -1,15 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
-import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
 import {
   DualTrendChart,
   EmptyState,
-  FormPill,
   formatDateTime,
   formatDecimal,
   formatNumber,
+  FormPill,
   PageHero,
   PlayerIdentity,
   RadarComparison,
@@ -17,6 +14,9 @@ import {
   TeamIdentity,
   TrendBars,
 } from "@/components/pubg/PubgHubUI";
+import type { PubgHubDataset, PubgHubMatch, PubgHubPlayer, PubgHubTeam } from "@/lib/pubg-hub";
+import Link from "next/link";
+import { useState } from "react";
 
 type CompareMode = "teams" | "players";
 type WindowMode = "7" | "30" | "all";
@@ -33,7 +33,13 @@ type TeamSummary = {
   recentPoints: number[];
   recentKills: number[];
   recentMatches: PubgHubMatch[];
-  mapRows: Array<{ map: string; matches: number; avgPoints: number; avgKills: number; damage: number }>;
+  mapRows: Array<{
+    map: string;
+    matches: number;
+    avgPoints: number;
+    avgKills: number;
+    damage: number;
+  }>;
 };
 
 type PlayerSummary = {
@@ -50,7 +56,13 @@ type PlayerSummary = {
   recentKills: number[];
   recentDamage: number[];
   recentMatches: PubgHubMatch[];
-  mapRows: Array<{ map: string; matches: number; avgKills: number; avgDamage: number; wins: number }>;
+  mapRows: Array<{
+    map: string;
+    matches: number;
+    avgKills: number;
+    avgDamage: number;
+    wins: number;
+  }>;
 };
 
 type ComparePageClientProps = {
@@ -119,27 +131,34 @@ function buildTeamSummary(matches: PubgHubMatch[], team: PubgHubTeam): TeamSumma
       totalPlacement: 0,
       recentPoints: [] as number[],
       recentKills: [] as number[],
-    }
+    },
   );
 
   const mapRows = Array.from(
-    relevantMatches.reduce((result, match) => {
-      const teamResult = match.teamResults.find((item) => item.teamId === team.id);
-      if (!teamResult) {
-        return result;
-      }
+    relevantMatches
+      .reduce((result, match) => {
+        const teamResult = match.teamResults.find((item) => item.teamId === team.id);
+        if (!teamResult) {
+          return result;
+        }
 
-      const existing = result.get(match.mapName) ?? { map: match.mapName, matches: 0, points: 0, kills: 0, damage: 0 };
-      existing.matches += 1;
-      existing.points += teamResult.totalPoints;
-      existing.kills += teamResult.kills;
-      existing.damage += match.playerResults
-        .filter((playerResult) => playerResult.teamId === team.id)
-        .reduce((sum, playerResult) => sum + playerResult.damage, 0);
-      result.set(match.mapName, existing);
-      return result;
-    }, new Map<string, { map: string; matches: number; points: number; kills: number; damage: number }>())
-      .values()
+        const existing = result.get(match.mapName) ?? {
+          map: match.mapName,
+          matches: 0,
+          points: 0,
+          kills: 0,
+          damage: 0,
+        };
+        existing.matches += 1;
+        existing.points += teamResult.totalPoints;
+        existing.kills += teamResult.kills;
+        existing.damage += match.playerResults
+          .filter((playerResult) => playerResult.teamId === team.id)
+          .reduce((sum, playerResult) => sum + playerResult.damage, 0);
+        result.set(match.mapName, existing);
+        return result;
+      }, new Map<string, { map: string; matches: number; points: number; kills: number; damage: number }>())
+      .values(),
   )
     .map((row) => ({
       map: row.map,
@@ -197,25 +216,32 @@ function buildPlayerSummary(matches: PubgHubMatch[], player: PubgHubPlayer): Pla
       damage: 0,
       recentKills: [] as number[],
       recentDamage: [] as number[],
-    }
+    },
   );
 
   const mapRows = Array.from(
-    relevantMatches.reduce((result, match) => {
-      const playerResult = match.playerResults.find((item) => item.playerId === player.id);
-      if (!playerResult) {
-        return result;
-      }
+    relevantMatches
+      .reduce((result, match) => {
+        const playerResult = match.playerResults.find((item) => item.playerId === player.id);
+        if (!playerResult) {
+          return result;
+        }
 
-      const existing = result.get(match.mapName) ?? { map: match.mapName, matches: 0, kills: 0, damage: 0, wins: 0 };
-      existing.matches += 1;
-      existing.kills += playerResult.kills;
-      existing.damage += playerResult.damage;
-      existing.wins += match.winnerTeamId === playerResult.teamId ? 1 : 0;
-      result.set(match.mapName, existing);
-      return result;
-    }, new Map<string, { map: string; matches: number; kills: number; damage: number; wins: number }>())
-      .values()
+        const existing = result.get(match.mapName) ?? {
+          map: match.mapName,
+          matches: 0,
+          kills: 0,
+          damage: 0,
+          wins: 0,
+        };
+        existing.matches += 1;
+        existing.kills += playerResult.kills;
+        existing.damage += playerResult.damage;
+        existing.wins += match.winnerTeamId === playerResult.teamId ? 1 : 0;
+        result.set(match.mapName, existing);
+        return result;
+      }, new Map<string, { map: string; matches: number; kills: number; damage: number; wins: number }>())
+      .values(),
   )
     .map((row) => ({
       map: row.map,
@@ -276,7 +302,7 @@ function buildTeamHeadToHead(matches: PubgHubMatch[], firstTeamId: string, secon
       secondWins: 0,
       firstPoints: 0,
       secondPoints: 0,
-    }
+    },
   );
 }
 
@@ -303,19 +329,11 @@ function buildPlayerHeadToHead(matches: PubgHubMatch[], firstPlayerId: string, s
       secondKills: 0,
       firstDamage: 0,
       secondDamage: 0,
-    }
+    },
   );
 }
 
-function CompareMetric({
-  label,
-  leftValue,
-  rightValue,
-}: {
-  label: string;
-  leftValue: string | number;
-  rightValue: string | number;
-}) {
+function CompareMetric({ label, leftValue, rightValue }: { label: string; leftValue: string | number; rightValue: string | number }) {
   return (
     <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3 border-b border-white/[0.06] py-3 last:border-b-0">
       <p className="text-right font-mono-stat text-white">{leftValue}</p>
@@ -439,7 +457,10 @@ function MapEdgeTable({
           </div>
         ))}
         {rows.length === 0 ? (
-          <EmptyState title="No map edge yet" description="Widen the time window or change the event filter to surface more shared map context." />
+          <EmptyState
+            title="No map edge yet"
+            description="Widen the time window or change the event filter to surface more shared map context."
+          />
         ) : null}
       </div>
     </div>
@@ -474,12 +495,14 @@ export default function ComparePageClient({
     if (selectedMap !== "all" && match.mapName !== selectedMap) return false;
     return true;
   });
-  const mapOptions = Array.from(new Set(dataset.matches.map((match) => match.mapName))).sort((firstValue, secondValue) => firstValue.localeCompare(secondValue));
+  const mapOptions = Array.from(new Set(dataset.matches.map((match) => match.mapName))).sort((firstValue, secondValue) =>
+    firstValue.localeCompare(secondValue),
+  );
 
-  const firstTeam = mode === "teams" ? dataset.teams.find((team) => team.id === teamSideA) ?? null : null;
-  const secondTeam = mode === "teams" ? dataset.teams.find((team) => team.id === teamSideB) ?? null : null;
-  const firstPlayer = mode === "players" ? dataset.players.find((player) => player.id === playerSideA) ?? null : null;
-  const secondPlayer = mode === "players" ? dataset.players.find((player) => player.id === playerSideB) ?? null : null;
+  const firstTeam = mode === "teams" ? (dataset.teams.find((team) => team.id === teamSideA) ?? null) : null;
+  const secondTeam = mode === "teams" ? (dataset.teams.find((team) => team.id === teamSideB) ?? null) : null;
+  const firstPlayer = mode === "players" ? (dataset.players.find((player) => player.id === playerSideA) ?? null) : null;
+  const secondPlayer = mode === "players" ? (dataset.players.find((player) => player.id === playerSideB) ?? null) : null;
 
   const firstTeamSummary = firstTeam ? buildTeamSummary(filteredMatches, firstTeam) : null;
   const secondTeamSummary = secondTeam ? buildTeamSummary(filteredMatches, secondTeam) : null;
@@ -492,10 +515,26 @@ export default function ComparePageClient({
   const teamRadarPoints =
     firstTeamSummary && secondTeamSummary
       ? [
-          { label: "Points", firstValue: firstTeamSummary.totalPoints, secondValue: secondTeamSummary.totalPoints },
-          { label: "Kills", firstValue: firstTeamSummary.kills, secondValue: secondTeamSummary.kills },
-          { label: "Wins", firstValue: firstTeamSummary.wins, secondValue: secondTeamSummary.wins },
-          { label: "Damage", firstValue: firstTeamSummary.damage, secondValue: secondTeamSummary.damage },
+          {
+            label: "Points",
+            firstValue: firstTeamSummary.totalPoints,
+            secondValue: secondTeamSummary.totalPoints,
+          },
+          {
+            label: "Kills",
+            firstValue: firstTeamSummary.kills,
+            secondValue: secondTeamSummary.kills,
+          },
+          {
+            label: "Wins",
+            firstValue: firstTeamSummary.wins,
+            secondValue: secondTeamSummary.wins,
+          },
+          {
+            label: "Damage",
+            firstValue: firstTeamSummary.damage,
+            secondValue: secondTeamSummary.damage,
+          },
           {
             label: "Control",
             firstValue: Math.max(0, 20 - firstTeamSummary.avgPlacement),
@@ -507,11 +546,31 @@ export default function ComparePageClient({
   const playerRadarPoints =
     firstPlayerSummary && secondPlayerSummary
       ? [
-          { label: "Kills", firstValue: firstPlayerSummary.kills, secondValue: secondPlayerSummary.kills },
-          { label: "Assists", firstValue: firstPlayerSummary.assists, secondValue: secondPlayerSummary.assists },
-          { label: "Knocks", firstValue: firstPlayerSummary.knocks, secondValue: secondPlayerSummary.knocks },
-          { label: "Damage", firstValue: firstPlayerSummary.damage, secondValue: secondPlayerSummary.damage },
-          { label: "Wins", firstValue: firstPlayerSummary.wins, secondValue: secondPlayerSummary.wins },
+          {
+            label: "Kills",
+            firstValue: firstPlayerSummary.kills,
+            secondValue: secondPlayerSummary.kills,
+          },
+          {
+            label: "Assists",
+            firstValue: firstPlayerSummary.assists,
+            secondValue: secondPlayerSummary.assists,
+          },
+          {
+            label: "Knocks",
+            firstValue: firstPlayerSummary.knocks,
+            secondValue: secondPlayerSummary.knocks,
+          },
+          {
+            label: "Damage",
+            firstValue: firstPlayerSummary.damage,
+            secondValue: secondPlayerSummary.damage,
+          },
+          {
+            label: "Wins",
+            firstValue: firstPlayerSummary.wins,
+            secondValue: secondPlayerSummary.wins,
+          },
         ]
       : [];
 
@@ -529,7 +588,10 @@ export default function ComparePageClient({
               rightSecondary: right?.avgKills ?? 0,
             };
           })
-          .sort((firstValue, secondValue) => Math.max(secondValue.leftPrimary, secondValue.rightPrimary) - Math.max(firstValue.leftPrimary, firstValue.rightPrimary))
+          .sort(
+            (firstValue, secondValue) =>
+              Math.max(secondValue.leftPrimary, secondValue.rightPrimary) - Math.max(firstValue.leftPrimary, firstValue.rightPrimary),
+          )
       : [];
 
   const playerMapRows =
@@ -546,7 +608,10 @@ export default function ComparePageClient({
               rightSecondary: right?.avgDamage ?? 0,
             };
           })
-          .sort((firstValue, secondValue) => Math.max(secondValue.leftPrimary, secondValue.rightPrimary) - Math.max(firstValue.leftPrimary, firstValue.rightPrimary))
+          .sort(
+            (firstValue, secondValue) =>
+              Math.max(secondValue.leftPrimary, secondValue.rightPrimary) - Math.max(firstValue.leftPrimary, firstValue.rightPrimary),
+          )
       : [];
 
   function switchMode(nextMode: CompareMode) {
@@ -585,10 +650,22 @@ export default function ComparePageClient({
             </>
           }
           stats={[
-            { label: "Matches In View", value: filteredMatches.length, tone: "blue" },
+            {
+              label: "Matches In View",
+              value: filteredMatches.length,
+              tone: "blue",
+            },
             { label: "Compare Modes", value: "Teams + Players", tone: "green" },
-            { label: "Signal Layers", value: "Radar + Trends + Map Edge", tone: "yellow" },
-            { label: "Window", value: windowMode === "all" ? "All Time" : `Last ${windowMode} Days`, tone: "red" },
+            {
+              label: "Signal Layers",
+              value: "Radar + Trends + Map Edge",
+              tone: "yellow",
+            },
+            {
+              label: "Window",
+              value: windowMode === "all" ? "All Time" : `Last ${windowMode} Days`,
+              tone: "red",
+            },
           ]}
           aside={
             <div className="space-y-4">
@@ -667,7 +744,11 @@ export default function ComparePageClient({
             )}
 
             <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-3">
-              <select value={windowMode} onChange={(event) => setWindowMode(event.target.value as WindowMode)} className="input-esports h-11">
+              <select
+                value={windowMode}
+                onChange={(event) => setWindowMode(event.target.value as WindowMode)}
+                className="input-esports h-11"
+              >
                 <option value="7">Last 7 Days</option>
                 <option value="30">Last 30 Days</option>
                 <option value="all">All Time</option>
@@ -707,7 +788,10 @@ export default function ComparePageClient({
         <IdentityPanels mode={mode} firstTeam={firstTeam} secondTeam={secondTeam} firstPlayer={firstPlayer} secondPlayer={secondPlayer} />
 
         {filteredMatches.length === 0 ? (
-          <EmptyState title="No compare data in this filter" description="Widen the window, clear the event or map filter, or switch modes to bring the compare studio back to life." />
+          <EmptyState
+            title="No compare data in this filter"
+            description="Widen the window, clear the event or map filter, or switch modes to bring the compare studio back to life."
+          />
         ) : null}
 
         {mode === "teams" && firstTeamSummary && secondTeamSummary ? (
@@ -717,9 +801,17 @@ export default function ComparePageClient({
                 <CompareMetric label="Matches" leftValue={firstTeamSummary.matches} rightValue={secondTeamSummary.matches} />
                 <CompareMetric label="Wins" leftValue={firstTeamSummary.wins} rightValue={secondTeamSummary.wins} />
                 <CompareMetric label="Kills" leftValue={firstTeamSummary.kills} rightValue={secondTeamSummary.kills} />
-                <CompareMetric label="Damage" leftValue={formatNumber(firstTeamSummary.damage)} rightValue={formatNumber(secondTeamSummary.damage)} />
+                <CompareMetric
+                  label="Damage"
+                  leftValue={formatNumber(firstTeamSummary.damage)}
+                  rightValue={formatNumber(secondTeamSummary.damage)}
+                />
                 <CompareMetric label="Points" leftValue={firstTeamSummary.totalPoints} rightValue={secondTeamSummary.totalPoints} />
-                <CompareMetric label="Avg Place" leftValue={formatDecimal(firstTeamSummary.avgPlacement, 2)} rightValue={formatDecimal(secondTeamSummary.avgPlacement, 2)} />
+                <CompareMetric
+                  label="Avg Place"
+                  leftValue={formatDecimal(firstTeamSummary.avgPlacement, 2)}
+                  rightValue={formatDecimal(secondTeamSummary.avgPlacement, 2)}
+                />
               </div>
             </section>
 
@@ -743,7 +835,12 @@ export default function ComparePageClient({
                     </p>
                   </div>
                 </div>
-                <RadarComparison title="Team radar signals" points={teamRadarPoints} firstLabel={firstTeamSummary.team.name} secondLabel={secondTeamSummary.team.name} />
+                <RadarComparison
+                  title="Team radar signals"
+                  points={teamRadarPoints}
+                  firstLabel={firstTeamSummary.team.name}
+                  secondLabel={secondTeamSummary.team.name}
+                />
               </div>
 
               <div className="grid gap-6">
@@ -792,7 +889,8 @@ export default function ComparePageClient({
                                 {match.eventName} | {match.mapName}
                               </p>
                               <p className="mt-1 text-sm text-text-muted">
-                                {formatDateTime(match.startTime)} | #{teamResult.placement} | {teamResult.kills} kills | {teamResult.totalPoints} pts
+                                {formatDateTime(match.startTime)} | #{teamResult.placement} | {teamResult.kills} kills |{" "}
+                                {teamResult.totalPoints} pts
                               </p>
                             </div>
                           );
@@ -838,8 +936,16 @@ export default function ComparePageClient({
                 <CompareMetric label="Kills" leftValue={firstPlayerSummary.kills} rightValue={secondPlayerSummary.kills} />
                 <CompareMetric label="Assists" leftValue={firstPlayerSummary.assists} rightValue={secondPlayerSummary.assists} />
                 <CompareMetric label="Knocks" leftValue={firstPlayerSummary.knocks} rightValue={secondPlayerSummary.knocks} />
-                <CompareMetric label="Damage" leftValue={formatNumber(firstPlayerSummary.damage)} rightValue={formatNumber(secondPlayerSummary.damage)} />
-                <CompareMetric label="Avg Kills" leftValue={formatDecimal(firstPlayerSummary.avgKills, 2)} rightValue={formatDecimal(secondPlayerSummary.avgKills, 2)} />
+                <CompareMetric
+                  label="Damage"
+                  leftValue={formatNumber(firstPlayerSummary.damage)}
+                  rightValue={formatNumber(secondPlayerSummary.damage)}
+                />
+                <CompareMetric
+                  label="Avg Kills"
+                  leftValue={formatDecimal(firstPlayerSummary.avgKills, 2)}
+                  rightValue={formatDecimal(secondPlayerSummary.avgKills, 2)}
+                />
               </div>
             </section>
 
@@ -863,7 +969,12 @@ export default function ComparePageClient({
                     </p>
                   </div>
                 </div>
-                <RadarComparison title="Player radar signals" points={playerRadarPoints} firstLabel={firstPlayerSummary.player.pubgName} secondLabel={secondPlayerSummary.player.pubgName} />
+                <RadarComparison
+                  title="Player radar signals"
+                  points={playerRadarPoints}
+                  firstLabel={firstPlayerSummary.player.pubgName}
+                  secondLabel={secondPlayerSummary.player.pubgName}
+                />
               </div>
 
               <div className="grid gap-6">
@@ -883,7 +994,11 @@ export default function ComparePageClient({
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
-              <MapEdgeTable leftLabel={firstPlayerSummary.player.pubgName} rightLabel={secondPlayerSummary.player.pubgName} rows={playerMapRows} />
+              <MapEdgeTable
+                leftLabel={firstPlayerSummary.player.pubgName}
+                rightLabel={secondPlayerSummary.player.pubgName}
+                rows={playerMapRows}
+              />
               <div className="rounded-card border border-white/[0.08] bg-bg-card p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -912,7 +1027,8 @@ export default function ComparePageClient({
                                 {match.eventName} | {match.mapName}
                               </p>
                               <p className="mt-1 text-sm text-text-muted">
-                                {formatDateTime(match.startTime)} | {playerResult.kills} kills | {playerResult.assists} assists | {formatNumber(playerResult.damage)} dmg
+                                {formatDateTime(match.startTime)} | {playerResult.kills} kills | {playerResult.assists} assists |{" "}
+                                {formatNumber(playerResult.damage)} dmg
                               </p>
                             </div>
                           );
@@ -929,4 +1045,3 @@ export default function ComparePageClient({
     </main>
   );
 }
-

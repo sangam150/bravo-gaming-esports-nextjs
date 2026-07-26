@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import TeamRegistrationPageClient from "@/components/team/TeamRegistrationPageClient";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getRegistrationTargetSummary, listRegistrationTargets } from "@/lib/team-registration";
+import type { Metadata } from "next";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -16,8 +16,7 @@ export const metadata: Metadata = buildContentMetadata({
 
 export default async function TeamRegisterPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
-  const requestedTournamentId =
-    typeof resolvedSearchParams.tournament === "string" ? resolvedSearchParams.tournament.trim() : "";
+  const requestedTournamentId = typeof resolvedSearchParams.tournament === "string" ? resolvedSearchParams.tournament.trim() : "";
   const [selectedTournament, availableTournaments] = await Promise.all([
     requestedTournamentId ? getRegistrationTargetSummary(requestedTournamentId).catch(() => null) : Promise.resolve(null),
     listRegistrationTargets().catch(() => []),

@@ -1,23 +1,20 @@
-import Link from "next/link";
-import type { Metadata } from "next";
 import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
 import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+import Link from "next/link";
 
 const pillars = [
   {
     title: "Daily PUBG PC Scrims",
-    detail:
-      "Daily scrim operations that keep players and teams active, competitive, and ready for official tournament play.",
+    detail: "Daily scrim operations that keep players and teams active, competitive, and ready for official tournament play.",
   },
   {
     title: "Competitive Tournaments",
-    detail:
-      "Structured competitions with clear scheduling, scoring, and result coverage built for Nepal&apos;s PUBG PC scene.",
+    detail: "Structured competitions with clear scheduling, scoring, and result coverage built for Nepal&apos;s PUBG PC scene.",
   },
   {
     title: "Live Leaderboards & Analytics",
-    detail:
-      "Real-time rankings, team standings, and match statistics that help competitors track progress and performance.",
+    detail: "Real-time rankings, team standings, and match statistics that help competitors track progress and performance.",
   },
 ] as const;
 
@@ -50,9 +47,8 @@ export default function AboutPage() {
                 Gaming Esports
               </h1>
               <p className="mt-5 max-w-3xl text-sm leading-7 text-text-muted sm:text-base">
-                Bravo Gaming Esports is a competitive esports organization based in Nepal, focused on building and
-                supporting the PUBG PC esports ecosystem through daily scrims, tournaments, community events, and
-                competitive rankings.
+                Bravo Gaming Esports is a competitive esports organization based in Nepal, focused on building and supporting the PUBG PC
+                esports ecosystem through daily scrims, tournaments, community events, and competitive rankings.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href="/pubg" className="btn-primary">
@@ -120,10 +116,9 @@ export default function AboutPage() {
             <p className="section-title">Community</p>
             <h2 className="mt-3 font-display text-2xl font-black uppercase text-white">Vision & Community</h2>
             <p className="mt-5 text-sm leading-7 text-text-muted">
-              Our vision is to become one of Nepal&apos;s leading esports organizations and a trusted platform for
-              competitive gaming, helping players and teams grow through organized events and community engagement.
-              Bravo welcomes players of all skill levels and aims to create a fair, competitive, and enjoyable
-              environment for everyone.
+              Our vision is to become one of Nepal&apos;s leading esports organizations and a trusted platform for competitive gaming,
+              helping players and teams grow through organized events and community engagement. Bravo welcomes players of all skill levels
+              and aims to create a fair, competitive, and enjoyable environment for everyone.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/pubg/community" className="btn-primary">

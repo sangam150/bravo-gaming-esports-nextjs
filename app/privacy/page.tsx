@@ -29,12 +29,9 @@ export default function PrivacyPage() {
       <div className="page-stack">
         <section className="esports-card p-6 sm:p-8">
           <p className="section-title">Privacy</p>
-          <h1 className="mt-3 font-display text-4xl font-black uppercase text-white sm:text-5xl">
-            Bravo Gaming Esports privacy policy
-          </h1>
+          <h1 className="mt-3 font-display text-4xl font-black uppercase text-white sm:text-5xl">Bravo Gaming Esports privacy policy</h1>
           <p className="mt-5 max-w-3xl text-sm leading-7 text-text-muted">
-            This page explains the main privacy expectations for Bravo account access, public publishing, uploads, and
-            contact flows.
+            This page explains the main privacy expectations for Bravo account access, public publishing, uploads, and contact flows.
           </p>
           <div className="mt-8 grid gap-4 xl:grid-cols-2">
             {sections.map((section) => (

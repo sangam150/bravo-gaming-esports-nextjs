@@ -1,19 +1,9 @@
-import Link from "next/link";
+import { EmptyState, PageHero, SectionHeader, buildHref, formatDate } from "@/components/pubg/PubgHubUI";
 import ManagedImage from "@/components/ui/ManagedImage";
-import {
-  EmptyState,
-  PageHero,
-  SectionHeader,
-  buildHref,
-  formatDate,
-  readSearchParam,
-} from "@/components/pubg/PubgHubUI";
-import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { formatDisplayDateTime } from "@/lib/display-format";
 import type { PlatformArticle, PlatformHubData } from "@/lib/platform-hub";
 import { getSiteUrl } from "@/lib/site";
-
-type SearchParamDictionary = Record<string, string | string[] | undefined>;
+import Link from "next/link";
 
 function buildArticleSummary(article: PlatformArticle) {
   return article.excerpt?.trim() || article.summary;
@@ -44,30 +34,6 @@ function CategoryPill({ label }: { label: string }) {
     <span className="rounded-full border border-white/10 bg-bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted">
       {label}
     </span>
-  );
-}
-
-function ArticleActionLink({
-  href,
-  label,
-  className,
-}: {
-  href: string;
-  label: string;
-  className: string;
-}) {
-  if (/^https?:\/\//i.test(href)) {
-    return (
-      <a href={href} target="_blank" rel="noreferrer" className={className}>
-        {label}
-      </a>
-    );
-  }
-
-  return (
-    <Link href={href} className={className}>
-      {label}
-    </Link>
   );
 }
 
@@ -169,155 +135,7 @@ function ArticleUtilityBar({ article }: { article: PlatformArticle }) {
   );
 }
 
-export function NewsIndexPage({
-  hub,
-  searchParams,
-}: {
-  hub: PlatformHubData;
-  searchParams: SearchParamDictionary;
-}) {
-  const queryValue = readSearchParam(searchParams.q).trim();
-  const query = queryValue.toLowerCase();
-  const category = readSearchParam(searchParams.category, "all");
-  const hasNews = hub.news.length > 0;
-  const categories = Array.from(new Set(hub.news.map((article) => article.category))).sort((firstValue, secondValue) =>
-    firstValue.localeCompare(secondValue)
-  );
-  const filteredArticles = hub.news.filter((article) => {
-    if (category !== "all" && article.category !== category) {
-      return false;
-    }
-
-    if (query && !`${article.title} ${buildArticleSummary(article)} ${article.tags.join(" ")}`.toLowerCase().includes(query)) {
-      return false;
-    }
-
-    return true;
-  });
-
-  return (
-    <main className="page-shell pb-12 pt-6">
-      <div className="page-stack">
-        <PageHero
-          badge="News"
-          title={
-            <>
-              Latest news
-              <br />
-              and official updates
-            </>
-          }
-          description={
-            hasNews
-              ? "Official announcements, tournament updates, and community stories from Bravo Gaming Esports."
-              : "Official announcements, tournament updates, and community stories from Bravo Gaming Esports."
-          }
-          actions={
-            <>
-              <Link href="/events" className="btn-secondary">
-                Explore Events
-              </Link>
-              <ArticleActionLink href={BRAVO_DISCORD_URL} label="Follow Updates" className="btn-primary" />
-            </>
-          }
-          stats={
-            hasNews
-              ? [
-                  { label: "Stories", value: hub.news.length, tone: "blue" as const },
-                  { label: "Featured", value: hub.news.filter((article) => article.featured).length, tone: "green" as const },
-                  { label: "Topics", value: categories.length, tone: "yellow" as const },
-                  { label: "Breaking", value: hub.news.filter((article) => article.breaking).length, tone: "red" as const },
-                ]
-              : undefined
-          }
-          aside={hasNews ? (
-            <div className="space-y-4">
-              <div>
-                <p className="section-title">Official Updates</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Bravo news desk</h2>
-              </div>
-              <div className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
-                Tournament announcements, published results, and community updates appear here after review.
-              </div>
-              <div className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
-                Breaking announcements and event stories are posted here as they go live.
-              </div>
-              <div className="rounded-card border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-white">
-                Use Discord and the events board for immediate match-day updates.
-              </div>
-            </div>
-          ) : undefined}
-        />
-
-        {!hasNews ? (
-          <EmptyState
-            title="Latest news coming soon"
-            description="Announcements, tournament updates, and community stories will appear here soon."
-            action={
-              <div className="flex flex-wrap justify-center gap-2">
-                <Link href="/events" className="btn-secondary">
-                  Browse Events
-                </Link>
-                <ArticleActionLink href={BRAVO_DISCORD_URL} label="Follow on Discord" className="btn-primary" />
-              </div>
-            }
-          />
-        ) : (
-          <>
-            <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
-              <form method="get" className="grid gap-3 xl:grid-cols-[1.2fr,0.8fr,auto]">
-                <input
-                  name="q"
-                  defaultValue={queryValue}
-                  className="input-esports h-11"
-                  placeholder="Search stories, tags, or topics"
-                />
-                <select name="category" defaultValue={category} className="input-esports h-11">
-                  <option value="all">All categories</option>
-                  {categories.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex items-end gap-2">
-                  <button type="submit" className="btn-primary h-11">
-                    Apply
-                  </button>
-                  <Link href="/news" className="btn-secondary h-11">
-                    Reset
-                  </Link>
-                </div>
-              </form>
-            </section>
-
-            <section className="grid gap-4 xl:grid-cols-2">
-              {filteredArticles.map((article) => (
-                <NewsCard key={article.id} article={article} />
-              ))}
-              {filteredArticles.length === 0 ? (
-                <div className="xl:col-span-2">
-                  <EmptyState
-                    title="No stories match this filter"
-                    description="Try a different keyword or open all categories to browse the current public news feed."
-                  />
-                </div>
-              ) : null}
-            </section>
-          </>
-        )}
-      </div>
-    </main>
-  );
-}
-
-export function NewsArticlePage({
-  hub,
-  article,
-}: {
-  hub: PlatformHubData;
-  article: PlatformArticle;
-}) {
+export function NewsArticlePage({ hub, article }: { hub: PlatformHubData; article: PlatformArticle }) {
   const relatedArticles = article.relatedSlugs
     .map((slug) => hub.news.find((candidate) => candidate.slug === slug) ?? null)
     .filter((candidate): candidate is PlatformArticle => Boolean(candidate))
@@ -423,9 +241,21 @@ export function NewsArticlePage({
               />
               <div className="mt-5 grid gap-3">
                 {[
-                  { href: "/news", label: "Open news hub", detail: "Browse all published stories and updates." },
-                  { href: "/events", label: "View events", detail: "See the live and upcoming public event board." },
-                  { href: "/media", label: "Media center", detail: "Watch published video coverage and clips." },
+                  {
+                    href: "/news",
+                    label: "Open news hub",
+                    detail: "Browse all published stories and updates.",
+                  },
+                  {
+                    href: "/events",
+                    label: "View events",
+                    detail: "See the live and upcoming public event board.",
+                  },
+                  {
+                    href: "/media",
+                    label: "Media center",
+                    detail: "Watch published video coverage and clips.",
+                  },
                 ].map((item) => (
                   <Link
                     key={item.href}

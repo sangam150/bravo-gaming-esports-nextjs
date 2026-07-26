@@ -1,11 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
 import { fetchPubgPlayerRecentMatches } from "@/lib/pubg";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
-  const limited = await enforceRateLimit(req, { key: "pubg-sync-player", maxRequests: 12, windowMs: 60_000 });
+  const limited = await enforceRateLimit(req, {
+    key: "pubg-sync-player",
+    maxRequests: 12,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -17,7 +21,11 @@ export async function GET(req: NextRequest) {
     if (!latestMatch) return NextResponse.json({ error: "No recent match found for this player." }, { status: 404 });
 
     return NextResponse.json({
-      player: { id: lookup.playerId, name: lookup.playerName, shardId: lookup.shardId },
+      player: {
+        id: lookup.playerId,
+        name: lookup.playerName,
+        shardId: lookup.shardId,
+      },
       latestMatch,
     });
   } catch (error: unknown) {

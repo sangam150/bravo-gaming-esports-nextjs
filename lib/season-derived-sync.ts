@@ -1,3 +1,4 @@
+import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "./bravo-teams";
 import {
   getSeason,
   getSeasonTournaments,
@@ -8,23 +9,11 @@ import {
   savePlayer,
   saveTeam,
 } from "./data";
-import { compareBravoTeamSlotOrder, resolveBravoTeamIdentity } from "./bravo-teams";
+import { COLLECTIONS, deleteDocument, isDocumentStoreConfigured, queryDocumentCollection, saveDocument } from "./document-store";
 import { buildPlayerAppearanceMapFromMatches, choosePreferredPlayerTeam } from "./player-team-history";
 import { compareMvpRankingPlayers, comparePlayerLeaderboardPerformance } from "./ranking-sort";
 import { buildSeasonLeaderboard } from "./season-standings";
-import {
-  COLLECTIONS,
-  deleteDocument,
-  isDocumentStoreConfigured,
-  queryDocumentCollection,
-  saveDocument,
-} from "./document-store";
-import type {
-  Player,
-  Team,
-  TournamentMatch,
-  TournamentStanding,
-} from "./types";
+import type { Player, Team, TournamentMatch, TournamentStanding } from "./types";
 
 function slugify(value: string) {
   return value
@@ -41,10 +30,7 @@ function buildSeasonPlayerId(seasonId: string, sourcePlayerId: string, playerNam
   return `${seasonId}--${slugify(sourcePlayerId || playerName)}`;
 }
 
-function compareSeasonTeamDocs(
-  firstTeam: Pick<Team, "slotNumber" | "name">,
-  secondTeam: Pick<Team, "slotNumber" | "name">
-) {
+function compareSeasonTeamDocs(firstTeam: Pick<Team, "slotNumber" | "name">, secondTeam: Pick<Team, "slotNumber" | "name">) {
   return compareBravoTeamSlotOrder(firstTeam, secondTeam);
 }
 
@@ -59,7 +45,7 @@ function getMatchMvpPlayerKey(match: TournamentMatch) {
         secondPlayer.kills - firstPlayer.kills ||
         secondPlayer.damage - firstPlayer.damage ||
         secondPlayer.assists - firstPlayer.assists ||
-        firstPlayer.playerName.localeCompare(secondPlayer.playerName)
+        firstPlayer.playerName.localeCompare(secondPlayer.playerName),
     )[0] ?? null;
 
   if (!mvp) return null;
@@ -70,11 +56,9 @@ async function deleteMissingSeasonDocuments<T extends { id: string }>(
   collectionName: string,
   seasonId: string,
   keepIds: Set<string>,
-  scope?: "season" | "tournament"
+  scope?: "season" | "tournament",
 ) {
-  const existingDocuments = await queryDocumentCollection<T>(collectionName, "seasonId", seasonId, 2000).catch(
-    () => []
-  );
+  const existingDocuments = await queryDocumentCollection<T>(collectionName, "seasonId", seasonId, 2000).catch(() => []);
 
   await Promise.all(
     existingDocuments
@@ -87,7 +71,7 @@ async function deleteMissingSeasonDocuments<T extends { id: string }>(
         if (scope && documentScope !== scope) return false;
         return !keepIds.has(document.id);
       })
-      .map((document) => deleteDocument(collectionName, document.id))
+      .map((document) => deleteDocument(collectionName, document.id)),
   );
 }
 
@@ -114,7 +98,7 @@ function mergeTeamMetadata(
     country?: string;
     dayNumber?: number;
     sourceTeamName?: string;
-  }
+  },
 ) {
   const rawTeamName = input.teamName?.trim() || input.sourceTeamName?.trim();
   const canonicalTeam = resolveBravoTeamIdentity(rawTeamName ?? input.teamId);
@@ -171,21 +155,11 @@ export async function syncSeasonDerivedData(seasonId: string) {
       ]);
 
       return { tournament, matches, standings, teams, players };
-    })
+    }),
   );
 
-  const existingSeasonTeams = await queryDocumentCollection<Team>(COLLECTIONS.teams, "seasonId", seasonId, 1000).catch(
-    () => []
-  );
-  const existingSeasonPlayers = await queryDocumentCollection<Player>(
-    COLLECTIONS.players,
-    "seasonId",
-    seasonId,
-    3000
-  ).catch(() => []);
-  const existingSeasonTeamById = new Map(
-    existingSeasonTeams.filter((team) => team.scope === "season").map((team) => [team.id, team] as const)
-  );
+  const existingSeasonTeams = await queryDocumentCollection<Team>(COLLECTIONS.teams, "seasonId", seasonId, 1000).catch(() => []);
+  const existingSeasonPlayers = await queryDocumentCollection<Player>(COLLECTIONS.players, "seasonId", seasonId, 3000).catch(() => []);
   const existingSeasonTeamByResolvedId = new Map(
     existingSeasonTeams
       .filter((team) => team.scope === "season")
@@ -195,10 +169,10 @@ export async function syncSeasonDerivedData(seasonId: string) {
           resolveBravoTeamIdentity(team.name)?.id ??
           team.id;
         return [resolvedId, team] as const;
-      })
+      }),
   );
   const existingSeasonPlayerById = new Map(
-    existingSeasonPlayers.filter((player) => player.scope === "season").map((player) => [player.id, player] as const)
+    existingSeasonPlayers.filter((player) => player.scope === "season").map((player) => [player.id, player] as const),
   );
 
   const allMatches = tournamentSnapshots.flatMap((snapshot) => snapshot.matches);
@@ -248,9 +222,7 @@ export async function syncSeasonDerivedData(seasonId: string) {
 
   for (const existingSeasonTeam of existingSeasonTeamByResolvedId.values()) {
     const canonicalTeamId =
-      (existingSeasonTeam.sourceTeamName
-        ? buildSeasonTeamId(seasonId, existingSeasonTeam.sourceTeamName)
-        : undefined) ??
+      (existingSeasonTeam.sourceTeamName ? buildSeasonTeamId(seasonId, existingSeasonTeam.sourceTeamName) : undefined) ??
       resolveBravoTeamIdentity(existingSeasonTeam.name)?.id ??
       existingSeasonTeam.id;
 
@@ -312,9 +284,7 @@ export async function syncSeasonDerivedData(seasonId: string) {
         ...standing,
         teamId: seasonTeamId,
         slotNumber:
-          standing.slotNumber ??
-          teamMetadata.get(seasonTeamId)?.slotNumber ??
-          resolveBravoTeamIdentity(standing.teamName)?.slotNumber,
+          standing.slotNumber ?? teamMetadata.get(seasonTeamId)?.slotNumber ?? resolveBravoTeamIdentity(standing.teamName)?.slotNumber,
         seasonId,
         seasonTitle,
         seasonDayNumber: dayNumber,
@@ -325,10 +295,10 @@ export async function syncSeasonDerivedData(seasonId: string) {
     const tournamentPlayerLookup = new Map(
       snapshot.players.flatMap((player) => {
         const keys = [player.sourcePlayerId, player.pubgId, player.pubgName, player.inGameName, player.name].filter(
-          (value): value is string => Boolean(value)
+          (value): value is string => Boolean(value),
         );
         return keys.map((key) => [key, player] as const);
-      })
+      }),
     );
 
     for (const match of snapshot.matches) {
@@ -339,15 +309,10 @@ export async function syncSeasonDerivedData(seasonId: string) {
 
       for (const playerResult of match.playerResults ?? []) {
         const sourcePlayerKey = playerResult.pubgPlayerId ?? playerResult.playerId ?? playerResult.playerName;
-        const relatedPlayer =
-          tournamentPlayerLookup.get(sourcePlayerKey) ??
-          tournamentPlayerLookup.get(playerResult.playerName) ??
-          null;
+        const relatedPlayer = tournamentPlayerLookup.get(sourcePlayerKey) ?? tournamentPlayerLookup.get(playerResult.playerName) ?? null;
         const seasonPlayerId = buildSeasonPlayerId(seasonId, sourcePlayerKey ?? "", playerResult.playerName);
         const seasonTeamId =
-          playerResult.teamName && playerResult.teamName.trim().length > 0
-            ? buildSeasonTeamId(seasonId, playerResult.teamName)
-            : undefined;
+          playerResult.teamName && playerResult.teamName.trim().length > 0 ? buildSeasonTeamId(seasonId, playerResult.teamName) : undefined;
 
         if (playerResult.teamName && seasonTeamId) {
           mergeTeamMetadata(seasonId, teamMetadata, {
@@ -411,9 +376,7 @@ export async function syncSeasonDerivedData(seasonId: string) {
   const leaderboardEntries = buildSeasonLeaderboard(mappedStandings);
   const playerSummaries = Array.from(playerAggregateMap.values())
     .map((playerAggregate) => {
-      const preferredTeam = choosePreferredPlayerTeam(
-        Array.from(seasonAppearanceMap.get(playerAggregate.sourcePlayerKey)?.values() ?? [])
-      );
+      const preferredTeam = choosePreferredPlayerTeam(Array.from(seasonAppearanceMap.get(playerAggregate.sourcePlayerKey)?.values() ?? []));
       const resolvedTeamName = preferredTeam?.teamName ?? playerAggregate.teamName;
 
       return {
@@ -423,22 +386,14 @@ export async function syncSeasonDerivedData(seasonId: string) {
         mvpCount: seasonMvpCounts.get(playerAggregate.sourcePlayerKey) ?? 0,
         dayNumbers: Array.from(playerAggregate.dayNumbers).sort((firstDay, secondDay) => firstDay - secondDay),
         bestPlacement: Number.isFinite(playerAggregate.bestPlacement) ? playerAggregate.bestPlacement : undefined,
-        averageDamage:
-          playerAggregate.matches > 0
-            ? Number((playerAggregate.damage / playerAggregate.matches).toFixed(2))
-            : undefined,
+        averageDamage: playerAggregate.matches > 0 ? Number((playerAggregate.damage / playerAggregate.matches).toFixed(2)) : undefined,
         rating: playerAggregate.totalPoints,
-        winRate:
-          playerAggregate.matches > 0
-            ? Number((playerAggregate.chickenDinners / playerAggregate.matches).toFixed(4))
-            : undefined,
+        winRate: playerAggregate.matches > 0 ? Number((playerAggregate.chickenDinners / playerAggregate.matches).toFixed(4)) : undefined,
       };
     })
     .sort((firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer));
 
-  const mvpOfWeek = [...playerSummaries].sort((firstPlayer, secondPlayer) =>
-    compareMvpRankingPlayers(firstPlayer, secondPlayer)
-  )[0];
+  const mvpOfWeek = [...playerSummaries].sort((firstPlayer, secondPlayer) => compareMvpRankingPlayers(firstPlayer, secondPlayer))[0];
 
   const seasonPlayerDocs = playerSummaries.map(
     (playerSummary) =>
@@ -476,7 +431,7 @@ export async function syncSeasonDerivedData(seasonId: string) {
         sourcePlayerId: playerSummary.pubgId ?? playerSummary.sourcePlayerKey,
         sourceProvider: "season_sync",
         createdAt: existingSeasonPlayerById.get(playerSummary.id)?.createdAt,
-      }) satisfies Partial<Player> & { id: string; name: string }
+      }) satisfies Partial<Player> & { id: string; name: string },
   );
 
   const playerIdsByTeamId = new Map<string, string[]>();
@@ -489,11 +444,7 @@ export async function syncSeasonDerivedData(seasonId: string) {
 
   const leaderboardEntriesByTeamId = new Map(leaderboardEntries.map((entry) => [entry.teamId, entry] as const));
   const seasonTeamIds = Array.from(
-    new Set([
-      ...teamMetadata.keys(),
-      ...leaderboardEntries.map((entry) => entry.teamId),
-      ...playerIdsByTeamId.keys(),
-    ])
+    new Set([...teamMetadata.keys(), ...leaderboardEntries.map((entry) => entry.teamId), ...playerIdsByTeamId.keys()]),
   );
   const seasonTeamDocs = seasonTeamIds
     .map((teamId) => {
@@ -530,8 +481,7 @@ export async function syncSeasonDerivedData(seasonId: string) {
         seasonId,
         seasonTitle,
         seasonDayNumbers:
-          leaderboardEntry?.dayNumbers ??
-          Array.from(metadata?.dayNumbers ?? []).sort((firstDay, secondDay) => firstDay - secondDay),
+          leaderboardEntry?.dayNumbers ?? Array.from(metadata?.dayNumbers ?? []).sort((firstDay, secondDay) => firstDay - secondDay),
         sourceTeamName: metadata?.teamName ?? teamName,
         sourceProvider: "season_sync",
         createdAt: existingSeasonTeam?.createdAt,
@@ -573,26 +523,16 @@ export async function syncSeasonDerivedData(seasonId: string) {
 
   await Promise.all(
     seasonStandingDocs.map((standingDocument) =>
-      saveDocument(COLLECTIONS.standings, standingDocument.id, standingDocument as unknown as Record<string, unknown>)
-    )
+      saveDocument(COLLECTIONS.standings, standingDocument.id, standingDocument as unknown as Record<string, unknown>),
+    ),
   );
 
-  await deleteMissingSeasonDocuments<Team>(
-    COLLECTIONS.teams,
-    seasonId,
-    new Set(seasonTeamDocs.map((team) => team.id)),
-    "season"
-  );
-  await deleteMissingSeasonDocuments<Player>(
-    COLLECTIONS.players,
-    seasonId,
-    new Set(seasonPlayerDocs.map((player) => player.id)),
-    "season"
-  );
+  await deleteMissingSeasonDocuments<Team>(COLLECTIONS.teams, seasonId, new Set(seasonTeamDocs.map((team) => team.id)), "season");
+  await deleteMissingSeasonDocuments<Player>(COLLECTIONS.players, seasonId, new Set(seasonPlayerDocs.map((player) => player.id)), "season");
   await deleteMissingSeasonDocuments<TournamentStanding>(
     COLLECTIONS.standings,
     seasonId,
-    new Set([...mappedStandings.map((standing) => standing.id), ...seasonStandingDocs.map((standing) => standing.id)])
+    new Set([...mappedStandings.map((standing) => standing.id), ...seasonStandingDocs.map((standing) => standing.id)]),
   );
 
   return {

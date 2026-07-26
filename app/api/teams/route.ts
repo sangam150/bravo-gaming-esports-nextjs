@@ -1,6 +1,6 @@
-import { getTeams, saveTeam } from "@/lib/data";
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { getTeams, saveTeam } from "@/lib/data";
 import { revalidateTeamPaths } from "@/lib/revalidate-public";
 import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
@@ -27,6 +27,9 @@ export async function POST(request: Request) {
     revalidateTeamPaths(result.slug ?? result.id);
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
-    return jsonErrorResponse(error, { status: 500, fallback: USER_FACING_ERROR_MESSAGES.admin });
+    return jsonErrorResponse(error, {
+      status: 500,
+      fallback: USER_FACING_ERROR_MESSAGES.admin,
+    });
   }
 }

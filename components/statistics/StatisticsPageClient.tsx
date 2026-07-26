@@ -1,28 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import type { ReactNode } from "react";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { formatDisplayNumber } from "@/lib/display-format";
-import {
-  compareMvpRankingPlayers,
-  comparePlayerLeaderboardPerformance,
-  compareTopFraggerPerformance,
-} from "@/lib/ranking-sort";
+import { compareMvpRankingPlayers, comparePlayerLeaderboardPerformance, compareTopFraggerPerformance } from "@/lib/ranking-sort";
 import { useBravoRealtimeData } from "@/lib/realtime-hooks";
 import type { CurrentSeasonOverview, LeaderboardRow, Player } from "@/lib/types";
+import Link from "next/link";
+import type { ReactNode } from "react";
 
-function SectionTable({
-  title,
-  description,
-  columns,
-  rows,
-}: {
-  title: string;
-  description: string;
-  columns: string[];
-  rows: ReactNode;
-}) {
+function SectionTable({ title, description, columns, rows }: { title: string; description: string; columns: string[]; rows: ReactNode }) {
   return (
     <section className="esports-card overflow-hidden !p-0">
       <div className="border-b border-white/10 px-5 py-4">
@@ -60,29 +46,23 @@ export default function StatisticsPageClient({
       scrims: false,
       matches: false,
       matchResults: false,
-    }
+    },
   );
 
   const activeOverview = liveCompetition.overview ?? initialOverview;
-  const activeLeaderboard =
-    activeOverview?.leaderboard?.length
-      ? activeOverview.leaderboard
-      : liveCompetition.leaderboardRows.length > 0
-        ? liveCompetition.leaderboardRows
-        : initialLeaderboard;
-  const playerPool =
-    activeOverview?.players?.length
-      ? activeOverview.players
-      : liveCompetition.players.filter((player) => player.scope !== "tournament");
+  const activeLeaderboard = activeOverview?.leaderboard?.length
+    ? activeOverview.leaderboard
+    : liveCompetition.leaderboardRows.length > 0
+      ? liveCompetition.leaderboardRows
+      : initialLeaderboard;
+  const playerPool = activeOverview?.players?.length
+    ? activeOverview.players
+    : liveCompetition.players.filter((player) => player.scope !== "tournament");
   const playerStandings = [...playerPool].sort((firstPlayer, secondPlayer) =>
-    comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer)
+    comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer),
   );
-  const topFraggers = [...playerPool].sort((firstPlayer, secondPlayer) =>
-    compareTopFraggerPerformance(firstPlayer, secondPlayer)
-  );
-  const mvpRanking = [...playerPool].sort((firstPlayer, secondPlayer) =>
-    compareMvpRankingPlayers(firstPlayer, secondPlayer)
-  );
+  const topFraggers = [...playerPool].sort((firstPlayer, secondPlayer) => compareTopFraggerPerformance(firstPlayer, secondPlayer));
+  const mvpRanking = [...playerPool].sort((firstPlayer, secondPlayer) => compareMvpRankingPlayers(firstPlayer, secondPlayer));
 
   return (
     <main className="page-shell">
@@ -110,9 +90,7 @@ export default function StatisticsPageClient({
         {activeLeaderboard.length === 0 && playerPool.length === 0 ? (
           <section className="esports-card p-10 text-center">
             <p className="font-display text-lg font-bold uppercase text-white">Statistics pending</p>
-            <p className="mt-2 text-sm text-text-muted">
-              Statistics will populate automatically after team and player data is imported.
-            </p>
+            <p className="mt-2 text-sm text-text-muted">Statistics will populate automatically after team and player data is imported.</p>
           </section>
         ) : (
           <div className="grid gap-6">
@@ -122,9 +100,7 @@ export default function StatisticsPageClient({
               columns={["#", "Team", "Matches", "Kills", "Place Pts", "Total Pts"]}
               rows={activeLeaderboard.slice(0, 10).map((row) => (
                 <tr key={row.teamId}>
-                  <td className={row.rank === 1 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>
-                    #{row.rank}
-                  </td>
+                  <td className={row.rank === 1 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>#{row.rank}</td>
                   <td>
                     <Link href={`/teams/${row.teamId}`} className="flex items-center gap-2 hover:text-accent-blue">
                       <TeamAvatar name={row.team} imageUrl={row.logoUrl} size="sm" />
@@ -146,9 +122,7 @@ export default function StatisticsPageClient({
                 columns={["#", "Player", "Team", "Kills", "Damage", "Assists", "Matches"]}
                 rows={playerStandings.slice(0, 10).map((player, index) => (
                   <tr key={player.id}>
-                    <td className={index === 0 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>
-                      #{index + 1}
-                    </td>
+                    <td className={index === 0 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>#{index + 1}</td>
                     <td>
                       <Link href={`/players/${player.slug ?? player.id}`} className="flex items-center gap-2 hover:text-accent-blue">
                         <TeamAvatar name={player.name} size="sm" />
@@ -170,9 +144,7 @@ export default function StatisticsPageClient({
                 columns={["#", "Player", "Team", "Kills", "Damage", "Assists"]}
                 rows={topFraggers.slice(0, 10).map((player, index) => (
                   <tr key={player.id}>
-                    <td className={index === 0 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>
-                      #{index + 1}
-                    </td>
+                    <td className={index === 0 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>#{index + 1}</td>
                     <td>
                       <Link href={`/players/${player.slug ?? player.id}`} className="flex items-center gap-2 hover:text-accent-blue">
                         <TeamAvatar name={player.name} size="sm" />
@@ -194,9 +166,7 @@ export default function StatisticsPageClient({
               columns={["#", "Player", "Team", "MVP", "Kills", "Damage", "Assists", "Matches"]}
               rows={mvpRanking.slice(0, 10).map((player, index) => (
                 <tr key={player.id}>
-                  <td className={index === 0 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>
-                    #{index + 1}
-                  </td>
+                  <td className={index === 0 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>#{index + 1}</td>
                   <td>
                     <Link href={`/players/${player.slug ?? player.id}`} className="flex items-center gap-2 hover:text-accent-blue">
                       <TeamAvatar name={player.name} size="sm" />

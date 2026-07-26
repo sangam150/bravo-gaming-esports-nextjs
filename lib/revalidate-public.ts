@@ -96,7 +96,13 @@ export function revalidateTeamPaths(teamId?: string | null) {
 }
 
 export function revalidatePlayerPaths(playerId?: string | null) {
-  revalidateMany(["/", "/players", "/pubg/players", playerId ? `/players/${playerId}` : null, playerId ? `/pubg/players/${playerId}` : null]);
+  revalidateMany([
+    "/",
+    "/players",
+    "/pubg/players",
+    playerId ? `/players/${playerId}` : null,
+    playerId ? `/pubg/players/${playerId}` : null,
+  ]);
   revalidateLayouts(["/players", "/pubg"]);
 }
 

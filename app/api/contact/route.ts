@@ -1,13 +1,14 @@
 import { createContactMessage } from "@/lib/contact-messages";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
-import {
-  jsonErrorResponse,
-  USER_FACING_ERROR_MESSAGES,
-} from "@/lib/user-facing-errors";
+import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
 export async function POST(request: Request) {
-  const limited = await enforceRateLimit(request, { key: "public-contact", maxRequests: 5, windowMs: 60_000 });
+  const limited = await enforceRateLimit(request, {
+    key: "public-contact",
+    maxRequests: 5,
+    windowMs: 60_000,
+  });
   if (limited) return limited;
 
   try {
@@ -20,8 +21,10 @@ export async function POST(request: Request) {
 
     if (!name || !email || !message) {
       return Response.json(
-        { error: "Please provide your name, email address, and message before submitting." },
-        { status: 400 }
+        {
+          error: "Please provide your name, email address, and message before submitting.",
+        },
+        { status: 400 },
       );
     }
 

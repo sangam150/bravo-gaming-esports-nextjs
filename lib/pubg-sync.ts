@@ -1,17 +1,22 @@
 import { ensureSeasonDay, getSeasonDayContext } from "./admin-season-days";
-import { getCompetitionMatch, listCompetitionMatches } from "./competition-relational";
-import { getCurrentSeason, getPlayers, getTeams, getTournament, getTournamentMatches } from "./data";
 import { BRAVO_DAILY_SCRIMS_SEASON, syncBravoDailyScrimSeason } from "./bravo-season-sync";
-import { buildFallbackTeamNameFromSlot, canonicalizeBravoTeamName, getBravoCanonicalTeams, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
-import { syncSeasonDerivedData } from "./season-derived-sync";
+import {
+  buildFallbackTeamNameFromSlot,
+  canonicalizeBravoTeamName,
+  getBravoCanonicalTeams,
+  parseBravoSlotNumber,
+  resolveBravoTeamIdentity,
+} from "./bravo-teams";
+import { getCompetitionMatch } from "./competition-relational";
+import { getCurrentSeason, getPlayers, getTeams, getTournament, getTournamentMatches } from "./data";
 import {
   COLLECTIONS,
   commitDocumentWriteOperations,
   fetchDocumentCollection,
-  type DocumentWriteOperation,
   getDocument,
   isDocumentStoreConfigured,
   queryDocumentCollection,
+  type DocumentWriteOperation,
 } from "./document-store";
 import { buildPlayerAppearanceMapFromMatches, choosePreferredPlayerTeam } from "./player-team-history";
 import { placementPoints } from "./pubg";
@@ -23,6 +28,7 @@ import {
   compareMvpRankingPlayers,
   comparePlayerLeaderboardPerformance,
 } from "./ranking-sort";
+import { syncSeasonDerivedData } from "./season-derived-sync";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { buildTournamentStandings } from "./tournament-standings";
 import type {
@@ -32,6 +38,7 @@ import type {
   PubgBulkImportResult,
   PubgBulkImportResultItem,
   PubgBulkPreviewResult,
+  PubgDuplicateMode,
   PubgImportConflict,
   PubgImportContext,
   PubgImportEdit,
@@ -39,7 +46,6 @@ import type {
   PubgImportPreview,
   PubgImportWarning,
   PubgMatchImport,
-  PubgDuplicateMode,
   Scrim,
   Season,
   Team,
@@ -73,10 +79,8 @@ function normalizeTeamResults(results: TeamMatchResult[]): TeamMatchResult[] {
   return results
     .map((result) => {
       const resolvedTeam = resolveBravoTeamIdentity(result.teamName);
-      const inferredSlotNumber =
-        resolvedTeam?.slotNumber ?? result.slotNumber ?? parseBravoSlotNumber(result.teamName);
-      const normalizedName =
-        resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? result.teamName;
+      const inferredSlotNumber = resolvedTeam?.slotNumber ?? result.slotNumber ?? parseBravoSlotNumber(result.teamName);
+      const normalizedName = resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? result.teamName;
 
       return {
         ...result,
@@ -105,7 +109,7 @@ function getMatchMvpPlayerKey(match: TournamentMatch) {
         secondPlayer.kills - firstPlayer.kills ||
         secondPlayer.damage - firstPlayer.damage ||
         secondPlayer.assists - firstPlayer.assists ||
-        firstPlayer.playerName.localeCompare(secondPlayer.playerName)
+        firstPlayer.playerName.localeCompare(secondPlayer.playerName),
     )[0] ?? null;
 
   if (!mvp) return null;
@@ -150,11 +154,7 @@ function toImportContext(context: ResolvedImportContext): PubgImportContext {
   };
 }
 
-function classifyImportIssue(
-  matchId: string,
-  error: unknown,
-  options?: { alreadyImported?: boolean }
-): PubgImportIssue {
+function classifyImportIssue(matchId: string, error: unknown, options?: { alreadyImported?: boolean }): PubgImportIssue {
   const message = error instanceof Error ? error.message : String(error);
   const normalizedMessage = message.toLowerCase();
 
@@ -250,9 +250,7 @@ function normalizeEditedTeamResults(results: TeamMatchResult[]) {
     results.map((result) => {
       const kills = Number.isFinite(result.kills) ? Number(result.kills) : 0;
       const placement = Number.isFinite(result.placement) ? Number(result.placement) : 0;
-      const placementPointsValue = Number.isFinite(result.placementPoints)
-        ? Number(result.placementPoints)
-        : placementPoints(placement);
+      const placementPointsValue = Number.isFinite(result.placementPoints) ? Number(result.placementPoints) : placementPoints(placement);
       const killPointsValue = kills;
 
       return {
@@ -264,14 +262,11 @@ function normalizeEditedTeamResults(results: TeamMatchResult[]) {
         killPoints: killPointsValue,
         totalPoints: placementPointsValue + killPointsValue,
       };
-    })
+    }),
   );
 }
 
-function normalizeEditedPlayerResults(
-  results: MatchPlayerResult[],
-  teamResults: TeamMatchResult[]
-) {
+function normalizeEditedPlayerResults(results: MatchPlayerResult[], teamResults: TeamMatchResult[]) {
   const teamByKey = new Map<string, TeamMatchResult>();
   for (const teamResult of teamResults) {
     teamByKey.set(teamResult.teamName.trim().toLowerCase(), teamResult);
@@ -284,9 +279,7 @@ function normalizeEditedPlayerResults(
     .map((result) => {
       const teamKey = result.teamName.trim().toLowerCase();
       const teamResult = teamByKey.get(teamKey);
-      const placement = Number.isFinite(result.placement)
-        ? Number(result.placement)
-        : (teamResult?.placement ?? 0);
+      const placement = Number.isFinite(result.placement) ? Number(result.placement) : (teamResult?.placement ?? 0);
       const placementPointsValue = Number.isFinite(result.placementPoints)
         ? Number(result.placementPoints)
         : (teamResult?.placementPoints ?? placementPoints(placement));
@@ -298,10 +291,7 @@ function normalizeEditedPlayerResults(
         result.slotNumber ??
         parseBravoSlotNumber(teamResult?.teamName ?? result.teamName);
       const normalizedTeamName =
-        resolvedTeam?.name ??
-        teamResult?.teamName ??
-        buildFallbackTeamNameFromSlot(inferredSlotNumber) ??
-        result.teamName;
+        resolvedTeam?.name ?? teamResult?.teamName ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? result.teamName;
 
       return {
         ...result,
@@ -327,30 +317,20 @@ function normalizeEditedPlayerResults(
     });
 }
 
-function applyImportEdit(
-  matchRecord: TournamentMatch,
-  edit?: PubgImportEdit
-) {
+function applyImportEdit(matchRecord: TournamentMatch, edit?: PubgImportEdit) {
   if (!edit) {
     return matchRecord;
   }
 
   if (edit.matchId && edit.matchId !== matchRecord.pubgMatchId) {
-    throw new Error(
-      `Match ID mismatch for ${matchRecord.pubgMatchId}. Refresh preview after changing the match ID before importing.`
-    );
+    throw new Error(`Match ID mismatch for ${matchRecord.pubgMatchId}. Refresh preview after changing the match ID before importing.`);
   }
 
-  const teamResults = edit.teamResults?.length
-    ? normalizeEditedTeamResults(edit.teamResults)
-    : (matchRecord.teamResults ?? []);
+  const teamResults = edit.teamResults?.length ? normalizeEditedTeamResults(edit.teamResults) : (matchRecord.teamResults ?? []);
   const playerResults = edit.playerResults?.length
     ? normalizeEditedPlayerResults(edit.playerResults, teamResults)
     : (matchRecord.playerResults ?? []);
-  const winner =
-    teamResults.find((teamResult) => teamResult.placement === 1)?.teamName ??
-    teamResults[0]?.teamName ??
-    matchRecord.winner;
+  const winner = teamResults.find((teamResult) => teamResult.placement === 1)?.teamName ?? teamResults[0]?.teamName ?? matchRecord.winner;
 
   return {
     ...matchRecord,
@@ -416,20 +396,14 @@ function appendPreviewWarning(warnings: PubgImportWarning[], warning: PubgImport
   warnings.push(warning);
 }
 
-async function loadPreviewMappings(
-  context: ResolvedImportContext,
-  existingPlayers?: Player[]
-): Promise<PreviewMappings> {
+async function loadPreviewMappings(context: ResolvedImportContext, existingPlayers?: Player[]): Promise<PreviewMappings> {
   const [allTeams, players] = await Promise.all([
     getTeams().catch(() => []),
     existingPlayers?.length ? Promise.resolve(existingPlayers) : getPlayers().catch(() => []),
   ]);
 
   const scopedTeamIds = new Set(context.tournament?.registeredTeamIds ?? []);
-  const scopedTeams =
-    scopedTeamIds.size > 0
-      ? allTeams.filter((team) => scopedTeamIds.has(team.id))
-      : allTeams;
+  const scopedTeams = scopedTeamIds.size > 0 ? allTeams.filter((team) => scopedTeamIds.has(team.id)) : allTeams;
   const teamById = new Map(allTeams.map((team) => [team.id, team] as const));
   const teamsByKey = new Map<string, Team[]>();
 
@@ -476,14 +450,10 @@ async function loadPreviewMappings(
   };
 }
 
-function findMappedTeam(
-  rawTeamName: string,
-  rosterPlayers: ParsedPubgMatchPlayer[],
-  mappings: PreviewMappings
-) {
+function findMappedTeam(rawTeamName: string, rosterPlayers: ParsedPubgMatchPlayer[], mappings: PreviewMappings) {
   const teamKey = normalizeIdentityKey(rawTeamName);
   const scopedMatches = (mappings.teamsByKey.get(teamKey) ?? []).filter((team) =>
-    mappings.scopedTeams.some((scopedTeam) => scopedTeam.id === team.id)
+    mappings.scopedTeams.some((scopedTeam) => scopedTeam.id === team.id),
   );
   if (scopedMatches.length > 0) {
     return scopedMatches[0];
@@ -504,8 +474,8 @@ function findMappedTeam(
             null;
           return matchedPlayer?.teamId ?? null;
         })
-        .filter((value): value is string => Boolean(value))
-    )
+        .filter((value): value is string => Boolean(value)),
+    ),
   );
 
   if (inferredTeamIds.length === 1) {
@@ -531,12 +501,8 @@ async function hasImportedPubgMatch(matchId: string) {
   return (data?.length ?? 0) > 0 || Boolean(await getDocument(COLLECTIONS.matches, matchId).catch(() => null));
 }
 
-async function resolveImportContext(
-  options?: ImportTargetOptions & { requireDay?: boolean }
-): Promise<ResolvedImportContext> {
-  const initialScrim = options?.scrimId
-    ? await getDocument<Scrim>(COLLECTIONS.scrims, options.scrimId)
-    : null;
+async function resolveImportContext(options?: ImportTargetOptions & { requireDay?: boolean }): Promise<ResolvedImportContext> {
+  const initialScrim = options?.scrimId ? await getDocument<Scrim>(COLLECTIONS.scrims, options.scrimId) : null;
   let scrim = initialScrim;
   let tournamentId = options?.tournamentId ?? initialScrim?.tournamentId;
   let tournament = tournamentId ? await getTournament(tournamentId) : null;
@@ -545,11 +511,7 @@ async function resolveImportContext(
   const currentSeason = !options?.seasonId && !tournament?.seasonId && !scrim?.seasonId ? await getCurrentSeason() : null;
   const requestedSeasonId = options?.seasonId ?? tournament?.seasonId ?? scrim?.seasonId ?? currentSeason?.id;
   const requestedDayNumber =
-    options?.seasonDayNumber ??
-    tournament?.seasonDayNumber ??
-    tournament?.dayNumber ??
-    scrim?.seasonDayNumber ??
-    currentSeason?.currentDay;
+    options?.seasonDayNumber ?? tournament?.seasonDayNumber ?? tournament?.dayNumber ?? scrim?.seasonDayNumber ?? currentSeason?.currentDay;
   const dayOverrides = getSeasonDayOverrides(options);
 
   if (requestedSeasonId && requestedDayNumber && (!tournament || !scrim || dayOverrides)) {
@@ -558,6 +520,9 @@ async function resolveImportContext(
         createIfMissing: options?.autoCreateDay !== false,
         overrides: dayOverrides,
       });
+      if (!ensuredDay.tournament) {
+        throw new Error("The requested season day does not have a tournament.");
+      }
       tournament = ensuredDay.tournament;
       scrim = ensuredDay.scrim;
       tournamentId = ensuredDay.tournament.id;
@@ -571,10 +536,7 @@ async function resolveImportContext(
   }
 
   if (tournament && !scrim && tournament.seasonId && (tournament.seasonDayNumber ?? tournament.dayNumber)) {
-    const dayContext = await getSeasonDayContext(
-      tournament.seasonId,
-      tournament.seasonDayNumber ?? tournament.dayNumber ?? 0
-    );
+    const dayContext = await getSeasonDayContext(tournament.seasonId, tournament.seasonDayNumber ?? tournament.dayNumber ?? 0);
     scrim = dayContext.scrim;
   }
 
@@ -593,10 +555,7 @@ async function resolveImportContext(
   };
 }
 
-async function detectImportConflicts(
-  playerResults: MatchPlayerResult[],
-  existingPlayers?: Player[]
-): Promise<PubgImportConflict[]> {
+async function detectImportConflicts(playerResults: MatchPlayerResult[], existingPlayers?: Player[]): Promise<PubgImportConflict[]> {
   if (!isDocumentStoreConfigured() || playerResults.length === 0) {
     return [];
   }
@@ -650,7 +609,7 @@ async function detectImportConflicts(
   }
 
   return Array.from(conflicts.values()).sort((firstConflict, secondConflict) =>
-    firstConflict.playerName.localeCompare(secondConflict.playerName)
+    firstConflict.playerName.localeCompare(secondConflict.playerName),
   );
 }
 
@@ -658,16 +617,15 @@ async function buildPubgMatchPreview(
   matchId: string,
   options?: ImportTargetOptions,
   existingPlayers?: Player[],
-  resolvedContext?: ResolvedImportContext
+  resolvedContext?: ResolvedImportContext,
 ): Promise<{
   preview: PubgImportPreview;
   context: ResolvedImportContext;
   matchRecord: TournamentMatch;
 }> {
   const context = resolvedContext ?? (await resolveImportContext(options));
-  const rawMatch = options && "forceRefetch" in options && options.forceRefetch
-    ? await refetchRawPubgMatch(matchId)
-    : await ensureRawPubgMatch(matchId);
+  const rawMatch =
+    options && "forceRefetch" in options && options.forceRefetch ? await refetchRawPubgMatch(matchId) : await ensureRawPubgMatch(matchId);
   const parsedMatch = parsePubgMatch(rawMatch.raw);
   const previewMappings = await loadPreviewMappings(context, existingPlayers);
   const warnings = [...parsedMatch.warnings];
@@ -678,45 +636,42 @@ async function buildPubgMatchPreview(
     rosterPlayersByRosterId.set(player.rosterId, current);
   }
 
-  const teamResultEntries = parsedMatch.teams
-    .map((parsedTeam) => {
-      const rosterPlayers = rosterPlayersByRosterId.get(parsedTeam.rosterId) ?? [];
-      const mappedTeam = findMappedTeam(parsedTeam.teamName, rosterPlayers, previewMappings);
+  const teamResultEntries = parsedMatch.teams.map((parsedTeam) => {
+    const rosterPlayers = rosterPlayersByRosterId.get(parsedTeam.rosterId) ?? [];
+    const mappedTeam = findMappedTeam(parsedTeam.teamName, rosterPlayers, previewMappings);
 
-      if (!mappedTeam) {
-        appendPreviewWarning(warnings, {
-          type: "unknown_team",
-          matchId,
-          teamName: parsedTeam.teamName,
-          rosterId: parsedTeam.rosterId,
-          message: `Unknown team detected: ${parsedTeam.teamName}.`,
-        });
-      }
-
-      const kills = rosterPlayers.reduce((sum, player) => sum + player.kills, 0);
-      const damage = rosterPlayers.reduce((sum, player) => sum + player.damage, 0);
-      const placementPointsValue = placementPoints(parsedTeam.placement);
-
-      return {
+    if (!mappedTeam) {
+      appendPreviewWarning(warnings, {
+        type: "unknown_team",
+        matchId,
+        teamName: parsedTeam.teamName,
         rosterId: parsedTeam.rosterId,
-        result: {
-          teamId: mappedTeam?.id,
-          teamName: mappedTeam?.name ?? parsedTeam.teamName,
-          slotNumber: mappedTeam?.slotNumber,
-          placement: parsedTeam.placement,
-          kills,
-          damage,
-          placementPoints: placementPointsValue,
-          killPoints: kills,
-          totalPoints: placementPointsValue + kills,
-        } satisfies TeamMatchResult,
-      };
-    });
+        message: `Unknown team detected: ${parsedTeam.teamName}.`,
+      });
+    }
+
+    const kills = rosterPlayers.reduce((sum, player) => sum + player.kills, 0);
+    const damage = rosterPlayers.reduce((sum, player) => sum + player.damage, 0);
+    const placementPointsValue = placementPoints(parsedTeam.placement);
+
+    return {
+      rosterId: parsedTeam.rosterId,
+      result: {
+        teamId: mappedTeam?.id,
+        teamName: mappedTeam?.name ?? parsedTeam.teamName,
+        slotNumber: mappedTeam?.slotNumber,
+        placement: parsedTeam.placement,
+        kills,
+        damage,
+        placementPoints: placementPointsValue,
+        killPoints: kills,
+        totalPoints: placementPointsValue + kills,
+      } satisfies TeamMatchResult,
+    };
+  });
 
   const teamResultByRosterId = new Map(
-    teamResultEntries
-      .filter((entry) => Boolean(entry.rosterId))
-      .map((entry) => [entry.rosterId, entry.result] as const)
+    teamResultEntries.filter((entry) => Boolean(entry.rosterId)).map((entry) => [entry.rosterId, entry.result] as const),
   );
   const teamResults = teamResultEntries
     .map((entry) => entry.result)
@@ -852,13 +807,15 @@ async function buildPubgMatchPreview(
 
   const detectedConflicts = await detectImportConflicts(playerResults, previewMappings.players);
   const conflicts = Array.from(
-    [...conflictMap.values(), ...detectedConflicts].reduce<Map<string, PubgImportConflict>>((result, conflict) => {
-      const key = `${conflict.playerName}::${conflict.pubgPlayerId ?? ""}::${conflict.importedTeamName}`;
-      if (!result.has(key)) {
-        result.set(key, conflict);
-      }
-      return result;
-    }, new Map()).values()
+    [...conflictMap.values(), ...detectedConflicts]
+      .reduce<Map<string, PubgImportConflict>>((result, conflict) => {
+        const key = `${conflict.playerName}::${conflict.pubgPlayerId ?? ""}::${conflict.importedTeamName}`;
+        if (!result.has(key)) {
+          result.set(key, conflict);
+        }
+        return result;
+      }, new Map())
+      .values(),
   );
 
   return {
@@ -884,10 +841,7 @@ async function buildPubgMatchPreview(
       scrimTitle: context.scrim?.title,
       seasonId: context.seasonId ?? context.tournament?.seasonId,
       seasonDayNumber:
-        context.seasonDayNumber ??
-        context.tournament?.seasonDayNumber ??
-        context.tournament?.dayNumber ??
-        context.scrim?.seasonDayNumber,
+        context.seasonDayNumber ?? context.tournament?.seasonDayNumber ?? context.tournament?.dayNumber ?? context.scrim?.seasonDayNumber,
       detectedTeams: teamResults.length,
       detectedPlayers: playerResults.length,
       teamResults,
@@ -977,40 +931,46 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
     for (const playerResult of match.playerResults ?? []) {
       const sourcePlayerKey = playerResult.pubgPlayerId ?? playerResult.playerId ?? playerResult.playerName;
       const playerId = buildTournamentScopedPlayerId(tournamentId, sourcePlayerKey, playerResult.playerName);
-      const existingPlayer = playerAggregateMap.get(playerId) ?? {
-        name: playerResult.playerName,
-        inGameName: playerResult.playerName,
-        teamId: playerResult.teamId,
-        teamName: playerResult.teamName,
-        pubgId: sourcePlayerKey,
-        pubgName: playerResult.playerName,
-        assists: 0,
-        knocks: 0,
-        placementPoints: 0,
-        totalPoints: 0,
-        averageDamage: 0,
-        bestPlacement: playerResult.placement,
-        kills: 0,
-        damage: 0,
-        mvpCount: 0,
-        chickenDinners: 0,
-        matches: 0,
-        rating: 0,
-        playerStatus: "active",
-        scope: "tournament",
-        seasonId: currentTournament.seasonId,
-        seasonTitle: currentTournament.seasonTitle,
-        seasonDayNumbers:
-          typeof (currentTournament.seasonDayNumber ?? currentTournament.dayNumber) === "number"
-            ? [currentTournament.seasonDayNumber ?? currentTournament.dayNumber ?? 0]
-            : [],
-        sourceTournamentId: tournamentId,
-        sourceTournamentTitle: currentTournament.title,
-        sourceProvider: "pubg_api",
-        id: playerId,
-        sourcePlayerKey,
-        bestPlacementAccumulator: playerResult.placement,
-      } satisfies Omit<Player, "id"> & { id: string; sourcePlayerKey: string; bestPlacementAccumulator: number };
+      const existingPlayer =
+        playerAggregateMap.get(playerId) ??
+        ({
+          name: playerResult.playerName,
+          inGameName: playerResult.playerName,
+          teamId: playerResult.teamId,
+          teamName: playerResult.teamName,
+          pubgId: sourcePlayerKey,
+          pubgName: playerResult.playerName,
+          assists: 0,
+          knocks: 0,
+          placementPoints: 0,
+          totalPoints: 0,
+          averageDamage: 0,
+          bestPlacement: playerResult.placement,
+          kills: 0,
+          damage: 0,
+          mvpCount: 0,
+          chickenDinners: 0,
+          matches: 0,
+          rating: 0,
+          playerStatus: "active",
+          scope: "tournament",
+          seasonId: currentTournament.seasonId,
+          seasonTitle: currentTournament.seasonTitle,
+          seasonDayNumbers:
+            typeof (currentTournament.seasonDayNumber ?? currentTournament.dayNumber) === "number"
+              ? [currentTournament.seasonDayNumber ?? currentTournament.dayNumber ?? 0]
+              : [],
+          sourceTournamentId: tournamentId,
+          sourceTournamentTitle: currentTournament.title,
+          sourceProvider: "pubg_api",
+          id: playerId,
+          sourcePlayerKey,
+          bestPlacementAccumulator: playerResult.placement,
+        } satisfies Omit<Player, "id"> & {
+          id: string;
+          sourcePlayerKey: string;
+          bestPlacementAccumulator: number;
+        });
 
       existingPlayer.assists = (existingPlayer.assists ?? 0) + playerResult.assists;
       existingPlayer.knocks = (existingPlayer.knocks ?? 0) + playerResult.knocks;
@@ -1020,10 +980,7 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
       existingPlayer.damage += playerResult.damage;
       existingPlayer.chickenDinners += playerResult.placement === 1 ? 1 : 0;
       existingPlayer.matches += 1;
-      existingPlayer.bestPlacementAccumulator = Math.min(
-        existingPlayer.bestPlacementAccumulator,
-        playerResult.placement
-      );
+      existingPlayer.bestPlacementAccumulator = Math.min(existingPlayer.bestPlacementAccumulator, playerResult.placement);
       existingPlayer.bestPlacement = Math.min(existingPlayer.bestPlacement ?? playerResult.placement, playerResult.placement);
 
       playerAggregateMap.set(playerId, existingPlayer);
@@ -1032,39 +989,24 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
 
   const playerDocuments = Array.from(playerAggregateMap.values())
     .map(({ bestPlacementAccumulator, sourcePlayerKey, ...playerAggregate }) => {
-      const preferredTeam = choosePreferredPlayerTeam(
-        Array.from(appearanceMap.get(sourcePlayerKey)?.values() ?? [])
-      );
+      const preferredTeam = choosePreferredPlayerTeam(Array.from(appearanceMap.get(sourcePlayerKey)?.values() ?? []));
       const resolvedTeamName = preferredTeam?.teamName ?? playerAggregate.teamName;
 
       return {
         ...playerAggregate,
         teamId: resolvedTeamName ? buildTournamentScopedTeamId(tournamentId, resolvedTeamName) : undefined,
         teamName: resolvedTeamName,
-        averageDamage:
-          playerAggregate.matches > 0
-            ? Number((playerAggregate.damage / playerAggregate.matches).toFixed(2))
-            : 0,
+        averageDamage: playerAggregate.matches > 0 ? Number((playerAggregate.damage / playerAggregate.matches).toFixed(2)) : 0,
         mvpCount: mvpCounts.get(sourcePlayerKey) ?? 0,
         rating: playerAggregate.totalPoints,
-        winRate:
-          playerAggregate.matches > 0
-            ? Number(((playerAggregate.chickenDinners ?? 0) / playerAggregate.matches).toFixed(4))
-            : 0,
-        bestPlacement: Number.isFinite(bestPlacementAccumulator)
-          ? bestPlacementAccumulator
-          : undefined,
+        winRate: playerAggregate.matches > 0 ? Number(((playerAggregate.chickenDinners ?? 0) / playerAggregate.matches).toFixed(4)) : 0,
+        bestPlacement: Number.isFinite(bestPlacementAccumulator) ? bestPlacementAccumulator : undefined,
         isMvpOfWeek: false,
       };
     })
-    .sort(
-      (firstPlayer, secondPlayer) =>
-        comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer)
-    );
+    .sort((firstPlayer, secondPlayer) => comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer));
 
-  const mvpOfWeek = [...playerDocuments].sort((firstPlayer, secondPlayer) =>
-    compareMvpRankingPlayers(firstPlayer, secondPlayer)
-  )[0];
+  const mvpOfWeek = [...playerDocuments].sort((firstPlayer, secondPlayer) => compareMvpRankingPlayers(firstPlayer, secondPlayer))[0];
   if (mvpOfWeek) {
     mvpOfWeek.isMvpOfWeek = true;
   }
@@ -1117,16 +1059,16 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
     const scopedTeamId = buildTournamentScopedTeamId(tournamentId, team.name);
     const standing = standingsByTeamId.get(team.id);
     const existingTeam = existingTeams.find(
-      (currentTeam) =>
-        currentTeam.id === scopedTeamId ||
-        currentTeam.name === team.name ||
-        currentTeam.sourceTeamName === team.name
+      (currentTeam) => currentTeam.id === scopedTeamId || currentTeam.name === team.name || currentTeam.sourceTeamName === team.name,
     );
 
     return {
       id: scopedTeamId,
       name: team.name,
-      tag: resolveBravoTeamIdentity(team.name)?.tag ?? existingTeam?.tag ?? `Day ${currentTournament.seasonDayNumber ?? currentTournament.dayNumber ?? ""}`.trim(),
+      tag:
+        resolveBravoTeamIdentity(team.name)?.tag ??
+        existingTeam?.tag ??
+        `Day ${currentTournament.seasonDayNumber ?? currentTournament.dayNumber ?? ""}`.trim(),
       slotNumber: team.slotNumber ?? existingTeam?.slotNumber,
       rank: standing?.rank,
       totalPoints: standing?.totalPoints ?? 0,
@@ -1161,13 +1103,25 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
   const operations: DocumentWriteOperation[] = [
     ...existingStandings
       .filter((standing) => !standingIds.has(standing.id))
-      .map((standing) => ({ type: "delete" as const, collectionName: COLLECTIONS.standings, docId: standing.id })),
+      .map((standing) => ({
+        type: "delete" as const,
+        collectionName: COLLECTIONS.standings,
+        docId: standing.id,
+      })),
     ...existingTeams
       .filter((team) => !teamIds.has(team.id))
-      .map((team) => ({ type: "delete" as const, collectionName: COLLECTIONS.teams, docId: team.id })),
+      .map((team) => ({
+        type: "delete" as const,
+        collectionName: COLLECTIONS.teams,
+        docId: team.id,
+      })),
     ...existingPlayers
       .filter((player) => !playerIds.has(player.id))
-      .map((player) => ({ type: "delete" as const, collectionName: COLLECTIONS.players, docId: player.id })),
+      .map((player) => ({
+        type: "delete" as const,
+        collectionName: COLLECTIONS.players,
+        docId: player.id,
+      })),
     ...existingMatchPlayers
       .filter((matchPlayer) => !matchPlayerIds.has(matchPlayer.id))
       .map((matchPlayer) => ({
@@ -1217,10 +1171,7 @@ async function syncTournamentDerivedData(tournamentId: string, tournament?: Tour
           currentTournament.registeredTeamIds && currentTournament.registeredTeamIds.length > 0
             ? currentTournament.registeredTeamIds
             : teamDocuments.map((team) => resolveBravoTeamIdentity(team.name)?.id ?? team.id),
-        status:
-          matches.length > 0 && currentTournament.status !== "COMPLETED"
-            ? "LIVE"
-            : currentTournament.status,
+        status: matches.length > 0 && currentTournament.status !== "COMPLETED" ? "LIVE" : currentTournament.status,
       },
       merge: true,
     },
@@ -1247,10 +1198,7 @@ async function syncSeasonDerivedDataIfNeeded(tournament?: Tournament | null) {
   await syncSeasonDerivedData(tournament.seasonId);
 }
 
-export async function syncTournamentAndSeasonDerivedData(
-  tournamentId?: string | null,
-  tournament?: Tournament | null
-) {
+async function syncTournamentAndSeasonDerivedData(tournamentId?: string | null, tournament?: Tournament | null) {
   const resolvedTournamentId = tournamentId ?? tournament?.id;
   if (!resolvedTournamentId) {
     return;
@@ -1284,10 +1232,8 @@ function normalizeStoredMatchForDisplay(match: TournamentMatch): TournamentMatch
     winner: canonicalizeBravoTeamName(match.winner),
     teamResults: (match.teamResults ?? []).map((teamResult) => {
       const resolvedTeam = resolveBravoTeamIdentity(teamResult.teamName);
-      const inferredSlotNumber =
-        resolvedTeam?.slotNumber ?? teamResult.slotNumber ?? parseBravoSlotNumber(teamResult.teamName);
-      const normalizedTeamName =
-        resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? teamResult.teamName;
+      const inferredSlotNumber = resolvedTeam?.slotNumber ?? teamResult.slotNumber ?? parseBravoSlotNumber(teamResult.teamName);
+      const normalizedTeamName = resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? teamResult.teamName;
 
       return {
         ...teamResult,
@@ -1298,10 +1244,8 @@ function normalizeStoredMatchForDisplay(match: TournamentMatch): TournamentMatch
     }),
     playerResults: (match.playerResults ?? []).map((playerResult) => {
       const resolvedTeam = resolveBravoTeamIdentity(playerResult.teamName);
-      const inferredSlotNumber =
-        resolvedTeam?.slotNumber ?? playerResult.slotNumber ?? parseBravoSlotNumber(playerResult.teamName);
-      const normalizedTeamName =
-        resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? playerResult.teamName;
+      const inferredSlotNumber = resolvedTeam?.slotNumber ?? playerResult.slotNumber ?? parseBravoSlotNumber(playerResult.teamName);
+      const normalizedTeamName = resolvedTeam?.name ?? buildFallbackTeamNameFromSlot(inferredSlotNumber) ?? playerResult.teamName;
 
       return {
         ...playerResult,
@@ -1314,13 +1258,15 @@ function normalizeStoredMatchForDisplay(match: TournamentMatch): TournamentMatch
 }
 
 async function getMatchSequenceNumbers(tournamentId: string, matchIds: string[]) {
-  const existingMatches = await getTournamentMatches(tournamentId, { includeDrafts: true });
+  const existingMatches = await getTournamentMatches(tournamentId, {
+    includeDrafts: true,
+  });
   const sequenceNumberByMatchId = new Map<string, number>();
   const availableDraftShellNumbers: number[] = [];
 
   for (const existingMatch of existingMatches) {
     const sequenceNumber = existingMatch.matchNumber ?? existingMatch.sequenceNumber;
-    if (!Number.isFinite(sequenceNumber)) {
+    if (typeof sequenceNumber !== "number" || !Number.isFinite(sequenceNumber)) {
       continue;
     }
 
@@ -1354,17 +1300,18 @@ async function getMatchSequenceNumbers(tournamentId: string, matchIds: string[])
   return sequenceNumberByMatchId;
 }
 
-export async function previewPubgMatches(
-  matchIds: string[],
-  options?: ImportTargetOptions
-): Promise<PubgBulkPreviewResult> {
+export async function previewPubgMatches(matchIds: string[], options?: ImportTargetOptions): Promise<PubgBulkPreviewResult> {
   const normalizedMatchIds = normalizeRequestedMatchIds(matchIds);
   if (normalizedMatchIds.length === 0) {
     throw new Error("At least one PUBG match ID is required.");
   }
 
   const [context, existingPlayers] = await Promise.all([
-    resolveImportContext({ ...options, requireDay: true, autoCreateDay: options?.autoCreateDay ?? true }),
+    resolveImportContext({
+      ...options,
+      requireDay: true,
+      autoCreateDay: options?.autoCreateDay ?? true,
+    }),
     loadSeasonPlayers(),
   ]);
 
@@ -1382,7 +1329,7 @@ export async function previewPubgMatches(
           seasonDayNumber: context.seasonDayNumber,
         },
         existingPlayers,
-        context
+        context,
       );
       previews.push(preview);
     } catch (error: unknown) {
@@ -1393,7 +1340,7 @@ export async function previewPubgMatches(
   if (context.tournamentId && previews.length > 0) {
     const matchNumbers = await getMatchSequenceNumbers(
       context.tournamentId,
-      previews.map((preview) => preview.matchId)
+      previews.map((preview) => preview.matchId),
     );
 
     for (const preview of previews) {
@@ -1408,10 +1355,7 @@ export async function previewPubgMatches(
   };
 }
 
-export async function previewPubgMatch(
-  matchId: string,
-  options?: ImportTargetOptions
-): Promise<PubgImportPreview> {
+export async function previewPubgMatch(matchId: string, options?: ImportTargetOptions): Promise<PubgImportPreview> {
   const result = await previewPubgMatches([matchId], options);
   if (result.previews.length === 0) {
     throw new Error(result.errors[0]?.error ?? "Preview failed.");
@@ -1421,7 +1365,10 @@ export async function previewPubgMatch(
 
 export async function importPubgMatches(
   matchIds: string[],
-  options?: ImportTargetOptions & { screenshotUrl?: string; duplicateMode?: PubgDuplicateMode }
+  options?: ImportTargetOptions & {
+    screenshotUrl?: string;
+    duplicateMode?: PubgDuplicateMode;
+  },
 ): Promise<PubgBulkImportResult> {
   if (!isDocumentStoreConfigured()) {
     throw new Error("Supabase is not configured. Add the Supabase environment variables before importing PUBG data.");
@@ -1435,7 +1382,11 @@ export async function importPubgMatches(
   const duplicateMode = options?.duplicateMode ?? "overwrite";
   const matchEdits = normalizeImportEdits(options?.matchEdits);
   const [context, existingPlayers] = await Promise.all([
-    resolveImportContext({ ...options, requireDay: true, autoCreateDay: options?.autoCreateDay ?? true }),
+    resolveImportContext({
+      ...options,
+      requireDay: true,
+      autoCreateDay: options?.autoCreateDay ?? true,
+    }),
     loadSeasonPlayers(),
   ]);
 
@@ -1460,7 +1411,7 @@ export async function importPubgMatches(
           seasonDayNumber: context.seasonDayNumber,
         },
         existingPlayers,
-        context
+        context,
       );
 
       if (preview.alreadyImported && duplicateMode === "skip") {
@@ -1500,7 +1451,7 @@ export async function importPubgMatches(
     const now = new Date().toISOString();
     const sequenceNumberByMatchId = await getMatchSequenceNumbers(
       context.tournamentId,
-      previewResults.map((item) => item.preview.matchId)
+      previewResults.map((item) => item.preview.matchId),
     );
 
     const importedMatchRecords = previewResults.map(({ preview, matchRecord }) => {
@@ -1513,10 +1464,7 @@ export async function importPubgMatches(
           ...editedMatchRecord,
           tournamentId: context.tournamentId,
           scrimId: context.scrim?.id,
-          sequenceNumber:
-            edit?.matchNumber ??
-            editedMatchRecord.sequenceNumber ??
-            sequenceNumberByMatchId.get(preview.matchId),
+          sequenceNumber: edit?.matchNumber ?? editedMatchRecord.sequenceNumber ?? sequenceNumberByMatchId.get(preview.matchId),
           resultScreenshotUrl: options?.screenshotUrl,
           syncedAt: now,
         } satisfies TournamentMatch,
@@ -1524,11 +1472,13 @@ export async function importPubgMatches(
     });
 
     const mergedPubgMatchIds = Array.from(
-      new Set([
-        ...(context.scrim.pubgMatchIds ?? []),
-        context.scrim.pubgMatchId,
-        ...importedMatchRecords.map((item) => item.preview.matchId),
-      ].filter((matchId): matchId is string => Boolean(matchId)))
+      new Set(
+        [
+          ...(context.scrim.pubgMatchIds ?? []),
+          context.scrim.pubgMatchId,
+          ...importedMatchRecords.map((item) => item.preview.matchId),
+        ].filter((matchId): matchId is string => Boolean(matchId)),
+      ),
     );
 
     const operations: DocumentWriteOperation[] = [];
@@ -1584,7 +1534,7 @@ export async function importPubgMatches(
           docId: matchPlayer.id,
           data: matchPlayer as unknown as Record<string, unknown>,
           merge: true,
-        }))
+        })),
       );
     }
 
@@ -1610,9 +1560,7 @@ export async function importPubgMatches(
     try {
       await commitDocumentWriteOperations(operations);
     } catch (error: unknown) {
-      throw new Error(
-        `Database write failed: ${error instanceof Error ? error.message : String(error)}`
-      );
+      throw new Error(`Database write failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     await syncTournamentAndSeasonDerivedData(context.tournamentId, context.tournament);
@@ -1633,48 +1581,6 @@ export async function importPubgMatches(
     skippedCount: results.filter((result) => result.skipped).length,
     failedCount: results.filter((result) => !result.success).length,
   };
-}
-
-export async function importPubgMatch(
-  matchId: string,
-  options?: ImportTargetOptions & { screenshotUrl?: string; duplicateMode?: PubgDuplicateMode }
-) {
-  const preview = await previewPubgMatch(matchId, options);
-  const result = await importPubgMatches([matchId], options);
-  const importedMatch = await getDocument<TournamentMatch>(COLLECTIONS.matches, matchId);
-
-  return {
-    summary: preview.summary,
-    preview,
-    teamResults: importedMatch?.teamResults ?? preview.teamResults,
-    playerResults: importedMatch?.playerResults ?? preview.playerResults,
-    matchRecord: importedMatch,
-    players: importedMatch?.playerResults?.length ?? preview.playerResults.length,
-    importResult: result,
-  };
-}
-
-export async function getLiveMatchResults(limit = 20) {
-  try {
-    const matches = await listCompetitionMatches(limit);
-    if (matches.length > 0) {
-      return matches
-        .filter((match) => match.status !== "draft")
-        .sort((firstMatch, secondMatch) => (secondMatch.syncedAt ?? "").localeCompare(firstMatch.syncedAt ?? ""));
-    }
-  } catch {
-    // Fall back to the document compatibility layer when relational data is unavailable.
-  }
-
-  try {
-    const docs = await fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matchResults, limit);
-    return docs
-      .map(normalizeStoredMatchForDisplay)
-      .filter((match) => match.status !== "draft")
-      .sort((firstMatch, secondMatch) => (secondMatch.syncedAt ?? "").localeCompare(firstMatch.syncedAt ?? ""));
-  } catch {
-    return [];
-  }
 }
 
 export async function getMatchResult(matchId: string) {
@@ -1704,4 +1610,3 @@ export async function getMatchResult(matchId: string) {
     return null;
   }
 }
-

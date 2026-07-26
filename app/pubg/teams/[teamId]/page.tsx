@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
 import { PubgTeamProfileShowcasePage } from "@/components/pubg/PubgShowcasePages";
 import { findPublicPubgTeam, getPubgHubDataset, getPubgTeamById } from "@/lib/pubg-hub";
+import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ teamId: string }>;
