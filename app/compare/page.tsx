@@ -1,4 +1,4 @@
-import ComparePageClient from "@/components/pubg/ComparePageClient";
+import ComparePageLoader from "@/components/pubg/ComparePageLoader";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 import type { Metadata } from "next";
 
@@ -22,7 +22,7 @@ export default async function ComparePage({ searchParams }: PageProps) {
   const [dataset, resolvedSearchParams] = await Promise.all([getPubgHubDataset(), searchParams]);
 
   return (
-    <ComparePageClient
+    <ComparePageLoader
       dataset={dataset}
       initialMode={(pickParam(resolvedSearchParams, "mode") as "teams" | "players" | undefined) ?? "teams"}
       initialSideA={pickParam(resolvedSearchParams, "sideA")}
