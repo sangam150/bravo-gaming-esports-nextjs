@@ -15,20 +15,19 @@ import type { CSSProperties, ReactNode } from "react";
 
 type SearchParamValue = string | string[] | undefined;
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "Asia/Kathmandu",
-});
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+const NPT_OFFSET_MS = (5 * 60 + 45) * 60 * 1000;
 
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: "Asia/Kathmandu",
-});
+function getNptDateParts(value: Date) {
+  const nptDate = new Date(value.getTime() + NPT_OFFSET_MS);
+  return {
+    day: nptDate.getUTCDate(),
+    hours: nptDate.getUTCHours(),
+    minutes: nptDate.getUTCMinutes(),
+    month: SHORT_MONTHS[nptDate.getUTCMonth()],
+    year: nptDate.getUTCFullYear(),
+  };
+}
 
 function joinClasses(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -71,7 +70,8 @@ export function formatDate(value?: string | null) {
     return value;
   }
 
-  return dateFormatter.format(parsed);
+  const parts = getNptDateParts(parsed);
+  return `${parts.month} ${parts.day}, ${parts.year}`;
 }
 
 export function formatDateTime(value?: string | null) {
@@ -82,7 +82,10 @@ export function formatDateTime(value?: string | null) {
     return value;
   }
 
-  return `${dateTimeFormatter.format(parsed)} NPT`;
+  const parts = getNptDateParts(parsed);
+  const period = parts.hours >= 12 ? "PM" : "AM";
+  const displayHour = parts.hours % 12 || 12;
+  return `${parts.month} ${parts.day}, ${displayHour}:${String(parts.minutes).padStart(2, "0")} ${period} NPT`;
 }
 
 export function formatDateRange(startDate?: string | null, endDate?: string | null) {
