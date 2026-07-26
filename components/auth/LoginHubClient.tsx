@@ -244,7 +244,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                   <p className="mt-2 text-sm text-text-muted">
                     Discord verifies your identity; Bravo then checks your official server roles and approved team or player linkage.
                   </p>
-                  <DiscordLoginButton enabled className="mt-4" />
+                  <DiscordLoginButton className="mt-4" />
                 </div>
               ) : null}
 

@@ -16,8 +16,7 @@ export async function resolveEdgeIdentity(request: NextRequest): Promise<EdgeIde
   const publicKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!token || !url || !publicKey || !serviceRoleKey) return null;
+  if (!token || !url || !publicKey) return null;
 
   try {
     const authResponse = await fetch(`${url}/auth/v1/user`, {
@@ -35,8 +34,8 @@ export async function resolveEdgeIdentity(request: NextRequest): Promise<EdgeIde
     });
     const profileResponse = await fetch(`${url}/rest/v1/profiles?${query}`, {
       headers: {
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
+        apikey: publicKey,
+        Authorization: `Bearer ${token}`,
         Accept: "application/json",
       },
       cache: "no-store",

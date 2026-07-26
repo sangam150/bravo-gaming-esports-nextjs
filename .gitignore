@@ -18,6 +18,7 @@ coverage/
 test-results/
 playwright-report/
 blob-report/
+qa-artifacts/
 
 # Runtime and debug logs
 *.log
@@ -37,6 +38,9 @@ supabase/.temp/
 .cache/
 .turbo/
 .eslintcache
+.codex-*/
+.codex-*
+tmp/
 *.tmp
 *.temp
 *.swp
