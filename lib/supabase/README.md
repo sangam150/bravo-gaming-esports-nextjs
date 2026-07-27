@@ -1,19 +1,14 @@
 # Supabase Layer
 
-This folder contains the active Supabase backend foundation for Bravo Gaming Esports.
+This directory contains the active Supabase client boundary:
 
-Files:
+- `env.ts` validates the project URL and public-key configuration.
+- `client.ts` creates the browser client.
+- `server.ts` creates the cookie-aware Server Component and Route Handler client.
+- `proxy.ts` refreshes browser sessions before protected-route authorization.
+- `service-role-client.ts` creates the server-only privileged client.
 
-- `constants.ts`: canonical table, bucket, and role names
-- `env.ts`: shared Supabase environment validation helpers
-- `client.ts`: browser client for public/admin UI
-- `server.ts`: cookie-aware server client for Route Handlers and Server Components
-- `proxy.ts`: cookie-aware session refresh for the Next.js proxy
-- `server-client.ts`: server client for Next.js route handlers and server components
-- `service-role-client.ts`: secure admin-only/service-role client for privileged writes
-
-Current status:
-
-- Supabase clients and configuration helpers are in place.
-- Admin auth, uploads, and the shared document-store runtime are now Supabase-backed.
-- The next migration step is moving more tournament/match workflows from document storage into the relational schema and RLS-protected tables.
+Authorization comes from the UID-linked `public.profiles` row. Email addresses, OAuth
+metadata, and client-provided role values are never authorization sources. Schema
+changes belong in the ordered files under `supabase/migrations`; do not edit Auth
+tables manually.

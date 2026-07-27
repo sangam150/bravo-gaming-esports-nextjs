@@ -1,3 +1,16 @@
+const privateNoStoreHeaders = [{ key: "Cache-Control", value: "private, no-store, max-age=0" }];
+const privateNoIndexHeaders = [...privateNoStoreHeaders, { key: "X-Robots-Tag", value: "noindex, nofollow" }];
+const privatePagePaths = [
+  "/admin/:path*",
+  "/team/:path*",
+  "/dashboard/:path*",
+  "/auth/:path*",
+  "/login",
+  "/player/login",
+  "/reset-password",
+];
+const privateApiPaths = ["/api/admin/:path*", "/api/auth/:path*", "/api/cron/:path*", "/api/team/:path*", "/api/uploads/private/:path*"];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
@@ -19,20 +32,8 @@ const nextConfig = {
           },
         ],
       },
-      {
-        source: "/admin/:path*",
-        headers: [
-          { key: "Cache-Control", value: "private, no-store, max-age=0" },
-          { key: "X-Robots-Tag", value: "noindex, nofollow" },
-        ],
-      },
-      {
-        source: "/team/:path*",
-        headers: [
-          { key: "Cache-Control", value: "private, no-store, max-age=0" },
-          { key: "X-Robots-Tag", value: "noindex, nofollow" },
-        ],
-      },
+      ...privatePagePaths.map((source) => ({ source, headers: privateNoIndexHeaders })),
+      ...privateApiPaths.map((source) => ({ source, headers: privateNoStoreHeaders })),
     ];
   },
   images: {

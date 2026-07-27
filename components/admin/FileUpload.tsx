@@ -126,10 +126,11 @@ export default function FileUpload({
   const maxUploadSizeLabel = formatUploadSize(getUploadMaxBytes(type));
 
   return (
-    <div className="space-y-3">
+    <div aria-busy={uploading} className="space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">{label}</p>
       <input
         ref={inputRef}
+        aria-label={`Choose ${label} image file`}
         type="file"
         accept={IMAGE_FILE_INPUT_ACCEPT}
         className="hidden"
@@ -143,15 +144,6 @@ export default function FileUpload({
         }}
       />
       <div
-        role="button"
-        tabIndex={0}
-        onClick={openFilePicker}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            openFilePicker();
-          }
-        }}
         onDragOver={(event) => {
           event.preventDefault();
           setDragActive(true);
@@ -190,7 +182,7 @@ export default function FileUpload({
           )}
           <div className="min-w-0 flex-1 space-y-2">
             <p className="text-sm font-semibold text-white">{preview ? "Replace image" : "Upload image"}</p>
-            <p className="text-xs text-text-muted">Drag and drop or click to choose a JPG, PNG, or WEBP file.</p>
+            <p className="text-xs text-text-muted">Drag and drop or use the button to choose a JPG, PNG, or WEBP file.</p>
             <p className="text-xs text-text-muted">Max size: {maxUploadSizeLabel}</p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -238,14 +230,30 @@ export default function FileUpload({
       {uploading && (
         <div className="space-y-1">
           <div className="h-2 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full bg-accent-blue transition-all" style={{ width: `${progress}%` }} />
+            <div
+              role="progressbar"
+              aria-label={`${label} upload progress`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+              className="h-full rounded-full bg-accent-blue transition-all"
+              style={{ width: `${progress}%` }}
+            />
           </div>
           <p className="text-xs text-text-muted">Uploading to Cloudflare R2... {progress}%</p>
         </div>
       )}
 
-      {notice && <p className="text-xs text-green-300">{notice}</p>}
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {notice && (
+        <p role="status" aria-live="polite" className="text-xs text-green-300">
+          {notice}
+        </p>
+      )}
+      {error && (
+        <p role="alert" aria-live="assertive" className="text-xs text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -117,6 +117,8 @@ export default function AdminDiscordLinkManager() {
 
       {message || error ? (
         <div
+          role={error ? "alert" : "status"}
+          aria-live={error ? "assertive" : "polite"}
           className={`rounded-card border px-4 py-3 text-sm ${
             error ? "border-bravoRed/30 bg-bravoRed/10 text-red-200" : "border-accent-green/30 bg-accent-green/10 text-green-200"
           }`}
@@ -167,6 +169,7 @@ export default function AdminDiscordLinkManager() {
                         [profile.id]: event.target.value,
                       }))
                     }
+                    aria-label="Discord provider user ID"
                     placeholder="Discord provider user ID"
                   />
                   <button

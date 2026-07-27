@@ -5,10 +5,14 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export function useDiscordProviderEnabled() {
+export function useDiscordProviderEnabled(skipDetection = false) {
   const [providerEnabled, setProviderEnabled] = useState(false);
 
   useEffect(() => {
+    if (skipDetection) {
+      return;
+    }
+
     let active = true;
     void (async () => {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -28,13 +32,13 @@ export function useDiscordProviderEnabled() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [skipDetection]);
 
   return providerEnabled;
 }
 
 export default function DiscordLoginButton({ className = "", enabled }: { className?: string; enabled?: boolean }) {
-  const detectedProviderEnabled = useDiscordProviderEnabled();
+  const detectedProviderEnabled = useDiscordProviderEnabled(enabled !== undefined);
   const providerEnabled = enabled ?? detectedProviderEnabled;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

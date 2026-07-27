@@ -1,10 +1,12 @@
 "use client";
 
+import { CONTACT_SUBJECT_OPTIONS, type ContactMessageKind } from "@/lib/contact-form-options";
 import { getResponseErrorMessage, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import Link from "next/link";
 import { useState } from "react";
 
 type ContactFormClientProps = {
-  kind: "contact" | "feedback";
+  kind: ContactMessageKind;
   title: string;
   description: string;
   submitLabel: string;
@@ -22,6 +24,7 @@ export default function ContactFormClient({ kind, title, description, submitLabe
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fieldIdPrefix = `${kind}-message`;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,6 +79,7 @@ export default function ContactFormClient({ kind, title, description, submitLabe
   return (
     <form
       onSubmit={handleSubmit}
+      aria-busy={submitting}
       className="space-y-4 rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(16,24,43,0.95),rgba(10,16,32,0.95))] p-6 shadow-[0_0_30px_rgba(20,126,245,0.08)]"
     >
       <div>
@@ -84,29 +88,103 @@ export default function ContactFormClient({ kind, title, description, submitLabe
       </div>
 
       {notice ? (
-        <div className="rounded-[16px] border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-100">{notice}</div>
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-[16px] border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-100"
+        >
+          {notice}
+        </div>
       ) : null}
 
-      {error ? <div className="rounded-[16px] border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-100">{error}</div> : null}
+      {error ? (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="rounded-[16px] border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-100"
+        >
+          {error}
+        </div>
+      ) : null}
 
-      <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your Name" required />
-      <input
-        className={inputClass}
-        type="email"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        placeholder="Email Address"
-        required
-      />
-      <input className={inputClass} value={subject} onChange={(event) => setSubject(event.target.value)} placeholder={subjectLabel} />
-      <textarea
-        className={inputClass}
-        rows={5}
-        value={message}
-        onChange={(event) => setMessage(event.target.value)}
-        placeholder="Message"
-        required
-      />
+      <div className="grid gap-2">
+        <label htmlFor={`${fieldIdPrefix}-name`} className="text-sm font-semibold text-white">
+          Your name
+        </label>
+        <input
+          id={`${fieldIdPrefix}-name`}
+          name="name"
+          className={inputClass}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Your name"
+          autoComplete="name"
+          maxLength={120}
+          required
+        />
+      </div>
+      <div className="grid gap-2">
+        <label htmlFor={`${fieldIdPrefix}-email`} className="text-sm font-semibold text-white">
+          Email address
+        </label>
+        <input
+          id={`${fieldIdPrefix}-email`}
+          name="email"
+          className={inputClass}
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          autoComplete="email"
+          maxLength={254}
+          required
+        />
+      </div>
+      <div className="grid gap-2">
+        <label htmlFor={`${fieldIdPrefix}-subject`} className="text-sm font-semibold text-white">
+          {subjectLabel}
+        </label>
+        <select
+          id={`${fieldIdPrefix}-subject`}
+          name="subject"
+          className={inputClass}
+          value={subject}
+          onChange={(event) => setSubject(event.target.value)}
+          required
+        >
+          <option value="" disabled>
+            Select {subjectLabel.toLowerCase()}
+          </option>
+          {CONTACT_SUBJECT_OPTIONS[kind].map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="grid gap-2">
+        <label htmlFor={`${fieldIdPrefix}-body`} className="text-sm font-semibold text-white">
+          Message
+        </label>
+        <textarea
+          id={`${fieldIdPrefix}-body`}
+          name="message"
+          className={inputClass}
+          rows={5}
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          placeholder="Message"
+          maxLength={5000}
+          required
+        />
+      </div>
+      <p className="text-xs leading-5 text-text-muted">
+        Your details are used only to respond to this message. Read the{" "}
+        <Link href="/privacy" className="font-semibold text-accent-blue-light hover:text-white hover:underline">
+          privacy policy
+        </Link>
+        .
+      </p>
       <button
         type="submit"
         disabled={submitting}

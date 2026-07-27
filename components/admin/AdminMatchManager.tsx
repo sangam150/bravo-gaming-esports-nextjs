@@ -291,6 +291,8 @@ function MessageLine({ message, error }: { message?: string | null; error?: stri
 
   return (
     <div
+      role={error ? "alert" : "status"}
+      aria-live={error ? "assertive" : "polite"}
       className={`rounded-card border px-4 py-3 text-sm ${
         error ? "border-bravoRed/30 bg-bravoRed/10 text-red-200" : "border-accent-green/30 bg-accent-green/10 text-green-200"
       }`}
@@ -705,17 +707,24 @@ export default function AdminMatchManager({
           <div className="grid gap-4 sm:grid-cols-2">
             <input
               className={inputClass}
+              aria-label="Match reference / optional PUBG Match ID"
               placeholder="Match reference / optional PUBG Match ID"
               value={form.pubgMatchId}
               onChange={(event) => setForm({ ...form, pubgMatchId: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="External Match ID"
               placeholder="External Match ID"
               value={form.externalMatchId}
               onChange={(event) => setForm({ ...form, externalMatchId: event.target.value })}
             />
-            <select className={inputClass} value={form.map} onChange={(event) => setForm({ ...form, map: event.target.value })}>
+            <select
+              aria-label="Map"
+              className={inputClass}
+              value={form.map}
+              onChange={(event) => setForm({ ...form, map: event.target.value })}
+            >
               {pubgMaps.map((mapName) => (
                 <option key={mapName} value={mapName}>
                   {mapName}
@@ -724,6 +733,7 @@ export default function AdminMatchManager({
             </select>
             <input
               className={inputClass}
+              aria-label="Match number"
               type="number"
               min={1}
               value={form.matchNumber}
@@ -736,18 +746,21 @@ export default function AdminMatchManager({
             />
             <input
               className={inputClass}
+              aria-label="Event name"
               placeholder="Event name"
               value={form.eventName}
               onChange={(event) => setForm({ ...form, eventName: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Event slug"
               placeholder="Event slug"
               value={form.eventSlug}
               onChange={(event) => setForm({ ...form, eventSlug: event.target.value })}
             />
             <select
               className={inputClass}
+              aria-label="Event"
               value={form.tournamentId}
               onChange={(event) => setForm({ ...form, tournamentId: event.target.value })}
             >
@@ -760,6 +773,7 @@ export default function AdminMatchManager({
             </select>
             <select
               className={inputClass}
+              aria-label="Point system"
               value={form.pointSystemId}
               onChange={(event) => {
                 const nextPointSystem = pointSystems.find((pointSystem) => pointSystem.id === event.target.value) ?? null;
@@ -778,7 +792,12 @@ export default function AdminMatchManager({
                 </option>
               ))}
             </select>
-            <select className={inputClass} value={form.scrimId} onChange={(event) => setForm({ ...form, scrimId: event.target.value })}>
+            <select
+              aria-label="Scrim"
+              className={inputClass}
+              value={form.scrimId}
+              onChange={(event) => setForm({ ...form, scrimId: event.target.value })}
+            >
               <option value="">Scrim link (optional)</option>
               {scrimOptions.map((scrim) => (
                 <option key={scrim.id} value={scrim.id}>
@@ -788,12 +807,14 @@ export default function AdminMatchManager({
             </select>
             <input
               className={inputClass}
+              aria-label="Played date and time"
               type="datetime-local"
               value={form.playedAt}
               onChange={(event) => setForm({ ...form, playedAt: event.target.value })}
             />
             <select
               className={inputClass}
+              aria-label="Publication status"
               value={form.status}
               onChange={(event) =>
                 setForm({
@@ -807,12 +828,14 @@ export default function AdminMatchManager({
             </select>
             <input
               className={inputClass}
+              aria-label="VOD / YouTube URL"
               placeholder="VOD / YouTube URL"
               value={form.vodUrl}
               onChange={(event) => setForm({ ...form, vodUrl: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Source URL"
               placeholder="Source URL"
               value={form.sourceUrl}
               onChange={(event) => setForm({ ...form, sourceUrl: event.target.value })}
@@ -829,6 +852,7 @@ export default function AdminMatchManager({
               <textarea
                 className={inputClass}
                 rows={7}
+                aria-label="Team results"
                 placeholder="Team Name|Slot|Placement|Kills|Damage|PlacementPts|KillPts|TotalPts"
                 value={form.teamResultsText}
                 onChange={(event) => setForm({ ...form, teamResultsText: event.target.value })}
@@ -839,6 +863,7 @@ export default function AdminMatchManager({
               <textarea
                 className={inputClass}
                 rows={8}
+                aria-label="Player results"
                 placeholder="Player Name|Team Name|Kills|Assists|Knocks|Damage|Placement|Player ID|PUBG Player ID|Survival Seconds"
                 value={form.playerResultsText}
                 onChange={(event) => setForm({ ...form, playerResultsText: event.target.value })}
@@ -987,14 +1012,15 @@ export default function AdminMatchManager({
               </p>
             ) : (
               <div className="mt-5 space-y-4">
-                <div className="table-scroll">
+                <div className="table-scroll" tabIndex={0}>
                   <table className="data-table min-w-full text-xs">
+                    <caption className="sr-only">Team scoring preview for the current match</caption>
                     <thead>
                       <tr>
-                        <th>Team</th>
-                        <th>Place</th>
-                        <th>K</th>
-                        <th>Pts</th>
+                        <th scope="col">Team</th>
+                        <th scope="col">Place</th>
+                        <th scope="col">K</th>
+                        <th scope="col">Pts</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1011,16 +1037,17 @@ export default function AdminMatchManager({
                 </div>
 
                 {(activePreview.playerResults?.length ?? 0) > 0 ? (
-                  <div className="table-scroll">
+                  <div className="table-scroll" tabIndex={0}>
                     <table className="data-table min-w-full text-xs">
+                      <caption className="sr-only">Player scoring preview for the current match</caption>
                       <thead>
                         <tr>
-                          <th>Player</th>
-                          <th>Team</th>
-                          <th>K</th>
-                          <th>A</th>
-                          <th>Kn</th>
-                          <th>Dmg</th>
+                          <th scope="col">Player</th>
+                          <th scope="col">Team</th>
+                          <th scope="col">K</th>
+                          <th scope="col">A</th>
+                          <th scope="col">Kn</th>
+                          <th scope="col">Dmg</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1052,6 +1079,7 @@ export default function AdminMatchManager({
             <textarea
               className={inputClass}
               rows={6}
+              aria-label="PUBG match IDs"
               placeholder="match.one&#10;match.two&#10;match.three"
               value={bulkForm.matchIdsText}
               onChange={(event) => setBulkForm({ ...bulkForm, matchIdsText: event.target.value })}
@@ -1059,6 +1087,7 @@ export default function AdminMatchManager({
             <div className="grid gap-4 sm:grid-cols-2">
               <select
                 className={inputClass}
+                aria-label="Map"
                 value={bulkForm.map}
                 onChange={(event) => setBulkForm({ ...bulkForm, map: event.target.value })}
               >
@@ -1070,6 +1099,7 @@ export default function AdminMatchManager({
               </select>
               <input
                 className={inputClass}
+                aria-label="Starting match number"
                 type="number"
                 min={1}
                 value={bulkForm.startMatchNumber}
@@ -1082,18 +1112,21 @@ export default function AdminMatchManager({
               />
               <input
                 className={inputClass}
+                aria-label="Event name"
                 placeholder="Event name"
                 value={bulkForm.eventName}
                 onChange={(event) => setBulkForm({ ...bulkForm, eventName: event.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="Event slug"
                 placeholder="Event slug"
                 value={bulkForm.eventSlug}
                 onChange={(event) => setBulkForm({ ...bulkForm, eventSlug: event.target.value })}
               />
               <select
                 className={inputClass}
+                aria-label="Event"
                 value={bulkForm.tournamentId}
                 onChange={(event) => setBulkForm({ ...bulkForm, tournamentId: event.target.value })}
               >
@@ -1106,6 +1139,7 @@ export default function AdminMatchManager({
               </select>
               <select
                 className={inputClass}
+                aria-label="Point system"
                 value={bulkForm.pointSystemId}
                 onChange={(event) => {
                   const nextPointSystem = pointSystems.find((pointSystem) => pointSystem.id === event.target.value) ?? null;
@@ -1126,6 +1160,7 @@ export default function AdminMatchManager({
               </select>
               <select
                 className={inputClass}
+                aria-label="Scrim"
                 value={bulkForm.scrimId}
                 onChange={(event) => setBulkForm({ ...bulkForm, scrimId: event.target.value })}
               >
@@ -1138,12 +1173,14 @@ export default function AdminMatchManager({
               </select>
               <input
                 className={inputClass}
+                aria-label="Played date and time"
                 type="datetime-local"
                 value={bulkForm.playedAt}
                 onChange={(event) => setBulkForm({ ...bulkForm, playedAt: event.target.value })}
               />
               <select
                 className={inputClass}
+                aria-label="Publication status"
                 value={bulkForm.status}
                 onChange={(event) =>
                   setBulkForm({
@@ -1157,12 +1194,14 @@ export default function AdminMatchManager({
               </select>
               <input
                 className={inputClass}
+                aria-label="Shared VOD URL"
                 placeholder="Shared VOD URL"
                 value={bulkForm.vodUrl}
                 onChange={(event) => setBulkForm({ ...bulkForm, vodUrl: event.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="Shared source URL"
                 placeholder="Shared source URL"
                 value={bulkForm.sourceUrl}
                 onChange={(event) => setBulkForm({ ...bulkForm, sourceUrl: event.target.value })}

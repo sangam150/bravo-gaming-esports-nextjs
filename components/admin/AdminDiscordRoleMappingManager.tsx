@@ -38,7 +38,7 @@ type AccessReview = {
 const mappingTypes = ["ignored", "access", "team_function", "team_identity", "verification", "cosmetic", "bot", "deny"];
 const applicationRoles = ["", "admin", "organizer", "moderator", "team_manager", "team_igl", "coach", "player", "viewer"];
 
-export default function AdminDiscordRoleMappingManager() {
+export default function AdminDiscordRoleMappingManager({ embedded = false }: { embedded?: boolean }) {
   const { role } = useAdminAuth();
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const [teams, setTeams] = useState<TeamOption[]>([]);
@@ -113,25 +113,32 @@ export default function AdminDiscordRoleMappingManager() {
     }
   }
 
+  const Container = embedded ? "section" : "main";
+  const Heading = embedded ? "h2" : "h1";
+
   if (role !== "super_admin") {
     return (
-      <main className="page-shell">
+      <Container className="page-shell" aria-labelledby="discord-role-owner-heading">
         <div className="esports-card mx-auto max-w-xl p-8 text-center">
-          <h1 className="font-display text-2xl font-black uppercase">Owner access required</h1>
+          <Heading id="discord-role-owner-heading" className="font-display text-2xl font-black uppercase">
+            Owner access required
+          </Heading>
           <p className="mt-3 text-text-muted">Only the manually assigned super admin can manage Discord role mappings.</p>
         </div>
-      </main>
+      </Container>
     );
   }
 
   return (
-    <main className="page-shell">
+    <Container className="page-shell" aria-labelledby="discord-role-mapping-heading">
       <div className="page-inner space-y-5">
         <section className="page-hero">
           <p className="section-title">Authentication</p>
           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="section-heading">Discord Role Mapping</h1>
+              <Heading id="discord-role-mapping-heading" className="section-heading">
+                Discord Role Mapping
+              </Heading>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">
                 Function roles describe what a member does. Team identity roles link numeric Discord roles to existing Bravo teams,
                 including teams added later.
@@ -182,17 +189,18 @@ export default function AdminDiscordRoleMappingManager() {
         </section>
 
         <section className="esports-card overflow-hidden !p-0">
-          <div className="table-scroll">
+          <div className="table-scroll" tabIndex={0}>
             <table className="data-table min-w-[1100px] w-full">
+              <caption className="sr-only">Discord role mappings and Bravo access assignments</caption>
               <thead>
                 <tr>
-                  <th>Discord role</th>
-                  <th>Role ID</th>
-                  <th>Category</th>
-                  <th>Bravo role</th>
-                  <th>Bravo team</th>
-                  <th>Enabled</th>
-                  <th>Action</th>
+                  <th scope="col">Discord role</th>
+                  <th scope="col">Role ID</th>
+                  <th scope="col">Category</th>
+                  <th scope="col">Bravo role</th>
+                  <th scope="col">Bravo team</th>
+                  <th scope="col">Enabled</th>
+                  <th scope="col">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -208,6 +216,7 @@ export default function AdminDiscordRoleMappingManager() {
                     <td className="font-mono text-xs">{mapping.discord_role_id}</td>
                     <td>
                       <select
+                        aria-label={`Mapping category for ${mapping.discord_role_name}`}
                         className="input-esports min-w-40"
                         value={mapping.mapping_type}
                         onChange={(event) =>
@@ -226,6 +235,7 @@ export default function AdminDiscordRoleMappingManager() {
                     </td>
                     <td>
                       <select
+                        aria-label={`Bravo role for ${mapping.discord_role_name}`}
                         className="input-esports min-w-36"
                         value={mapping.application_role ?? ""}
                         disabled={!["access", "team_function"].includes(mapping.mapping_type)}
@@ -244,6 +254,7 @@ export default function AdminDiscordRoleMappingManager() {
                     </td>
                     <td>
                       <select
+                        aria-label={`Bravo team for ${mapping.discord_role_name}`}
                         className="input-esports min-w-48"
                         value={mapping.team_id ?? ""}
                         disabled={mapping.mapping_type !== "team_identity"}
@@ -278,6 +289,7 @@ export default function AdminDiscordRoleMappingManager() {
                     <td>
                       <button
                         type="button"
+                        aria-label={`Save mapping for ${mapping.discord_role_name}`}
                         className="btn-secondary"
                         disabled={savingRoleId === mapping.discord_role_id}
                         onClick={() => void save(mapping)}
@@ -296,6 +308,6 @@ export default function AdminDiscordRoleMappingManager() {
           {loading ? <p className="p-6 text-text-muted">Loading Discord role mappings...</p> : null}
         </section>
       </div>
-    </main>
+    </Container>
   );
 }

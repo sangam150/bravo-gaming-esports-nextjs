@@ -29,6 +29,7 @@
     "qa:mahasangram": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/mahasangram-publication-check.ts",
     "qa:auth": "node --env-file=.env.local --conditions=react-server --import tsx ./qa/auth-security-check.ts",
     "qa:auth:production": "node --env-file=.env.local ./qa/auth-production-e2e.mjs",
+    "qa:connectivity": "node --env-file=.env.local ./qa/environment-connectivity.mjs",
     "qa:public": "playwright test qa/live-qa.spec.js --workers=1",
     "qa:discord-roles": "node --import tsx ./qa/discord-role-mapping-check.ts",
     "qa:team-onboarding": "node --import tsx ./qa/team-onboarding-check.ts",
@@ -47,6 +48,7 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@next/env": "^16.2.12",
     "@playwright/test": "^1.62.0",
     "@types/node": "latest",

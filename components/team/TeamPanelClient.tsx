@@ -68,9 +68,6 @@ export default function TeamPanelClient() {
   const [workspace, setWorkspace] = useState<TeamWorkspaceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [requestForm, setRequestForm] = useState<RosterRequestFormState>(defaultRequestForm);
@@ -230,44 +227,6 @@ export default function TeamPanelClient() {
       subscription.unsubscribe();
     };
   }, [supabase]);
-
-  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!supabase) return;
-
-    setAuthLoading(true);
-    setAuthError(null);
-    setNotice(null);
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      const nextProfile = await syncSession(data.session);
-      if (!nextProfile || !hasTeamWorkspaceAccess(nextProfile.role, nextProfile.isAdmin)) {
-        await supabase.auth.signOut();
-        throw new Error("This account does not have team workspace access.");
-      }
-
-      await loadWorkspace();
-      setEmail("");
-      setPassword("");
-    } catch (error: unknown) {
-      setAuthError(
-        toUserFacingErrorMessage(error, {
-          fallback: USER_FACING_ERROR_MESSAGES.login,
-        }),
-      );
-    } finally {
-      setAuthLoading(false);
-    }
-  }
 
   async function handleLogout() {
     if (!supabase) return;
@@ -511,7 +470,7 @@ export default function TeamPanelClient() {
           </div>
         </section>
 
-        <form onSubmit={handleLogin} className="esports-card w-full max-w-xl self-center p-8">
+        <section className="esports-card w-full max-w-xl self-center p-8">
           <div className="text-center">
             <div className="mx-auto w-fit">
               <BravoLogo size={56} />
@@ -523,32 +482,17 @@ export default function TeamPanelClient() {
             </p>
           </div>
 
-          {authError && (
-            <div className="mt-5 rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200">{authError}</div>
-          )}
-
-          <div className="mt-6 space-y-4">
-            <input
-              className="input-esports"
-              type="email"
-              placeholder="Team email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="email"
-              required
-            />
-            <input
-              className="input-esports"
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              required
-            />
-            <button type="submit" disabled={authLoading} className="btn-primary w-full justify-center disabled:opacity-60">
-              {authLoading ? "Checking access..." : "Open Team Workspace"}
-            </button>
+          <div className="mt-6 rounded-2xl border border-accent-blue/20 bg-accent-blue/10 px-4 py-4 text-sm text-blue-100">
+            Your secure session expired or no longer has an approved team membership. Return to the canonical Team Login to verify access
+            again.
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <Link href="/team/login?redirect=/team" className="btn-primary justify-center">
+              Open Team Login
+            </Link>
+            <Link href="/contact" className="btn-secondary justify-center">
+              Contact Bravo Admin
+            </Link>
           </div>
 
           <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 text-sm">
@@ -557,7 +501,7 @@ export default function TeamPanelClient() {
               Password recovery
             </Link>
           </div>
-        </form>
+        </section>
       </div>
     );
   }
@@ -597,10 +541,24 @@ export default function TeamPanelClient() {
         </div>
       </div>
 
-      {authError && <div className="rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200">{authError}</div>}
+      {authError && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200"
+        >
+          {authError}
+        </div>
+      )}
 
       {notice && (
-        <div className="rounded-2xl border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-200">{notice}</div>
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-2xl border border-accent-green/30 bg-accent-green/10 px-4 py-3 text-sm text-green-200"
+        >
+          {notice}
+        </div>
       )}
 
       {profileLinkPending && (
@@ -654,7 +612,9 @@ export default function TeamPanelClient() {
               <span className="text-xs uppercase tracking-[0.14em] text-text-muted">{workspace?.roster.length ?? 0} players</span>
             </div>
             {workspaceLoading ? (
-              <p className="text-sm text-text-muted">Refreshing roster...</p>
+              <p role="status" aria-live="polite" className="text-sm text-text-muted">
+                Refreshing roster...
+              </p>
             ) : workspace?.roster.length ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {workspace.roster.map((player) => (
@@ -682,16 +642,17 @@ export default function TeamPanelClient() {
                       </div>
                     </div>
                     <div className="mt-4">
-                      <label className="btn-secondary inline-flex cursor-pointer !text-[11px]">
+                      <label className="btn-secondary inline-flex cursor-pointer !text-[11px] focus-within:ring-2 focus-within:ring-accent-blue">
                         {avatarUploadingPlayerId === player.id
                           ? "Uploading Avatar..."
                           : player.avatarUrl
                             ? "Replace Player Image"
                             : "Upload Player Image"}
                         <input
+                          aria-label={`Upload image for ${player.pubgName}`}
                           type="file"
                           accept={IMAGE_FILE_INPUT_ACCEPT}
-                          className="hidden"
+                          className="sr-only"
                           onChange={(event) => void handleRosterAvatarSelected(player.id, player.avatarUrl ?? undefined, event)}
                         />
                       </label>
@@ -716,8 +677,9 @@ export default function TeamPanelClient() {
             <p className="mt-3 text-sm text-accent-yellow">Roster requests unlock automatically after your profile link is completed.</p>
           )}
 
-          <form onSubmit={handleRequestSubmit} className="mt-5 space-y-4">
+          <form onSubmit={handleRequestSubmit} aria-busy={requestSubmitting} className="mt-5 space-y-4">
             <select
+              aria-label="Roster request type"
               className="input-esports"
               value={requestForm.requestType}
               onChange={(event) =>
@@ -734,6 +696,7 @@ export default function TeamPanelClient() {
             </select>
 
             <select
+              aria-label="Current player"
               className="input-esports"
               value={requestForm.oldPlayerId}
               onChange={(event) =>
@@ -752,6 +715,7 @@ export default function TeamPanelClient() {
             </select>
 
             <input
+              aria-label="New player name"
               className="input-esports"
               placeholder="New player name"
               value={requestForm.newPlayerName}
@@ -764,6 +728,7 @@ export default function TeamPanelClient() {
             />
 
             <input
+              aria-label="New PUBG name"
               className="input-esports"
               placeholder="New PUBG name"
               value={requestForm.newPlayerPubgName}
@@ -776,6 +741,7 @@ export default function TeamPanelClient() {
             />
 
             <textarea
+              aria-label="Notes for admin review"
               className="input-esports min-h-28"
               placeholder="Notes for admin review"
               value={requestForm.notes}
@@ -891,8 +857,9 @@ export default function TeamPanelClient() {
             Optional MOSS workflow for archives or external evidence linked to a specific event, match, or player.
           </p>
 
-          <form onSubmit={handleMossSubmit} className="mt-5 space-y-4">
+          <form onSubmit={handleMossSubmit} aria-busy={mossSubmitting} className="mt-5 space-y-4">
             <select
+              aria-label="MOSS event"
               className="input-esports"
               value={mossForm.eventId}
               onChange={(event) =>
@@ -911,6 +878,7 @@ export default function TeamPanelClient() {
             </select>
 
             <input
+              aria-label="Match ID"
               className="input-esports"
               placeholder="Match ID (optional)"
               value={mossForm.matchId}
@@ -923,6 +891,7 @@ export default function TeamPanelClient() {
             />
 
             <select
+              aria-label="MOSS player"
               className="input-esports"
               value={mossForm.playerId}
               onChange={(event) =>
@@ -941,6 +910,7 @@ export default function TeamPanelClient() {
             </select>
 
             <input
+              aria-label="External MOSS link"
               className="input-esports"
               placeholder="External MOSS link"
               value={mossForm.externalLink}

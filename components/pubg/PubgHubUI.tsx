@@ -349,7 +349,12 @@ export function RankBadge({ rank }: { rank: number }) {
 
 export function EmptyState({ title, description, action }: { title: string; description: string; action?: ReactNode }) {
   return (
-    <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 p-6 text-center">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      className="rounded-[22px] border border-dashed border-white/10 bg-black/15 p-6 text-center"
+    >
       <p className="font-display text-lg font-black uppercase text-white">{title}</p>
       <p className="mt-3 text-sm leading-7 text-text-muted">{description}</p>
       {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
@@ -592,23 +597,26 @@ export function MapStatsTable({ stats, title, description }: { stats: PubgHubMap
           />
         </div>
       ) : (
-        <div className="table-scroll">
+        <div className="table-scroll" tabIndex={0}>
           <table className="data-table min-w-full">
+            <caption className="sr-only">PUBG performance statistics by map</caption>
             <thead>
               <tr>
-                <th>Map</th>
-                <th>Matches</th>
-                <th>Kills</th>
-                <th>Wins</th>
-                <th>Avg Place</th>
-                <th>Damage</th>
-                <th>Total</th>
+                <th scope="col">Map</th>
+                <th scope="col">Matches</th>
+                <th scope="col">Kills</th>
+                <th scope="col">Wins</th>
+                <th scope="col">Avg Place</th>
+                <th scope="col">Damage</th>
+                <th scope="col">Total</th>
               </tr>
             </thead>
             <tbody>
               {stats.map((row) => (
                 <tr key={row.map}>
-                  <td className="font-semibold text-white">{row.map}</td>
+                  <th scope="row" className="font-semibold text-white">
+                    {row.map}
+                  </th>
                   <td className="text-right">{formatNumber(row.matches)}</td>
                   <td className="text-right">{formatNumber(row.kills)}</td>
                   <td className="text-right">{formatNumber(row.wins)}</td>

@@ -1,16 +1,18 @@
 import LoginHubClient from "@/components/auth/LoginHubClient";
 import { getServerAuthenticatedSession } from "@/lib/admin-auth";
-import { hasTeamWorkspaceAccess } from "@/lib/authz";
+import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Login",
-  description: "Bravo Gaming Esports Supabase login hub for admin and team access.",
+  description: "Secure Bravo Gaming Esports login for viewers, players, approved team staff, and administrators.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
-
-export const revalidate = 300;
 
 export default async function LoginPage() {
   const session = await getServerAuthenticatedSession();
@@ -19,8 +21,12 @@ export default async function LoginPage() {
     redirect("/admin");
   }
 
-  if (session && hasTeamWorkspaceAccess(session.role, session.isAdmin)) {
+  if (session && hasTeamWorkspaceAccess(session.role, session.isAdmin) && session.teamId) {
     redirect("/team");
+  }
+
+  if (session && hasPlayerDashboardAccess(session.role, session.isAdmin) && session.playerId) {
+    redirect("/dashboard/player");
   }
 
   return (

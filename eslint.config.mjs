@@ -12,5 +12,5 @@ export default defineConfig([
       "react-hooks/set-state-in-effect": "warn",
     },
   },
-  globalIgnores([".next/**", "node_modules/**", "qa-artifacts/**"]),
+  globalIgnores([".next/**", ".codex-*/**", "node_modules/**", "qa-artifacts/**"]),
 ]);

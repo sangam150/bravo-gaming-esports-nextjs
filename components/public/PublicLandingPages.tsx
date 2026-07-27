@@ -97,7 +97,7 @@ function eventStatusTone(status: PlatformEvent["status"]) {
 
 function eventStatusLabel(status: PlatformEvent["status"]) {
   if (status === "live") {
-    return "Registration Open";
+    return "Ongoing";
   }
 
   if (status === "completed") {
@@ -109,6 +109,20 @@ function eventStatusLabel(status: PlatformEvent["status"]) {
   }
 
   return "Upcoming";
+}
+
+function canRegisterForEvent(event: PlatformEvent) {
+  return event.state === "published" && event.status === "upcoming";
+}
+
+function findSpotlightEvent(events: PlatformEvent[]) {
+  const publicEvents = events.filter((event) => event.state === "published");
+  return (
+    publicEvents.find((event) => canRegisterForEvent(event)) ??
+    publicEvents.find((event) => event.status !== "completed") ??
+    publicEvents[0] ??
+    null
+  );
 }
 
 function registrationHref(event: PlatformEvent) {
@@ -278,7 +292,7 @@ function CategoryPills({
   paramName?: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <nav aria-label={`${paramName} filters`} className="flex flex-wrap gap-2">
       {items.map((item) => (
         <Link
           key={item.value}
@@ -286,17 +300,18 @@ function CategoryPills({
             q: query || undefined,
             [paramName]: item.value === "all" ? undefined : item.value,
           })}
+          aria-current={activeValue === item.value ? "page" : undefined}
           className={joinClasses(
             "inline-flex items-center rounded-[14px] border px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition",
             activeValue === item.value
-              ? "border-accent-blue/35 bg-accent-blue text-white shadow-[0_0_24px_rgba(30,123,255,0.24)]"
+              ? "border-blue-400/40 bg-blue-700 text-white shadow-[0_0_24px_rgba(30,123,255,0.24)]"
               : "border-white/10 bg-black/20 text-text-muted hover:border-accent-blue/30 hover:text-white"
           )}
         >
           {item.label}
         </Link>
       ))}
-    </div>
+    </nav>
   );
 }
 
@@ -344,14 +359,14 @@ function EventGridCard({
       <p className="mt-5 text-sm leading-7 text-text-muted">{eventSummaryText(event)}</p>
 
       <div className="mt-6 flex flex-wrap gap-3">
-        {event.status !== "completed" ? (
+        {canRegisterForEvent(event) ? (
           <Link href={registrationHref(event)} className="btn-primary flex-1 justify-center">
             Register Team
           </Link>
         ) : null}
         <Link
           href={`/events/${event.slug}`}
-          className={joinClasses("flex-1 justify-center", event.status !== "completed" ? "btn-secondary" : "btn-primary")}
+          className={joinClasses("flex-1 justify-center", canRegisterForEvent(event) ? "btn-secondary" : "btn-primary")}
         >
           View Details
         </Link>
@@ -400,9 +415,11 @@ function SpotlightEventCard({ event }: { event: PlatformEvent }) {
               <p className="mt-2 text-sm text-white">{formatRelativeWindow(event.startDate)}</p>
             </div>
             <div className="mt-2 flex flex-wrap gap-3">
-              <Link href={registrationHref(event)} className="btn-primary flex-1 justify-center">
-                Register Team
-              </Link>
+              {canRegisterForEvent(event) ? (
+                <Link href={registrationHref(event)} className="btn-primary flex-1 justify-center">
+                  Register Team
+                </Link>
+              ) : null}
               <Link href={`/events/${event.slug}`} className="btn-secondary flex-1 justify-center">
                 View Details
               </Link>
@@ -543,10 +560,15 @@ function PubgLaunchSections({
               description={featureDescription}
               action={
                 <div className="flex flex-wrap justify-center gap-3">
-                  <Link href="/teams/register" className="btn-primary">
-                    Register Team
-                  </Link>
-                  <Link href="/events" className="btn-secondary">
+                  {spotlightEvent && canRegisterForEvent(spotlightEvent) ? (
+                    <Link href={registrationHref(spotlightEvent)} className="btn-primary">
+                      Register Team
+                    </Link>
+                  ) : null}
+                  <Link
+                    href="/events"
+                    className={spotlightEvent && canRegisterForEvent(spotlightEvent) ? "btn-secondary" : "btn-primary"}
+                  >
                     View Events
                   </Link>
                 </div>
@@ -574,9 +596,11 @@ function PubgLaunchSections({
                 <Link href={`/events/${spotlightEvent.slug}`} className="btn-secondary flex-1 justify-center">
                   View Event
                 </Link>
-                <Link href={registrationHref(spotlightEvent)} className="btn-primary flex-1 justify-center">
-                  Register
-                </Link>
+                {canRegisterForEvent(spotlightEvent) ? (
+                  <Link href={registrationHref(spotlightEvent)} className="btn-primary flex-1 justify-center">
+                    Register
+                  </Link>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -606,7 +630,7 @@ function PubgLaunchSections({
                   Be part of Nepal&apos;s PUBG PC esports community
                 </h2>
                 <p className="mt-3 text-sm leading-7 text-text-secondary">
-                  Join Discord, register your roster, and keep the next official Bravo event board within reach.
+                  Join Discord, follow official event announcements, and keep the next Bravo competition board within reach.
                 </p>
               </div>
             </div>
@@ -614,9 +638,15 @@ function PubgLaunchSections({
               <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord min-w-[11rem] justify-center">
                 Join Discord
               </a>
-              <Link href="/teams/register" className="btn-primary min-w-[11rem] justify-center">
-                Register Team
-              </Link>
+              {spotlightEvent && canRegisterForEvent(spotlightEvent) ? (
+                <Link href={registrationHref(spotlightEvent)} className="btn-primary min-w-[11rem] justify-center">
+                  Register Team
+                </Link>
+              ) : (
+                <Link href="/events" className="btn-primary min-w-[11rem] justify-center">
+                  View Events
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -734,7 +764,7 @@ export function EventsLandingPage({
 }) {
   const query = readSearchParam(searchParams.q).trim().toLowerCase();
   const status = readSearchParam(searchParams.status, "all");
-  const publicEvents = [...hub.events].sort((firstValue, secondValue) =>
+  const publicEvents = hub.events.filter((event) => event.state === "published").sort((firstValue, secondValue) =>
     (secondValue.startDate ?? "").localeCompare(firstValue.startDate ?? "")
   );
   const filteredEvents = publicEvents.filter((event) => {
@@ -749,13 +779,15 @@ export function EventsLandingPage({
     return true;
   });
   const featuredEvent =
+    filteredEvents.find((event) => canRegisterForEvent(event)) ??
     filteredEvents.find((event) => event.status !== "completed") ??
+    publicEvents.find((event) => canRegisterForEvent(event)) ??
     publicEvents.find((event) => event.status !== "completed") ??
     publicEvents[0] ??
     null;
   const activeEvents = filteredEvents.filter((event) => event.status !== "completed");
   const completedEvents = filteredEvents.filter((event) => event.status === "completed");
-  const upcomingCount = publicEvents.filter((event) => event.status !== "completed").length;
+  const upcomingCount = publicEvents.filter((event) => canRegisterForEvent(event)).length;
   const completedCount = publicEvents.filter((event) => event.status === "completed").length;
 
   return (
@@ -765,8 +797,18 @@ export function EventsLandingPage({
           eyebrow="Compete. Connect. Conquer."
           title="Events"
           description="Join Nepal&apos;s biggest PUBG PC esports tournaments, register for official Bravo events, and follow public competition updates as they go live."
-          primaryAction={<Link href={featuredEvent ? registrationHref(featuredEvent) : "/teams/register"} className="btn-primary">Register Team</Link>}
-          secondaryAction={<Link href="/teams/register" className="btn-secondary">Launch Registration</Link>}
+          primaryAction={
+            featuredEvent && canRegisterForEvent(featuredEvent) ? (
+              <Link href={registrationHref(featuredEvent)} className="btn-primary">
+                Register Team
+              </Link>
+            ) : (
+              <Link href={featuredEvent ? `/events/${featuredEvent.slug}` : "/events"} className="btn-primary">
+                View Event Details
+              </Link>
+            )
+          }
+          secondaryAction={<Link href="/rules" className="btn-secondary">View Rules</Link>}
         >
           {featuredEvent ? (
             <SpotlightEventCard event={featuredEvent} />
@@ -777,12 +819,12 @@ export function EventsLandingPage({
                 description="The next official Bravo registration window will appear here once it is published."
                 action={
                   <div className="flex flex-wrap justify-center gap-3">
-                    <Link href="/teams/register" className="btn-primary">
-                      Register Team
-                    </Link>
                     <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord">
                       Join Discord
                     </a>
+                    <Link href="/rules" className="btn-secondary">
+                      View Rules
+                    </Link>
                   </div>
                 }
               />
@@ -827,6 +869,7 @@ export function EventsLandingPage({
             <label className="flex items-center gap-3 rounded-[16px] border border-white/[0.08] bg-black/20 px-4 py-3">
               <Search className="h-4 w-4 text-text-muted" />
               <input
+                aria-label="Search events"
                 name="q"
                 defaultValue={readSearchParam(searchParams.q)}
                 placeholder="Search events..."
@@ -845,9 +888,14 @@ export function EventsLandingPage({
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Upcoming & Active</p>
               <h2 className="mt-2 font-display text-3xl font-black uppercase text-white">Registration and event board access</h2>
             </div>
-            <Link href="/teams/register" className="text-sm font-black uppercase tracking-[0.14em] text-accent-blue-light transition hover:text-white">
-              Register Your Team
-            </Link>
+            {featuredEvent && canRegisterForEvent(featuredEvent) ? (
+              <Link
+                href={registrationHref(featuredEvent)}
+                className="text-sm font-black uppercase tracking-[0.14em] text-accent-blue-light transition hover:text-white"
+              >
+                Register Your Team
+              </Link>
+            ) : null}
           </div>
           {activeEvents.length > 0 ? (
             <div className="grid gap-4 xl:grid-cols-2">
@@ -954,34 +1002,37 @@ export function NewsLandingPage({
           </div>
         </LaunchSurface>
 
-        <section className="rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))] p-4">
-          <form method="get" className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px_auto]">
-            <CategoryPills
-              pathname="/news"
-              activeValue={category}
-              query={queryValue}
-              items={[
-                { label: "All News", value: "all" },
-                { label: "Announcements", value: "Announcements" },
-                { label: "Tournaments", value: "Tournaments" },
-                { label: "Updates", value: "Updates" },
-                { label: "Results", value: "Results" },
-              ]}
-            />
-            <label className="flex items-center gap-3 rounded-[16px] border border-white/[0.08] bg-black/20 px-4 py-3">
-              <Search className="h-4 w-4 text-text-muted" />
-              <input
-                name="q"
-                defaultValue={queryValue}
-                placeholder="Search news..."
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-text-muted"
+        {hasNews ? (
+          <section className="rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))] p-4">
+            <form method="get" className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px_auto]">
+              <CategoryPills
+                pathname="/news"
+                activeValue={category}
+                query={queryValue}
+                items={[
+                  { label: "All News", value: "all" },
+                  { label: "Announcements", value: "Announcements" },
+                  { label: "Tournaments", value: "Tournaments" },
+                  { label: "Updates", value: "Updates" },
+                  { label: "Results", value: "Results" },
+                ]}
               />
-            </label>
-            <button type="submit" className="btn-primary h-full min-h-[48px]">
-              Search
-            </button>
-          </form>
-        </section>
+              <label className="flex items-center gap-3 rounded-[16px] border border-white/[0.08] bg-black/20 px-4 py-3">
+                <Search className="h-4 w-4 text-text-muted" />
+                <input
+                  aria-label="Search news"
+                  name="q"
+                  defaultValue={queryValue}
+                  placeholder="Search news..."
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-text-muted"
+                />
+              </label>
+              <button type="submit" className="btn-primary h-full min-h-[48px]">
+                Search
+              </button>
+            </form>
+          </section>
+        ) : null}
 
         {!hasNews ? (
           <NewsEmptyColumns />
@@ -1049,13 +1100,12 @@ export function MediaCenterLandingPage({
                 />
               ) : (
                 <div className="relative h-72 bg-[radial-gradient(circle_at_22%_18%,rgba(30,123,255,0.18),transparent_30%),linear-gradient(180deg,rgba(10,16,30,0.96),rgba(7,11,21,0.98))]">
-                  <div className="absolute left-5 top-5 inline-flex rounded-full border border-accent-red/25 bg-accent-red/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white">
-                    <span className="live-dot mr-2 h-2 w-2" />
-                    Live
+                  <div className="absolute left-5 top-5 inline-flex rounded-full border border-accent-blue/25 bg-accent-blue/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">
+                    {featuredMedia?.kind ?? "Media Center"}
                   </div>
                   <div className="absolute bottom-5 left-5 right-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Bravo Gaming Live</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Bravo Media</p>
                       <h2 className="mt-3 font-display text-3xl font-black uppercase text-white">
                         {featuredMedia ? featuredMedia.title : "Official stream coverage returns here"}
                       </h2>
@@ -1064,7 +1114,7 @@ export function MediaCenterLandingPage({
                       </p>
                     </div>
                     <div className="rounded-[18px] border border-white/[0.08] bg-black/25 px-4 py-3 text-sm text-white">
-                      2.4K channel followers
+                      {featuredMedia ? featuredMedia.category : "No published media yet"}
                     </div>
                   </div>
                 </div>
@@ -1073,45 +1123,50 @@ export function MediaCenterLandingPage({
           </div>
         </LaunchSurface>
 
-        <section className="rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))] p-4">
-          <div className="grid gap-4 xl:grid-cols-[1fr,auto] xl:items-center">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Follow Our Channels</p>
-                <p className="mt-2 text-sm text-text-muted">Discord, Instagram, and YouTube are the fastest routes for official Bravo content drops.</p>
+        {hasMedia ? (
+          <section className="rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(9,15,29,0.96),rgba(7,11,21,0.98))] p-4">
+            <div className="grid gap-4 xl:grid-cols-[1fr,auto] xl:items-center">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Follow Our Channels</p>
+                  <p className="mt-2 text-sm text-text-muted">
+                    Discord, Instagram, and YouTube are the fastest routes for official Bravo content drops.
+                  </p>
+                </div>
+                <HeroChannelRow />
               </div>
-              <HeroChannelRow />
+              <form method="get" className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <label className="flex items-center gap-3 rounded-[16px] border border-white/[0.08] bg-black/20 px-4 py-3">
+                  <Search className="h-4 w-4 text-text-muted" />
+                  <input
+                    aria-label="Search media"
+                    name="q"
+                    defaultValue={queryValue}
+                    placeholder="Search media..."
+                    className="w-full bg-transparent text-sm text-white outline-none placeholder:text-text-muted"
+                  />
+                </label>
+                <button type="submit" className="btn-primary h-full min-h-[48px]">
+                  Search
+                </button>
+              </form>
             </div>
-            <form method="get" className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-              <label className="flex items-center gap-3 rounded-[16px] border border-white/[0.08] bg-black/20 px-4 py-3">
-                <Search className="h-4 w-4 text-text-muted" />
-                <input
-                  name="q"
-                  defaultValue={queryValue}
-                  placeholder="Search media..."
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-text-muted"
-                />
-              </label>
-              <button type="submit" className="btn-primary h-full min-h-[48px]">
-                Search
-              </button>
-            </form>
-          </div>
-          <div className="mt-4">
-            <CategoryPills
-              pathname="/media"
-              activeValue={category}
-              query={queryValue}
-              items={[
-                { label: "All Content", value: "all" },
-                { label: "Highlights", value: "Highlights" },
-                { label: "Broadcasts", value: "Broadcast" },
-                { label: "Interviews", value: "Interview" },
-                { label: "Clips", value: "Clip" },
-              ]}
-            />
-          </div>
-        </section>
+            <div className="mt-4">
+              <CategoryPills
+                pathname="/media"
+                activeValue={category}
+                query={queryValue}
+                items={[
+                  { label: "All Content", value: "all" },
+                  { label: "Highlights", value: "Highlights" },
+                  { label: "Broadcasts", value: "Broadcast" },
+                  { label: "Interviews", value: "Interview" },
+                  { label: "Clips", value: "Clip" },
+                ]}
+              />
+            </div>
+          </section>
+        ) : null}
 
         {!hasMedia ? (
           <MediaEmptyColumns />
@@ -1247,7 +1302,10 @@ export function SponsorsLandingPage({ hub }: { hub: PlatformHubData }) {
           </div>
         </section>
 
-        <SponsorMetrics eventCount={hub.events.length} sponsorCount={publicSponsors.length} />
+        <SponsorMetrics
+          eventCount={hub.events.filter((event) => event.state === "published").length}
+          sponsorCount={publicSponsors.length}
+        />
 
         <section className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(10,18,34,0.98),rgba(6,10,18,0.99))]">
           <div className="relative px-6 py-6 sm:px-7">
@@ -1285,10 +1343,9 @@ export function PubgHubLaunchPage({
   hub: PlatformHubData;
   partners: PlatformSponsorProfile[];
 }) {
-  const spotlightEvent =
-    hub.events.find((event) => event.status !== "completed") ??
-    hub.events[0] ??
-    null;
+  const spotlightEvent = findSpotlightEvent(hub.events);
+  const registrationOpen = Boolean(spotlightEvent && canRegisterForEvent(spotlightEvent));
+  const publishedEventCount = hub.events.filter((event) => event.state === "published").length;
 
   return (
     <main className="page-shell pb-14 pt-6">
@@ -1296,9 +1353,23 @@ export function PubgHubLaunchPage({
         <LaunchSurface
           eyebrow="#1 PUBG PC Esports Platform In Nepal"
           title="PUBG"
-          description="Bravo's public PUBG hub is live for registration, event access, policy links, and sponsor visibility. Official standings, teams, players, and match results will appear here once published data goes live."
-          primaryAction={<Link href="/teams/register" className="btn-primary">Register Team</Link>}
-          secondaryAction={<Link href="/events" className="btn-secondary">View Events</Link>}
+          description="Bravo's public PUBG hub is live for event access, policy links, and sponsor visibility. Official standings, teams, players, and match results will appear here once published data goes live."
+          primaryAction={
+            registrationOpen && spotlightEvent ? (
+              <Link href={registrationHref(spotlightEvent)} className="btn-primary">
+                Register Team
+              </Link>
+            ) : (
+              <Link href="/events" className="btn-primary">
+                View Events
+              </Link>
+            )
+          }
+          secondaryAction={
+            <Link href="/rules" className="btn-secondary">
+              View Rules
+            </Link>
+          }
         >
           {spotlightEvent ? (
             <div className="rounded-[28px] border border-white/[0.08] bg-black/20 p-5">
@@ -1328,9 +1399,11 @@ export function PubgHubLaunchPage({
                   <Link href={`/events/${spotlightEvent.slug}`} className="btn-secondary flex-1 justify-center">
                     View Details
                   </Link>
-                  <Link href={registrationHref(spotlightEvent)} className="btn-primary flex-1 justify-center">
-                    Register
-                  </Link>
+                  {canRegisterForEvent(spotlightEvent) ? (
+                    <Link href={registrationHref(spotlightEvent)} className="btn-primary flex-1 justify-center">
+                      Register
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -1362,15 +1435,17 @@ export function PubgHubLaunchPage({
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(7,11,21,0.98))] p-5">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Public Event Pages</p>
-            <p className="mt-3 font-display text-3xl font-black uppercase text-white">{formatNumber(hub.events.length)}</p>
+            <p className="mt-3 font-display text-3xl font-black uppercase text-white">{formatNumber(publishedEventCount)}</p>
           </div>
           <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(7,11,21,0.98))] p-5">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Official Partners</p>
             <p className="mt-3 font-display text-3xl font-black uppercase text-white">{formatNumber(partners.length)}</p>
           </div>
           <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(7,11,21,0.98))] p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Registration Route</p>
-            <p className="mt-3 font-display text-2xl font-black uppercase text-white">Live</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Registration Window</p>
+            <p className="mt-3 font-display text-2xl font-black uppercase text-white">
+              {registrationOpen ? "Open" : "No Open Event"}
+            </p>
           </div>
           <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(7,11,21,0.98))] p-5">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Policy Links</p>
@@ -1396,10 +1471,8 @@ export function PubgHubLaunchPage({
 }
 
 export function PubgTeamsLaunchPage({ hub }: { hub: PlatformHubData }) {
-  const spotlightEvent =
-    hub.events.find((event) => event.status !== "completed") ??
-    hub.events[0] ??
-    null;
+  const spotlightEvent = findSpotlightEvent(hub.events);
+  const registrationOpen = Boolean(spotlightEvent && canRegisterForEvent(spotlightEvent));
 
   return (
     <main className="page-shell pb-14 pt-6">
@@ -1408,8 +1481,22 @@ export function PubgTeamsLaunchPage({ hub }: { hub: PlatformHubData }) {
           eyebrow="PUBG Teams"
           title="Teams"
           description="Published team rankings, tags, rosters, and results-based profiles will appear here after official Bravo PUBG standings go live."
-          primaryAction={<Link href="/teams/register" className="btn-primary">Register Team</Link>}
-          secondaryAction={<Link href="/events" className="btn-secondary">View Events</Link>}
+          primaryAction={
+            registrationOpen && spotlightEvent ? (
+              <Link href={registrationHref(spotlightEvent)} className="btn-primary">
+                Register Team
+              </Link>
+            ) : (
+              <Link href="/events" className="btn-primary">
+                View Events
+              </Link>
+            )
+          }
+          secondaryAction={
+            <Link href="/rules" className="btn-secondary">
+              View Rules
+            </Link>
+          }
         >
           <div className="rounded-[28px] border border-white/[0.08] bg-black/20 p-5">
             <PublicBreadcrumbs items={["Home", "PUBG", "Teams"]} />
@@ -1432,7 +1519,7 @@ export function PubgTeamsLaunchPage({ hub }: { hub: PlatformHubData }) {
           title="Official team cards are waiting on published results"
           description="Bravo will not show fake ranked team panels publicly. The teams directory will open once public match results are available and team standings can be shown honestly."
           featureTitle="No published team directory yet"
-          featureDescription="Register your roster now, keep Discord nearby, and return when the first public results unlock official team cards."
+          featureDescription="Follow the public event board, keep Discord nearby, and return when the first public results unlock official team cards."
           spotlightEvent={spotlightEvent}
           quickLinks={[
             { href: "/pubg/leaderboards", title: "Leaderboards", description: "Team rankings will appear here first once the first public result set is published." },
@@ -1446,10 +1533,8 @@ export function PubgTeamsLaunchPage({ hub }: { hub: PlatformHubData }) {
 }
 
 export function PubgPlayersLaunchPage({ hub }: { hub: PlatformHubData }) {
-  const spotlightEvent =
-    hub.events.find((event) => event.status !== "completed") ??
-    hub.events[0] ??
-    null;
+  const spotlightEvent = findSpotlightEvent(hub.events);
+  const registrationOpen = Boolean(spotlightEvent && canRegisterForEvent(spotlightEvent));
 
   return (
     <main className="page-shell pb-14 pt-6">
@@ -1458,8 +1543,22 @@ export function PubgPlayersLaunchPage({ hub }: { hub: PlatformHubData }) {
           eyebrow="PUBG Players"
           title="Players"
           description="Official player profiles, public fragging stats, and result-backed scouting cards will appear here once Bravo publishes verified PUBG player data."
-          primaryAction={<Link href="/teams/register" className="btn-primary">Register Team</Link>}
-          secondaryAction={<Link href="/events" className="btn-secondary">View Events</Link>}
+          primaryAction={
+            registrationOpen && spotlightEvent ? (
+              <Link href={registrationHref(spotlightEvent)} className="btn-primary">
+                Register Team
+              </Link>
+            ) : (
+              <Link href="/events" className="btn-primary">
+                View Events
+              </Link>
+            )
+          }
+          secondaryAction={
+            <Link href="/rules" className="btn-secondary">
+              View Rules
+            </Link>
+          }
         >
           <div className="rounded-[28px] border border-white/[0.08] bg-black/20 p-5">
             <PublicBreadcrumbs items={["Home", "PUBG", "Players"]} />
@@ -1488,57 +1587,6 @@ export function PubgPlayersLaunchPage({ hub }: { hub: PlatformHubData }) {
             { href: "/pubg/leaderboards?view=players", title: "Player Board", description: "Public player rankings will appear here once results are published." },
             { href: "/anti-cheat", title: "Anti-Cheat", description: "Review Bravo's integrity standards before the next public competition window." },
             { href: BRAVO_DISCORD_URL, title: "Join Discord", description: "Stay close to room updates and player-facing support through the official Discord server.", external: true },
-          ]}
-        />
-      </div>
-    </main>
-  );
-}
-
-export function PubgLeaderboardsLaunchPage({ hub }: { hub: PlatformHubData }) {
-  const spotlightEvent =
-    hub.events.find((event) => event.status !== "completed") ??
-    hub.events[0] ??
-    null;
-
-  return (
-    <main className="page-shell pb-14 pt-6">
-      <div className="page-stack gap-5">
-        <LaunchSurface
-          eyebrow="PUBG Leaderboards"
-          title="Leaderboards"
-          description="Official Bravo team and player rankings will appear here after the first verified public PUBG results are published."
-          primaryAction={<Link href="/events" className="btn-primary">View Events</Link>}
-          secondaryAction={<Link href="/teams/register" className="btn-secondary">Register Team</Link>}
-        >
-          <div className="rounded-[28px] border border-white/[0.08] bg-black/20 p-5">
-            <PublicBreadcrumbs items={["Home", "Leaderboards"]} />
-            <div className="mt-5 grid gap-3 sm:grid-cols-4">
-              {[
-                { label: "Teams", detail: "Result-backed team ranking" },
-                { label: "Players", detail: "Official player ranking" },
-                { label: "Maps", detail: "Context after real match data" },
-                { label: "Updates", detail: "Published results only" },
-              ].map((item) => (
-                <div key={item.label} className="rounded-[20px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(7,11,21,0.98))] p-4">
-                  <p className="font-display text-lg font-black uppercase text-white">{item.label}</p>
-                  <p className="mt-3 text-sm leading-7 text-text-muted">{item.detail}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </LaunchSurface>
-
-        <PubgLaunchSections
-          title="Official rankings will unlock after published match results go live"
-          description="This page intentionally avoids public zero-panels. Once real results are published, the leaderboard route will open with team and player boards built from the verified match set."
-          featureTitle="No published leaderboard data yet"
-          featureDescription="Keep the event board, team registration, and public policy routes nearby while Bravo prepares the first public leaderboard release."
-          spotlightEvent={spotlightEvent}
-          quickLinks={[
-            { href: "/pubg/teams", title: "Teams", description: "Team cards will pull from the same published result set once rankings are live." },
-            { href: "/pubg/players", title: "Players", description: "Player cards and board placement will appear here after verified public results." },
-            { href: BRAVO_DISCORD_URL, title: "Join Discord", description: "Follow official room updates and release notices through the public Discord server.", external: true },
           ]}
         />
       </div>

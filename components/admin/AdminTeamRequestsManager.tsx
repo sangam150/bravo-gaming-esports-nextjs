@@ -163,6 +163,8 @@ export default function AdminTeamRequestsManager() {
 
       {message || error ? (
         <div
+          role={error ? "alert" : "status"}
+          aria-live={error ? "assertive" : "polite"}
           className={`rounded-card border px-4 py-3 text-sm ${
             error ? "border-bravoRed/30 bg-bravoRed/10 text-red-200" : "border-accent-green/30 bg-accent-green/10 text-green-200"
           }`}
@@ -233,6 +235,7 @@ export default function AdminTeamRequestsManager() {
                           [noteKey]: event.target.value,
                         }))
                       }
+                      aria-label="Add review notes, roster conditions, or follow-up instructions."
                       placeholder="Add review notes, roster conditions, or follow-up instructions."
                     />
                   </div>
@@ -354,6 +357,7 @@ export default function AdminTeamRequestsManager() {
                           [noteKey]: event.target.value,
                         }))
                       }
+                      aria-label="Add approval notes, missing evidence requests, or follow-up instructions."
                       placeholder="Add approval notes, missing evidence requests, or follow-up instructions."
                     />
                   </div>

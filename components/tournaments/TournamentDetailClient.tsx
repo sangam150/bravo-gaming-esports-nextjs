@@ -138,6 +138,7 @@ export default function TournamentDetailClient({
 
         <Tabs
           tabs={["Overview", "Standings", "Schedule", "Teams", "Players", "Rules"]}
+          label="Tournament sections"
           barClassName="sticky top-16 z-20 sm:top-20 md:static"
         >
           {(tab) => (
@@ -165,14 +166,15 @@ export default function TournamentDetailClient({
                     {topStandings.length === 0 ? (
                       <p className="mt-4 text-sm text-text-muted">Day results will appear here after admin approval.</p>
                     ) : (
-                      <div className="table-scroll mt-4">
+                      <div className="table-scroll mt-4" tabIndex={0}>
                         <table className="data-table min-w-full">
+                          <caption className="sr-only">Leading teams in the current tournament standings</caption>
                           <thead>
                             <tr>
-                              <th>#</th>
-                              <th>Slot</th>
-                              <th>Team</th>
-                              <th>Total</th>
+                              <th scope="col">#</th>
+                              <th scope="col">Slot</th>
+                              <th scope="col">Team</th>
+                              <th scope="col">Total</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -197,17 +199,18 @@ export default function TournamentDetailClient({
                   {activeStandings.length === 0 ? (
                     <p className="p-6 text-sm text-text-muted">Day standings will appear here after admin approval.</p>
                   ) : (
-                    <div className="table-scroll">
+                    <div className="table-scroll" tabIndex={0}>
                       <table className="data-table min-w-full">
+                        <caption className="sr-only">Complete standings for the selected tournament day</caption>
                         <thead>
                           <tr>
-                            <th>#</th>
-                            <th>Slot</th>
-                            <th>Team</th>
-                            <th>Matches</th>
-                            <th>Placement</th>
-                            <th>Kills</th>
-                            <th>Total</th>
+                            <th scope="col">#</th>
+                            <th scope="col">Slot</th>
+                            <th scope="col">Team</th>
+                            <th scope="col">Matches</th>
+                            <th scope="col">Placement</th>
+                            <th scope="col">Kills</th>
+                            <th scope="col">Total</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -252,16 +255,19 @@ export default function TournamentDetailClient({
                             <p>{match.playedAt ?? "Schedule unavailable"}</p>
                           </div>
                         </div>
-                        <div className="table-scroll">
+                        <div className="table-scroll" tabIndex={0}>
                           <table className="data-table min-w-full">
+                            <caption className="sr-only">
+                              Team results for {match.map}, won by {match.winner}
+                            </caption>
                             <thead>
                               <tr>
-                                <th>Slot</th>
-                                <th>Placement</th>
-                                <th>Team</th>
-                                <th>Kills</th>
-                                <th>Placement Pts</th>
-                                <th>Total</th>
+                                <th scope="col">Slot</th>
+                                <th scope="col">Placement</th>
+                                <th scope="col">Team</th>
+                                <th scope="col">Kills</th>
+                                <th scope="col">Placement Pts</th>
+                                <th scope="col">Total</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -315,16 +321,17 @@ export default function TournamentDetailClient({
                   {activePlayers.length === 0 ? (
                     <p className="p-6 text-sm text-text-muted">Player stats will appear after matches are imported for this day.</p>
                   ) : (
-                    <div className="table-scroll">
+                    <div className="table-scroll" tabIndex={0}>
                       <table className="data-table min-w-full">
+                        <caption className="sr-only">Player performance for the selected tournament day</caption>
                         <thead>
                           <tr>
-                            <th>#</th>
-                            <th>Player</th>
-                            <th>Team</th>
-                            <th>Kills</th>
-                            <th>Damage</th>
-                            <th>Total</th>
+                            <th scope="col">#</th>
+                            <th scope="col">Player</th>
+                            <th scope="col">Team</th>
+                            <th scope="col">Kills</th>
+                            <th scope="col">Damage</th>
+                            <th scope="col">Total</th>
                           </tr>
                         </thead>
                         <tbody>

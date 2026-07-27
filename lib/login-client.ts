@@ -3,6 +3,7 @@ import type { LoginAccessVariant, LoginErrorStage, LoginFailureCategory } from "
 type LoginSessionResponse = {
   success?: boolean;
   status?: number;
+  redirectTo?: string;
   user?: {
     uid?: string;
     email?: string;
@@ -14,7 +15,12 @@ type LoginSessionResponse = {
   error?: string;
 };
 
-export async function performPasswordLogin(request: { email: string; password: string; variant: LoginAccessVariant }) {
+export async function performPasswordLogin(request: {
+  email: string;
+  password: string;
+  variant: LoginAccessVariant;
+  redirect?: string | null;
+}) {
   const response = await fetch("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -26,11 +32,11 @@ export async function performPasswordLogin(request: { email: string; password: s
   return { response, data };
 }
 
-export async function createBravoSession(accessToken: string, refreshToken?: string) {
+export async function createBravoSession(accessToken: string) {
   const response = await fetch("/api/auth/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accessToken, refreshToken }),
+    body: JSON.stringify({ accessToken }),
     credentials: "include",
   });
   const data = (await response.json().catch(() => ({}))) as LoginSessionResponse;

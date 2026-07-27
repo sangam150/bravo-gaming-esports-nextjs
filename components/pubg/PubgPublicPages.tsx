@@ -29,6 +29,7 @@ import type { PlatformHubData, PlatformSponsorProfile } from "@/lib/platform-hub
 import {
   getPublicPubgPlayers,
   getPublicPubgTeams,
+  isPublicPubgMatchStatus,
   type PubgHubDataset,
   type PubgHubEvent,
   type PubgHubMatch,
@@ -49,6 +50,10 @@ type PubgDashboardSeasonSummary = {
   playersTracked: number;
   currentTournamentTitle?: string | null;
 };
+
+function isPublishedMatch(match: PubgHubMatch) {
+  return isPublicPubgMatchStatus(match.status);
+}
 
 function buildTeamLookup(dataset: PubgHubDataset) {
   return new Map(dataset.teams.map((team) => [team.id, team] as const));
@@ -80,7 +85,15 @@ function filterMatches(dataset: PubgHubDataset, options: { eventSlug?: string; m
   return dataset.matches.filter((match) => {
     if (options.eventSlug && match.eventSlug !== options.eventSlug) return false;
     if (options.mapName && options.mapName !== "all" && match.mapName !== options.mapName) return false;
-    if (options.status && options.status !== "all" && match.status !== options.status) return false;
+    if (options.status === "published" && !isPublishedMatch(match)) return false;
+    if (options.status === "awaiting_approval" && isPublishedMatch(match)) return false;
+    if (
+      options.status &&
+      !["all", "published", "awaiting_approval"].includes(options.status) &&
+      match.status.trim().toLowerCase() !== options.status
+    ) {
+      return false;
+    }
     return true;
   });
 }
@@ -157,7 +170,14 @@ function buildTopFragger(match: PubgHubMatch, playerLookup: Map<string, PubgHubP
     return null;
   }
 
-  return playerLookup.get(playerResult.playerId) ?? null;
+  const player = playerLookup.get(playerResult.playerId) ?? null;
+
+  return {
+    id: playerResult.playerId,
+    pubgName: player?.pubgName ?? playerResult.pubgName,
+    currentTeamName: player?.currentTeamName ?? playerResult.teamName ?? null,
+    player,
+  };
 }
 
 function FilterBar({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
@@ -274,7 +294,16 @@ function PlacementFormStrip({ placements }: { placements: number[] }) {
 }
 
 function getMatchStatusMeta(match: PubgHubMatch) {
-  if (match.status === "published") {
+  const normalizedStatus = match.status.trim().toLowerCase();
+
+  if (normalizedStatus === "completed" || match.eventStatus === "finished") {
+    return {
+      label: "Completed",
+      className: "border-accent-blue/30 bg-accent-blue/10 text-accent-blue-light",
+    };
+  }
+
+  if (isPublishedMatch(match)) {
     return {
       label: "Published",
       className: "border-accent-green/30 bg-accent-green/10 text-accent-green",
@@ -288,15 +317,8 @@ function getMatchStatusMeta(match: PubgHubMatch) {
     };
   }
 
-  if (match.eventStatus === "finished") {
-    return {
-      label: "Completed",
-      className: "border-accent-blue/30 bg-accent-blue/10 text-accent-blue-light",
-    };
-  }
-
   return {
-    label: "Recent",
+    label: "Pending Review",
     className: "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow",
   };
 }
@@ -516,7 +538,7 @@ export function PubgDashboardPage({
 }) {
   const playerLookup = buildPlayerLookup(dataset);
   const hasSupabaseDataset = dataset.source === "supabase";
-  const publishedMatches = hasSupabaseDataset ? recentMatches.filter((match) => match.status === "published").slice(0, 4) : [];
+  const publishedMatches = hasSupabaseDataset ? recentMatches.filter(isPublishedMatch).slice(0, 4) : [];
   const rankedTeams = getPublicPubgTeams(dataset);
   const rankedPlayers = getPublicPubgPlayers(dataset, rankedTeams);
   const leaderboardTeams = hasSupabaseDataset ? rankedTeams.slice(0, 5) : [];
@@ -537,7 +559,7 @@ export function PubgDashboardPage({
         ).values(),
       ).slice(0, 4)
     : [];
-  const publishedMatchCount = dataset.matches.filter((match) => match.status === "published").length;
+  const publishedMatchCount = dataset.matches.filter(isPublishedMatch).length;
   const rankedTeamCount =
     rankedTeams.filter((team) => team.matches > 0 || team.totalPoints > 0 || team.kills > 0).length || rankedTeams.length;
   const rankedPlayerCount =
@@ -990,20 +1012,26 @@ export function PubgEventsPage({ dataset, searchParams }: { dataset: PubgHubData
             </Link>
           }
         >
-          <input name="q" defaultValue={query} className="input-esports h-11" placeholder="Search event, region, or type" />
-          <select name="status" defaultValue={status} className="input-esports h-11">
+          <input
+            aria-label="Search events"
+            name="q"
+            defaultValue={query}
+            className="input-esports h-11"
+            placeholder="Search event, region, or type"
+          />
+          <select aria-label="Filter events by status" name="status" defaultValue={status} className="input-esports h-11">
             <option value="all">All statuses</option>
             <option value="upcoming">Upcoming</option>
             <option value="ongoing">Ongoing</option>
             <option value="finished">Finished</option>
           </select>
-          <select name="state" defaultValue={state} className="input-esports h-11">
+          <select aria-label="Filter events by publication state" name="state" defaultValue={state} className="input-esports h-11">
             <option value="all">All states</option>
             <option value="published">Published</option>
             <option value="locked">Locked</option>
             <option value="draft">Draft</option>
           </select>
-          <select name="region" defaultValue={region} className="input-esports h-11">
+          <select aria-label="Filter events by region" name="region" defaultValue={region} className="input-esports h-11">
             <option value="all">All regions</option>
             {regions.map((item) => (
               <option key={item} value={item}>
@@ -1571,18 +1599,19 @@ function EventStandingsTable({ event, slug }: { event: PubgHubEvent; slug: strin
           />
         </div>
       ) : (
-        <div className="table-scroll">
+        <div className="table-scroll" tabIndex={0}>
           <table className="data-table min-w-full">
+            <caption className="sr-only">Team standings for {event.name}</caption>
             <thead>
               <tr>
-                <th>Rank</th>
-                <th>Team</th>
-                <th>Matches</th>
-                <th>Wins</th>
-                <th>Kills</th>
-                <th>Placement</th>
-                <th>Total</th>
-                <th>Trend</th>
+                <th scope="col">Rank</th>
+                <th scope="col">Team</th>
+                <th scope="col">Matches</th>
+                <th scope="col">Wins</th>
+                <th scope="col">Kills</th>
+                <th scope="col">Placement</th>
+                <th scope="col">Total</th>
+                <th scope="col">Trend</th>
               </tr>
             </thead>
             <tbody>
@@ -1638,19 +1667,20 @@ function EventPlayersTable({ event, slug }: { event: PubgHubEvent; slug: string 
           />
         </div>
       ) : (
-        <div className="table-scroll">
+        <div className="table-scroll" tabIndex={0}>
           <table className="data-table min-w-full">
+            <caption className="sr-only">Player statistics for {event.name}</caption>
             <thead>
               <tr>
-                <th>Rank</th>
-                <th>Player</th>
-                <th>Team</th>
-                <th>Kills</th>
-                <th>Assists</th>
-                <th>Knocks</th>
-                <th>Damage</th>
-                <th>Avg K</th>
-                <th>Trend</th>
+                <th scope="col">Rank</th>
+                <th scope="col">Player</th>
+                <th scope="col">Team</th>
+                <th scope="col">Kills</th>
+                <th scope="col">Assists</th>
+                <th scope="col">Knocks</th>
+                <th scope="col">Damage</th>
+                <th scope="col">Avg K</th>
+                <th scope="col">Trend</th>
               </tr>
             </thead>
             <tbody>
@@ -1695,6 +1725,7 @@ function EventMatchesBoard({ event, playerLookup }: { event: PubgHubEvent; playe
       {event.matches.map((match) => {
         const winnerTeam = match.winnerTeamName ?? "Winner TBD";
         const topFragger = buildTopFragger(match, playerLookup);
+        const matchStatus = getMatchStatusMeta(match);
 
         return (
           <div key={match.id} className="esports-card p-5">
@@ -1705,10 +1736,8 @@ function EventMatchesBoard({ event, playerLookup }: { event: PubgHubEvent; playe
                 </p>
                 <h3 className="mt-2 font-display text-lg font-black uppercase text-white">{event.name}</h3>
               </div>
-              <span
-                className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${match.status === "published" ? "border-accent-green/30 bg-accent-green/10 text-accent-green" : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"}`}
-              >
-                {match.status === "published" ? "Published" : "Awaiting Approval"}
+              <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${matchStatus.className}`}>
+                {matchStatus.label}
               </span>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -1723,14 +1752,17 @@ function EventMatchesBoard({ event, playerLookup }: { event: PubgHubEvent; playe
                 <p className="mt-1 text-sm text-text-muted">{topFragger.currentTeamName ?? "Team TBD"}</p>
               </div>
             ) : null}
-            <div className="mt-4 table-scroll">
+            <div className="mt-4 table-scroll" tabIndex={0}>
               <table className="data-table min-w-full">
+                <caption className="sr-only">
+                  Leading team results for {event.name}, match {match.matchNumber}
+                </caption>
                 <thead>
                   <tr>
-                    <th>Rank</th>
-                    <th>Team</th>
-                    <th>Kills</th>
-                    <th>Total</th>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Team</th>
+                    <th scope="col">Kills</th>
+                    <th scope="col">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1859,11 +1891,7 @@ export function PubgEventDetailPage({
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard label="Top Team" value={event.standings[0]?.teamName ?? "Pending"} tone="green" />
           <MetricCard label="Top Player" value={event.playerTable[0]?.pubgName ?? "Pending"} tone="blue" />
-          <MetricCard
-            label="Published Matches"
-            value={event.matches.filter((match) => match.status === "published").length}
-            tone="yellow"
-          />
+          <MetricCard label="Published Matches" value={event.matches.filter(isPublishedMatch).length} tone="yellow" />
           <MetricCard label="Generated" value={formatDateTime(dataset.generatedAt)} tone="red" />
         </section>
 
@@ -2513,12 +2541,12 @@ export function PubgResultsPage({ dataset, searchParams }: { dataset: PubgHubDat
           stats={[
             {
               label: "Published Matches",
-              value: dataset.matches.filter((match) => match.status === "published").length,
+              value: dataset.matches.filter(isPublishedMatch).length,
               tone: "green",
             },
             {
               label: "Awaiting Approval",
-              value: dataset.matches.filter((match) => match.status !== "published").length,
+              value: dataset.matches.filter((match) => !isPublishedMatch(match)).length,
               tone: "yellow",
             },
             { label: "Maps Covered", value: mapOptions.length, tone: "blue" },
@@ -2554,7 +2582,7 @@ export function PubgResultsPage({ dataset, searchParams }: { dataset: PubgHubDat
             </Link>
           }
         >
-          <select name="event" defaultValue={eventSlug} className="input-esports h-11">
+          <select aria-label="Filter results by event" name="event" defaultValue={eventSlug} className="input-esports h-11">
             <option value="all">All events</option>
             {dataset.events.map((event) => (
               <option key={event.id} value={event.slug}>
@@ -2562,7 +2590,7 @@ export function PubgResultsPage({ dataset, searchParams }: { dataset: PubgHubDat
               </option>
             ))}
           </select>
-          <select name="map" defaultValue={mapName} className="input-esports h-11">
+          <select aria-label="Filter results by map" name="map" defaultValue={mapName} className="input-esports h-11">
             <option value="all">All maps</option>
             {mapOptions.map((map) => (
               <option key={map} value={map}>
@@ -2570,7 +2598,7 @@ export function PubgResultsPage({ dataset, searchParams }: { dataset: PubgHubDat
               </option>
             ))}
           </select>
-          <select name="status" defaultValue={status} className="input-esports h-11">
+          <select aria-label="Filter results by state" name="status" defaultValue={status} className="input-esports h-11">
             <option value="all">All states</option>
             <option value="published">Published</option>
             <option value="awaiting_approval">Awaiting approval</option>
@@ -2583,6 +2611,7 @@ export function PubgResultsPage({ dataset, searchParams }: { dataset: PubgHubDat
         <section className="grid gap-4 xl:grid-cols-2">
           {filteredMatches.map((match) => {
             const topFragger = buildTopFragger(match, playerLookup);
+            const matchStatus = getMatchStatusMeta(match);
 
             return (
               <div key={match.id} className="esports-card p-6">
@@ -2595,9 +2624,9 @@ export function PubgResultsPage({ dataset, searchParams }: { dataset: PubgHubDat
                     <p className="mt-2 text-sm text-text-muted">{formatDateTime(match.startTime)}</p>
                   </div>
                   <span
-                    className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${match.status === "published" ? "border-accent-green/30 bg-accent-green/10 text-accent-green" : "border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow"}`}
+                    className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${matchStatus.className}`}
                   >
-                    {match.status === "published" ? "Published" : "Awaiting Approval"}
+                    {matchStatus.label}
                   </span>
                 </div>
                 <div className="mt-5 grid gap-3 sm:grid-cols-4">
@@ -2626,14 +2655,17 @@ export function PubgResultsPage({ dataset, searchParams }: { dataset: PubgHubDat
                     ) : (
                       <p className="mt-3 text-sm text-text-muted">Winner will appear after the lobby data publishes fully.</p>
                     )}
-                    <div className="mt-4 table-scroll">
+                    <div className="mt-4 table-scroll" tabIndex={0}>
                       <table className="data-table min-w-full">
+                        <caption className="sr-only">
+                          Leading team results for {match.eventName}, match {match.matchNumber}
+                        </caption>
                         <thead>
                           <tr>
-                            <th>Rank</th>
-                            <th>Team</th>
-                            <th>Kills</th>
-                            <th>Total</th>
+                            <th scope="col">Rank</th>
+                            <th scope="col">Team</th>
+                            <th scope="col">Kills</th>
+                            <th scope="col">Total</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2653,7 +2685,14 @@ export function PubgResultsPage({ dataset, searchParams }: { dataset: PubgHubDat
                     <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Top fragger</p>
                       <div className="mt-3">
-                        <PlayerIdentity player={topFragger} href={`/pubg/players/${topFragger.id}`} />
+                        {topFragger.player ? (
+                          <PlayerIdentity player={topFragger.player} href={`/pubg/players/${topFragger.player.slug}`} />
+                        ) : (
+                          <div>
+                            <p className="font-semibold text-white">{topFragger.pubgName}</p>
+                            <p className="mt-1 text-sm text-text-muted">{topFragger.currentTeamName ?? "Team TBD"}</p>
+                          </div>
+                        )}
                       </div>
                       <div className="mt-4">
                         <Link href={`/pubg/events/${match.eventSlug}?tab=matches`} className="btn-secondary">
@@ -2815,19 +2854,20 @@ export function PubgFantasyPage({ dataset }: { dataset: PubgHubDataset }) {
               description="The preview board already reads from the same player stats used elsewhere in the Bravo PUBG hub."
             />
           </div>
-          <div className="table-scroll">
+          <div className="table-scroll" tabIndex={0}>
             <table className="data-table min-w-full">
+              <caption className="sr-only">Fantasy player leaderboard preview</caption>
               <thead>
                 <tr>
-                  <th>Rank</th>
-                  <th>Player</th>
-                  <th>Tier</th>
-                  <th>Score</th>
-                  <th>Kills</th>
-                  <th>Knocks</th>
-                  <th>Assists</th>
-                  <th>Damage</th>
-                  <th>Matches</th>
+                  <th scope="col">Rank</th>
+                  <th scope="col">Player</th>
+                  <th scope="col">Tier</th>
+                  <th scope="col">Score</th>
+                  <th scope="col">Kills</th>
+                  <th scope="col">Knocks</th>
+                  <th scope="col">Assists</th>
+                  <th scope="col">Damage</th>
+                  <th scope="col">Matches</th>
                 </tr>
               </thead>
               <tbody>

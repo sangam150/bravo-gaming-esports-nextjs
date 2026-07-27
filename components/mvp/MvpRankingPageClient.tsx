@@ -57,18 +57,19 @@ export default function MvpRankingPageClient({
           </section>
         ) : (
           <section className="esports-card mt-8 overflow-hidden !p-0">
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0}>
               <table className="data-table min-w-full">
+                <caption className="sr-only">MVP player rankings, awards, performance, and match totals</caption>
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Player</th>
-                    <th>Team</th>
-                    <th>MVP Awards</th>
-                    <th>Kills</th>
-                    <th>Damage</th>
-                    <th>Assists</th>
-                    <th>Matches</th>
+                    <th scope="col">#</th>
+                    <th scope="col">Player</th>
+                    <th scope="col">Team</th>
+                    <th scope="col">MVP Awards</th>
+                    <th scope="col">Kills</th>
+                    <th scope="col">Damage</th>
+                    <th scope="col">Assists</th>
+                    <th scope="col">Matches</th>
                   </tr>
                 </thead>
                 <tbody>

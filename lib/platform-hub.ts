@@ -2,7 +2,7 @@ import { cache } from "react";
 import { getAnnouncements, getLiveStreamFeed, getSponsors, getVideos } from "./data";
 import { getManagedPlatformEvents, getManagedPlatformGames } from "./platform-cms";
 import { getHomepageContent, getPublishedManagedNewsArticles, type HomepageHeroSlideRecord } from "./platform-content";
-import { getPubgHubDataset } from "./pubg-hub";
+import { getPubgHubDataset, isPublicPubgMatchStatus } from "./pubg-hub";
 import { hasPublicDemoMarker, isInternalOnlyCategory, sanitizePublicAssetUrl, sanitizePublicCopy } from "./public-content";
 import type { SponsorItem, SponsorKind } from "./types";
 
@@ -854,11 +854,11 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
   const baseEvents = [...pubgEvents, ...(managedEvents.length > 0 ? managedEvents : PLANNED_EVENTS)]
     .map((event) => sanitizeEventForPublicDisplay(event))
     .filter((event): event is PlatformEvent => event !== null);
-  const events = mergeFallbackItems(PUBLIC_FALLBACK_EVENTS, baseEvents, (event) => event.slug.toLowerCase()).sort(
-    compareEventsForPublicDisplay,
-  );
+  const canonicalEventRows = baseEvents.length > 0 ? baseEvents : PUBLIC_FALLBACK_EVENTS;
+  const events = mergeFallbackItems([], canonicalEventRows, (event) => event.slug.toLowerCase()).sort(compareEventsForPublicDisplay);
+  const canonicalSponsorRows = sponsors.length > 0 ? sponsors : PUBLIC_FALLBACK_SPONSOR_ITEMS;
   const sponsorProfiles = buildSponsorProfiles(
-    mergeFallbackItems(PUBLIC_FALLBACK_SPONSOR_ITEMS, sponsors, (sponsor) => (sponsor.slug ?? sponsor.name).trim().toLowerCase()),
+    mergeFallbackItems([], canonicalSponsorRows, (sponsor) => slugify(sponsor.name)),
     events,
   )
     .map((sponsor) => sanitizeSponsorProfileForPublicDisplay(sponsor))
@@ -871,6 +871,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     const topFragger = [...match.playerResults].sort(
       (firstValue, secondValue) => secondValue.kills - firstValue.kills || secondValue.damage - firstValue.damage,
     )[0];
+    const isPublished = isPublicPubgMatchStatus(match.status);
 
     return {
       id: match.id,
@@ -878,7 +879,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       gameName: "PUBG PC",
       eventSlug: match.eventSlug,
       eventName: match.eventName,
-      status: match.status === "published" ? (match.eventStatus === "ongoing" ? "live" : "completed") : "upcoming",
+      status: isPublished ? (match.eventStatus === "ongoing" ? "live" : "completed") : "upcoming",
       scheduledAt: match.startTime,
       stageLabel: `Match ${match.matchNumber}`,
       format: "Squad TPP",
@@ -892,10 +893,9 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       analyticsHref: `/pubg/events/${match.eventSlug}?tab=matches`,
       vodHref: match.vodUrl ?? null,
       viewerCount: liveStream.isLive && match.eventStatus === "ongoing" ? (liveStream.viewers ?? "Live") : null,
-      summary:
-        match.status === "published"
-          ? `Published ${match.mapName} result from ${match.eventName} with ${match.totalKills} total kills tracked.`
-          : `Result waiting on approval for ${match.eventName} match ${match.matchNumber}.`,
+      summary: isPublished
+        ? `Published ${match.mapName} result from ${match.eventName} with ${match.totalKills} total kills tracked.`
+        : `Result waiting on approval for ${match.eventName} match ${match.matchNumber}.`,
       updatedAt: match.startTime,
     };
   });

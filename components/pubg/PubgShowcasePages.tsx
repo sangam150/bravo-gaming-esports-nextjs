@@ -49,7 +49,7 @@ function ProfileTabs({
   extras?: Record<string, string | undefined>;
 }) {
   return (
-    <div className="tab-bar">
+    <nav aria-label="Profile sections" className="tab-bar">
       {tabs.map((tab) => (
         <Link
           key={tab.value}
@@ -57,12 +57,13 @@ function ProfileTabs({
             ...extras,
             tab: tab.value === "overview" ? undefined : tab.value,
           })}
+          aria-current={currentTab === tab.value ? "page" : undefined}
           className={`tab-item ${currentTab === tab.value ? "tab-item-active" : ""}`}
         >
           {tab.label}
         </Link>
       ))}
-    </div>
+    </nav>
   );
 }
 
@@ -176,7 +177,7 @@ export function PubgTeamProfileShowcasePage({
           }
         >
           <input type="hidden" name="tab" value={tab} />
-          <select name="event" defaultValue={eventId} className="input-esports h-11">
+          <select aria-label="Filter team profile by event" name="event" defaultValue={eventId} className="input-esports h-11">
             <option value="all">All events</option>
             {team.eventStats.map((eventStat) => (
               <option key={eventStat.eventId} value={eventStat.eventId}>
@@ -348,15 +349,22 @@ export function PubgTeamProfileShowcasePage({
                   title="Event-specific output"
                   description="Every tracked event contribution remains visible even after the homepage cycle moves on."
                 />
-                <div className="mt-5 table-scroll">
+                <div className="mt-5 table-scroll" tabIndex={0}>
                   <table className="data-table min-w-full">
+                    <caption className="sr-only">Team performance split by event</caption>
                     <thead>
                       <tr>
-                        <th>Event</th>
-                        <th>Status</th>
-                        <th className="text-right">Kills</th>
-                        <th className="text-right">Wins</th>
-                        <th className="text-right">Points</th>
+                        <th scope="col">Event</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" className="text-right">
+                          Kills
+                        </th>
+                        <th scope="col" className="text-right">
+                          Wins
+                        </th>
+                        <th scope="col" className="text-right">
+                          Points
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -547,7 +555,7 @@ export function PubgPlayerProfileShowcasePage({
           }
         >
           <input type="hidden" name="tab" value={tab} />
-          <select name="event" defaultValue={eventId} className="input-esports h-11">
+          <select aria-label="Filter player profile by event" name="event" defaultValue={eventId} className="input-esports h-11">
             <option value="all">All events</option>
             {player.eventStats.map((eventStat) => (
               <option key={eventStat.eventId} value={eventStat.eventId}>
@@ -641,16 +649,25 @@ export function PubgPlayerProfileShowcasePage({
                   description="Kills, assists, knocks, and damage stay attached to every event this player touched."
                 />
               </div>
-              <div className="table-scroll">
+              <div className="table-scroll" tabIndex={0}>
                 <table className="data-table min-w-full">
+                  <caption className="sr-only">Player performance split by event</caption>
                   <thead>
                     <tr>
-                      <th>Event</th>
-                      <th>Status</th>
-                      <th className="text-right">Kills</th>
-                      <th className="text-right">Assists</th>
-                      <th className="text-right">Knocks</th>
-                      <th className="text-right">Damage</th>
+                      <th scope="col">Event</th>
+                      <th scope="col">Status</th>
+                      <th scope="col" className="text-right">
+                        Kills
+                      </th>
+                      <th scope="col" className="text-right">
+                        Assists
+                      </th>
+                      <th scope="col" className="text-right">
+                        Knocks
+                      </th>
+                      <th scope="col" className="text-right">
+                        Damage
+                      </th>
                     </tr>
                   </thead>
                   <tbody>

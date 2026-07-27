@@ -1,5 +1,6 @@
 "use client";
 
+import { useDiscordProviderEnabled } from "@/components/auth/DiscordLoginButton";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { adminFetch } from "@/lib/admin-api";
 import type { AuditLogRecord } from "@/lib/audit-logs";
@@ -397,7 +398,7 @@ export default function AdminDashboard({
   focusImportBatchId?: string | null;
 }) {
   const demoSeedTag = "bravo_demo_seed_2026";
-  const discordAuthEnabled = process.env.NEXT_PUBLIC_DISCORD_AUTH_ENABLED === "true";
+  const discordAuthEnabled = useDiscordProviderEnabled();
   const { user, logout } = useAdminAuth();
   const [section, setSection] = useState<AdminSection>(initialSection);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -1267,6 +1268,8 @@ export default function AdminDashboard({
 
         {(message || error) && (
           <div
+            role={error ? "alert" : "status"}
+            aria-live={error ? "assertive" : "polite"}
             className={`rounded-2xl border px-4 py-3 text-sm ${error ? "border-bravoRed/30 bg-bravoRed/10 text-red-300" : "border-bravoGreen/30 bg-bravoGreen/10 text-bravoGreen"}`}
           >
             {error ?? message}
@@ -1396,15 +1399,16 @@ export default function AdminDashboard({
               {liveMatches.length === 0 ? (
                 <p className="p-6 text-center text-sm text-text-muted">Match data will appear once results are published.</p>
               ) : (
-                <div className="table-scroll">
+                <div className="table-scroll" tabIndex={0}>
                   <table className="data-table min-w-full">
+                    <caption className="sr-only">Recently published live matches</caption>
                     <thead>
                       <tr>
-                        <th>Map</th>
-                        <th>Winner</th>
-                        <th>KOs</th>
-                        <th>Synced</th>
-                        <th>Source</th>
+                        <th scope="col">Map</th>
+                        <th scope="col">Winner</th>
+                        <th scope="col">KOs</th>
+                        <th scope="col">Synced</th>
+                        <th scope="col">Source</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1499,18 +1503,21 @@ export default function AdminDashboard({
                     </div>
                     <input
                       className={inputClass}
+                      aria-label="Badge"
                       placeholder="Badge"
                       value={slide.badge}
                       onChange={(e) => updateHomepageSlide(index, { badge: e.target.value })}
                     />
                     <input
                       className={inputClass}
+                      aria-label="Title"
                       placeholder="Title"
                       value={slide.title}
                       onChange={(e) => updateHomepageSlide(index, { title: e.target.value })}
                     />
                     <textarea
                       className={inputClass}
+                      aria-label="Description"
                       placeholder="Description"
                       rows={4}
                       value={slide.description}
@@ -1529,12 +1536,14 @@ export default function AdminDashboard({
                     />
                     <input
                       className={inputClass}
+                      aria-label="Video URL (YouTube, Vimeo, or direct file)"
                       placeholder="Video URL (YouTube, Vimeo, or direct file)"
                       value={slide.videoUrl ?? ""}
                       onChange={(e) => updateHomepageSlide(index, { videoUrl: e.target.value })}
                     />
                     <input
                       className={inputClass}
+                      aria-label="Sponsor slug (optional)"
                       placeholder="Sponsor slug (optional)"
                       value={slide.sponsorSlug ?? ""}
                       onChange={(e) =>
@@ -1545,6 +1554,7 @@ export default function AdminDashboard({
                     />
                     <textarea
                       className={inputClass}
+                      aria-label="Promo/support text (optional)"
                       placeholder="Promo/support text (optional)"
                       rows={3}
                       value={slide.promoText ?? ""}
@@ -1556,6 +1566,7 @@ export default function AdminDashboard({
                     />
                     <input
                       className={inputClass}
+                      aria-label="Primary button label"
                       placeholder="Primary button label"
                       value={slide.primaryLabel}
                       onChange={(e) =>
@@ -1566,6 +1577,7 @@ export default function AdminDashboard({
                     />
                     <input
                       className={inputClass}
+                      aria-label="Primary button href"
                       placeholder="Primary button href"
                       value={slide.primaryHref}
                       onChange={(e) =>
@@ -1576,6 +1588,7 @@ export default function AdminDashboard({
                     />
                     <input
                       className={inputClass}
+                      aria-label="Secondary button label"
                       placeholder="Secondary button label"
                       value={slide.secondaryLabel ?? ""}
                       onChange={(e) =>
@@ -1586,6 +1599,7 @@ export default function AdminDashboard({
                     />
                     <input
                       className={inputClass}
+                      aria-label="Secondary button href"
                       placeholder="Secondary button href"
                       value={slide.secondaryHref ?? ""}
                       onChange={(e) =>
@@ -1596,6 +1610,7 @@ export default function AdminDashboard({
                     />
                     <input
                       className={inputClass}
+                      aria-label="Tertiary button label"
                       placeholder="Tertiary button label"
                       value={slide.tertiaryLabel ?? ""}
                       onChange={(e) =>
@@ -1606,6 +1621,7 @@ export default function AdminDashboard({
                     />
                     <input
                       className={inputClass}
+                      aria-label="Tertiary button href"
                       placeholder="Tertiary button href"
                       value={slide.tertiaryHref ?? ""}
                       onChange={(e) =>
@@ -1626,6 +1642,7 @@ export default function AdminDashboard({
                   </div>
                   <input
                     className={inputClass}
+                    aria-label="Live title"
                     placeholder="Live title"
                     value={homepageForm.liveTitle ?? ""}
                     onChange={(e) =>
@@ -1637,6 +1654,7 @@ export default function AdminDashboard({
                   />
                   <textarea
                     className={inputClass}
+                    aria-label="Live subtitle"
                     placeholder="Live subtitle"
                     rows={3}
                     value={homepageForm.liveSubtitle ?? ""}
@@ -1649,6 +1667,7 @@ export default function AdminDashboard({
                   />
                   <input
                     className={inputClass}
+                    aria-label="Viewer label"
                     placeholder="Viewer label"
                     value={homepageForm.liveViewers ?? ""}
                     onChange={(e) =>
@@ -1660,6 +1679,7 @@ export default function AdminDashboard({
                   />
                   <input
                     className={inputClass}
+                    aria-label="Live href"
                     placeholder="Live href"
                     value={homepageForm.liveHref ?? ""}
                     onChange={(e) =>
@@ -1671,6 +1691,7 @@ export default function AdminDashboard({
                   />
                   <input
                     className={inputClass}
+                    aria-label="Breaking news slug"
                     placeholder="Breaking news slug"
                     value={homepageForm.breakingNewsSlug ?? ""}
                     onChange={(e) =>
@@ -1691,6 +1712,7 @@ export default function AdminDashboard({
                   </div>
                   <textarea
                     className={inputClass}
+                    aria-label="Featured event slugs"
                     placeholder="Featured event slugs"
                     rows={2}
                     value={joinDelimitedValues(homepageForm.featuredEventSlugs)}
@@ -1703,6 +1725,7 @@ export default function AdminDashboard({
                   />
                   <textarea
                     className={inputClass}
+                    aria-label="Featured news slugs"
                     placeholder="Featured news slugs"
                     rows={2}
                     value={joinDelimitedValues(homepageForm.featuredNewsSlugs)}
@@ -1715,6 +1738,7 @@ export default function AdminDashboard({
                   />
                   <textarea
                     className={inputClass}
+                    aria-label="Featured sponsor slugs"
                     placeholder="Featured sponsor slugs"
                     rows={2}
                     value={joinDelimitedValues(homepageForm.featuredSponsorSlugs)}
@@ -1727,6 +1751,7 @@ export default function AdminDashboard({
                   />
                   <textarea
                     className={inputClass}
+                    aria-label="Featured media ids"
                     placeholder="Featured media ids"
                     rows={2}
                     value={joinDelimitedValues(homepageForm.featuredMediaIds)}
@@ -1739,6 +1764,7 @@ export default function AdminDashboard({
                   />
                   <textarea
                     className={inputClass}
+                    aria-label="Featured team ids"
                     placeholder="Featured team ids"
                     rows={2}
                     value={joinDelimitedValues(homepageForm.featuredTeamIds)}
@@ -1751,6 +1777,7 @@ export default function AdminDashboard({
                   />
                   <textarea
                     className={inputClass}
+                    aria-label="Featured player ids"
                     placeholder="Featured player ids"
                     rows={2}
                     value={joinDelimitedValues(homepageForm.featuredPlayerIds)}
@@ -1794,6 +1821,7 @@ export default function AdminDashboard({
                   </div>
                   <input
                     className={inputClass}
+                    aria-label="Footer title"
                     placeholder="Footer title"
                     value={homepageForm.footerTitle}
                     onChange={(event) =>
@@ -1805,6 +1833,7 @@ export default function AdminDashboard({
                   />
                   <input
                     className={inputClass}
+                    aria-label="Footer tagline"
                     placeholder="Footer tagline"
                     value={homepageForm.footerTagline}
                     onChange={(event) =>
@@ -1817,6 +1846,7 @@ export default function AdminDashboard({
                   <textarea
                     className={inputClass}
                     rows={4}
+                    aria-label="Footer description"
                     placeholder="Footer description"
                     value={homepageForm.footerDescription}
                     onChange={(event) =>
@@ -1829,6 +1859,7 @@ export default function AdminDashboard({
                   <div className="grid gap-4 sm:grid-cols-2">
                     <input
                       className={inputClass}
+                      aria-label="Primary button label"
                       placeholder="Primary button label"
                       value={homepageForm.footerPrimaryLabel}
                       onChange={(event) =>
@@ -1840,6 +1871,7 @@ export default function AdminDashboard({
                     />
                     <input
                       className={inputClass}
+                      aria-label="Primary button href"
                       placeholder="Primary button href"
                       value={homepageForm.footerPrimaryHref}
                       onChange={(event) =>
@@ -1851,6 +1883,7 @@ export default function AdminDashboard({
                     />
                     <input
                       className={inputClass}
+                      aria-label="Secondary button label"
                       placeholder="Secondary button label"
                       value={homepageForm.footerSecondaryLabel}
                       onChange={(event) =>
@@ -1862,6 +1895,7 @@ export default function AdminDashboard({
                     />
                     <input
                       className={inputClass}
+                      aria-label="Secondary button href"
                       placeholder="Secondary button href"
                       value={homepageForm.footerSecondaryHref}
                       onChange={(event) =>
@@ -1883,6 +1917,7 @@ export default function AdminDashboard({
                   </div>
                   <input
                     className={inputClass}
+                    aria-label="Bottom primary text"
                     placeholder="Bottom primary text"
                     value={homepageForm.footerBottomPrimary}
                     onChange={(event) =>
@@ -1895,6 +1930,7 @@ export default function AdminDashboard({
                   <textarea
                     className={inputClass}
                     rows={3}
+                    aria-label="Bottom secondary text"
                     placeholder="Bottom secondary text"
                     value={homepageForm.footerBottomSecondary}
                     onChange={(event) =>
@@ -1911,6 +1947,7 @@ export default function AdminDashboard({
                         <div className="space-y-3">
                           <input
                             className={inputClass}
+                            aria-label="Label"
                             placeholder="Label"
                             value={highlight.label}
                             onChange={(event) =>
@@ -1921,6 +1958,7 @@ export default function AdminDashboard({
                           />
                           <input
                             className={inputClass}
+                            aria-label="Value"
                             placeholder="Value"
                             value={highlight.value}
                             onChange={(event) =>
@@ -1947,6 +1985,7 @@ export default function AdminDashboard({
                     </div>
                     <input
                       className={inputClass}
+                      aria-label="Column title"
                       placeholder="Column title"
                       value={column.title}
                       onChange={(event) => updateFooterColumn(index, { title: event.target.value })}
@@ -1954,6 +1993,7 @@ export default function AdminDashboard({
                     <textarea
                       className={inputClass}
                       rows={6}
+                      aria-label="Footer column links"
                       placeholder="Home | /&#10;News | /news"
                       value={serializeFooterLinks(column.links)}
                       onChange={(event) =>
@@ -2018,6 +2058,7 @@ export default function AdminDashboard({
                 </div>
                 <input
                   className={inputClass}
+                  aria-label="Title"
                   placeholder="Title"
                   value={newsForm.title ?? ""}
                   onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })}
@@ -2025,12 +2066,14 @@ export default function AdminDashboard({
                 />
                 <input
                   className={inputClass}
+                  aria-label="Slug"
                   placeholder="Slug"
                   value={newsForm.slug ?? ""}
                   onChange={(e) => setNewsForm({ ...newsForm, slug: e.target.value })}
                 />
                 <textarea
                   className={inputClass}
+                  aria-label="Summary"
                   placeholder="Summary"
                   rows={3}
                   value={newsForm.summary ?? ""}
@@ -2039,6 +2082,7 @@ export default function AdminDashboard({
                 />
                 <textarea
                   className={inputClass}
+                  aria-label="Excerpt (optional card + SEO fallback)"
                   placeholder="Excerpt (optional card + SEO fallback)"
                   rows={2}
                   value={newsForm.excerpt ?? ""}
@@ -2046,6 +2090,7 @@ export default function AdminDashboard({
                 />
                 <textarea
                   className={inputClass}
+                  aria-label="Body paragraphs separated by blank lines"
                   placeholder="Body paragraphs separated by blank lines"
                   rows={10}
                   value={newsForm.bodyText}
@@ -2054,12 +2099,14 @@ export default function AdminDashboard({
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <input
                     className={inputClass}
+                    aria-label="Category"
                     placeholder="Category"
                     value={newsForm.category ?? ""}
                     onChange={(e) => setNewsForm({ ...newsForm, category: e.target.value })}
                   />
                   <input
                     className={inputClass}
+                    aria-label="Tags (comma separated)"
                     placeholder="Tags (comma separated)"
                     value={joinDelimitedValues(newsForm.tags)}
                     onChange={(e) =>
@@ -2071,24 +2118,28 @@ export default function AdminDashboard({
                   />
                   <input
                     className={inputClass}
+                    aria-label="Author"
                     placeholder="Author"
                     value={newsForm.authorName ?? ""}
                     onChange={(e) => setNewsForm({ ...newsForm, authorName: e.target.value })}
                   />
                   <input
                     className={inputClass}
+                    aria-label="Game slug (optional)"
                     placeholder="Game slug (optional)"
                     value={newsForm.gameSlug ?? ""}
                     onChange={(e) => setNewsForm({ ...newsForm, gameSlug: e.target.value })}
                   />
                   <input
                     className={inputClass}
+                    aria-label="Article date"
                     type="date"
                     value={newsForm.date ?? ""}
                     onChange={(e) => setNewsForm({ ...newsForm, date: e.target.value })}
                   />
                   <select
                     className={inputClass}
+                    aria-label="Article publication state"
                     value={newsForm.state ?? "draft"}
                     onChange={(e) =>
                       setNewsForm({
@@ -2105,6 +2156,7 @@ export default function AdminDashboard({
                     <label className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">Publish At (NPT)</label>
                     <input
                       className={inputClass}
+                      aria-label="Publish date and time in Nepal time"
                       type="datetime-local"
                       value={typeof newsForm.publishAt === "string" ? newsForm.publishAt : ""}
                       onChange={(e) => setNewsForm({ ...newsForm, publishAt: e.target.value })}
@@ -2135,12 +2187,14 @@ export default function AdminDashboard({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <input
                     className={inputClass}
+                    aria-label="SEO title"
                     placeholder="SEO title"
                     value={newsForm.seoTitle ?? ""}
                     onChange={(e) => setNewsForm({ ...newsForm, seoTitle: e.target.value })}
                   />
                   <input
                     className={inputClass}
+                    aria-label="SEO description"
                     placeholder="SEO description"
                     value={newsForm.seoDescription ?? ""}
                     onChange={(e) =>
@@ -2152,12 +2206,14 @@ export default function AdminDashboard({
                   />
                   <input
                     className={inputClass}
+                    aria-label="Canonical URL (optional)"
                     placeholder="Canonical URL (optional)"
                     value={newsForm.canonicalUrl ?? ""}
                     onChange={(e) => setNewsForm({ ...newsForm, canonicalUrl: e.target.value })}
                   />
                   <input
                     className={inputClass}
+                    aria-label="OG image URL (optional)"
                     placeholder="OG image URL (optional)"
                     value={newsForm.ogImageUrl ?? ""}
                     onChange={(e) => setNewsForm({ ...newsForm, ogImageUrl: e.target.value })}
@@ -2286,7 +2342,7 @@ export default function AdminDashboard({
             <AdminTeamRequestsManager />
           </div>
         )}
-        {section === "discordRoles" && <AdminDiscordRoleMappingManager />}
+        {section === "discordRoles" && <AdminDiscordRoleMappingManager embedded />}
         {section === "registeredTeams" && <AdminRegisteredTeamsManager />}
 
         {section === "inbox" && (
@@ -2385,6 +2441,7 @@ export default function AdminDashboard({
             <form onSubmit={handleSeasonSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
               <input
                 className={inputClass}
+                aria-label="Season title"
                 placeholder="Season title"
                 value={seasonForm.title ?? ""}
                 onChange={(e) => setSeasonForm({ ...seasonForm, title: e.target.value })}
@@ -2392,6 +2449,7 @@ export default function AdminDashboard({
               />
               <input
                 className={inputClass}
+                aria-label="Series title"
                 placeholder="Series title"
                 value={seasonForm.seriesTitle ?? ""}
                 onChange={(e) => setSeasonForm({ ...seasonForm, seriesTitle: e.target.value })}
@@ -2400,6 +2458,7 @@ export default function AdminDashboard({
                 className={inputClass}
                 type="number"
                 min={1}
+                aria-label="Season number"
                 placeholder="Season number"
                 value={seasonForm.seasonNumber ?? 1}
                 onChange={(e) =>
@@ -2411,6 +2470,7 @@ export default function AdminDashboard({
               />
               <select
                 className={inputClass}
+                aria-label="Season status"
                 value={seasonForm.status ?? "active"}
                 onChange={(e) =>
                   setSeasonForm({
@@ -2427,12 +2487,14 @@ export default function AdminDashboard({
               </select>
               <input
                 className={inputClass}
+                aria-label="Season start date"
                 type="date"
                 value={seasonForm.startDate ?? ""}
                 onChange={(e) => setSeasonForm({ ...seasonForm, startDate: e.target.value })}
               />
               <select
                 className={inputClass}
+                aria-label="Configured season days"
                 value={Number(seasonForm.configuredDays ?? 15)}
                 onChange={(e) =>
                   setSeasonForm({
@@ -2448,6 +2510,7 @@ export default function AdminDashboard({
                 className={inputClass}
                 type="number"
                 min={0}
+                aria-label="Current day"
                 placeholder="Current day"
                 value={seasonForm.currentDay ?? 0}
                 onChange={(e) =>
@@ -2459,6 +2522,7 @@ export default function AdminDashboard({
               />
               <input
                 className={inputClass}
+                aria-label="Current tournament ID"
                 placeholder="Current tournament ID"
                 value={seasonForm.currentTournamentId ?? ""}
                 onChange={(e) =>
@@ -2470,6 +2534,7 @@ export default function AdminDashboard({
               />
               <textarea
                 className={`${inputClass} sm:col-span-2`}
+                aria-label="Notes"
                 placeholder="Notes"
                 rows={3}
                 value={seasonForm.notes ?? ""}
@@ -2588,6 +2653,7 @@ export default function AdminDashboard({
             <form onSubmit={handleTournamentSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
               <input
                 className={inputClass}
+                aria-label="Title"
                 placeholder="Title"
                 value={tournamentForm.title ?? ""}
                 onChange={(e) =>
@@ -2600,12 +2666,14 @@ export default function AdminDashboard({
               />
               <input
                 className={inputClass}
+                aria-label="Tier"
                 placeholder="Tier"
                 value={tournamentForm.tier ?? ""}
                 onChange={(e) => setTournamentForm({ ...tournamentForm, tier: e.target.value })}
               />
               <select
                 className={inputClass}
+                aria-label="Tournament status"
                 value={tournamentForm.status ?? "UPCOMING"}
                 onChange={(e) =>
                   setTournamentForm({
@@ -2622,6 +2690,7 @@ export default function AdminDashboard({
               </select>
               <select
                 className={inputClass}
+                aria-label="Tournament season"
                 value={tournamentForm.seasonId ?? activeSeason?.id ?? ""}
                 onChange={(e) => {
                   const season = seasons.find((item) => item.id === e.target.value);
@@ -2642,6 +2711,7 @@ export default function AdminDashboard({
               </select>
               <input
                 className={inputClass}
+                aria-label="Prize Pool"
                 placeholder="Prize Pool"
                 value={tournamentForm.prizePool ?? ""}
                 onChange={(e) =>
@@ -2654,6 +2724,7 @@ export default function AdminDashboard({
               <input
                 className={inputClass}
                 type="number"
+                aria-label="Max Teams"
                 placeholder="Max Teams"
                 value={tournamentForm.maxTeams ?? 32}
                 onChange={(e) =>
@@ -2665,6 +2736,7 @@ export default function AdminDashboard({
               />
               <input
                 className={inputClass}
+                aria-label="Tournament start date"
                 type="date"
                 value={tournamentForm.startDate ?? ""}
                 onChange={(e) =>
@@ -2678,6 +2750,7 @@ export default function AdminDashboard({
                 className={inputClass}
                 type="number"
                 min={1}
+                aria-label="Season Day Number"
                 placeholder="Season Day Number"
                 value={tournamentForm.seasonDayNumber ?? tournamentForm.dayNumber ?? ""}
                 onChange={(e) =>
@@ -2690,6 +2763,7 @@ export default function AdminDashboard({
               />
               <input
                 className={`${inputClass} sm:col-span-2`}
+                aria-label="Map rotation (comma separated)"
                 placeholder="Map rotation (comma separated)"
                 value={(tournamentForm.mapRotation ?? []).join(", ")}
                 onChange={(e) =>
@@ -2704,6 +2778,7 @@ export default function AdminDashboard({
               />
               <textarea
                 className={`${inputClass} sm:col-span-2`}
+                aria-label="Rules"
                 placeholder="Rules"
                 rows={3}
                 value={tournamentForm.rules ?? ""}
@@ -2716,6 +2791,7 @@ export default function AdminDashboard({
               />
               <textarea
                 className={`${inputClass} sm:col-span-2`}
+                aria-label="Schedule"
                 placeholder="Schedule"
                 rows={2}
                 value={tournamentForm.schedule ?? ""}
@@ -2728,6 +2804,7 @@ export default function AdminDashboard({
               />
               <textarea
                 className={`${inputClass} sm:col-span-2`}
+                aria-label="Description"
                 placeholder="Description"
                 rows={2}
                 value={tournamentForm.description ?? ""}
@@ -2791,6 +2868,7 @@ export default function AdminDashboard({
                   rows={5}
                   value={tournamentImportMatchIds}
                   onChange={(e) => setTournamentImportMatchIds(e.target.value)}
+                  aria-label="Paste one PUBG match ID per line or comma-separated."
                   placeholder="Paste one PUBG match ID per line or comma-separated."
                 />
                 <div className="mt-3 grid gap-3 text-xs text-slate-300 sm:grid-cols-3">
@@ -2830,14 +2908,23 @@ export default function AdminDashboard({
               </div>
             </form>
             <div className="esports-card overflow-hidden">
-              <div className="table-scroll">
+              <div className="table-scroll" tabIndex={0}>
                 <table className="min-w-full text-left text-sm">
+                  <caption className="sr-only">Tournaments available for administration</caption>
                   <thead className="border-b border-white/10 bg-slate-950/80 text-slate-400">
                     <tr>
-                      <th className="px-4 py-3">Tournament</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Teams</th>
-                      <th className="px-4 py-3">Actions</th>
+                      <th scope="col" className="px-4 py-3">
+                        Tournament
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Status
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Teams
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2852,11 +2939,17 @@ export default function AdminDashboard({
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-3">
-                            <button type="button" onClick={() => openTournamentEditor(t)} className="text-bravoBlue hover:underline">
+                            <button
+                              type="button"
+                              aria-label={`Open editor for ${t.title}`}
+                              onClick={() => openTournamentEditor(t)}
+                              className="text-bravoBlue hover:underline"
+                            >
                               Open Tournament Editor
                             </button>
                             <button
                               type="button"
+                              aria-label={`Delete ${t.title}`}
                               onClick={async () => {
                                 await adminFetch(`/api/tournaments/${t.id}`, {
                                   method: "DELETE",
@@ -2884,6 +2977,7 @@ export default function AdminDashboard({
             <form onSubmit={handleTeamSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
               <input
                 className={inputClass}
+                aria-label="Team Name"
                 placeholder="Team Name"
                 value={teamForm.name ?? ""}
                 onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
@@ -2891,36 +2985,42 @@ export default function AdminDashboard({
               />
               <input
                 className={inputClass}
+                aria-label="Tag"
                 placeholder="Tag"
                 value={teamForm.tag ?? ""}
                 onChange={(e) => setTeamForm({ ...teamForm, tag: e.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="Country"
                 placeholder="Country"
                 value={teamForm.country ?? ""}
                 onChange={(e) => setTeamForm({ ...teamForm, country: e.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="Captain Name"
                 placeholder="Captain Name"
                 value={teamForm.captainName ?? ""}
                 onChange={(e) => setTeamForm({ ...teamForm, captainName: e.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="Captain Discord"
                 placeholder="Captain Discord"
                 value={teamForm.captainDiscord ?? ""}
                 onChange={(e) => setTeamForm({ ...teamForm, captainDiscord: e.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="Captain Phone"
                 placeholder="Captain Phone"
                 value={teamForm.captainPhone ?? ""}
                 onChange={(e) => setTeamForm({ ...teamForm, captainPhone: e.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="Captain Email"
                 placeholder="Captain Email"
                 value={teamForm.captainEmail ?? ""}
                 onChange={(e) => setTeamForm({ ...teamForm, captainEmail: e.target.value })}
@@ -2928,6 +3028,7 @@ export default function AdminDashboard({
               <input
                 className={inputClass}
                 type="number"
+                aria-label="Slot Number"
                 placeholder="Slot Number"
                 value={teamForm.slotNumber ?? ""}
                 onChange={(e) =>
@@ -2939,6 +3040,7 @@ export default function AdminDashboard({
               />
               <select
                 className={inputClass}
+                aria-label="Team registration status"
                 value={teamForm.registrationStatus ?? "approved"}
                 onChange={(e) =>
                   setTeamForm({
@@ -3072,12 +3174,14 @@ export default function AdminDashboard({
             <form onSubmit={handlePlayerSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
               <input
                 className={inputClass}
+                aria-label="Real Name"
                 placeholder="Real Name"
                 value={playerForm.realName ?? ""}
                 onChange={(e) => setPlayerForm({ ...playerForm, realName: e.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="In-Game Name"
                 placeholder="In-Game Name"
                 value={playerForm.inGameName ?? playerForm.name ?? ""}
                 onChange={(e) =>
@@ -3091,12 +3195,14 @@ export default function AdminDashboard({
               />
               <input
                 className={inputClass}
+                aria-label="PUBG ID"
                 placeholder="PUBG ID"
                 value={playerForm.pubgId ?? ""}
                 onChange={(e) => setPlayerForm({ ...playerForm, pubgId: e.target.value })}
               />
               <select
                 className={inputClass}
+                aria-label="Player role"
                 value={playerForm.role ?? ""}
                 onChange={(e) =>
                   setPlayerForm({
@@ -3114,6 +3220,7 @@ export default function AdminDashboard({
               </select>
               <select
                 className={inputClass}
+                aria-label="Player team"
                 value={playerForm.teamId ?? selectedTeamId ?? ""}
                 onChange={(e) => {
                   const team = teams.find((t) => t.id === e.target.value);
@@ -3133,6 +3240,7 @@ export default function AdminDashboard({
               </select>
               <select
                 className={inputClass}
+                aria-label="Player status"
                 value={playerForm.playerStatus ?? "active"}
                 onChange={(e) =>
                   setPlayerForm({
@@ -3146,12 +3254,14 @@ export default function AdminDashboard({
               </select>
               <input
                 className={inputClass}
+                aria-label="Discord"
                 placeholder="Discord"
                 value={playerForm.discord ?? ""}
                 onChange={(e) => setPlayerForm({ ...playerForm, discord: e.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="Phone / Email"
                 placeholder="Phone / Email"
                 value={playerForm.phone ?? playerForm.email ?? ""}
                 onChange={(e) =>
@@ -3164,6 +3274,7 @@ export default function AdminDashboard({
               />
               <input
                 className={inputClass}
+                aria-label="Nationality"
                 placeholder="Nationality"
                 value={playerForm.nationality ?? ""}
                 onChange={(e) => setPlayerForm({ ...playerForm, nationality: e.target.value })}
@@ -3203,15 +3314,26 @@ export default function AdminDashboard({
               </div>
             </form>
             <div className="esports-card overflow-hidden">
-              <div className="table-scroll">
+              <div className="table-scroll" tabIndex={0}>
                 <table className="min-w-full text-left text-sm">
+                  <caption className="sr-only">Players available for administration</caption>
                   <thead className="border-b border-white/10 text-slate-400">
                     <tr>
-                      <th className="px-4 py-3">Player</th>
-                      <th className="px-4 py-3">Team</th>
-                      <th className="px-4 py-3">Role</th>
-                      <th className="px-4 py-3">Kills</th>
-                      <th className="px-4 py-3">Actions</th>
+                      <th scope="col" className="px-4 py-3">
+                        Player
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Team
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Role
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Kills
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3225,6 +3347,7 @@ export default function AdminDashboard({
                           <div className="flex flex-wrap gap-3">
                             <button
                               type="button"
+                              aria-label={`Edit ${p.inGameName ?? p.name}`}
                               onClick={() => {
                                 setEditingPlayer(p.id);
                                 setPlayerForm(p);
@@ -3235,6 +3358,7 @@ export default function AdminDashboard({
                             </button>
                             <button
                               type="button"
+                              aria-label={`Delete ${p.inGameName ?? p.name}`}
                               onClick={async () => {
                                 await adminFetch(`/api/players/${p.id}`, {
                                   method: "DELETE",
@@ -3358,6 +3482,7 @@ export default function AdminDashboard({
             <form onSubmit={handleScrimSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
               <input
                 className={inputClass}
+                aria-label="Title"
                 placeholder="Title"
                 value={scrimForm.title ?? ""}
                 onChange={(e) => setScrimForm({ ...scrimForm, title: e.target.value })}
@@ -3365,6 +3490,7 @@ export default function AdminDashboard({
               />
               <input
                 className={inputClass}
+                aria-label="Scrim date"
                 type="date"
                 value={scrimForm.date ?? ""}
                 onChange={(e) => setScrimForm({ ...scrimForm, date: e.target.value })}
@@ -3372,6 +3498,7 @@ export default function AdminDashboard({
               />
               <select
                 className={inputClass}
+                aria-label="Scrim season"
                 value={scrimForm.seasonId ?? activeSeason?.id ?? ""}
                 onChange={(e) => {
                   const season = seasons.find((item) => item.id === e.target.value);
@@ -3391,6 +3518,7 @@ export default function AdminDashboard({
               </select>
               <input
                 className={inputClass}
+                aria-label="Map"
                 placeholder="Map"
                 value={scrimForm.map ?? ""}
                 onChange={(e) => setScrimForm({ ...scrimForm, map: e.target.value })}
@@ -3398,18 +3526,21 @@ export default function AdminDashboard({
               />
               <input
                 className={inputClass}
+                aria-label="Lobby Time"
                 placeholder="Lobby Time"
                 value={scrimForm.lobbyTime ?? ""}
                 onChange={(e) => setScrimForm({ ...scrimForm, lobbyTime: e.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="Room ID"
                 placeholder="Room ID"
                 value={scrimForm.roomId ?? ""}
                 onChange={(e) => setScrimForm({ ...scrimForm, roomId: e.target.value })}
               />
               <input
                 className={inputClass}
+                aria-label="Room Password"
                 placeholder="Room Password"
                 value={scrimForm.roomPassword ?? ""}
                 onChange={(e) => setScrimForm({ ...scrimForm, roomPassword: e.target.value })}
@@ -3418,6 +3549,7 @@ export default function AdminDashboard({
                 className={inputClass}
                 type="number"
                 min={1}
+                aria-label="Season Day Number"
                 placeholder="Season Day Number"
                 value={scrimForm.seasonDayNumber ?? ""}
                 onChange={(e) =>
@@ -3429,6 +3561,7 @@ export default function AdminDashboard({
               />
               <select
                 className={inputClass}
+                aria-label="Scrim status"
                 value={scrimForm.status ?? "scheduled"}
                 onChange={(e) =>
                   setScrimForm({
@@ -3445,6 +3578,7 @@ export default function AdminDashboard({
               </select>
               <select
                 className={inputClass}
+                aria-label="Linked tournament"
                 value={scrimForm.tournamentId ?? ""}
                 onChange={(e) =>
                   setScrimForm({
@@ -3462,6 +3596,7 @@ export default function AdminDashboard({
               </select>
               <textarea
                 className={`${inputClass} sm:col-span-2`}
+                aria-label="PUBG Match IDs (one per line or comma separated)"
                 placeholder="PUBG Match IDs (one per line or comma separated)"
                 rows={3}
                 value={formatScrimMatchIds(scrimForm)}
@@ -3476,6 +3611,7 @@ export default function AdminDashboard({
               />
               <input
                 className={`${inputClass} sm:col-span-2`}
+                aria-label="Map rotation (comma separated)"
                 placeholder="Map rotation (comma separated)"
                 value={(scrimForm.mapRotation ?? []).join(", ")}
                 onChange={(e) =>
@@ -3490,6 +3626,7 @@ export default function AdminDashboard({
               />
               <textarea
                 className={`${inputClass} sm:col-span-2`}
+                aria-label="Announcement"
                 placeholder="Announcement"
                 rows={2}
                 value={scrimForm.announcement ?? ""}
@@ -3661,15 +3798,18 @@ export default function AdminDashboard({
                           </div>
 
                           {preview.teamResults.length > 0 && (
-                            <div className="mt-3 table-scroll">
+                            <div className="mt-3 table-scroll" tabIndex={0}>
                               <table className="data-table min-w-full text-xs">
+                                <caption className="sr-only">
+                                  Team import preview for match {preview.matchNumber ?? preview.matchId}
+                                </caption>
                                 <thead>
                                   <tr>
-                                    <th>Slot</th>
-                                    <th>Team</th>
-                                    <th>Place</th>
-                                    <th>K</th>
-                                    <th>Pts</th>
+                                    <th scope="col">Slot</th>
+                                    <th scope="col">Team</th>
+                                    <th scope="col">Place</th>
+                                    <th scope="col">K</th>
+                                    <th scope="col">Pts</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -3688,16 +3828,19 @@ export default function AdminDashboard({
                           )}
 
                           {preview.playerResults.length > 0 && (
-                            <div className="mt-3 table-scroll">
+                            <div className="mt-3 table-scroll" tabIndex={0}>
                               <table className="data-table min-w-full text-xs">
+                                <caption className="sr-only">
+                                  Player import preview for match {preview.matchNumber ?? preview.matchId}
+                                </caption>
                                 <thead>
                                   <tr>
-                                    <th>Player</th>
-                                    <th>Team</th>
-                                    <th>K</th>
-                                    <th>Dmg</th>
-                                    <th>A</th>
-                                    <th>Pts</th>
+                                    <th scope="col">Player</th>
+                                    <th scope="col">Team</th>
+                                    <th scope="col">K</th>
+                                    <th scope="col">Dmg</th>
+                                    <th scope="col">A</th>
+                                    <th scope="col">Pts</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -3846,17 +3989,18 @@ export default function AdminDashboard({
                 <div className="border-b border-white/10 px-5 py-4">
                   <p className="font-semibold text-white">Overall Leaderboard</p>
                 </div>
-                <div className="table-scroll">
+                <div className="table-scroll" tabIndex={0}>
                   <table className="data-table min-w-full">
+                    <caption className="sr-only">Overall team leaderboard for published matches</caption>
                     <thead>
                       <tr>
-                        <th>#</th>
-                        <th>Slot</th>
-                        <th>Team</th>
-                        <th>M</th>
-                        <th>K</th>
-                        <th>Place Pts</th>
-                        <th>Total</th>
+                        <th scope="col">#</th>
+                        <th scope="col">Slot</th>
+                        <th scope="col">Team</th>
+                        <th scope="col">M</th>
+                        <th scope="col">K</th>
+                        <th scope="col">Place Pts</th>
+                        <th scope="col">Total</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3880,16 +4024,17 @@ export default function AdminDashboard({
               <div className="esports-card p-8 text-center text-text-muted">Match data will appear once results are published.</div>
             ) : (
               <div className="esports-card overflow-hidden">
-                <div className="table-scroll">
+                <div className="table-scroll" tabIndex={0}>
                   <table className="data-table min-w-full">
+                    <caption className="sr-only">Published live match statistics</caption>
                     <thead>
                       <tr>
-                        <th>Match ID</th>
-                        <th>Map</th>
-                        <th>Winner</th>
-                        <th>Points</th>
-                        <th>KOs</th>
-                        <th>Synced</th>
+                        <th scope="col">Match ID</th>
+                        <th scope="col">Map</th>
+                        <th scope="col">Winner</th>
+                        <th scope="col">Points</th>
+                        <th scope="col">KOs</th>
+                        <th scope="col">Synced</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3919,16 +4064,17 @@ export default function AdminDashboard({
               <div className="esports-card p-8 text-center text-text-muted">Results will be published after admin approval.</div>
             ) : (
               <div className="esports-card overflow-hidden">
-                <div className="table-scroll">
+                <div className="table-scroll" tabIndex={0}>
                   <table className="data-table min-w-full">
+                    <caption className="sr-only">Current points table for published match results</caption>
                     <thead>
                       <tr>
-                        <th>#</th>
-                        <th>Team</th>
-                        <th>M</th>
-                        <th>K</th>
-                        <th>Place Pts</th>
-                        <th>Total</th>
+                        <th scope="col">#</th>
+                        <th scope="col">Team</th>
+                        <th scope="col">M</th>
+                        <th scope="col">K</th>
+                        <th scope="col">Place Pts</th>
+                        <th scope="col">Total</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -4036,6 +4182,7 @@ export default function AdminDashboard({
             <form onSubmit={handleAnnouncementSubmit} className="esports-card grid gap-4 p-6">
               <input
                 className={inputClass}
+                aria-label="Title"
                 placeholder="Title"
                 value={announcementForm.title ?? ""}
                 onChange={(e) =>
@@ -4048,6 +4195,7 @@ export default function AdminDashboard({
               />
               <textarea
                 className={inputClass}
+                aria-label="Detail"
                 placeholder="Detail"
                 rows={3}
                 value={announcementForm.detail ?? ""}

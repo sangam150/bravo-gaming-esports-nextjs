@@ -165,7 +165,8 @@ export async function syncDiscordRoles(user: User) {
   } = resolveApprovedDiscordRole(primaryRole, profile.role, profile.role_source);
   const nextActive = resolution.denied ? false : profile.is_active;
   const syncedAt = new Date().toISOString();
-  const teamRole = ["team_manager", "team_igl", "coach", "player"].includes(nextRole);
+  const teamRole = ["team_manager", "team_igl", "coach"].includes(nextRole);
+  const playerLinkMissing = nextRole === "player" && !profile.player_id;
   const teamMismatch = resolution.teamState === "resolved" && Boolean(profile.team_id) && profile.team_id !== resolution.teamId;
   let mappedTeamUnavailable = false;
   if (resolution.teamState === "resolved" && resolution.teamId) {
@@ -191,10 +192,15 @@ export async function syncDiscordRoles(user: User) {
     approvedMembership = Boolean(membership);
   }
   const teamResolutionBlocked =
-    relationalTeamAuthEnabled &&
     teamRole &&
-    (resolution.teamState !== "resolved" || !profile.team_id || teamMismatch || mappedTeamUnavailable || !approvedMembership);
-  const effectiveRole = teamResolutionBlocked && !manuallyProtected ? "viewer" : nextRole;
+    (!relationalTeamAuthEnabled ||
+      resolution.teamState !== "resolved" ||
+      !profile.team_id ||
+      teamMismatch ||
+      mappedTeamUnavailable ||
+      !approvedMembership);
+  const roleResolutionBlocked = teamResolutionBlocked || playerLinkMissing;
+  const effectiveRole = roleResolutionBlocked && !manuallyProtected ? "viewer" : nextRole;
   const { error: updateError } = await client
     .from("profiles")
     .update({
@@ -240,11 +246,6 @@ export async function syncDiscordRoles(user: User) {
       "Your Discord Admin role was verified, but website admin access is awaiting owner approval.",
     );
   }
-  if (nextRole === "viewer")
-    throw new DiscordRoleSyncError(
-      "no_role",
-      "Your Discord account was verified, but you do not currently have an approved Bravo portal role.",
-    );
   if (relationalTeamAuthEnabled && teamRole && resolution.teamState === "ambiguous") {
     await queueReview("ambiguous_team", {
       mappedRoles,
@@ -291,12 +292,6 @@ export async function syncDiscordRoles(user: User) {
       "Your Discord team role is verified, but an approved team membership is required before access is enabled.",
     );
   }
-  if (!relationalTeamAuthEnabled && ["team_manager", "team_igl", "coach"].includes(nextRole) && !profile.team_id) {
-    throw new DiscordRoleSyncError(
-      "team_missing",
-      "Your Discord role was verified, but your account is not linked to an active Bravo team.",
-    );
-  }
   if (relationalTeamAuthEnabled && teamMismatch) {
     await queueReview("team_mismatch", {
       currentTeamId: profile.team_id,
@@ -323,20 +318,31 @@ export async function syncDiscordRoles(user: User) {
     await queueReview("player_link_missing", {
       resolvedTeamId: resolution.teamId,
     });
-    throw new DiscordRoleSyncError("player_missing", "Your Player role was verified, but your Bravo player profile is not linked yet.");
   }
-  const redirectTo = ["admin", "organizer", "moderator", "super_admin"].includes(nextRole)
-    ? "/admin"
-    : ["team_manager", "team_igl", "coach"].includes(nextRole)
-      ? "/team"
-      : nextRole === "player" && profile.player_id
-        ? `/pubg/players/${profile.player_id}`
-        : "/";
+  const notice =
+    !relationalTeamAuthEnabled && teamRole
+      ? "team_approval_pending"
+      : playerLinkMissing
+        ? "player_link_pending"
+        : nextRole === "viewer"
+          ? "viewer_access"
+          : null;
+  const redirectTo =
+    notice && notice !== "viewer_access"
+      ? "/login"
+      : ["admin", "organizer", "moderator", "super_admin"].includes(effectiveRole)
+        ? "/admin"
+        : ["team_manager", "team_igl", "coach"].includes(effectiveRole) && profile.team_id
+          ? "/team"
+          : effectiveRole === "player" && profile.player_id
+            ? "/dashboard/player"
+            : "/";
   return {
     profileId: profile.id,
     role: effectiveRole,
     mappedRoles,
     redirectTo,
+    notice,
   };
 }
 

@@ -1144,7 +1144,7 @@ function buildAggregateEventPlayerRows(players: readonly BasePlayerRow[], eventI
   }));
 }
 
-function isPublicMatchStatus(status: string) {
+export function isPublicPubgMatchStatus(status: string) {
   const normalizedStatus = status.trim().toLowerCase();
   return normalizedStatus === "approved" || normalizedStatus === "published" || normalizedStatus === "completed";
 }
@@ -1166,7 +1166,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
     eventTeamIds.set(eventTeam.eventId, currentEventTeams);
   }
 
-  const publicBaseMatches = base.matches.filter((match) => eventsById.has(match.eventId) && isPublicMatchStatus(match.status));
+  const publicBaseMatches = base.matches.filter((match) => eventsById.has(match.eventId) && isPublicPubgMatchStatus(match.status));
   const publicMatchesById = new Map(publicBaseMatches.map((match) => [match.id, match] as const));
 
   const teamResultsByMatchId = new Map<string, BaseTeamResultRow[]>();

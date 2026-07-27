@@ -1462,6 +1462,8 @@ export default function PubgImportManager({
 
       {(message || error) && (
         <div
+          role={error ? "alert" : "status"}
+          aria-live={error ? "assertive" : "polite"}
           className={`rounded-card border px-4 py-3 text-sm ${
             error ? "border-accent-red/30 bg-accent-red/10 text-white" : "border-accent-green/25 bg-accent-green/10 text-white"
           }`}
@@ -1498,6 +1500,7 @@ export default function PubgImportManager({
           <div className="mt-5 grid gap-4 border-t border-white/10 pt-5 xl:grid-cols-2">
             <input
               className={inputClass}
+              aria-label="Season title"
               placeholder="Season title"
               value={seasonDraft.title}
               onChange={(event) =>
@@ -1509,6 +1512,7 @@ export default function PubgImportManager({
             />
             <input
               className={inputClass}
+              aria-label="Series title"
               placeholder="Series title"
               value={seasonDraft.seriesTitle}
               onChange={(event) =>
@@ -1522,6 +1526,7 @@ export default function PubgImportManager({
               className={inputClass}
               type="number"
               min={1}
+              aria-label="Season number"
               placeholder="Season number"
               value={seasonDraft.seasonNumber}
               onChange={(event) =>
@@ -1533,6 +1538,7 @@ export default function PubgImportManager({
             />
             <select
               className={inputClass}
+              aria-label="Season status"
               value={seasonDraft.status}
               onChange={(event) =>
                 setSeasonDraft((currentDraft) => ({
@@ -1546,6 +1552,7 @@ export default function PubgImportManager({
             </select>
             <input
               className={inputClass}
+              aria-label="Season start date"
               type="date"
               value={seasonDraft.startDate}
               onChange={(event) =>
@@ -1559,6 +1566,7 @@ export default function PubgImportManager({
               className={inputClass}
               type="number"
               min={1}
+              aria-label="Configured days"
               placeholder="Configured days"
               value={seasonDraft.configuredDays}
               onChange={(event) =>
@@ -1570,6 +1578,7 @@ export default function PubgImportManager({
             />
             <input
               className={inputClass}
+              aria-label="Game"
               placeholder="Game"
               value={seasonDraft.game}
               onChange={(event) =>
@@ -1581,6 +1590,7 @@ export default function PubgImportManager({
             />
             <input
               className={inputClass}
+              aria-label="Format"
               placeholder="Format"
               value={seasonDraft.format}
               onChange={(event) =>
@@ -1592,6 +1602,7 @@ export default function PubgImportManager({
             />
             <input
               className={inputClass}
+              aria-label="Region"
               placeholder="Region"
               value={seasonDraft.region}
               onChange={(event) =>
@@ -1603,6 +1614,7 @@ export default function PubgImportManager({
             />
             <input
               className={inputClass}
+              aria-label="Perspective"
               placeholder="Perspective"
               value={seasonDraft.perspective}
               onChange={(event) =>
@@ -1627,6 +1639,7 @@ export default function PubgImportManager({
       <div className="esports-card grid gap-4 p-6 xl:grid-cols-2">
         <select
           className={inputClass}
+          aria-label="Season"
           value={selectedSeasonId}
           disabled={seasons.length === 0}
           onChange={(event) => {
@@ -1648,6 +1661,7 @@ export default function PubgImportManager({
             className={`${inputClass} flex-1`}
             type="number"
             min={1}
+            aria-label="Scrim day number"
             placeholder="Scrim day number"
             value={selectedDayNumber}
             onChange={(event) => setSelectedDayNumber(event.target.value ? Number(event.target.value) : "")}
@@ -1683,7 +1697,12 @@ export default function PubgImportManager({
           </p>
         </div>
 
-        <select className={inputClass} value={selectedTournamentId} onChange={(event) => setSelectedTournamentId(event.target.value)}>
+        <select
+          aria-label="Linked tournament day"
+          className={inputClass}
+          value={selectedTournamentId}
+          onChange={(event) => setSelectedTournamentId(event.target.value)}
+        >
           <option value="">Linked tournament day</option>
           {seasonTournaments.map((tournament) => (
             <option key={tournament.id} value={tournament.id}>
@@ -1692,7 +1711,12 @@ export default function PubgImportManager({
           ))}
         </select>
 
-        <select className={inputClass} value={selectedScrimId} onChange={(event) => setSelectedScrimId(event.target.value)}>
+        <select
+          aria-label="Linked scrim day"
+          className={inputClass}
+          value={selectedScrimId}
+          onChange={(event) => setSelectedScrimId(event.target.value)}
+        >
           <option value="">Linked scrim day</option>
           {seasonScrims.map((scrim) => (
             <option key={scrim.id} value={scrim.id}>
@@ -1701,13 +1725,26 @@ export default function PubgImportManager({
           ))}
         </select>
 
-        <input className={inputClass} placeholder="Day title" value={dayTitle} onChange={(event) => setDayTitle(event.target.value)} />
+        <input
+          aria-label="Day title"
+          className={inputClass}
+          placeholder="Day title"
+          value={dayTitle}
+          onChange={(event) => setDayTitle(event.target.value)}
+        />
 
-        <input className={inputClass} type="date" value={dayDate} onChange={(event) => setDayDate(event.target.value)} />
+        <input
+          aria-label="Day date"
+          className={inputClass}
+          type="date"
+          value={dayDate}
+          onChange={(event) => setDayDate(event.target.value)}
+        />
 
         <input
           className={inputClass}
           list="pubg-map-options"
+          aria-label="Scrim map"
           placeholder="Scrim map"
           value={dayMap}
           onChange={(event) => setDayMap(event.target.value)}
@@ -1715,6 +1752,7 @@ export default function PubgImportManager({
 
         <input
           className={inputClass}
+          aria-label="Lobby time"
           placeholder="Lobby time"
           value={dayLobbyTime}
           onChange={(event) => setDayLobbyTime(event.target.value)}
@@ -1724,6 +1762,7 @@ export default function PubgImportManager({
           className={inputClass}
           type="number"
           min={1}
+          aria-label="Match count"
           placeholder="Match count"
           value={dayMatchCount}
           onChange={(event) => setDayMatchCount(Math.max(1, Number(event.target.value) || 1))}
@@ -1731,6 +1770,7 @@ export default function PubgImportManager({
 
         <input
           className={inputClass}
+          aria-label="Map rotation (comma separated)"
           placeholder="Map rotation (comma separated)"
           value={dayMapRotation}
           onChange={(event) => setDayMapRotation(event.target.value)}
@@ -1738,6 +1778,7 @@ export default function PubgImportManager({
 
         <input
           className={inputClass}
+          aria-label="PUBG player / in-game name"
           placeholder="PUBG player / in-game name"
           value={playerName}
           onChange={(event) => setPlayerName(event.target.value)}
@@ -1866,6 +1907,7 @@ export default function PubgImportManager({
             </p>
             <textarea
               className={`${inputClass} mt-5 min-h-32`}
+              aria-label="PUBG match IDs"
               placeholder="match.one&#10;match.two&#10;match.three"
               value={directMatchIds}
               onChange={(event) => setDirectMatchIds(event.target.value)}
@@ -1903,22 +1945,23 @@ export default function PubgImportManager({
                 No auto-detect candidates yet.
               </div>
             ) : (
-              <div className="mt-5 table-scroll">
+              <div className="mt-5 table-scroll" tabIndex={0}>
                 <table className="data-table min-w-[1200px]">
+                  <caption className="sr-only">Auto-detected PUBG match candidates awaiting review</caption>
                   <thead>
                     <tr>
-                      <th>Match ID</th>
-                      <th>Detected From</th>
-                      <th>Map</th>
-                      <th>Time</th>
-                      <th>Known Teams</th>
-                      <th>Known Players</th>
-                      <th>Unknown Teams</th>
-                      <th>Unknown Players</th>
-                      <th>Confidence</th>
-                      <th>Reason</th>
-                      <th>Status</th>
-                      <th>Actions</th>
+                      <th scope="col">Match ID</th>
+                      <th scope="col">Detected From</th>
+                      <th scope="col">Map</th>
+                      <th scope="col">Time</th>
+                      <th scope="col">Known Teams</th>
+                      <th scope="col">Known Players</th>
+                      <th scope="col">Unknown Teams</th>
+                      <th scope="col">Unknown Players</th>
+                      <th scope="col">Confidence</th>
+                      <th scope="col">Reason</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2088,6 +2131,7 @@ export default function PubgImportManager({
             <div className="mt-4 space-y-3">
               <input
                 className={inputClass}
+                aria-label="PUBG match ID"
                 placeholder="PUBG match ID"
                 value={maintenanceMatchId}
                 onChange={(event) => setMaintenanceMatchId(event.target.value)}
@@ -2152,7 +2196,12 @@ export default function PubgImportManager({
               </div>
 
               {maintenanceRawJson ? (
-                <textarea className={`${inputClass} min-h-36 font-mono text-xs`} value={maintenanceRawJson} readOnly />
+                <textarea
+                  aria-label="Raw PUBG match JSON"
+                  className={`${inputClass} min-h-36 font-mono text-xs`}
+                  value={maintenanceRawJson}
+                  readOnly
+                />
               ) : null}
             </div>
           </div>
@@ -2203,6 +2252,7 @@ export default function PubgImportManager({
                 <div className="flex flex-wrap gap-2">
                   <select
                     className={inputClass}
+                    aria-label="Duplicate handling"
                     value={duplicateMode}
                     onChange={(event) => setDuplicateMode(event.target.value as PubgDuplicateMode)}
                   >
@@ -2318,6 +2368,7 @@ export default function PubgImportManager({
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match ID</p>
                         <input
                           className={`${inputClass} mt-2`}
+                          aria-label={`Match ID for preview ${preview.matchNumber}`}
                           value={preview.matchId}
                           onChange={(event) =>
                             updatePreviewDraft(preview.sourceMatchId, (draft) => ({
@@ -2334,6 +2385,7 @@ export default function PubgImportManager({
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match Number</p>
                         <input
                           className={`${inputClass} mt-2`}
+                          aria-label={`Match number for ${preview.matchId}`}
                           type="number"
                           min={1}
                           value={preview.matchNumber}
@@ -2349,6 +2401,7 @@ export default function PubgImportManager({
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Scrim Day</p>
                         <input
                           className={`${inputClass} mt-2`}
+                          aria-label={`Scrim day for ${preview.matchId}`}
                           type="number"
                           min={1}
                           value={selectedDayNumber}
@@ -2359,6 +2412,7 @@ export default function PubgImportManager({
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Map</p>
                         <input
                           className={`${inputClass} mt-2`}
+                          aria-label={`Map for ${preview.matchId}`}
                           list="pubg-map-options"
                           value={preview.map}
                           onChange={(event) =>
@@ -2373,6 +2427,7 @@ export default function PubgImportManager({
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match Date</p>
                         <input
                           className={`${inputClass} mt-2`}
+                          aria-label={`Match date for ${preview.matchId}`}
                           type="date"
                           value={preview.matchDate}
                           onChange={(event) =>
@@ -2387,6 +2442,7 @@ export default function PubgImportManager({
                         <p className="text-xs uppercase tracking-[0.14em] text-text-muted">Match Time</p>
                         <input
                           className={`${inputClass} mt-2`}
+                          aria-label={`Match time for ${preview.matchId}`}
                           type="time"
                           value={preview.matchTime}
                           onChange={(event) =>
@@ -2486,18 +2542,19 @@ export default function PubgImportManager({
                         <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Team Verification</p>
                         <p className="text-xs text-text-muted">Edit team names, slots, placements, kills, and points before publishing.</p>
                       </div>
-                      <div className="mt-3 table-scroll">
+                      <div className="mt-3 table-scroll" tabIndex={0}>
                         <table className="data-table min-w-full">
+                          <caption className="sr-only">Editable team verification results for match {preview.matchNumber}</caption>
                           <thead>
                             <tr>
-                              <th>Match</th>
-                              <th>Place</th>
-                              <th>Slot</th>
-                              <th>Team</th>
-                              <th>Kills</th>
-                              <th>Place Pts</th>
-                              <th>Kill Pts</th>
-                              <th>Total</th>
+                              <th scope="col">Match</th>
+                              <th scope="col">Place</th>
+                              <th scope="col">Slot</th>
+                              <th scope="col">Team</th>
+                              <th scope="col">Kills</th>
+                              <th scope="col">Place Pts</th>
+                              <th scope="col">Kill Pts</th>
+                              <th scope="col">Total</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2507,6 +2564,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Placement for team row ${teamIndex + 1}`}
                                     type="number"
                                     min={1}
                                     value={teamResult.placement}
@@ -2518,6 +2576,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Slot for team row ${teamIndex + 1}`}
                                     type="number"
                                     min={1}
                                     value={teamResult.slotNumber ?? ""}
@@ -2529,6 +2588,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="min-w-[180px] rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Team name for row ${teamIndex + 1}`}
                                     value={teamResult.teamName}
                                     onChange={(event) => updateTeamResult(preview.sourceMatchId, teamIndex, "teamName", event.target.value)}
                                   />
@@ -2536,6 +2596,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Kills for ${teamResult.teamName}`}
                                     type="number"
                                     min={0}
                                     value={teamResult.kills}
@@ -2545,6 +2606,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Placement points for ${teamResult.teamName}`}
                                     type="number"
                                     min={0}
                                     value={teamResult.placementPoints}
@@ -2556,6 +2618,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Kill points for ${teamResult.teamName}`}
                                     type="number"
                                     min={0}
                                     value={teamResult.killPoints}
@@ -2567,6 +2630,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Total points for ${teamResult.teamName}`}
                                     type="number"
                                     min={0}
                                     value={teamResult.totalPoints}
@@ -2589,22 +2653,23 @@ export default function PubgImportManager({
                           Review player mapping, kills, assists, damage, survival time, and points before approval.
                         </p>
                       </div>
-                      <div className="mt-3 table-scroll">
+                      <div className="mt-3 table-scroll" tabIndex={0}>
                         <table className="data-table min-w-[1200px]">
+                          <caption className="sr-only">Editable player verification results for match {preview.matchNumber}</caption>
                           <thead>
                             <tr>
-                              <th>Player</th>
-                              <th>PUBG ID</th>
-                              <th>Team</th>
-                              <th>Slot</th>
-                              <th>Place</th>
-                              <th>Kills</th>
-                              <th>Assists</th>
-                              <th>Knocks</th>
-                              <th>Damage</th>
-                              <th>Survival</th>
-                              <th>Place Pts</th>
-                              <th>Total</th>
+                              <th scope="col">Player</th>
+                              <th scope="col">PUBG ID</th>
+                              <th scope="col">Team</th>
+                              <th scope="col">Slot</th>
+                              <th scope="col">Place</th>
+                              <th scope="col">Kills</th>
+                              <th scope="col">Assists</th>
+                              <th scope="col">Knocks</th>
+                              <th scope="col">Damage</th>
+                              <th scope="col">Survival</th>
+                              <th scope="col">Place Pts</th>
+                              <th scope="col">Total</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2613,6 +2678,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="min-w-[160px] rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Player name for row ${playerIndex + 1}`}
                                     value={playerResult.playerName}
                                     onChange={(event) =>
                                       updatePlayerResult(preview.sourceMatchId, playerIndex, "playerName", event.target.value)
@@ -2622,6 +2688,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="min-w-[160px] rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`PUBG ID for ${playerResult.playerName}`}
                                     value={playerResult.pubgPlayerId ?? ""}
                                     onChange={(event) =>
                                       updatePlayerResult(preview.sourceMatchId, playerIndex, "pubgPlayerId", event.target.value)
@@ -2631,6 +2698,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="min-w-[160px] rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Team name for ${playerResult.playerName}`}
                                     value={playerResult.teamName}
                                     onChange={(event) =>
                                       updatePlayerResult(preview.sourceMatchId, playerIndex, "teamName", event.target.value)
@@ -2640,6 +2708,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Slot for ${playerResult.playerName}`}
                                     type="number"
                                     min={1}
                                     value={playerResult.slotNumber ?? ""}
@@ -2651,6 +2720,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Placement for ${playerResult.playerName}`}
                                     type="number"
                                     min={1}
                                     value={playerResult.placement}
@@ -2662,6 +2732,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Kills for ${playerResult.playerName}`}
                                     type="number"
                                     min={0}
                                     value={playerResult.kills}
@@ -2673,6 +2744,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Assists for ${playerResult.playerName}`}
                                     type="number"
                                     min={0}
                                     value={playerResult.assists}
@@ -2684,6 +2756,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-20 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Knocks for ${playerResult.playerName}`}
                                     type="number"
                                     min={0}
                                     value={playerResult.knocks}
@@ -2695,6 +2768,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Damage for ${playerResult.playerName}`}
                                     type="number"
                                     min={0}
                                     value={playerResult.damage}
@@ -2706,6 +2780,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Survival time for ${playerResult.playerName}`}
                                     type="number"
                                     min={0}
                                     value={playerResult.survivalTime}
@@ -2717,6 +2792,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Placement points for ${playerResult.playerName}`}
                                     type="number"
                                     min={0}
                                     value={playerResult.placementPoints}
@@ -2728,6 +2804,7 @@ export default function PubgImportManager({
                                 <td>
                                   <input
                                     className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-white"
+                                    aria-label={`Total points for ${playerResult.playerName}`}
                                     type="number"
                                     min={0}
                                     value={playerResult.totalPoints}

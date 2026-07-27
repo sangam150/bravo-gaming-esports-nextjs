@@ -2,7 +2,7 @@
 
 import Tabs from "@/components/ui/Tabs";
 import TeamAvatar from "@/components/ui/TeamAvatar";
-import { formatDisplayNumber } from "@/lib/display-format";
+import { formatDisplayDateTime, formatDisplayNumber, formatSurvivalTime } from "@/lib/display-format";
 import { compareMatchPlayerResults, compareMatchTeamResults } from "@/lib/ranking-sort";
 import { useRealtimeMatchResult } from "@/lib/realtime-hooks";
 import type { MatchPlayerResult, TournamentMatch } from "@/lib/types";
@@ -16,26 +16,6 @@ function readText(value?: string | null, fallback = "TBD") {
 
 function readNumber(value?: number | null, fallback = 0) {
   return Number.isFinite(value) ? Number(value) : fallback;
-}
-
-function formatPlayedAt(value?: string) {
-  if (!value) return "Time unavailable";
-
-  const parsedDate = new Date(value);
-  if (Number.isNaN(parsedDate.getTime())) return value;
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Kathmandu",
-  }).format(parsedDate);
-}
-
-function formatSurvivalTime(totalSeconds?: number) {
-  if (!Number.isFinite(totalSeconds)) return "-";
-  const minutes = Math.floor((totalSeconds ?? 0) / 60);
-  const seconds = Math.floor((totalSeconds ?? 0) % 60);
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function sortTeamResults(match: TournamentMatch) {
@@ -150,15 +130,15 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <MatchMetaCard label="Date" value={formatPlayedAt(activeMatch.playedAt)} />
-            <MatchMetaCard label="Duration" value={formatSurvivalTime(lobbyDuration)} />
+            <MatchMetaCard label="Date" value={formatDisplayDateTime(activeMatch.playedAt)} />
+            <MatchMetaCard label="Duration" value={formatSurvivalTime(lobbyDuration, "-")} />
             <MatchMetaCard label="Match ID" value={readText(activeMatch.pubgMatchId)} />
             <MatchMetaCard label="Players" value={`${activeMatch.playerResults?.length ?? 0}`} />
             <MatchMetaCard label="Winner" value={readText(activeMatch.winner)} />
           </div>
         </section>
 
-        <Tabs tabs={tabs}>
+        <Tabs tabs={tabs} label="Match result sections">
           {(activeTab) => (
             <div className="grid gap-6">
               {activeTab === "Overview" ? (
@@ -173,15 +153,22 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                         <p className="text-xs uppercase tracking-[0.16em] text-text-muted">Teams ranked by total points</p>
                       </div>
                     </div>
-                    <div className="table-scroll">
+                    <div className="table-scroll" tabIndex={0}>
                       <table className="data-table min-w-full">
+                        <caption className="sr-only">Team placement and points overview for this match</caption>
                         <thead>
                           <tr>
-                            <th>#</th>
-                            <th>Team</th>
-                            <th className="text-right">Placement</th>
-                            <th className="text-right">Kills</th>
-                            <th className="text-right">Points</th>
+                            <th scope="col">#</th>
+                            <th scope="col">Team</th>
+                            <th scope="col" className="text-right">
+                              Placement
+                            </th>
+                            <th scope="col" className="text-right">
+                              Kills
+                            </th>
+                            <th scope="col" className="text-right">
+                              Points
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -242,7 +229,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                             <MatchMetaCard label="Kills" value={mvp.kills} />
                             <MatchMetaCard label="Assists" value={mvp.assists} />
                             <MatchMetaCard label="Damage" value={formatDisplayNumber(mvp.damage)} />
-                            <MatchMetaCard label="Survival" value={formatSurvivalTime(mvp.survivalTime)} />
+                            <MatchMetaCard label="Survival" value={formatSurvivalTime(mvp.survivalTime, "-")} />
                           </div>
                         </div>
                       ) : (
@@ -261,16 +248,23 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                     <p className="section-title">{activeTab === "Teams" ? "Teams" : "Lobby Board"}</p>
                     <h2 className="mt-2 font-display text-xl font-black uppercase text-white">Full Team Results</h2>
                   </div>
-                  <div className="table-scroll">
+                  <div className="table-scroll" tabIndex={0}>
                     <table className="data-table min-w-full">
+                      <caption className="sr-only">Complete team results for this match</caption>
                       <thead>
                         <tr>
-                          <th>Rank</th>
-                          <th>Slot</th>
-                          <th>Team</th>
-                          <th className="text-right">Kills</th>
-                          <th className="text-right">Placement Pts</th>
-                          <th className="text-right">Total</th>
+                          <th scope="col">Rank</th>
+                          <th scope="col">Slot</th>
+                          <th scope="col">Team</th>
+                          <th scope="col" className="text-right">
+                            Kills
+                          </th>
+                          <th scope="col" className="text-right">
+                            Placement Pts
+                          </th>
+                          <th scope="col" className="text-right">
+                            Total
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -297,19 +291,32 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                     <h2 className="mt-2 font-display text-xl font-black uppercase text-white">Full Player Statistics</h2>
                   </div>
                   {sortedPlayerResults.length > 0 ? (
-                    <div className="table-scroll">
+                    <div className="table-scroll" tabIndex={0}>
                       <table className="data-table min-w-[1100px]">
+                        <caption className="sr-only">Complete player performance statistics for this match</caption>
                         <thead>
                           <tr>
-                            <th>Player</th>
-                            <th>Team</th>
-                            <th>Slot</th>
-                            <th className="text-right">Kills</th>
-                            <th className="text-right">Damage</th>
-                            <th className="text-right">Assists</th>
-                            <th className="text-right">Knocks</th>
-                            <th className="text-right">Survival</th>
-                            <th className="text-right">Total</th>
+                            <th scope="col">Player</th>
+                            <th scope="col">Team</th>
+                            <th scope="col">Slot</th>
+                            <th scope="col" className="text-right">
+                              Kills
+                            </th>
+                            <th scope="col" className="text-right">
+                              Damage
+                            </th>
+                            <th scope="col" className="text-right">
+                              Assists
+                            </th>
+                            <th scope="col" className="text-right">
+                              Knocks
+                            </th>
+                            <th scope="col" className="text-right">
+                              Survival
+                            </th>
+                            <th scope="col" className="text-right">
+                              Total
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -322,7 +329,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                               <td className="text-right">{formatDisplayNumber(readNumber(playerResult.damage))}</td>
                               <td className="text-right">{readNumber(playerResult.assists)}</td>
                               <td className="text-right">{readNumber(playerResult.knocks)}</td>
-                              <td className="text-right">{formatSurvivalTime(playerResult.survivalTime)}</td>
+                              <td className="text-right">{formatSurvivalTime(playerResult.survivalTime, "-")}</td>
                               <td className="points-cell text-right">{readNumber(playerResult.totalPoints)}</td>
                             </tr>
                           ))}

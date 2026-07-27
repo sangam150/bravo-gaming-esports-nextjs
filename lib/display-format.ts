@@ -54,3 +54,13 @@ export function formatDisplayDate(value?: string | number | Date | null, fallbac
 export function formatAnnouncementDate(value?: string | number | Date | null) {
   return formatDisplayDate(value ?? new Date(), "").toUpperCase();
 }
+
+export function formatSurvivalTime(totalSeconds?: number | null, fallback = "—") {
+  if (typeof totalSeconds !== "number" || !Number.isFinite(totalSeconds)) {
+    return fallback;
+  }
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}

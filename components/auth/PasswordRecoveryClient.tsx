@@ -1,6 +1,7 @@
 "use client";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { clearBravoSession } from "@/lib/login-client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -9,17 +10,68 @@ export default function PasswordRecoveryClient() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [checkingRecovery, setCheckingRecovery] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const client = getSupabaseBrowserClient();
-    void client.auth.getSession().then(({ data }) => setRecoverySession(Boolean(data.session)));
+    let active = true;
     const { data } = client.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || session) setRecoverySession(true);
+      if (!active) return;
+      if (event === "PASSWORD_RECOVERY" && session) {
+        setRecoverySession(true);
+        setError(null);
+      } else if (event === "SIGNED_OUT") {
+        setRecoverySession(false);
+      }
     });
-    return () => data.subscription.unsubscribe();
+
+    void (async () => {
+      const recoveryUrl = new URL(window.location.href);
+      const code = recoveryUrl.searchParams.get("code");
+      const providerError = recoveryUrl.searchParams.get("error");
+      const hashParameters = new URLSearchParams(recoveryUrl.hash.replace(/^#/, ""));
+      const implicitRecovery = hashParameters.get("type") === "recovery";
+
+      if (providerError) {
+        if (active) {
+          setError("This recovery link is invalid or expired. Request a new password reset.");
+        }
+      } else if (code) {
+        const { data: exchangeData, error: exchangeError } = await client.auth.exchangeCodeForSession(code);
+        if (active) {
+          if (exchangeError || !exchangeData.session) {
+            setError("This recovery link is invalid or expired. Request a new password reset.");
+          } else {
+            setRecoverySession(true);
+          }
+        }
+      } else if (implicitRecovery) {
+        const { data: sessionData } = await client.auth.getSession();
+        if (active && sessionData.session) {
+          setRecoverySession(true);
+        }
+      }
+
+      if (code || providerError || implicitRecovery) {
+        window.history.replaceState(window.history.state, "", "/reset-password");
+      }
+      if (active) {
+        setCheckingRecovery(false);
+      }
+    })().catch(() => {
+      if (active) {
+        setError("This recovery link could not be verified. Request a new password reset.");
+        setCheckingRecovery(false);
+      }
+    });
+
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   async function requestReset(event: React.FormEvent) {
@@ -64,7 +116,8 @@ export default function PasswordRecoveryClient() {
       setLoading(false);
       return;
     }
-    await getSupabaseBrowserClient().auth.signOut();
+    await getSupabaseBrowserClient().auth.signOut({ scope: "local" });
+    await clearBravoSession();
     setMessage("Password updated. You can now sign in with your new password.");
     setRecoverySession(false);
     setPassword("");
@@ -75,7 +128,11 @@ export default function PasswordRecoveryClient() {
   return (
     <main className="page-shell pb-12 pt-6">
       <div className="mx-auto max-w-xl">
-        <form onSubmit={recoverySession ? updatePassword : requestReset} className="esports-card space-y-5 p-6 sm:p-8">
+        <form
+          onSubmit={recoverySession ? updatePassword : requestReset}
+          className="esports-card space-y-5 p-6 sm:p-8"
+          aria-busy={checkingRecovery || loading}
+        >
           <p className="section-title">Password Recovery</p>
           <h1 className="font-display text-3xl font-black uppercase text-white">
             {recoverySession ? "Choose a new password" : "Reset your password"}
@@ -101,7 +158,11 @@ export default function PasswordRecoveryClient() {
             </div>
           ) : null}
 
-          {recoverySession ? (
+          {checkingRecovery ? (
+            <div role="status" aria-live="polite" className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-text-muted">
+              Verifying password recovery access...
+            </div>
+          ) : recoverySession ? (
             <>
               <label className="block">
                 <span className="mb-2 block text-sm text-text-muted">New password</span>
@@ -140,8 +201,8 @@ export default function PasswordRecoveryClient() {
             </label>
           )}
 
-          <button disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
-            {loading ? "Please wait..." : recoverySession ? "Update Password" : "Send Recovery Link"}
+          <button disabled={checkingRecovery || loading} className="btn-primary w-full justify-center disabled:opacity-60">
+            {checkingRecovery ? "Verifying..." : loading ? "Please wait..." : recoverySession ? "Update Password" : "Send Recovery Link"}
           </button>
           <Link href="/login" className="btn-secondary w-full justify-center">
             Back to Login

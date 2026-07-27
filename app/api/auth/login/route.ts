@@ -1,4 +1,5 @@
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { resolveAuthorizedAuthDestination } from "@/lib/auth-destinations";
 import { AuthConfigurationError } from "@/lib/auth-errors";
 import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -45,8 +46,19 @@ function createLoginErrorResponse(message: string, status: number) {
       error: message,
       status,
     },
-    { status },
+    { status, headers: { "Cache-Control": "private, no-store" } },
   );
+}
+
+function clearBravoSessionCookies(response: Response) {
+  response.headers.append("Set-Cookie", `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=0`);
+  response.headers.append("Set-Cookie", `${REFRESH_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=0`);
+  return response;
+}
+
+async function rejectAuthenticatedLogin(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, message: string, status: number) {
+  await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+  return clearBravoSessionCookies(createLoginErrorResponse(message, status));
 }
 
 function scheduleLoginFailure(request: Request, payload: Parameters<typeof logLoginFailure>[1]) {
@@ -66,11 +78,13 @@ export async function POST(request: Request) {
   }
 
   let variant: LoginAccessVariant = "hub";
+  let authenticatedClient: Awaited<ReturnType<typeof createSupabaseServerClient>> | null = null;
 
   try {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const email = readText(body.email);
     const password = typeof body.password === "string" ? body.password : "";
+    const requestedDestination = body.redirect;
     variant = readVariant(body.variant);
 
     if (!email || !password) {
@@ -112,9 +126,10 @@ export async function POST(request: Request) {
         status: details.status,
         code: details.code,
       });
-      return createLoginErrorResponse(details.message, 503);
+      return rejectAuthenticatedLogin(supabase, details.message, 503);
     }
 
+    authenticatedClient = supabase;
     const verifiedSession = await verifyAccessToken(data.session.access_token);
     if (variant === "team" && hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin) && !verifiedSession.teamId) {
       const message = LOGIN_ERROR_MESSAGES.teamMembershipMissing;
@@ -124,10 +139,10 @@ export async function POST(request: Request) {
         stage: "role",
         status: 403,
       });
-      return createLoginErrorResponse(message, 403);
+      return rejectAuthenticatedLogin(supabase, message, 403);
     }
     if (variant === "player" && hasPlayerDashboardAccess(verifiedSession.role, verifiedSession.isAdmin) && !verifiedSession.playerId) {
-      return createLoginErrorResponse("This player account is not linked to an approved player profile.", 403);
+      return rejectAuthenticatedLogin(supabase, "This player account is not linked to an approved player profile.", 403);
     }
     const hasAllowedAccess =
       variant === "admin"
@@ -136,7 +151,7 @@ export async function POST(request: Request) {
           ? hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin)
           : variant === "player"
             ? hasPlayerDashboardAccess(verifiedSession.role, verifiedSession.isAdmin)
-            : verifiedSession.isAdmin || hasTeamWorkspaceAccess(verifiedSession.role, verifiedSession.isAdmin);
+            : true;
 
     if (!hasAllowedAccess) {
       const message = buildRoleMismatchMessage(variant);
@@ -146,33 +161,33 @@ export async function POST(request: Request) {
         stage: "role",
         status: 403,
       });
-      return createLoginErrorResponse(message, 403);
+      return rejectAuthenticatedLogin(supabase, message, 403);
     }
 
+    const redirectTo = resolveAuthorizedAuthDestination(verifiedSession, requestedDestination);
     const sessionCookieMaxAge = getSessionCookieMaxAge(data.session.access_token);
     const sessionCookie = await createSessionCookie(data.session.access_token, sessionCookieMaxAge * 1000);
-    const response = Response.json({
-      success: true,
-      user: {
-        uid: verifiedSession.uid,
-        email: verifiedSession.email,
-        role: verifiedSession.role,
-        teamId: verifiedSession.teamId,
-        playerId: verifiedSession.playerId,
-        displayName: verifiedSession.displayName,
-        isAdmin: verifiedSession.isAdmin,
+    const response = Response.json(
+      {
+        success: true,
+        redirectTo,
+        user: {
+          uid: verifiedSession.uid,
+          email: verifiedSession.email,
+          role: verifiedSession.role,
+          teamId: verifiedSession.teamId,
+          playerId: verifiedSession.playerId,
+          displayName: verifiedSession.displayName,
+          isAdmin: verifiedSession.isAdmin,
+        },
       },
-    });
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
     const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
     response.headers.append(
       "Set-Cookie",
       `${SESSION_COOKIE}=${sessionCookie}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${sessionCookieMaxAge}${secure}`,
     );
-    response.headers.append(
-      "Set-Cookie",
-      `${REFRESH_COOKIE}=${data.session.refresh_token}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${60 * 60 * 24 * 5}${secure}`,
-    );
-
     await writeAuditLogFromRequest(request, {
       action: "login",
       entityType: "session",
@@ -182,11 +197,15 @@ export async function POST(request: Request) {
         role: verifiedSession.role,
         teamId: verifiedSession.teamId,
         variant,
+        redirectTo,
       },
     });
 
     return response;
   } catch (error: unknown) {
+    if (authenticatedClient) {
+      await authenticatedClient.auth.signOut({ scope: "local" }).catch(() => undefined);
+    }
     if (error instanceof AuthConfigurationError) {
       scheduleLoginFailure(request, {
         variant,
@@ -194,9 +213,11 @@ export async function POST(request: Request) {
         stage: "role",
         status: 403,
       });
-      return createLoginErrorResponse(error.message, 403);
+      return clearBravoSessionCookies(createLoginErrorResponse(error.message, 403));
     }
     await logServerError("auth.login.server", error, request, { variant });
-    return createLoginErrorResponse(LOGIN_ERROR_MESSAGES.backendUnavailable, 503);
+    return authenticatedClient
+      ? clearBravoSessionCookies(createLoginErrorResponse(LOGIN_ERROR_MESSAGES.backendUnavailable, 503))
+      : createLoginErrorResponse(LOGIN_ERROR_MESSAGES.backendUnavailable, 503);
   }
 }

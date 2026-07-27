@@ -709,14 +709,24 @@ export default function ComparePageClient({
 
             {mode === "teams" ? (
               <>
-                <select value={teamSideA} onChange={(event) => setTeamSideA(event.target.value)} className="input-esports h-11">
+                <select
+                  aria-label="First team"
+                  value={teamSideA}
+                  onChange={(event) => setTeamSideA(event.target.value)}
+                  className="input-esports h-11"
+                >
                   {dataset.teams.map((team) => (
                     <option key={team.id} value={team.id}>
                       {team.name}
                     </option>
                   ))}
                 </select>
-                <select value={teamSideB} onChange={(event) => setTeamSideB(event.target.value)} className="input-esports h-11">
+                <select
+                  aria-label="Second team"
+                  value={teamSideB}
+                  onChange={(event) => setTeamSideB(event.target.value)}
+                  className="input-esports h-11"
+                >
                   {dataset.teams.map((team) => (
                     <option key={team.id} value={team.id}>
                       {team.name}
@@ -726,14 +736,24 @@ export default function ComparePageClient({
               </>
             ) : (
               <>
-                <select value={playerSideA} onChange={(event) => setPlayerSideA(event.target.value)} className="input-esports h-11">
+                <select
+                  aria-label="First player"
+                  value={playerSideA}
+                  onChange={(event) => setPlayerSideA(event.target.value)}
+                  className="input-esports h-11"
+                >
                   {dataset.players.map((player) => (
                     <option key={player.id} value={player.id}>
                       {player.pubgName}
                     </option>
                   ))}
                 </select>
-                <select value={playerSideB} onChange={(event) => setPlayerSideB(event.target.value)} className="input-esports h-11">
+                <select
+                  aria-label="Second player"
+                  value={playerSideB}
+                  onChange={(event) => setPlayerSideB(event.target.value)}
+                  className="input-esports h-11"
+                >
                   {dataset.players.map((player) => (
                     <option key={player.id} value={player.id}>
                       {player.pubgName}
@@ -745,6 +765,7 @@ export default function ComparePageClient({
 
             <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-3">
               <select
+                aria-label="Comparison period"
                 value={windowMode}
                 onChange={(event) => setWindowMode(event.target.value as WindowMode)}
                 className="input-esports h-11"
@@ -753,7 +774,12 @@ export default function ComparePageClient({
                 <option value="30">Last 30 Days</option>
                 <option value="all">All Time</option>
               </select>
-              <select value={selectedEvent} onChange={(event) => setSelectedEvent(event.target.value)} className="input-esports h-11">
+              <select
+                aria-label="Comparison event"
+                value={selectedEvent}
+                onChange={(event) => setSelectedEvent(event.target.value)}
+                className="input-esports h-11"
+              >
                 <option value="all">All events</option>
                 {dataset.events.map((event) => (
                   <option key={event.id} value={event.slug}>
@@ -761,7 +787,12 @@ export default function ComparePageClient({
                   </option>
                 ))}
               </select>
-              <select value={selectedMap} onChange={(event) => setSelectedMap(event.target.value)} className="input-esports h-11">
+              <select
+                aria-label="Comparison map"
+                value={selectedMap}
+                onChange={(event) => setSelectedMap(event.target.value)}
+                className="input-esports h-11"
+              >
                 <option value="all">All maps</option>
                 {mapOptions.map((map) => (
                   <option key={map} value={map}>

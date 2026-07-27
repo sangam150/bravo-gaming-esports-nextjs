@@ -223,7 +223,7 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
   const teamLogoMaxUploadSize = formatUploadSize(getUploadMaxBytes("team_logo"));
 
   return (
-    <div className="esports-card p-6">
+    <div aria-busy={uploading} className="esports-card p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold text-white">Bulk Upload Team Logos</h3>
@@ -240,6 +240,7 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
 
       <input
         ref={inputRef}
+        aria-label="Choose team logo files"
         type="file"
         accept={IMAGE_FILE_INPUT_ACCEPT}
         multiple
@@ -253,15 +254,6 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
       />
 
       <div
-        role="button"
-        tabIndex={0}
-        onClick={openFilePicker}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            openFilePicker();
-          }
-        }}
         onDragOver={(event) => {
           event.preventDefault();
           if (!uploading) {
@@ -294,7 +286,7 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
             <p className="text-xs text-text-muted">
               {uploading
                 ? `Processing ${activeUploadCount} of ${totalUploadCount} matched uploads`
-                : "Click anywhere in this area to browse files instead."}
+                : "Use the button to browse files instead."}
             </p>
           </div>
           <button
@@ -313,6 +305,11 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
 
       {results.length > 0 && (
         <div className="mt-5 space-y-4">
+          <p role="status" aria-live="polite" className="sr-only">
+            {uploading
+              ? `Processing upload ${activeUploadCount} of ${totalUploadCount}.`
+              : `${uploadedCount} uploaded, ${queuedCount} queued, ${unmatchedCount} unmatched, and ${errorCount} failed.`}
+          </p>
           <div className="grid gap-3 sm:grid-cols-4">
             <div className="rounded-card border border-accent-green/20 bg-accent-green/10 px-4 py-3 text-sm text-accent-green">
               Uploaded: {uploadedCount}
@@ -328,14 +325,15 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
 
           <div className="max-h-96 overflow-auto rounded-card border border-white/10">
             <table className="data-table min-w-full">
+              <caption className="sr-only">Bulk team logo upload progress and results</caption>
               <thead>
                 <tr>
-                  <th>Preview</th>
-                  <th>File</th>
-                  <th>Matched Team</th>
-                  <th>Progress</th>
-                  <th>Status</th>
-                  <th>Message</th>
+                  <th scope="col">Preview</th>
+                  <th scope="col">File</th>
+                  <th scope="col">Matched Team</th>
+                  <th scope="col">Progress</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Message</th>
                 </tr>
               </thead>
               <tbody>
@@ -357,6 +355,11 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
                       <div className="space-y-1">
                         <div className="h-2 overflow-hidden rounded-full bg-white/10">
                           <div
+                            role="progressbar"
+                            aria-label={`${result.fileName} upload progress`}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={result.progress}
                             className={`h-full rounded-full transition-all ${
                               result.status === "uploaded"
                                 ? "bg-accent-green"

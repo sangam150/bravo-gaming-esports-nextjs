@@ -226,7 +226,7 @@ function getEventDetailHref(event: PlatformEvent) {
 }
 
 function canRegisterForEvent(event?: PlatformEvent | null) {
-  return Boolean(event && (event.status === "upcoming" || event.status === "planned"));
+  return Boolean(event && event.state === "published" && event.status === "upcoming");
 }
 
 function getEventRegistrationHref(event?: PlatformEvent | null) {
@@ -1017,9 +1017,11 @@ export function PlatformEventDetailPage({
                 </div>
               ) : null}
               <div className="mt-5 flex flex-wrap gap-3">
-                <Link href={getEventRegistrationHref(event)} className="btn-primary">
-                  Register Team
-                </Link>
+                {canRegisterForEvent(event) ? (
+                  <Link href={getEventRegistrationHref(event)} className="btn-primary">
+                    Register Team
+                  </Link>
+                ) : null}
                 <Link href={getEventRulesHref()} className="btn-secondary">
                   View Rules
                 </Link>
@@ -1394,8 +1396,14 @@ export function PlatformTeamsPage({
 
         <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
           <form method="get" className="grid gap-3 xl:grid-cols-[1.1fr,0.8fr,0.8fr,auto]">
-            <input name="q" defaultValue={query} className="input-esports h-11" placeholder="Search team, tag, or region" />
-            <select name="game" defaultValue={game} className="input-esports h-11">
+            <input
+              aria-label="Search teams"
+              name="q"
+              defaultValue={query}
+              className="input-esports h-11"
+              placeholder="Search team, tag, or region"
+            />
+            <select aria-label="Filter teams by game" name="game" defaultValue={game} className="input-esports h-11">
               <option value="all">All game titles</option>
               {hub.games.map((item) => (
                 <option key={item.slug} value={item.slug}>
@@ -1403,7 +1411,7 @@ export function PlatformTeamsPage({
                 </option>
               ))}
             </select>
-            <select name="sort" defaultValue={sort} className="input-esports h-11">
+            <select aria-label="Sort teams" name="sort" defaultValue={sort} className="input-esports h-11">
               <option value="form">Sort by form</option>
               <option value="points">Sort by points</option>
               <option value="kills">Sort by kills</option>
@@ -1582,8 +1590,14 @@ export function PlatformPlayersPage({
 
         <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
           <form method="get" className="grid gap-3 xl:grid-cols-[1.1fr,0.8fr,0.8fr,auto]">
-            <input name="q" defaultValue={query} className="input-esports h-11" placeholder="Search player or team" />
-            <select name="game" defaultValue={game} className="input-esports h-11">
+            <input
+              aria-label="Search players"
+              name="q"
+              defaultValue={query}
+              className="input-esports h-11"
+              placeholder="Search player or team"
+            />
+            <select aria-label="Filter players by game" name="game" defaultValue={game} className="input-esports h-11">
               <option value="all">All game titles</option>
               {hub.games.map((item) => (
                 <option key={item.slug} value={item.slug}>
@@ -1591,7 +1605,7 @@ export function PlatformPlayersPage({
                 </option>
               ))}
             </select>
-            <select name="sort" defaultValue={sort} className="input-esports h-11">
+            <select aria-label="Sort players" name="sort" defaultValue={sort} className="input-esports h-11">
               <option value="kills">Sort by kills</option>
               <option value="damage">Sort by damage</option>
               <option value="form">Sort by form</option>
@@ -1742,13 +1756,13 @@ export function PlatformRankingsPage({
 
         <section className="rounded-card border border-white/[0.08] bg-bg-card p-4">
           <form method="get" className="grid gap-3 xl:grid-cols-[1fr,1fr,auto]">
-            <select name="view" defaultValue={view} className="input-esports h-11">
+            <select aria-label="Ranking type" name="view" defaultValue={view} className="input-esports h-11">
               <option value="teams">Team Rankings</option>
               <option value="players">Player Rankings</option>
               <option value="games">Game Rankings</option>
               <option value="nepal">Nepal Rankings</option>
             </select>
-            <select name="timeframe" defaultValue={timeframe} className="input-esports h-11">
+            <select aria-label="Ranking timeframe" name="timeframe" defaultValue={timeframe} className="input-esports h-11">
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
               <option value="seasonal">Seasonal</option>
@@ -1774,18 +1788,19 @@ export function PlatformRankingsPage({
                 description="PUBG supplies the first live ranking board while the structure scales outward."
               />
             </div>
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0}>
               <table className="data-table min-w-full">
+                <caption className="sr-only">Current team rankings across the Bravo platform</caption>
                 <thead>
                   <tr>
-                    <th>Logo</th>
-                    <th>Rank</th>
-                    <th>Team</th>
-                    <th>WWCD</th>
-                    <th>Matches</th>
-                    <th>Kills</th>
-                    <th>Points</th>
-                    <th>Form</th>
+                    <th scope="col">Logo</th>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Team</th>
+                    <th scope="col">WWCD</th>
+                    <th scope="col">Matches</th>
+                    <th scope="col">Kills</th>
+                    <th scope="col">Points</th>
+                    <th scope="col">Form</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1822,18 +1837,19 @@ export function PlatformRankingsPage({
                 description="Kills, damage, and form anchor the first live player ranking view."
               />
             </div>
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0}>
               <table className="data-table min-w-full">
+                <caption className="sr-only">Current player rankings across the Bravo platform</caption>
                 <thead>
                   <tr>
-                    <th>Avatar</th>
-                    <th>Rank</th>
-                    <th>Player</th>
-                    <th>Team</th>
-                    <th>Kills</th>
-                    <th>Damage</th>
-                    <th>Matches</th>
-                    <th>Form</th>
+                    <th scope="col">Avatar</th>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Player</th>
+                    <th scope="col">Team</th>
+                    <th scope="col">Kills</th>
+                    <th scope="col">Damage</th>
+                    <th scope="col">Matches</th>
+                    <th scope="col">Form</th>
                   </tr>
                 </thead>
                 <tbody>

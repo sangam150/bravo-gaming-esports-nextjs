@@ -88,7 +88,7 @@ function getEventDetailHref(event?: PlatformEvent | null) {
 }
 
 function canRegisterForEvent(event?: PlatformEvent | null) {
-  return Boolean(event && (event.status === "upcoming" || event.status === "planned"));
+  return Boolean(event && event.state === "published" && event.status === "upcoming");
 }
 
 function getEventRegistrationHref(event?: PlatformEvent | null) {
@@ -173,6 +173,10 @@ function resolveHomepageEvents(hub: PlatformHubData) {
   const events: PlatformEvent[] = [];
 
   for (const event of [...hub.home.featuredEvents, ...hub.home.upcomingEvents, ...hub.events]) {
+    if (event.state !== "published") {
+      continue;
+    }
+
     const key = event.id || event.slug;
 
     if (seen.has(key)) {
@@ -306,10 +310,16 @@ function HeroSection({ featuredEvent }: { featuredEvent: PlatformEvent | null })
             community.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <ActionLink href={getEventRegistrationHref(featuredEvent)} className="min-w-[10.75rem] justify-center">
-              Register Team
-            </ActionLink>
-            <ActionLink href="/events" variant="secondary" className="min-w-[10.75rem] justify-center">
+            {canRegisterForEvent(featuredEvent) ? (
+              <ActionLink href={getEventRegistrationHref(featuredEvent)} className="min-w-[10.75rem] justify-center">
+                Register Team
+              </ActionLink>
+            ) : null}
+            <ActionLink
+              href="/events"
+              variant={canRegisterForEvent(featuredEvent) ? "secondary" : "primary"}
+              className="min-w-[10.75rem] justify-center"
+            >
               View Schedule
             </ActionLink>
             <ActionLink href="/pubg/results" variant="secondary" className="min-w-[10.75rem] justify-center">
@@ -749,6 +759,7 @@ function TopPlayersCard({ players }: { players: PubgHubPlayer[] }) {
 
 function UpcomingEventsSection({ events }: { events: PlatformEvent[] }) {
   const visibleEvents = [...events]
+    .filter((event) => event.status !== "completed")
     .sort((firstValue, secondValue) => {
       const score = (event: PlatformEvent) => {
         if (event.status === "live") return 0;
@@ -762,7 +773,7 @@ function UpcomingEventsSection({ events }: { events: PlatformEvent[] }) {
         return scoreDiff;
       }
 
-      return (secondValue.startDate ?? "").localeCompare(firstValue.startDate ?? "");
+      return (firstValue.startDate ?? "").localeCompare(secondValue.startDate ?? "");
     })
     .slice(0, 3);
 
@@ -777,10 +788,7 @@ function UpcomingEventsSection({ events }: { events: PlatformEvent[] }) {
             Registration will appear here as soon as the next official Bravo event is published.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <ActionLink href="/teams/register">Register Team</ActionLink>
-            <ActionLink href="/events" variant="secondary">
-              View Events
-            </ActionLink>
+            <ActionLink href="/events">View Events</ActionLink>
           </div>
         </div>
       ) : (
@@ -959,8 +967,8 @@ function CommunityBanner() {
             <ActionLink href={BRAVO_DISCORD_URL} className="min-w-[11rem] justify-center">
               Join Discord
             </ActionLink>
-            <ActionLink href="/teams/register" variant="secondary" className="min-w-[11rem] justify-center">
-              Register Team
+            <ActionLink href="/events" variant="secondary" className="min-w-[11rem] justify-center">
+              View Events
             </ActionLink>
           </div>
         </div>

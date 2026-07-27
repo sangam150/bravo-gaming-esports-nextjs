@@ -16,7 +16,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const accessToken = typeof body.accessToken === "string" ? body.accessToken : typeof body.idToken === "string" ? body.idToken : "";
-    const refreshToken = typeof body.refreshToken === "string" ? body.refreshToken : "";
 
     if (!accessToken) {
       return Response.json(
@@ -55,12 +54,6 @@ export async function POST(request: Request) {
       "Set-Cookie",
       `${SESSION_COOKIE}=${sessionCookie}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${sessionCookieMaxAge}${secure}`,
     );
-    if (refreshToken) {
-      response.headers.append(
-        "Set-Cookie",
-        `${REFRESH_COOKIE}=${refreshToken}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${60 * 60 * 24 * 5}${secure}`,
-      );
-    }
     await writeAuditLogFromRequest(request, {
       action: "login",
       entityType: "session",

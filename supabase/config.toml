@@ -22,6 +22,11 @@ schema_paths = [
   "./migrations/014_shared_rate_limits.sql",
   "./migrations/015_production_security_reconciliation.sql",
   "./migrations/016_view_and_rate_limit_security.sql",
+  "./migrations/017_complete_authentication_hardening.sql",
+  "./migrations/018_discord_role_sync.sql",
+  "./migrations/019_discord_team_role_mappings.sql",
+  "./migrations/020_relational_team_registry_reconciliation.sql",
+  "./migrations/021_relational_team_membership_authorization.sql",
 ]
 
 [db.seed]
@@ -30,9 +35,12 @@ enabled = false
 [auth]
 site_url = "https://bravo-gaming-esports.vercel.app"
 additional_redirect_urls = [
-  "https://bravo-gaming-esports.vercel.app",
-  "http://127.0.0.1:3000",
-  "http://localhost:3000",
+  "https://bravo-gaming-esports.vercel.app/auth/callback",
+  "https://bravo-gaming-esports.vercel.app/reset-password",
+  "http://127.0.0.1:3000/auth/callback",
+  "http://127.0.0.1:3000/reset-password",
+  "http://localhost:3000/auth/callback",
+  "http://localhost:3000/reset-password",
 ]
 
 [storage]

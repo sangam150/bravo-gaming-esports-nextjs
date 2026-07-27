@@ -36,15 +36,15 @@ export async function getRequestSession(request: Request): Promise<VerifiedSessi
   }
 
   const sessionCookie = readSessionCookie(request);
-  if (!sessionCookie) {
-    return null;
+  if (sessionCookie) {
+    try {
+      return await verifySessionCookie(sessionCookie);
+    } catch {
+      // The Supabase SSR session below is authoritative after token refresh.
+    }
   }
 
-  try {
-    return await verifySessionCookie(sessionCookie);
-  } catch {
-    return null;
-  }
+  return getServerSession();
 }
 
 export async function requireAdmin(request: Request) {

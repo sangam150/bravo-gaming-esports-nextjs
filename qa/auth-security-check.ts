@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes, randomUUID } from "node:crypto";
+import { readSafeAuthDestination, resolveAuthorizedAuthDestination } from "../lib/auth-destinations";
 import { verifyAccessToken } from "../lib/supabase-auth-server";
 import type { Database } from "../types/database.types";
 
@@ -24,6 +25,17 @@ function assert(condition: unknown, message: string): asserts condition {
 
 async function main() {
   try {
+    assert(readSafeAuthDestination("https://example.com") === null, "An external authentication redirect was accepted.");
+    assert(readSafeAuthDestination("//example.com") === null, "A protocol-relative authentication redirect was accepted.");
+    assert(resolveAuthorizedAuthDestination({ role: "viewer" }) === "/", "Viewer destination resolution failed.");
+    assert(
+      resolveAuthorizedAuthDestination({ role: "player", playerId: "player-1" }) === "/dashboard/player",
+      "Player destination resolution failed.",
+    );
+    assert(resolveAuthorizedAuthDestination({ role: "team_igl", teamId: "team-1" }) === "/team", "Team destination resolution failed.");
+    assert(resolveAuthorizedAuthDestination({ role: "super_admin", isAdmin: true }) === "/admin", "Admin destination resolution failed.");
+    assert(resolveAuthorizedAuthDestination({ role: "viewer" }, "/admin") === "/", "A viewer was allowed to select the admin destination.");
+
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email,
       password,

@@ -35,7 +35,11 @@ export default async function SearchPage({ searchParams }: PageProps) {
           </p>
 
           <form action="/search" method="get" className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <label htmlFor="site-search-query" className="sr-only">
+              Search Bravo Gaming
+            </label>
             <input
+              id="site-search-query"
               type="search"
               name="q"
               minLength={2}

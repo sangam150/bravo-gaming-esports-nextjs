@@ -1,10 +1,10 @@
 "use client";
 
 import DiscordLoginButton, { useDiscordProviderEnabled } from "@/components/auth/DiscordLoginButton";
-import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
+import { readSafeAuthDestination } from "@/lib/auth-destinations";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
-import { clearBravoSession, performPasswordLogin, reportLoginFailure } from "@/lib/login-client";
 import { scheduleEffectTask } from "@/lib/effect-task";
+import { performPasswordLogin, reportLoginFailure } from "@/lib/login-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { LOGIN_ERROR_MESSAGES, validateLoginCredentials } from "@/lib/user-facing-errors";
 import Link from "next/link";
@@ -22,11 +22,21 @@ const CALLBACK_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   callback_code_missing: "Discord sign-in could not be completed. Please start again from this page.",
   callback_exchange_failed: "Discord sign-in expired or could not be verified. Please try again.",
   identity_verification_failed: "Discord returned an identity that could not be verified.",
+  email_callback_access_denied:
+    "The email link was verified, but this account is not linked to an active Bravo profile. Contact Bravo Admin before trying again.",
   discord_identity_missing: "Discord identity verification could not be completed.",
   discord_not_member: "Join the official Bravo Gaming Esports Discord server before using Discord login.",
   discord_unavailable: "Discord verification is temporarily unavailable. Please try again later or use email login.",
+  discord_banned: "This Discord account is not permitted to access Bravo Gaming Esports.",
+  discord_suspended: "This Discord account is not permitted to access Bravo Gaming Esports.",
   discord_profile_missing: "Your Bravo profile is not ready. Please contact Bravo Admin.",
   discord_access_denied: "Discord access could not be approved. Please contact Bravo Admin if this continues.",
+};
+
+const AUTH_NOTICE_MESSAGES: Readonly<Record<string, string>> = {
+  team_approval_pending: "Your Discord identity and team function were verified. Private team access remains pending Bravo Admin approval.",
+  player_link_pending: "Your Discord Player role was verified, but your Bravo player profile has not been linked yet.",
+  viewer_access: "Discord sign-in succeeded. Your account currently has public viewer access.",
 };
 
 function getVariantContent(variant: LoginVariant) {
@@ -49,7 +59,7 @@ function getVariantContent(variant: LoginVariant) {
       return {
         badge: "Platform Login",
         title: "Sign in to the Bravo platform",
-        description: "Use your Supabase account and Bravo will route you to the correct admin or team workspace.",
+        description: "Use your confirmed Supabase account and Bravo will route you to your approved destination.",
         buttonLabel: "Sign In",
       };
   }
@@ -64,6 +74,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const content = getVariantContent(variant);
 
   useEffect(() => scheduleEffectTask(() => setHydrated(true)), []);
@@ -71,6 +82,10 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
     const callbackError = searchParams.get("error");
     if (callbackError) {
       scheduleEffectTask(() => setError(CALLBACK_ERROR_MESSAGES[callbackError] ?? CALLBACK_ERROR_MESSAGES.discord_access_denied));
+    }
+    const authNotice = searchParams.get("notice");
+    if (authNotice) {
+      scheduleEffectTask(() => setNotice(AUTH_NOTICE_MESSAGES[authNotice] ?? null));
     }
   }, [searchParams]);
 
@@ -98,34 +113,16 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
         email,
         password,
         variant: requestVariant,
+        redirect: searchParams.get("redirect"),
       });
       if (!response.ok || !data.success) {
         throw new Error(data.error || LOGIN_ERROR_MESSAGES.backendUnavailable);
       }
 
-      const isTeamUser = hasTeamWorkspaceAccess(data.user?.role, data.user?.isAdmin);
-      const isPlayerUser = hasPlayerDashboardAccess(data.user?.role, data.user?.isAdmin);
-      const isAdminUser = Boolean(data.user?.isAdmin);
-      if (variant === "team" && !isTeamUser) {
-        await clearBravoSession().catch(() => undefined);
-        throw new Error(LOGIN_ERROR_MESSAGES.teamRoleMismatch);
+      const redirectTarget = readSafeAuthDestination(data.redirectTo);
+      if (!redirectTarget) {
+        throw new Error(LOGIN_ERROR_MESSAGES.backendUnavailable);
       }
-      if (variant === "team" && !data.user?.teamId) {
-        await clearBravoSession().catch(() => undefined);
-        throw new Error(LOGIN_ERROR_MESSAGES.teamMembershipMissing);
-      }
-      if (variant === "player" && (!isPlayerUser || !data.user?.playerId)) {
-        await clearBravoSession().catch(() => undefined);
-        throw new Error("This account is not linked to an approved player profile.");
-      }
-
-      const redirectTarget =
-        variant === "team"
-          ? "/team"
-          : variant === "player"
-            ? "/dashboard/player"
-            : searchParams.get("redirect") || (isAdminUser ? "/admin" : isTeamUser ? "/team" : "/login");
-
       window.location.assign(redirectTarget);
     } catch (submissionError: unknown) {
       setError(submissionError instanceof Error ? submissionError.message : LOGIN_ERROR_MESSAGES.invalidCredentials);
@@ -170,6 +167,9 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                     <Link href="/team/login" className="btn-secondary">
                       Team Login
                     </Link>
+                    <Link href="/player/login" className="btn-secondary">
+                      Player Login
+                    </Link>
                   </>
                 ) : (
                   <>
@@ -198,6 +198,15 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                   className="form-message mt-5 rounded-2xl border border-bravoRed/30 bg-bravoRed/10 px-4 py-3 text-sm text-red-200"
                 >
                   {error}
+                </div>
+              ) : null}
+              {notice ? (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="form-message mt-5 rounded-2xl border border-accent-blue/30 bg-accent-blue/10 px-4 py-3 text-sm text-blue-100"
+                >
+                  {notice}
                 </div>
               ) : null}
 
@@ -232,7 +241,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                   type="submit"
                   disabled={!hydrated || loading}
                   aria-busy={loading}
-                  className="btn-primary w-full justify-center disabled:opacity-60"
+                  className="btn-primary h-auto min-h-10 w-full justify-center py-2.5 text-center leading-tight disabled:opacity-60"
                 >
                   {loading ? "Checking access..." : content.buttonLabel}
                 </button>
@@ -248,7 +257,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                   <p className="mt-2 text-sm text-text-muted">
                     Discord verifies your identity; Bravo then checks your official server roles and approved team or player linkage.
                   </p>
-                  <DiscordLoginButton className="mt-4" />
+                  <DiscordLoginButton className="mt-4" enabled={discordAuthEnabled} />
                 </div>
               ) : null}
 

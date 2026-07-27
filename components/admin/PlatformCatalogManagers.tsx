@@ -71,6 +71,8 @@ function MessageLine({ message, error }: { message?: string | null; error?: stri
 
   return (
     <div
+      role={error ? "alert" : "status"}
+      aria-live={error ? "assertive" : "polite"}
       className={`rounded-card border px-4 py-3 text-sm ${
         error ? "border-bravoRed/30 bg-bravoRed/10 text-red-200" : "border-accent-green/30 bg-accent-green/10 text-green-200"
       }`}
@@ -202,6 +204,7 @@ export function AdminGamesManager() {
           <div className="grid gap-4 sm:grid-cols-2">
             <input
               className={inputClass}
+              aria-label="Game name"
               placeholder="Game name"
               value={form.name ?? ""}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
@@ -209,18 +212,21 @@ export function AdminGamesManager() {
             />
             <input
               className={inputClass}
+              aria-label="Slug"
               placeholder="Slug"
               value={form.slug ?? ""}
               onChange={(event) => setForm({ ...form, slug: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Short name"
               placeholder="Short name"
               value={form.shortName ?? ""}
               onChange={(event) => setForm({ ...form, shortName: event.target.value })}
             />
             <select
               className={inputClass}
+              aria-label="Game status"
               value={form.status ?? "planned"}
               onChange={(event) =>
                 setForm({
@@ -236,6 +242,7 @@ export function AdminGamesManager() {
             </select>
             <input
               className={`${inputClass} sm:col-span-2`}
+              aria-label="Tagline"
               placeholder="Tagline"
               value={form.tagline ?? ""}
               onChange={(event) => setForm({ ...form, tagline: event.target.value })}
@@ -243,30 +250,35 @@ export function AdminGamesManager() {
             <textarea
               className={`${inputClass} sm:col-span-2`}
               rows={4}
+              aria-label="Summary"
               placeholder="Summary"
               value={form.summary ?? ""}
               onChange={(event) => setForm({ ...form, summary: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Hero label"
               placeholder="Hero label"
               value={form.heroLabel ?? ""}
               onChange={(event) => setForm({ ...form, heroLabel: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Primary href"
               placeholder="Primary href"
               value={form.primaryHref ?? ""}
               onChange={(event) => setForm({ ...form, primaryHref: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Analytics href"
               placeholder="Analytics href"
               value={form.analyticsHref ?? ""}
               onChange={(event) => setForm({ ...form, analyticsHref: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Completion label"
               placeholder="Completion label"
               value={form.completionLabel ?? ""}
               onChange={(event) => setForm({ ...form, completionLabel: event.target.value })}
@@ -274,6 +286,7 @@ export function AdminGamesManager() {
             <textarea
               className={`${inputClass} sm:col-span-2`}
               rows={3}
+              aria-label="Sections (comma separated)"
               placeholder="Sections (comma separated)"
               value={joinDelimitedValues(form.sections)}
               onChange={(event) =>
@@ -487,6 +500,7 @@ export function AdminPlatformEventsManager() {
           <div className="grid gap-4 sm:grid-cols-2">
             <input
               className={inputClass}
+              aria-label="Event name"
               placeholder="Event name"
               value={form.name ?? ""}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
@@ -494,30 +508,35 @@ export function AdminPlatformEventsManager() {
             />
             <input
               className={inputClass}
+              aria-label="Slug"
               placeholder="Slug"
               value={form.slug ?? ""}
               onChange={(event) => setForm({ ...form, slug: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Game name"
               placeholder="Game name"
               value={form.gameName ?? ""}
               onChange={(event) => setForm({ ...form, gameName: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Game slug"
               placeholder="Game slug"
               value={form.gameSlug ?? ""}
               onChange={(event) => setForm({ ...form, gameSlug: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Type"
               placeholder="Type"
               value={form.type ?? ""}
               onChange={(event) => setForm({ ...form, type: event.target.value })}
             />
             <select
               className={inputClass}
+              aria-label="Event status"
               value={form.status ?? "upcoming"}
               onChange={(event) =>
                 setForm({
@@ -533,6 +552,7 @@ export function AdminPlatformEventsManager() {
             </select>
             <select
               className={inputClass}
+              aria-label="Event publication state"
               value={form.state ?? "published"}
               onChange={(event) =>
                 setForm({
@@ -547,18 +567,21 @@ export function AdminPlatformEventsManager() {
             </select>
             <input
               className={inputClass}
+              aria-label="Region"
               placeholder="Region"
               value={form.region ?? ""}
               onChange={(event) => setForm({ ...form, region: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Organizer"
               placeholder="Organizer"
               value={form.organizerName ?? ""}
               onChange={(event) => setForm({ ...form, organizerName: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Prize pool"
               placeholder="Prize pool"
               value={form.prizePool ?? ""}
               onChange={(event) => setForm({ ...form, prizePool: event.target.value })}
@@ -566,6 +589,7 @@ export function AdminPlatformEventsManager() {
             <input
               className={inputClass}
               type="number"
+              aria-label="Teams count"
               placeholder="Teams count"
               value={form.teamsCount ?? 0}
               onChange={(event) => setForm({ ...form, teamsCount: Number(event.target.value) })}
@@ -573,18 +597,21 @@ export function AdminPlatformEventsManager() {
             <input
               className={inputClass}
               type="number"
+              aria-label="Matches count"
               placeholder="Matches count"
               value={form.matchesCount ?? 0}
               onChange={(event) => setForm({ ...form, matchesCount: Number(event.target.value) })}
             />
             <input
               className={inputClass}
+              aria-label="Event start date and time"
               type="datetime-local"
               value={(form.startDate ?? "").slice(0, 16)}
               onChange={(event) => setForm({ ...form, startDate: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Event end date and time"
               type="datetime-local"
               value={(form.endDate ?? "").slice(0, 16)}
               onChange={(event) => setForm({ ...form, endDate: event.target.value })}
@@ -592,48 +619,56 @@ export function AdminPlatformEventsManager() {
             <textarea
               className={`${inputClass} sm:col-span-2`}
               rows={4}
+              aria-label="Summary"
               placeholder="Summary"
               value={form.summary ?? ""}
               onChange={(event) => setForm({ ...form, summary: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Analytics href"
               placeholder="Analytics href"
               value={form.analyticsHref ?? ""}
               onChange={(event) => setForm({ ...form, analyticsHref: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Stream href"
               placeholder="Stream href"
               value={form.streamHref ?? ""}
               onChange={(event) => setForm({ ...form, streamHref: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Top team name"
               placeholder="Top team name"
               value={form.topTeamName ?? ""}
               onChange={(event) => setForm({ ...form, topTeamName: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Top player name"
               placeholder="Top player name"
               value={form.topPlayerName ?? ""}
               onChange={(event) => setForm({ ...form, topPlayerName: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Sponsor name"
               placeholder="Sponsor name"
               value={form.sponsorName ?? ""}
               onChange={(event) => setForm({ ...form, sponsorName: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Point system id"
               placeholder="Point system id"
               value={form.pointSystemId ?? ""}
               onChange={(event) => setForm({ ...form, pointSystemId: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Point system name"
               placeholder="Point system name"
               value={form.pointSystemName ?? ""}
               onChange={(event) => setForm({ ...form, pointSystemName: event.target.value })}
@@ -641,6 +676,7 @@ export function AdminPlatformEventsManager() {
             <textarea
               className={`${inputClass} sm:col-span-2`}
               rows={3}
+              aria-label="Tabs (comma separated)"
               placeholder="Tabs (comma separated)"
               value={joinDelimitedValues(form.tabs)}
               onChange={(event) =>
@@ -963,6 +999,7 @@ export function AdminSponsorsManager() {
           <div className="grid gap-4 sm:grid-cols-2">
             <input
               className={inputClass}
+              aria-label="Sponsor or partner name"
               placeholder="Sponsor or partner name"
               value={form.name ?? ""}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
@@ -970,12 +1007,14 @@ export function AdminSponsorsManager() {
             />
             <input
               className={inputClass}
+              aria-label="Slug"
               placeholder="Slug"
               value={form.slug ?? ""}
               onChange={(event) => setForm({ ...form, slug: event.target.value })}
             />
             <select
               className={inputClass}
+              aria-label="Sponsor entry type"
               value={form.kind ?? "partner"}
               onChange={(event) =>
                 setForm({
@@ -990,12 +1029,14 @@ export function AdminSponsorsManager() {
             </select>
             <input
               className={inputClass}
+              aria-label="Tier"
               placeholder="Tier"
               value={form.tier ?? ""}
               onChange={(event) => setForm({ ...form, tier: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Website URL (https://...)"
               placeholder="Website URL (https://...)"
               value={form.websiteUrl ?? form.url ?? ""}
               onChange={(event) =>
@@ -1008,6 +1049,7 @@ export function AdminSponsorsManager() {
             />
             <input
               className={inputClass}
+              aria-label="Social URL (https://...)"
               placeholder="Social URL (https://...)"
               value={form.socialUrl ?? ""}
               onChange={(event) => setForm({ ...form, socialUrl: event.target.value })}
@@ -1015,6 +1057,7 @@ export function AdminSponsorsManager() {
             <textarea
               className={`${inputClass} sm:col-span-2`}
               rows={4}
+              aria-label="Description"
               placeholder="Description"
               value={form.description ?? ""}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
@@ -1022,6 +1065,7 @@ export function AdminSponsorsManager() {
             <textarea
               className={`${inputClass} sm:col-span-2`}
               rows={3}
+              aria-label="Partnership history"
               placeholder="Partnership history"
               value={joinDelimitedValues(form.partnershipHistory)}
               onChange={(event) =>
@@ -1044,6 +1088,7 @@ export function AdminSponsorsManager() {
             </div>
             <input
               className={`${inputClass} mt-4`}
+              aria-label="Search events by name, slug, game, or status"
               placeholder="Search events by name, slug, game, or status"
               value={eventSearch}
               onChange={(event) => setEventSearch(event.target.value)}
@@ -1410,6 +1455,7 @@ export function AdminMediaManager() {
           <div className="grid gap-4 sm:grid-cols-2">
             <input
               className={inputClass}
+              aria-label="Title"
               placeholder="Title"
               value={form.title ?? ""}
               onChange={(event) => setForm({ ...form, title: event.target.value })}
@@ -1417,30 +1463,35 @@ export function AdminMediaManager() {
             />
             <input
               className={inputClass}
+              aria-label="Kind"
               placeholder="Kind"
               value={form.kind ?? ""}
               onChange={(event) => setForm({ ...form, kind: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Category"
               placeholder="Category"
               value={form.category ?? ""}
               onChange={(event) => setForm({ ...form, category: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Game slug"
               placeholder="Game slug"
               value={form.gameSlug ?? ""}
               onChange={(event) => setForm({ ...form, gameSlug: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Duration"
               placeholder="Duration"
               value={form.duration ?? ""}
               onChange={(event) => setForm({ ...form, duration: event.target.value })}
             />
             <input
               className={inputClass}
+              aria-label="Public URL / YouTube / VOD"
               placeholder="Public URL / YouTube / VOD"
               value={form.url ?? ""}
               onChange={(event) => setForm({ ...form, url: event.target.value })}
@@ -1448,6 +1499,7 @@ export function AdminMediaManager() {
             <textarea
               className={`${inputClass} sm:col-span-2`}
               rows={4}
+              aria-label="Summary"
               placeholder="Summary"
               value={form.summary ?? ""}
               onChange={(event) => setForm({ ...form, summary: event.target.value })}

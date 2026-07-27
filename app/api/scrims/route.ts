@@ -1,7 +1,11 @@
 import { getScrimDayResults, getScrims } from "@/lib/data";
+import { toPublicScrim, toPublicScrimDayResult } from "@/lib/public-scrims";
 
 export async function GET() {
-  const [data, days] = await Promise.all([getScrims(), getScrimDayResults()]);
+  const [scrims, scrimDays] = await Promise.all([getScrims(), getScrimDayResults()]);
+  const data = scrims.map(toPublicScrim);
+  const days = scrimDays.map(toPublicScrimDayResult);
+
   return Response.json({
     success: true,
     data,

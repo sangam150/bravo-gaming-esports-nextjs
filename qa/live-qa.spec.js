@@ -1,4 +1,5 @@
-import { devices, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -104,6 +105,105 @@ function attachObservers(page) {
   };
 }
 
+async function collectAccessibilityIssues(page, route) {
+  return page.evaluate((currentRoute) => {
+    const issues = [];
+
+    function isExposed(element) {
+      if (element.closest('[hidden], [aria-hidden="true"]')) return false;
+      const style = window.getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden";
+    }
+
+    function referencedText(element, attribute) {
+      return (element.getAttribute(attribute) ?? "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((id) => document.getElementById(id)?.textContent?.trim() ?? "")
+        .filter(Boolean)
+        .join(" ");
+    }
+
+    function explicitName(element) {
+      return (
+        element.getAttribute("aria-label")?.trim() ||
+        referencedText(element, "aria-labelledby") ||
+        element.getAttribute("title")?.trim() ||
+        ""
+      );
+    }
+
+    function labelText(control) {
+      if (!("labels" in control) || !control.labels) return "";
+      return Array.from(control.labels)
+        .map((label) => label.textContent?.trim() ?? "")
+        .filter(Boolean)
+        .join(" ");
+    }
+
+    const mainCount = Array.from(document.querySelectorAll("main")).filter(isExposed).length;
+    if (mainCount !== 1) {
+      issues.push(`Expected one exposed main landmark on ${currentRoute}; found ${mainCount}`);
+    }
+
+    const ids = new Map();
+    document.querySelectorAll("[id]").forEach((element) => {
+      const id = element.id.trim();
+      if (!id) return;
+      ids.set(id, (ids.get(id) ?? 0) + 1);
+    });
+    const duplicateIds = Array.from(ids.entries())
+      .filter(([, count]) => count > 1)
+      .map(([id]) => id);
+    if (duplicateIds.length > 0) {
+      issues.push(`Duplicate element IDs on ${currentRoute}: ${duplicateIds.join(", ")}`);
+    }
+
+    document.querySelectorAll("input:not([type=hidden]), select, textarea").forEach((control) => {
+      if (!isExposed(control)) return;
+      if (!explicitName(control) && !labelText(control)) {
+        const descriptor = control.getAttribute("name") || control.getAttribute("type") || control.tagName.toLowerCase();
+        issues.push(`Visible form control "${descriptor}" has no accessible name on ${currentRoute}`);
+      }
+    });
+
+    document.querySelectorAll("button, a[href]").forEach((interactive) => {
+      if (!isExposed(interactive)) return;
+      const contentName = interactive.textContent?.trim() || interactive.querySelector("img[alt]")?.getAttribute("alt")?.trim() || "";
+      if (!explicitName(interactive) && !contentName) {
+        issues.push(`Visible ${interactive.tagName.toLowerCase()} has no accessible name on ${currentRoute}`);
+      }
+    });
+
+    document.querySelectorAll("img").forEach((image) => {
+      if (!image.hasAttribute("alt")) {
+        issues.push(`Image is missing an alt attribute on ${currentRoute}`);
+      }
+    });
+
+    document.querySelectorAll("table").forEach((table, tableIndex) => {
+      if (!isExposed(table)) return;
+      const caption = table.querySelector(":scope > caption")?.textContent?.trim() ?? "";
+      if (!caption && !explicitName(table)) {
+        issues.push(`Table ${tableIndex + 1} has no accessible caption or name on ${currentRoute}`);
+      }
+      table.querySelectorAll("th").forEach((header) => {
+        if (!["col", "row", "colgroup", "rowgroup"].includes(header.getAttribute("scope") ?? "")) {
+          issues.push(`Table header "${header.textContent?.trim() || "unnamed"}" has no valid scope on ${currentRoute}`);
+        }
+      });
+    });
+
+    document.querySelectorAll('[role="dialog"], dialog').forEach((dialog) => {
+      if (isExposed(dialog) && !explicitName(dialog)) {
+        issues.push(`Visible dialog has no accessible name on ${currentRoute}`);
+      }
+    });
+
+    return issues;
+  }, route);
+}
+
 async function gotoAndCheck(page, route, label) {
   const observers = attachObservers(page);
 
@@ -128,6 +228,45 @@ async function gotoAndCheck(page, route, label) {
     if (/Application error|Internal Server Error|Unhandled Runtime Error|This page could not be found/i.test(bodyText)) {
       routeIssues.push(`Error UI detected on ${route}`);
     }
+
+    const title = (await page.title()).trim();
+    if (!title) {
+      routeIssues.push(`Missing document title on ${route}`);
+    }
+
+    const visibleHeadingCount = await page.locator("h1:visible").count();
+    if (visibleHeadingCount !== 1) {
+      routeIssues.push(`Expected exactly one visible H1 on ${route}; found ${visibleHeadingCount}`);
+    }
+
+    if (
+      !(await page
+        .locator("header")
+        .first()
+        .isVisible()
+        .catch(() => false))
+    ) {
+      routeIssues.push(`Visible site header missing on ${route}`);
+    }
+
+    if (
+      !(await page
+        .locator("footer")
+        .first()
+        .isVisible()
+        .catch(() => false))
+    ) {
+      routeIssues.push(`Visible site footer missing on ${route}`);
+    }
+
+    const horizontalOverflow = await page.evaluate(
+      () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    );
+    if (horizontalOverflow > 2) {
+      routeIssues.push(`Horizontal overflow of ${horizontalOverflow}px detected on ${route}`);
+    }
+
+    routeIssues.push(...(await collectAccessibilityIssues(page, route)));
 
     if (observers.issues.length > 0) {
       routeIssues.push(...observers.issues);
@@ -184,19 +323,14 @@ async function submitSearchAndFilters(page, routeLabel) {
 async function clickFirstDetailLink(page, prefix, label) {
   const link = page.locator(`main a[href^="${prefix}"]`).first();
   if (!(await link.count())) {
-    summary.skipped.push({
-      label,
-      reason: `No detail links found for prefix ${prefix}`,
-    });
+    pushUnique(summary.notes, `No published ${label.toLowerCase()} link was available; verified the route's not-found state instead.`);
     writeSummary();
     return null;
   }
 
   const href = await link.getAttribute("href");
   if (!href) {
-    summary.skipped.push({ label, reason: "Detail link had no href" });
-    writeSummary();
-    return null;
+    throw new Error(`${label} detail link did not have an href.`);
   }
 
   await Promise.all([page.waitForLoadState("domcontentloaded"), link.click()]).catch(async () => {
@@ -210,6 +344,25 @@ async function clickFirstDetailLink(page, prefix, label) {
   pushUnique(summary.notes, `Opened detail route ${href} for ${label}.`);
   writeSummary();
   return href;
+}
+
+async function verifyDynamicRouteNotFound(page, prefix, label) {
+  const route = `${prefix}qa-route-verification-missing`;
+  const response = await page.goto(`${baseURL}${route}`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
+  await settlePage(page);
+  expect(response?.status(), `${label} missing-record route must return HTTP 404`).toBe(404);
+  await expect(page.locator("h1:visible"), `${label} not-found page must have one visible H1`).toHaveCount(1);
+  await expect(page.locator("header").first(), `${label} not-found page is missing the site header`).toBeVisible();
+  await expect(page.locator("footer").first(), `${label} not-found page is missing the site footer`).toBeVisible();
+  const bodyText = await page.locator("body").innerText();
+  expect(bodyText, `${label} missing-record route rendered a runtime failure`).not.toMatch(
+    /Application error|Internal Server Error|Unhandled Runtime Error/i,
+  );
+  summary.passed.push({ label: `${label} not-found state`, route });
+  writeSummary();
 }
 
 test.describe.configure({ mode: "serial" });
@@ -302,17 +455,11 @@ test("Public navigation and interaction QA", async ({ page }) => {
   });
   await settlePage(page);
   const navClicks = [
-    { name: "News", url: "/news" },
-    { name: "Games", url: "/games" },
+    { name: "Home", url: "/" },
+    { name: "PUBG", url: "/pubg" },
     { name: "Events", url: "/events" },
-    { name: "Calendar", url: "/calendar" },
-    { name: "Matches", url: "/matches" },
-    { name: "Teams", url: "/teams" },
-    { name: "Players", url: "/players" },
-    { name: "Rankings", url: "/rankings" },
     { name: "Media", url: "/media" },
-    { name: "Sponsors", url: "/sponsors" },
-    { name: "Community", url: "/community" },
+    { name: "About Us", url: "/about" },
   ];
 
   for (const item of navClicks) {
@@ -321,17 +468,19 @@ test("Public navigation and interaction QA", async ({ page }) => {
       timeout: 45000,
     });
     await settlePage(page);
-    const link = page.getByRole("link", { name: item.name, exact: true }).first();
-    if (await link.count()) {
-      await Promise.all([page.waitForURL(`**${item.url}`), link.click()]);
-      await settlePage(page);
-      pushUnique(summary.notes, `Clicked header nav item ${item.name}.`);
-    } else {
-      summary.skipped.push({
-        label: `Header nav ${item.name}`,
-        reason: "Link not found",
-      });
-    }
+    const primaryNavigation = page.locator("header").getByRole("navigation", { name: "Primary navigation" });
+    const link = primaryNavigation.getByRole("link", { name: item.name, exact: true });
+    await expect(link, `Required header link ${item.name} is missing`).toBeVisible();
+    await link.click();
+    await page.waitForURL((url) => url.pathname === item.url, { timeout: 15000 });
+    await settlePage(page);
+    await expect(
+      page.locator("header").getByRole("navigation", { name: "Primary navigation" }).getByRole("link", {
+        name: item.name,
+        exact: true,
+      }),
+    ).toHaveAttribute("aria-current", "page");
+    pushUnique(summary.notes, `Clicked header nav item ${item.name}.`);
     writeSummary();
   }
 
@@ -340,33 +489,51 @@ test("Public navigation and interaction QA", async ({ page }) => {
     timeout: 45000,
   });
   await settlePage(page);
-  for (const cta of ["Watch Live", "Explore Events", "Join Community"]) {
-    const button = page.getByRole("link", { name: new RegExp(cta, "i") }).first();
-    if (await button.count()) {
-      const href = await button.getAttribute("href");
-      if (href) {
-        await page
-          .goto(href.startsWith("http") ? href : `${baseURL}${href}`, {
-            waitUntil: "domcontentloaded",
-            timeout: 45000,
-          })
-          .catch(() => undefined);
-        await settlePage(page);
-        pushUnique(summary.notes, `Opened homepage CTA ${cta}.`);
-      }
-      await page.goto(`${baseURL}/`, {
-        waitUntil: "domcontentloaded",
-        timeout: 45000,
-      });
-      await settlePage(page);
-    } else {
-      summary.skipped.push({
-        label: `Homepage CTA ${cta}`,
-        reason: "CTA not visible in current data state",
-      });
-    }
-    writeSummary();
+  const siteHeader = page.locator("header");
+  const watchLiveLink = siteHeader.getByRole("link", { name: "Watch Live", exact: true });
+  const discordLink = siteHeader.getByRole("link", { name: "Join Discord", exact: true });
+  await expect(watchLiveLink, "Watch Live header action is missing").toHaveAttribute("href", "/live-stream");
+  await expect(discordLink, "Join Discord header action is missing").toHaveAttribute("href", /^https:\/\/discord\.gg\//);
+
+  const loginMenuButton = siteHeader.getByRole("button", { name: "Login", exact: true });
+  await expect(loginMenuButton, "Login dropdown trigger is missing").toBeVisible();
+  await expect(loginMenuButton).toHaveAttribute("aria-controls", "desktop-account-access-menu");
+  await loginMenuButton.click();
+  await expect(loginMenuButton).toHaveAttribute("aria-expanded", "true");
+  const accessMenu = page.locator("#desktop-account-access-menu");
+  await expect(accessMenu).toBeVisible();
+  for (const accessLink of [
+    ["General Login", "/login"],
+    ["Team Portal", "/team/login"],
+    ["Player Portal", "/player/login"],
+    ["Admin Portal", "/admin/login"],
+  ]) {
+    await expect(accessMenu.getByRole("link", { name: accessLink[0], exact: true })).toHaveAttribute("href", accessLink[1]);
   }
+  await page.keyboard.press("Escape");
+  await expect(accessMenu).toBeHidden();
+  await expect(loginMenuButton).toBeFocused();
+  pushUnique(summary.notes, "Verified required desktop navigation, actions, access links, and Escape behavior.");
+  writeSummary();
+
+  const footer = page.locator("footer");
+  const accountColumn = footer.locator("section").filter({ hasText: "Account / Access" });
+  for (const accountLink of [
+    ["Login", "/login"],
+    ["Team Portal", "/team/login"],
+    ["Player Portal", "/player/login"],
+    ["Admin Portal", "/admin/login"],
+    ["Password Recovery", "/reset-password"],
+  ]) {
+    await expect(accountColumn.getByRole("link", { name: accountLink[0], exact: true })).toHaveAttribute("href", accountLink[1]);
+  }
+  const supportColumn = footer.locator("section").filter({ hasText: "Support" });
+  const supportHrefs = await supportColumn
+    .getByRole("link")
+    .evaluateAll((links) => links.map((link) => link.getAttribute("href")).filter(Boolean));
+  expect(new Set(supportHrefs).size, "Footer support links must have distinct destinations").toBe(supportHrefs.length);
+  pushUnique(summary.notes, "Verified footer account access and distinct support destinations.");
+  writeSummary();
 
   const searchableRoutes = [
     ["/news", "News"],
@@ -395,41 +562,39 @@ test("Public navigation and interaction QA", async ({ page }) => {
     timeout: 45000,
   });
   await settlePage(page);
-  if (await page.locator("form").count()) {
-    const timestamp = Date.now();
-    await page
-      .locator('input[placeholder="Your Name"]')
-      .fill("QA Browser Runner")
-      .catch(() => undefined);
-    await page
-      .locator('input[placeholder="Email Address"]')
-      .fill(`qa-browser-${timestamp}@example.com`)
-      .catch(() => undefined);
-    await page
-      .locator("input[placeholder]")
-      .nth(2)
-      .fill("Live QA pass")
-      .catch(() => undefined);
-    await page
-      .locator('textarea[placeholder="Message"]')
-      .fill("Browser automation contact-form QA submission.")
-      .catch(() => undefined);
-    await page
-      .locator('button[type="submit"]')
-      .click()
-      .catch(() => undefined);
-    await settlePage(page);
-    pushUnique(summary.notes, "Submitted the public contact form.");
-    writeSummary();
-  }
+  const contactForm = page.locator("form").first();
+  await expect(contactForm, "Public contact form is missing").toBeVisible();
+  const timestamp = Date.now();
+  await contactForm.locator('input[name="name"]').fill("QA Browser Runner");
+  await contactForm.locator('input[name="email"]').fill(`qa-browser-${timestamp}@example.com`);
+  await contactForm.locator('select[name="subject"]').selectOption({ label: "General inquiry" });
+  await contactForm.locator('textarea[name="message"]').fill("Browser automation contact-form QA submission.");
+  const [contactResponse] = await Promise.all([
+    page.waitForResponse((response) => response.url().includes("/api/contact") && response.request().method() === "POST"),
+    contactForm.locator('button[type="submit"]').click(),
+  ]);
+  expect(contactResponse.ok(), `Contact submission returned HTTP ${contactResponse.status()}`).toBe(true);
+  await expect(page.getByText(/Message received|Feedback received/i)).toBeVisible();
+  pushUnique(summary.notes, "Submitted and verified the public contact form.");
+  writeSummary();
 
   const detailRoutes = [
     ["/events", "/events/", "Event detail"],
-    ["/teams", "/teams/", "Team detail"],
-    ["/players", "/players/", "Player detail"],
-    ["/matches", "/matches/", "Match detail"],
-    ["/sponsors", "/sponsors/", "Sponsor detail"],
     ["/games", "/games/", "Game detail"],
+    ["/matches", "/matches/", "Match detail"],
+    ["/media", "/media/", "Media detail"],
+    ["/news", "/news/", "News detail"],
+    ["/organizations", "/organizations/", "Organization detail"],
+    ["/players", "/players/", "Player detail"],
+    ["/pubg/events", "/pubg/events/", "PUBG event detail"],
+    ["/pubg/results", "/pubg/matches/", "PUBG match detail"],
+    ["/pubg/players", "/pubg/players/", "PUBG player detail"],
+    ["/pubg/seasons/current", "/pubg/seasons/", "PUBG season detail"],
+    ["/pubg/teams", "/pubg/teams/", "PUBG team detail"],
+    ["/results", "/results/matches/", "Result detail"],
+    ["/sponsors", "/sponsors/", "Sponsor detail"],
+    ["/teams", "/teams/", "Team detail"],
+    ["/tournaments", "/tournaments/", "Tournament detail"],
   ];
 
   for (const [route, prefix, label] of detailRoutes) {
@@ -441,69 +606,162 @@ test("Public navigation and interaction QA", async ({ page }) => {
     const href = await clickFirstDetailLink(page, prefix, label);
     if (href) {
       await gotoAndCheck(page, href.replace(baseURL, ""), label);
+    } else {
+      await verifyDynamicRouteNotFound(page, prefix, label);
     }
   }
 });
 
 test("Auth entry-point smoke QA", async ({ page }) => {
   test.setTimeout(120000);
-  await page.goto(`${baseURL}/admin`, {
+  await page.goto(`${baseURL}/admin/login`, {
     waitUntil: "domcontentloaded",
     timeout: 45000,
   });
   await settlePage(page);
   await expect(page.getByRole("heading", { name: /Admin Login/i })).toBeVisible();
-  summary.passed.push({ label: "Admin login screen renders", route: "/admin" });
+  summary.passed.push({ label: "Admin login screen renders", route: "/admin/login" });
   writeSummary();
 
-  await page.getByLabel("Admin email", { exact: true }).fill("qa.viewer.browser+1@gmail.com");
-  await page.getByLabel("Password", { exact: true }).fill("BravoQA123!");
-  await page.locator('button[type="submit"]').click();
-  await page.waitForTimeout(1500);
-  const adminError = await page
-    .locator("text=/Login failed|Invalid login credentials|Email not confirmed|This account does not have admin access|Invalid API key/i")
-    .first()
-    .textContent({ timeout: 5000 })
-    .catch(() => null);
-  if (adminError) {
-    await captureIssue(page, "admin-login-attempt", [`Admin login did not complete: ${adminError}`]);
-  } else {
-    summary.skipped.push({
-      label: "Admin login role test",
-      reason: "Could not determine auth result from UI",
-    });
-    writeSummary();
-  }
+  await page.getByLabel("Admin email", { exact: true }).fill(`qa-invalid-${Date.now()}@example.com`);
+  await page.getByLabel("Password", { exact: true }).fill("InvalidQA-Credential-Only!");
+  const [loginResponse] = await Promise.all([
+    page.waitForResponse((response) => response.url().includes("/api/auth/login") && response.request().method() === "POST"),
+    page.locator('button[type="submit"]').click(),
+  ]);
+  expect([401, 403, 429]).toContain(loginResponse.status());
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: /email|password|credentials|access|attempts|sign in/i })
+      .first(),
+  ).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe("/admin/login");
+  summary.passed.push({ label: "Unauthorized admin login rejected safely", route: "/admin/login" });
+  writeSummary();
 
-  await page.goto(`${baseURL}/team`, {
+  await page.goto(`${baseURL}/team/login`, {
     waitUntil: "domcontentloaded",
     timeout: 45000,
   });
   await settlePage(page);
   await expect(page.getByRole("heading", { name: /Open the Bravo team workspace/i })).toBeVisible();
-  summary.passed.push({ label: "Team login screen renders", route: "/team" });
+  await expect(page.getByRole("button", { name: "Open Team Workspace" })).toBeVisible();
+  summary.passed.push({ label: "Team login screen renders", route: "/team/login" });
+  writeSummary();
+
+  await page.goto(`${baseURL}/player/login`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
+  await settlePage(page);
+  await expect(page.getByRole("heading", { name: /Open your Bravo player access/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open Player Dashboard" })).toBeVisible();
+  summary.passed.push({ label: "Player login screen renders", route: "/player/login" });
   writeSummary();
 });
 
-test("Mobile layout screenshots", async ({ browser }) => {
-  test.setTimeout(180000);
-  const context = await browser.newContext({
-    ...devices["iPhone 13"],
-    baseURL,
-  });
-  const page = await context.newPage();
-
-  const mobileTargets = [
-    ["/", "mobile-homepage"],
-    ["/pubg", "mobile-pubg"],
-    ["/rankings", "mobile-rankings"],
-    ["/admin", "mobile-admin"],
-    ["/team", "mobile-team"],
+test("Required responsive viewport and navigation QA", async ({ browser }) => {
+  test.setTimeout(300000);
+  const requiredViewports = [
+    { width: 320, height: 568 },
+    { width: 375, height: 667 },
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+    { width: 1024, height: 768 },
+    { width: 1280, height: 720 },
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 },
   ];
 
-  for (const [route, name] of mobileTargets) {
+  for (const viewport of requiredViewports) {
+    const context = await browser.newContext({ baseURL, viewport });
+    const page = await context.newPage();
+    await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
+    await settlePage(page);
+
+    const overflow = await page.evaluate(
+      () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    );
+    expect(overflow, `Homepage overflow at ${viewport.width}x${viewport.height}`).toBeLessThanOrEqual(2);
+
+    if (viewport.width < 1280) {
+      const menuButton = page.getByRole("button", { name: "Open menu", exact: true });
+      await expect(menuButton).toHaveAttribute("aria-controls", "mobile-site-navigation");
+      await menuButton.click();
+      const drawer = page.locator("#mobile-site-navigation");
+      await expect(drawer).toBeVisible();
+      await expect(drawer.getByRole("link", { name: "Home", exact: true })).toHaveAttribute("aria-current", "page");
+      await expect(page.getByRole("heading", { name: "Access", exact: true })).toBeVisible();
+      for (const accessLink of ["General Login", "Team Portal", "Player Portal", "Admin Portal"]) {
+        await expect(drawer.getByRole("link", { name: accessLink, exact: true })).toBeVisible();
+      }
+      expect(await page.evaluate(() => document.body.style.overflow)).toBe("hidden");
+      await page.keyboard.press("Escape");
+      await expect(drawer).toBeHidden();
+      await expect(menuButton).toBeFocused();
+      expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
+    } else {
+      await expect(page.locator("header").getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+      await expect(page.locator("header").getByRole("link", { name: "Watch Live", exact: true })).toBeVisible();
+      await expect(page.locator("header").getByRole("link", { name: "Join Discord", exact: true })).toBeVisible();
+      await expect(page.locator("header").getByRole("button", { name: "Login", exact: true })).toBeVisible();
+    }
+
+    await page.screenshot({
+      path: path.join(mobileDir, `viewport-${viewport.width}x${viewport.height}-homepage.png`),
+      fullPage: true,
+    });
+    summary.passed.push({
+      label: `Responsive homepage ${viewport.width}x${viewport.height}`,
+      route: "/",
+    });
+    writeSummary();
+    await context.close();
+  }
+
+  const compactLoginContext = await browser.newContext({
+    baseURL,
+    viewport: { width: 320, height: 568 },
+  });
+  const compactLoginPage = await compactLoginContext.newPage();
+  for (const [route, buttonName] of [
+    ["/team/login", "Open Team Workspace"],
+    ["/player/login", "Open Player Dashboard"],
+  ]) {
+    await compactLoginPage.goto(route, { waitUntil: "domcontentloaded", timeout: 45000 });
+    await settlePage(compactLoginPage);
+    const button = compactLoginPage.getByRole("button", { name: buttonName, exact: true });
+    await expect(button).toBeVisible();
+    const buttonClips = await button.evaluate(
+      (element) => element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth + 1,
+    );
+    expect(buttonClips, `${route} submit label clips at 320x568`).toBe(false);
+    const overflow = await compactLoginPage.evaluate(
+      () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    );
+    expect(overflow, `${route} overflow at 320x568`).toBeLessThanOrEqual(2);
+  }
+  await compactLoginContext.close();
+
+  const context = await browser.newContext({
+    baseURL,
+    viewport: { width: 390, height: 844 },
+  });
+  const page = await context.newPage();
+  for (const [route, name] of [
+    ["/pubg", "mobile-pubg"],
+    ["/pubg/leaderboards", "mobile-leaderboards"],
+    ["/events", "mobile-events"],
+    ["/contact", "mobile-contact"],
+    ["/login", "mobile-login"],
+  ]) {
     await page.goto(route, { waitUntil: "domcontentloaded", timeout: 45000 });
     await settlePage(page);
+    const overflow = await page.evaluate(
+      () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    );
+    expect(overflow, `${route} overflow at 390x844`).toBeLessThanOrEqual(2);
     await page.screenshot({
       path: path.join(mobileDir, `${name}.png`),
       fullPage: true,
@@ -511,43 +769,68 @@ test("Mobile layout screenshots", async ({ browser }) => {
     summary.passed.push({ label: `Captured ${name}`, route });
     writeSummary();
   }
+  await context.close();
+});
 
-  await page.goto("/events", { waitUntil: "domcontentloaded", timeout: 45000 });
-  await settlePage(page);
-  const eventHref = await clickFirstDetailLink(page, "/events/", "Mobile event detail");
-  if (eventHref) {
-    await page.screenshot({
-      path: path.join(mobileDir, "mobile-event-detail.png"),
-      fullPage: true,
-    });
-    summary.passed.push({
-      label: "Captured mobile event detail",
-      route: eventHref,
-    });
-    writeSummary();
-  }
-
-  await page.goto("/matches", {
+test("Keyboard navigation and tab semantics QA", async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto(`${baseURL}/`, {
     waitUntil: "domcontentloaded",
     timeout: 45000,
   });
   await settlePage(page);
-  const matchHref = await clickFirstDetailLink(page, "/matches/", "Mobile match detail");
-  if (matchHref) {
-    await page.screenshot({
-      path: path.join(mobileDir, "mobile-match-detail.png"),
-      fullPage: true,
+
+  await page.keyboard.press("Tab");
+  const skipLink = page.getByRole("link", { name: "Skip to main content" });
+  await expect(skipLink).toBeFocused();
+  await skipLink.press("Enter");
+  await expect(page.locator("#main-content")).toBeFocused();
+
+  await page.goto(`${baseURL}/pubg-scrims`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
+  await settlePage(page);
+  const tabList = page.getByRole("tablist", { name: "Scrim information sections" });
+  const scheduleTab = tabList.getByRole("tab", { name: "Schedule" });
+  const rulesTab = tabList.getByRole("tab", { name: "Rules" });
+  await expect(scheduleTab).toHaveAttribute("aria-selected", "true");
+  await expect(scheduleTab).toHaveAttribute("tabindex", "0");
+  await scheduleTab.focus();
+  await scheduleTab.press("ArrowRight");
+  await expect(rulesTab).toBeFocused();
+  await expect(rulesTab).toHaveAttribute("aria-selected", "true");
+  await expect(rulesTab).toHaveAttribute("tabindex", "0");
+
+  summary.passed.push({ label: "Keyboard navigation and tab semantics", route: "/, /pubg-scrims" });
+  writeSummary();
+});
+
+test("Automated WCAG A and AA accessibility QA", async ({ page }) => {
+  test.setTimeout(180000);
+  for (const route of ["/", "/events", "/pubg/leaderboards", "/contact", "/login", "/pubg-scrims"]) {
+    await page.goto(`${baseURL}${route}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45000,
     });
-    summary.passed.push({
-      label: "Captured mobile match detail",
-      route: matchHref,
-    });
-    writeSummary();
+    await settlePage(page);
+    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(
+      results.violations,
+      `${route} has WCAG A/AA violations:\n${results.violations
+        .map((violation) => `${violation.id}: ${violation.help} (${violation.nodes.length} nodes)`)
+        .join("\n")}`,
+    ).toEqual([]);
   }
 
-  await context.close();
+  summary.passed.push({
+    label: "Automated WCAG A/AA accessibility",
+    route: "/, /events, /pubg/leaderboards, /contact, /login, /pubg-scrims",
+  });
+  writeSummary();
 });
 
 test.afterAll(async () => {
   writeSummary();
+  expect(summary.failed, `Live QA recorded failures: ${JSON.stringify(summary.failed)}`).toEqual([]);
 });

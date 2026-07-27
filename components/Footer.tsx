@@ -22,38 +22,47 @@ const competitionLinks = [
 ] as const;
 
 const supportLinks = [
-  { label: "Help Center", href: "/contact" },
   { label: "Contact Us", href: "/contact" },
-  { label: "FAQ", href: "/rules" },
+  { label: "Send Feedback", href: "/feedback" },
+  { label: "Competition Rules", href: "/rules" },
+  { label: "Anti-Cheat Policy", href: "/anti-cheat" },
   { label: "Terms of Use", href: "/terms" },
   { label: "Privacy Policy", href: "/privacy" },
+] as const;
+
+const accountLinks = [
+  { label: "Login", href: "/login" },
+  { label: "Team Portal", href: "/team/login" },
+  { label: "Player Portal", href: "/player/login" },
+  { label: "Admin Portal", href: "/admin/login" },
+  { label: "Password Recovery", href: "/reset-password" },
 ] as const;
 
 const followLinks = [
   {
     label: "Discord",
     href: BRAVO_DISCORD_URL,
-    icon: <MessageCircle className="h-4 w-4" />,
+    icon: <MessageCircle className="h-4 w-4" aria-hidden="true" />,
   },
   {
     label: "Facebook",
     href: BRAVO_FACEBOOK_URL,
-    icon: <Users className="h-4 w-4" />,
+    icon: <Users className="h-4 w-4" aria-hidden="true" />,
   },
   {
     label: "YouTube",
     href: BRAVO_YOUTUBE_URL,
-    icon: <Play className="h-4 w-4" />,
+    icon: <Play className="h-4 w-4" aria-hidden="true" />,
   },
   {
     label: "Instagram",
     href: BRAVO_INSTAGRAM_URL,
-    icon: <Camera className="h-4 w-4" />,
+    icon: <Camera className="h-4 w-4" aria-hidden="true" />,
   },
   {
     label: "TikTok",
     href: BRAVO_TIKTOK_URL,
-    icon: <Music2 className="h-4 w-4" />,
+    icon: <Music2 className="h-4 w-4" aria-hidden="true" />,
   },
 ] as const;
 
@@ -67,14 +76,14 @@ function FooterNavLink({ href, label }: { href: string; label: string }) {
 
 function FooterColumn({ title, links }: { title: string; links: readonly { label: string; href: string }[] }) {
   return (
-    <div>
-      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white">{title}</p>
+    <nav aria-label={`${title} links`}>
+      <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white">{title}</h2>
       <div className="mt-4 grid gap-2.5">
         {links.map((item) => (
           <FooterNavLink key={item.label} href={item.href} label={item.label} />
         ))}
       </div>
-    </div>
+    </nav>
   );
 }
 
@@ -83,8 +92,8 @@ export default function Footer() {
     <footer className="px-4 pb-6 pt-4 sm:px-6 lg:px-8">
       <div className="page-inner">
         <div className="rounded-[26px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(6,10,18,0.98),rgba(3,6,12,0.98))] px-5 py-7 shadow-[0_20px_60px_rgba(0,0,0,0.28)] sm:px-6">
-          <div className="grid gap-8 xl:grid-cols-[1.15fr,0.9fr,0.9fr,0.9fr,0.75fr]">
-            <section className="min-w-0 xl:pr-4">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[1.2fr_repeat(5,minmax(0,0.8fr))]">
+            <section aria-label="About Bravo Gaming Esports" className="min-w-0 xl:pr-4">
               <div className="flex items-center gap-3">
                 <BravoLogo size={54} />
                 <div>
@@ -98,20 +107,26 @@ export default function Footer() {
               <p className="mt-6 text-xs text-text-muted">Copyright (C) 2026 Bravo Gaming Esports Nepal. All rights reserved.</p>
             </section>
 
-            <section>
+            <section aria-label="Quick links">
               <FooterColumn title="Quick Links" links={quickLinks} />
             </section>
 
-            <section>
+            <section aria-label="Competition links">
               <FooterColumn title="Competition" links={competitionLinks} />
             </section>
 
-            <section>
+            <section aria-label="Support links">
               <FooterColumn title="Support" links={supportLinks} />
             </section>
 
-            <section>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white">Follow Us</p>
+            <section aria-label="Account and access links">
+              <FooterColumn title="Account / Access" links={accountLinks} />
+            </section>
+
+            <section aria-labelledby="footer-follow-heading">
+              <h2 id="footer-follow-heading" className="text-[11px] font-black uppercase tracking-[0.18em] text-white">
+                Follow Us
+              </h2>
               <div className="mt-4 flex flex-wrap gap-2.5">
                 {followLinks.map((item) => (
                   <a

@@ -182,19 +182,20 @@ export default function CurrentSeasonPageClient({
                 Season standings will appear here after the first approved results are published.
               </div>
             ) : (
-              <div className="table-scroll">
+              <div className="table-scroll" tabIndex={0}>
                 <table className="data-table min-w-full">
+                  <caption className="sr-only">Overall leaderboard for the active Bravo season</caption>
                   <thead>
                     <tr>
-                      <th>#</th>
-                      <th>Slot</th>
-                      <th>Team</th>
-                      <th>M</th>
-                      <th>Kill Pts</th>
-                      <th>Place Pts</th>
-                      <th>Total</th>
-                      <th>Avg Place</th>
-                      <th>WWCD</th>
+                      <th scope="col">#</th>
+                      <th scope="col">Slot</th>
+                      <th scope="col">Team</th>
+                      <th scope="col">M</th>
+                      <th scope="col">Kill Pts</th>
+                      <th scope="col">Place Pts</th>
+                      <th scope="col">Total</th>
+                      <th scope="col">Avg Place</th>
+                      <th scope="col">WWCD</th>
                     </tr>
                   </thead>
                   <tbody>

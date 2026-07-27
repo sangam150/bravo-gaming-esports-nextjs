@@ -1,16 +1,22 @@
 import type { Tables } from "@/types/database.types";
+import type { User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import "server-only";
 import { AuthConfigurationError } from "./auth-errors";
 import { isAdminRole as isAdminRoleHelper, isPlatformRole } from "./authz";
 import { extractDiscordUserId } from "./discord-auth";
+import { syncDiscordRoles } from "./discord-role-sync";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
+import { createSupabaseServerClient } from "./supabase/server";
 
 export const SESSION_COOKIE = "bravo_session";
 export const REFRESH_COOKIE = "bravo_refresh";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 5; // 5 days
 
-type ProfileRecord = Pick<Tables<"profiles">, "id" | "role" | "team_id" | "player_id" | "display_name" | "discord_user_id"> & {
+type ProfileRecord = Pick<
+  Tables<"profiles">,
+  "id" | "role" | "team_id" | "player_id" | "display_name" | "discord_user_id" | "discord_role_synced_at"
+> & {
   is_active: boolean;
 };
 
@@ -47,7 +53,7 @@ async function getProfileFromProfiles(authUserId: string): Promise<ProfileRecord
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client
     .from("profiles")
-    .select("id,role,team_id,player_id,display_name,discord_user_id,is_active")
+    .select("id,role,team_id,player_id,display_name,discord_user_id,discord_role_synced_at,is_active")
     .eq("auth_user_id", authUserId)
     .maybeSingle();
 
@@ -62,7 +68,7 @@ async function getProfileFromDiscordUserId(discordUserId: string): Promise<Profi
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client
     .from("profiles")
-    .select("id,role,team_id,player_id,display_name,discord_user_id,is_active")
+    .select("id,role,team_id,player_id,display_name,discord_user_id,discord_role_synced_at,is_active")
     .eq("discord_user_id", discordUserId)
     .maybeSingle();
 
@@ -127,22 +133,13 @@ export function getSessionCookieMaxAge(accessToken: string) {
   }
 }
 
-export async function verifyAccessToken(accessToken: string) {
-  const client = getSupabaseServiceRoleClient();
-  const {
-    data: { user },
-    error,
-  } = await client.auth.getUser(accessToken);
-
-  if (error) {
-    throw error;
-  }
-
+async function resolveVerifiedUser(user: User | null) {
   if (!user?.id || !user.email) {
     throw new Error("Unauthorized: invalid session");
   }
 
-  const profileRecord = await getUserProfileRecord(user.id, extractDiscordUserId(user));
+  const discordUserId = extractDiscordUserId(user);
+  let profileRecord = await getUserProfileRecord(user.id, discordUserId);
   if (!profileRecord) {
     throw new AuthConfigurationError("profile_missing", "Your account has not been fully configured. Please contact the Bravo owner.");
   }
@@ -154,6 +151,18 @@ export async function verifyAccessToken(accessToken: string) {
   }
   if (!profileRecord.is_active) {
     throw new AuthConfigurationError("account_inactive", "This account is currently inactive. Please contact the Bravo owner.");
+  }
+  if (discordUserId && profileRecord.discord_user_id === discordUserId) {
+    const configuredTtl = Number(process.env.DISCORD_ROLE_SYNC_TTL_SECONDS ?? 300);
+    const ttlSeconds = Number.isFinite(configuredTtl) ? Math.max(configuredTtl, 60) : 300;
+    const lastSync = profileRecord.discord_role_synced_at ? new Date(profileRecord.discord_role_synced_at).getTime() : 0;
+    if (!lastSync || Date.now() - lastSync >= ttlSeconds * 1000) {
+      await syncDiscordRoles(user);
+      profileRecord = await getUserProfileRecord(user.id, discordUserId);
+      if (!profileRecord?.is_active) {
+        throw new AuthConfigurationError("account_inactive", "This account is currently inactive. Please contact the Bravo owner.");
+      }
+    }
   }
 
   return {
@@ -169,6 +178,20 @@ export async function verifyAccessToken(accessToken: string) {
   } satisfies VerifiedSession;
 }
 
+export async function verifyAccessToken(accessToken: string) {
+  const client = getSupabaseServiceRoleClient();
+  const {
+    data: { user },
+    error,
+  } = await client.auth.getUser(accessToken);
+
+  if (error) {
+    throw error;
+  }
+
+  return resolveVerifiedUser(user);
+}
+
 export async function createSessionCookie(accessToken: string, _expiresInMs: number) {
   void _expiresInMs;
   await verifyAccessToken(accessToken);
@@ -180,6 +203,19 @@ export async function verifySessionCookie(sessionCookie: string) {
 }
 
 export async function getServerSession() {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+    if (!error && user) {
+      return await resolveVerifiedUser(user);
+    }
+  } catch {
+    // Fall through to the short-lived compatibility cookie during migration.
+  }
+
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;

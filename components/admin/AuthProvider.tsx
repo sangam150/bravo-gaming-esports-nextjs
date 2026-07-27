@@ -42,14 +42,22 @@ export function useAdminAuth() {
   return ctx;
 }
 
-export default function AuthProvider({ children }: { children: React.ReactNode }) {
+export default function AuthProvider({
+  children,
+  initialUser,
+  initialRole = null,
+}: {
+  children: React.ReactNode;
+  initialUser?: { uid: string; email: string } | null;
+  initialRole?: string | null;
+}) {
   const configured = isSupabaseConfigured();
-  const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(configured);
+  const [user, setUser] = useState<User | null>(() => buildSessionUser(initialUser));
+  const [role, setRole] = useState<string | null>(initialRole);
+  const [loading, setLoading] = useState(configured && !initialUser);
 
-  const establishSession = useCallback(async (accessToken: string, refreshToken?: string) => {
-    const { data } = await createBravoSession(accessToken, refreshToken);
+  const establishSession = useCallback(async (accessToken: string) => {
+    const { data } = await createBravoSession(accessToken);
     return data;
   }, []);
 
@@ -102,7 +110,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (data.session?.access_token) {
         setUser(nextUser);
         try {
-          const sessionData = await establishSession(data.session.access_token, data.session.refresh_token);
+          const sessionData = await establishSession(data.session.access_token);
           setRole(sessionData.user?.role ?? null);
         } catch {
           /* browser session can stay active even if the admin cookie refresh fails */
@@ -129,7 +137,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       try {
         if (session?.access_token) {
           setUser(session.user ?? null);
-          const sessionData = await establishSession(session.access_token, session.refresh_token);
+          const sessionData = await establishSession(session.access_token);
           setRole(sessionData.user?.role ?? null);
         } else if (event === "SIGNED_OUT") {
           await clearSession();

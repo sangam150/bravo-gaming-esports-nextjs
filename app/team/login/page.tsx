@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function TeamLoginPage() {
   const session = await getServerAuthenticatedSession();
 
-  if (session && hasTeamWorkspaceAccess(session.role, session.isAdmin)) {
+  if (session && hasTeamWorkspaceAccess(session.role, session.isAdmin) && session.teamId) {
     redirect("/team");
   }
 

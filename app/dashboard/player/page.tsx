@@ -5,8 +5,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Dashboard Redirect",
-  description: "Bravo Gaming Esports uses admin login and team login only.",
+  title: "Player Dashboard",
+  description: "Protected Bravo Gaming Esports dashboard for an authenticated player with an approved linked profile.",
 };
 
 export const dynamic = "force-dynamic";

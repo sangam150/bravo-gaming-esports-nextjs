@@ -13,8 +13,8 @@ const pillars = [
     detail: "Structured competitions with clear scheduling, scoring, and result coverage built for Nepal&apos;s PUBG PC scene.",
   },
   {
-    title: "Live Leaderboards & Analytics",
-    detail: "Real-time rankings, team standings, and match statistics that help competitors track progress and performance.",
+    title: "Published Leaderboards & Analytics",
+    detail: "Verified rankings, team standings, and match statistics that help competitors track progress and performance.",
   },
 ] as const;
 

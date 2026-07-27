@@ -15,12 +15,17 @@ function SectionTable({ title, description, columns, rows }: { title: string; de
         <p className="section-heading !text-sm">{title}</p>
         <p className="mt-1 text-sm text-text-muted">{description}</p>
       </div>
-      <div className="table-scroll">
+      <div className="table-scroll" tabIndex={0}>
         <table className="data-table min-w-full">
+          <caption className="sr-only">
+            {title}: {description}
+          </caption>
           <thead>
             <tr>
               {columns.map((column) => (
-                <th key={column}>{column}</th>
+                <th key={column} scope="col">
+                  {column}
+                </th>
               ))}
             </tr>
           </thead>

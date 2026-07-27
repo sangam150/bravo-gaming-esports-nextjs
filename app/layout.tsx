@@ -57,9 +57,6 @@ export const metadata: Metadata = {
   },
   description:
     "Bravo Gaming Esports is Nepal's premier esports platform for games, events, matches, teams, players, rankings, media, sponsors, and community coverage.",
-  alternates: {
-    canonical: "/",
-  },
   keywords: [
     "Bravo Gaming Esports",
     "Nepal esports",
@@ -112,7 +109,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body
         className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} flex min-h-screen flex-col overflow-x-hidden bg-bg-primary font-body text-white antialiased`}
       >

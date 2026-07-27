@@ -257,7 +257,7 @@ export default function TeamRegistrationPageClient({
 
   if (success) {
     return (
-      <div className="esports-card p-10 text-center sm:p-12">
+      <div role="status" aria-live="polite" className="esports-card p-10 text-center sm:p-12">
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-bravoGreen/30 bg-bravoGreen/15 text-sm font-black uppercase tracking-[0.2em] text-bravoGreen">
           Sent
         </div>
@@ -294,7 +294,7 @@ export default function TeamRegistrationPageClient({
       <div className="space-y-6">
         <RegistrationStatusFlow />
 
-        <form onSubmit={handleSubmit} className="esports-card space-y-6 p-8">
+        <form onSubmit={handleSubmit} aria-busy={loading || logoUploading} className="esports-card space-y-6 p-8">
           {selectedTarget ? (
             <div className="rounded-2xl border border-accent-blue/25 bg-accent-blue/10 px-5 py-4">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Selected Event</p>
@@ -314,7 +314,12 @@ export default function TeamRegistrationPageClient({
 
           <div>
             <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Select Event</label>
-            <select className="input-esports" value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>
+            <select
+              aria-label="Select event"
+              className="input-esports"
+              value={selectedEventId}
+              onChange={(event) => setSelectedEventId(event.target.value)}
+            >
               <option value="">General Bravo review queue (manual placement)</option>
               {availableTournaments.map((tournament) => (
                 <option key={tournament.id} value={tournament.id}>
@@ -332,6 +337,7 @@ export default function TeamRegistrationPageClient({
             <div>
               <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Team Name *</label>
               <input
+                aria-label="Team name"
                 className="input-esports"
                 value={teamName}
                 onChange={(event) => setTeamName(event.target.value)}
@@ -342,6 +348,7 @@ export default function TeamRegistrationPageClient({
             <div>
               <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Team Tag / Clan Code</label>
               <input
+                aria-label="Team tag or clan code"
                 className="input-esports"
                 value={teamTag}
                 onChange={(event) => setTeamTag(event.target.value)}
@@ -357,6 +364,7 @@ export default function TeamRegistrationPageClient({
             <div>
               <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">IGL / Manager Name *</label>
               <input
+                aria-label="IGL or manager name"
                 className="input-esports"
                 value={captainName}
                 onChange={(event) => setCaptainName(event.target.value)}
@@ -367,6 +375,7 @@ export default function TeamRegistrationPageClient({
             <div>
               <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Discord Contact *</label>
               <input
+                aria-label="Discord contact"
                 className="input-esports"
                 value={captainDiscord}
                 onChange={(event) => setCaptainDiscord(event.target.value)}
@@ -382,6 +391,7 @@ export default function TeamRegistrationPageClient({
               {playerNames.map((name, index) => (
                 <input
                   key={index}
+                  aria-label={`Player ${index + 1} IGN`}
                   className="input-esports"
                   value={name}
                   onChange={(event) => {
@@ -450,15 +460,33 @@ export default function TeamRegistrationPageClient({
             </div>
 
             {logoNotice ? (
-              <div className="rounded-xl border border-bravoGreen/25 bg-bravoGreen/10 px-4 py-3 text-sm text-bravoGreen">{logoNotice}</div>
+              <div
+                role="status"
+                aria-live="polite"
+                className="rounded-xl border border-bravoGreen/25 bg-bravoGreen/10 px-4 py-3 text-sm text-bravoGreen"
+              >
+                {logoNotice}
+              </div>
             ) : null}
             {logoError ? (
-              <div className="rounded-xl border border-bravoRed/25 bg-bravoRed/10 px-4 py-3 text-sm text-bravoRed">{logoError}</div>
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="rounded-xl border border-bravoRed/25 bg-bravoRed/10 px-4 py-3 text-sm text-bravoRed"
+              >
+                {logoError}
+              </div>
             ) : null}
           </div>
 
           {error ? (
-            <div className="rounded-xl border border-bravoRed/25 bg-bravoRed/10 px-4 py-3 text-sm text-bravoRed">{error}</div>
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="rounded-xl border border-bravoRed/25 bg-bravoRed/10 px-4 py-3 text-sm text-bravoRed"
+            >
+              {error}
+            </div>
           ) : null}
 
           <div className="flex flex-wrap gap-3">

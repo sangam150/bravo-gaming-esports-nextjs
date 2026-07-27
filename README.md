@@ -57,7 +57,10 @@ Production notes:
 
 - Set `NEXT_PUBLIC_SITE_URL` (or `SITE_URL`) to your live domain for metadata, sitemap, and robots output
 - Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SECRET_KEY` in Vercel
-- Run the SQL in [supabase/schema.sql](./supabase/schema.sql) before using the admin data tools
+- Link the intended Supabase project and apply the ordered files in
+  [`supabase/migrations`](./supabase/migrations) with `npm run supabase:db:push`
+- Treat the UID-linked `public.profiles` row as the only application-role source;
+  never grant access from email, OAuth metadata, or client-provided role values
 
 QA-only visual data tools:
 
