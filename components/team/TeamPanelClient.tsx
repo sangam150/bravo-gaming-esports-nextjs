@@ -4,7 +4,7 @@ import BravoLogo from "@/components/ui/BravoLogo";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { formatDisplayDateTime } from "@/lib/display-format";
 import { scheduleEffectTask } from "@/lib/effect-task";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { AuthenticatedUserProfile, TeamWorkspaceData } from "@/lib/types";
 import { IMAGE_FILE_INPUT_ACCEPT, MOSS_FILE_INPUT_ACCEPT, TEAM_LOGO_FILE_INPUT_ACCEPT } from "@/lib/upload-config";

@@ -1,4 +1,5 @@
 import { hasEdgeAdminAccess, hasEdgeTeamAccess, resolveEdgeIdentity } from "@/lib/edge-auth";
+import { refreshSupabaseSession } from "@/lib/supabase/proxy";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -72,21 +73,21 @@ export async function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/news/")) {
     const slug = request.nextUrl.pathname.split("/").filter(Boolean)[1];
     if (!slug || (await shouldRejectNewsSlug(slug))) {
-      return notFoundResponse(request);
+      return refreshSupabaseSession(request, notFoundResponse(request));
     }
   }
 
   if (request.nextUrl.pathname.startsWith("/pubg/matches/")) {
     const slug = request.nextUrl.pathname.split("/").filter(Boolean)[2];
     if (!slug || (await shouldRejectMatchSlug(slug))) {
-      return notFoundResponse(request);
+      return refreshSupabaseSession(request, notFoundResponse(request));
     }
   }
 
   const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
   const isTeamRoute = request.nextUrl.pathname === "/team" || request.nextUrl.pathname.startsWith("/team/");
   if (!isAdminRoute && !isTeamRoute) {
-    return NextResponse.next();
+    return refreshSupabaseSession(request, NextResponse.next({ request }));
   }
 
   const identity = await resolveEdgeIdentity(request);
@@ -96,18 +97,18 @@ export async function proxy(request: NextRequest) {
   if (isAdminRoute && !isAdminLoginPage && !hasEdgeAdminAccess(identity)) {
     const response = NextResponse.redirect(new URL("/admin/login", request.url));
     response.cookies.delete(SESSION_COOKIE);
-    return response;
+    return refreshSupabaseSession(request, response);
   }
 
   if (isTeamRoute && !isTeamLoginPage && !hasEdgeTeamAccess(identity)) {
     const response = NextResponse.redirect(new URL("/team/login?redirect=/team", request.url));
     if (!identity) response.cookies.delete(SESSION_COOKIE);
-    return response;
+    return refreshSupabaseSession(request, response);
   }
 
   const response = NextResponse.next();
   response.headers.set("Cache-Control", "private, no-store");
-  return response;
+  return refreshSupabaseSession(request, response);
 }
 
 export const config = {

@@ -3,8 +3,6 @@ import type { LoginAccessVariant, LoginErrorStage, LoginFailureCategory } from "
 type LoginSessionResponse = {
   success?: boolean;
   status?: number;
-  accessToken?: string;
-  refreshToken?: string;
   user?: {
     uid?: string;
     email?: string;

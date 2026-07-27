@@ -1,7 +1,7 @@
 "use client";
 
 import { buildDiscordAuthCallbackUrl } from "@/lib/discord-auth";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 

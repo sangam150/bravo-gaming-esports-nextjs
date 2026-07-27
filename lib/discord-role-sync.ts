@@ -339,3 +339,48 @@ export async function syncDiscordRoles(user: User) {
     redirectTo,
   };
 }
+
+export async function verifyDiscordGuildMembership(user: User) {
+  const discordUserId = extractDiscordUserId(user);
+  if (!discordUserId) {
+    throw new DiscordRoleSyncError("identity_missing", "Discord identity verification could not be completed.");
+  }
+
+  const config = getConfig();
+  let response: Response;
+  try {
+    response = await fetch(`https://discord.com/api/v10/guilds/${config.guildId}/members/${discordUserId}`, {
+      headers: { Authorization: `Bot ${config.botToken}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch {
+    throw new DiscordRoleSyncError(
+      "unavailable",
+      "Discord verification is temporarily unavailable. Please try again later or use email login.",
+      503,
+    );
+  }
+
+  if (response.status === 404) {
+    throw new DiscordRoleSyncError(
+      "not_member",
+      "You must be a member of the official Bravo Gaming Esports Discord server to use Discord login.",
+    );
+  }
+  if (!response.ok) {
+    throw new DiscordRoleSyncError(
+      "unavailable",
+      "Discord verification is temporarily unavailable. Please try again later or use email login.",
+      503,
+    );
+  }
+
+  const member = (await response.json()) as { roles?: unknown };
+  const roleIds = Array.isArray(member.roles) ? member.roles.filter((role): role is string => typeof role === "string") : [];
+  if (config.bannedRoleIds.some((roleId) => roleIds.includes(roleId))) {
+    throw new DiscordRoleSyncError("banned", "This Discord account is not permitted to access Bravo Gaming Esports.");
+  }
+
+  return { discordUserId, roleIds };
+}

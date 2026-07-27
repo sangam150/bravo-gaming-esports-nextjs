@@ -11,7 +11,7 @@ import {
 import { buildFallbackTeamNameFromSlot, canonicalizeBravoTeamName, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
 import { COLLECTIONS } from "./document-store-collections";
 import { compareMatchSequenceOrder, comparePlayerLeaderboardPerformance } from "./ranking-sort";
-import { getSupabaseBrowserClient } from "./supabase/browser-client";
+import { getSupabaseBrowserClient } from "./supabase/client";
 import { SUPABASE_DOCUMENT_STORE_TABLE, mapSupabaseDocumentStoreRow } from "./supabase/document-store";
 import { isSupabaseConfigured } from "./supabase/env";
 import type {

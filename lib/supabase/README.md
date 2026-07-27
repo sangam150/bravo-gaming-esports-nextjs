@@ -6,7 +6,9 @@ Files:
 
 - `constants.ts`: canonical table, bucket, and role names
 - `env.ts`: shared Supabase environment validation helpers
-- `browser-client.ts`: browser client for public/admin UI
+- `client.ts`: browser client for public/admin UI
+- `server.ts`: cookie-aware server client for Route Handlers and Server Components
+- `proxy.ts`: cookie-aware session refresh for the Next.js proxy
 - `server-client.ts`: server client for Next.js route handlers and server components
 - `service-role-client.ts`: secure admin-only/service-role client for privileged writes
 

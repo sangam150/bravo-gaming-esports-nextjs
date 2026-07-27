@@ -1,6 +1,6 @@
 "use client";
 
-import { getSupabaseBrowserClient } from "./supabase/browser-client";
+import { getSupabaseBrowserClient } from "./supabase/client";
 import type { UploadType } from "./upload-config";
 import { getResponseErrorMessage, USER_FACING_ERROR_MESSAGES } from "./user-facing-errors";
 

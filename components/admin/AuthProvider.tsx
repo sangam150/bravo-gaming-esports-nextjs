@@ -2,7 +2,7 @@
 
 import { isAdminRole } from "@/lib/authz";
 import { clearBravoSession, createBravoSession, performPasswordLogin } from "@/lib/login-client";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getLoginFailureDetails, validateLoginCredentials } from "@/lib/user-facing-errors";
 import type { User } from "@supabase/supabase-js";

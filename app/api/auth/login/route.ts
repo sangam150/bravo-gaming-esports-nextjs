@@ -4,10 +4,9 @@ import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server-monitoring";
 import { createSessionCookie, getSessionCookieMaxAge, REFRESH_COOKIE, SESSION_COOKIE, verifyAccessToken } from "@/lib/supabase-auth-server";
-import { requireSupabaseEnv } from "@/lib/supabase/env";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { LoginAccessVariant } from "@/lib/user-facing-errors";
 import { getLoginFailureDetails, getRoleAccessErrorMessage, LOGIN_ERROR_MESSAGES } from "@/lib/user-facing-errors";
-import { createClient } from "@supabase/supabase-js";
 import { after } from "next/server";
 
 function readText(value: unknown) {
@@ -78,13 +77,7 @@ export async function POST(request: Request) {
       return createLoginErrorResponse(LOGIN_ERROR_MESSAGES.missingCredentials, 400);
     }
 
-    const { url, publicKey } = requireSupabaseEnv();
-    const supabase = createClient(url, publicKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    const supabase = await createSupabaseServerClient();
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -160,8 +153,6 @@ export async function POST(request: Request) {
     const sessionCookie = await createSessionCookie(data.session.access_token, sessionCookieMaxAge * 1000);
     const response = Response.json({
       success: true,
-      accessToken: data.session.access_token,
-      refreshToken: data.session.refresh_token,
       user: {
         uid: verifiedSession.uid,
         email: verifiedSession.email,

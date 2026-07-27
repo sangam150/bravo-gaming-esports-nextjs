@@ -17,6 +17,18 @@ type LoginHubClientProps = {
   variant?: LoginVariant;
 };
 
+const CALLBACK_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  oauth_cancelled: "Discord sign-in was cancelled. You can try again or use email login.",
+  callback_code_missing: "Discord sign-in could not be completed. Please start again from this page.",
+  callback_exchange_failed: "Discord sign-in expired or could not be verified. Please try again.",
+  identity_verification_failed: "Discord returned an identity that could not be verified.",
+  discord_identity_missing: "Discord identity verification could not be completed.",
+  discord_not_member: "Join the official Bravo Gaming Esports Discord server before using Discord login.",
+  discord_unavailable: "Discord verification is temporarily unavailable. Please try again later or use email login.",
+  discord_profile_missing: "Your Bravo profile is not ready. Please contact Bravo Admin.",
+  discord_access_denied: "Discord access could not be approved. Please contact Bravo Admin if this continues.",
+};
+
 function getVariantContent(variant: LoginVariant) {
   switch (variant) {
     case "team":
@@ -55,6 +67,12 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
   const content = getVariantContent(variant);
 
   useEffect(() => scheduleEffectTask(() => setHydrated(true)), []);
+  useEffect(() => {
+    const callbackError = searchParams.get("error");
+    if (callbackError) {
+      scheduleEffectTask(() => setError(CALLBACK_ERROR_MESSAGES[callbackError] ?? CALLBACK_ERROR_MESSAGES.discord_access_denied));
+    }
+  }, [searchParams]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

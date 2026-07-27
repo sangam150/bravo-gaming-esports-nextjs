@@ -2,8 +2,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { chromium } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
-const origin = "https://bravo-gaming-esports.vercel.app";
-const rawOrigin = "https://bravo-gaming-esports-kjmkrye0k-sangams-projects-9468acfa.vercel.app";
+const origin = process.env.QA_AUTH_ORIGIN || "https://bravo-gaming-esports.vercel.app";
+const rawOrigin = process.env.QA_AUTH_RAW_ORIGIN || "https://bravo-gaming-esports-kjmkrye0k-sangams-projects-9468acfa.vercel.app";
+const isLiveProductionOrigin = new URL(origin).protocol === "https:";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !serviceKey) throw new Error("Supabase production QA configuration is incomplete.");
@@ -246,12 +247,12 @@ try {
   const resetBody = await resetResponse.json();
   assert(resetResponse.ok && resetBody.success, "Password-reset request failed.");
 
-  const [aliasResponse, rawResponse] = await Promise.all([
-    fetch(`${origin}/admin`, { redirect: "manual" }),
-    fetch(`${rawOrigin}/admin`, { redirect: "manual" }),
-  ]);
+  const aliasResponse = await fetch(`${origin}/admin`, { redirect: "manual" });
   assert(aliasResponse.status >= 300 && aliasResponse.status < 400, "Owner alias did not protect /admin.");
-  assert(rawResponse.status >= 300 && rawResponse.status < 400, "Raw deployment did not protect /admin.");
+  if (isLiveProductionOrigin) {
+    const rawResponse = await fetch(`${rawOrigin}/admin`, { redirect: "manual" });
+    assert(rawResponse.status >= 300 && rawResponse.status < 400, "Raw deployment did not protect /admin.");
+  }
   console.log(
     "Production browser authentication QA passed: admin login/refresh/direct route/logout, viewer rejection, team isolation, mobile login, reset request, and raw/alias protection.",
   );
