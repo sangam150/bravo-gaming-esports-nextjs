@@ -15,18 +15,12 @@ export function useDiscordProviderEnabled(skipDetection = false) {
 
     let active = true;
     void (async () => {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-      const publicKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-      if (!supabaseUrl || !publicKey) return;
-      const response = await fetch(`${supabaseUrl}/auth/v1/settings`, {
-        headers: { apikey: publicKey },
-        cache: "no-store",
-      });
+      const response = await fetch("/api/auth/providers", { cache: "no-store" });
       if (!response.ok) return;
-      const settings = (await response.json()) as {
-        external?: { discord?: boolean };
+      const providers = (await response.json()) as {
+        discord?: boolean;
       };
-      if (active) setProviderEnabled(settings.external?.discord === true);
+      if (active) setProviderEnabled(providers.discord === true);
     })().catch(() => undefined);
 
     return () => {

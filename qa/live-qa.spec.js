@@ -661,6 +661,44 @@ test("Auth entry-point smoke QA", async ({ page }) => {
   writeSummary();
 });
 
+test("OAuth provider visibility follows live authorization readiness", async ({ page, request }) => {
+  const readinessResponse = await request.get(`${baseURL}/api/auth/providers`);
+  expect(readinessResponse.status()).toBe(200);
+  expect(readinessResponse.headers()["cache-control"]).toContain("no-store");
+  const readiness = await readinessResponse.json();
+  expect(typeof readiness.discord).toBe("boolean");
+  const expectedDiscordControls = readiness.discord ? 1 : 0;
+
+  const loginReadinessResponse = page.waitForResponse(
+    (response) => response.url().endsWith("/api/auth/providers") && response.status() === 200,
+  );
+  await page.goto(`${baseURL}/login`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
+  await loginReadinessResponse;
+  await expect(page.locator('input[type="email"]')).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Continue with Discord", exact: true })).toHaveCount(expectedDiscordControls);
+  await expect(page.getByText("Or continue with", { exact: true })).toHaveCount(expectedDiscordControls);
+
+  const adminReadinessResponse = page.waitForResponse(
+    (response) => response.url().endsWith("/api/auth/providers") && response.status() === 200,
+  );
+  await page.goto(`${baseURL}/admin/login`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45000,
+  });
+  await adminReadinessResponse;
+  await expect(page.locator('input[type="email"]')).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Continue with Discord", exact: true })).toHaveCount(expectedDiscordControls);
+
+  summary.passed.push({
+    label: "OAuth controls match live provider readiness",
+    route: "/login, /admin/login",
+  });
+  writeSummary();
+});
+
 test("Required responsive viewport and navigation QA", async ({ browser }) => {
   test.setTimeout(300000);
   const requiredViewports = [
