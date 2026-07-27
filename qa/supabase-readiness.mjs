@@ -122,12 +122,6 @@ function loadEnvFile(filePath) {
   return env;
 }
 
-function maskPreview(value) {
-  if (!value) return null;
-  if (value.length <= 8) return "*".repeat(value.length);
-  return `${value.slice(0, 4)}...${value.slice(-4)}`;
-}
-
 function getJwtShape(value) {
   const segments = value ? value.split(".") : [];
   const signature = segments.length === 3 ? segments[2] : "";
@@ -276,10 +270,6 @@ async function main() {
       publicKeySource: publishableKey ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" : anonKey ? "NEXT_PUBLIC_SUPABASE_ANON_KEY" : null,
       restKeySource: anonKey ? "NEXT_PUBLIC_SUPABASE_ANON_KEY" : publishableKey ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" : null,
       serviceKeySource: secretKey ? "SUPABASE_SECRET_KEY" : serviceRoleKey ? "SUPABASE_SERVICE_ROLE_KEY" : null,
-      publishableKeyPreview: maskPreview(publishableKey),
-      anonKeyPreview: maskPreview(anonKey),
-      secretKeyPreview: maskPreview(secretKey),
-      serviceRoleKeyPreview: maskPreview(serviceRoleKey),
       serviceRoleKeyShape,
       serviceRoleKeyWarning: serviceRoleKeyShape.looksMalformedJwt ? "Service role key looks truncated or copied incorrectly." : null,
       hasLegacyFirebaseEnv: firebaseKeys.length > 0,
