@@ -1,6 +1,7 @@
 "use client";
 
 import { adminFetch } from "@/lib/admin-api";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminTeamReconciliationManager from "./AdminTeamReconciliationManager";
 
@@ -44,7 +45,7 @@ export default function AdminRegisteredTeamsManager() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => void load(), [load]);
+  useEffect(() => scheduleEffectTask(load), [load]);
 
   const visible = useMemo(
     () =>

@@ -4,6 +4,7 @@ import DiscordLoginButton, { useDiscordProviderEnabled } from "@/components/auth
 import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { clearBravoSession, performPasswordLogin, reportLoginFailure } from "@/lib/login-client";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { LOGIN_ERROR_MESSAGES, validateLoginCredentials } from "@/lib/user-facing-errors";
 import Link from "next/link";
@@ -53,7 +54,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
   const [error, setError] = useState<string | null>(null);
   const content = getVariantContent(variant);
 
-  useEffect(() => setHydrated(true), []);
+  useEffect(() => scheduleEffectTask(() => setHydrated(true)), []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

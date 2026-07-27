@@ -4,6 +4,7 @@ import { adminFetch, adminUpload } from "@/lib/admin-api";
 import type { Team } from "@/lib/types";
 import { formatUploadSize, getUploadMaxBytes, IMAGE_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
 import { validateImageUpload } from "@/lib/upload-validation";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type UploadStatus = "queued" | "uploading" | "uploaded" | "unmatched" | "error";
@@ -341,9 +342,12 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
                 {results.map((result) => (
                   <tr key={result.id}>
                     <td>
-                      <img
+                      <Image
                         src={result.previewUrl}
                         alt={result.fileName}
+                        width={48}
+                        height={48}
+                        unoptimized
                         className="h-12 w-12 rounded-lg border border-white/10 object-cover"
                       />
                     </td>

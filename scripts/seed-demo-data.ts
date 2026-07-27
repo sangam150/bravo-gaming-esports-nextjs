@@ -556,11 +556,13 @@ async function run() {
     (existingTeamSlotsResponse.data ?? []).map((row) => row.slot_number).filter((value): value is number => Number.isFinite(value)),
   );
   const occupiedTeamNames = new Set(
-    (existingTeamSlotsResponse.data ?? []).map((row) => row.name?.trim().toLowerCase()).filter((value): value is string => Boolean(value)),
+    (existingTeamSlotsResponse.data ?? [])
+      .map((row) => (typeof row.name === "string" ? row.name.trim().toLowerCase() : null))
+      .filter((value): value is string => Boolean(value)),
   );
   const occupiedPlayerNames = new Set(
     (existingPlayerNamesResponse.data ?? [])
-      .map((row) => row.pubg_name?.trim().toLowerCase())
+      .map((row) => (typeof row.pubg_name === "string" ? row.pubg_name.trim().toLowerCase() : null))
       .filter((value): value is string => Boolean(value)),
   );
   const reserveSlotNumbers = (count: number, startAt = 41) => {

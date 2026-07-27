@@ -43,10 +43,10 @@ export function useAdminAuth() {
 }
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
+  const configured = isSupabaseConfigured();
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const configured = isSupabaseConfigured();
+  const [loading, setLoading] = useState(configured);
 
   const establishSession = useCallback(async (accessToken: string, refreshToken?: string) => {
     const { data } = await createBravoSession(accessToken, refreshToken);
@@ -82,7 +82,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (!configured) {
-      setLoading(false);
       return;
     }
 

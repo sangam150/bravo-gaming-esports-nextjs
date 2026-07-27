@@ -3,15 +3,17 @@
 import BravoLogo from "@/components/ui/BravoLogo";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { formatDisplayDateTime } from "@/lib/display-format";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { AuthenticatedUserProfile, TeamWorkspaceData } from "@/lib/types";
 import { IMAGE_FILE_INPUT_ACCEPT, MOSS_FILE_INPUT_ACCEPT, TEAM_LOGO_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
 import { getResponseErrorMessage, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import type { Session } from "@supabase/supabase-js";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 type TeamUploadType = "team_logo" | "moss_file";
 
@@ -184,44 +186,47 @@ export default function TeamPanelClient() {
     }
   }
 
+  const bootstrapSessionEffect = useEffectEvent(bootstrapSession);
+  const authStateChangeEffect = useEffectEvent(async (session: Session | null) => {
+    setNotice(null);
+    setAuthError(null);
+
+    try {
+      const nextProfile = await syncSession(session);
+      if (nextProfile && hasTeamWorkspaceAccess(nextProfile.role, nextProfile.isAdmin)) {
+        await loadWorkspace();
+      } else if (!nextProfile) {
+        setWorkspace(null);
+      } else {
+        setWorkspace(null);
+        setAuthError("This account does not have access to the team workspace.");
+      }
+    } catch (error: unknown) {
+      setAuthError(
+        toUserFacingErrorMessage(error, {
+          fallback: USER_FACING_ERROR_MESSAGES.teamWorkspace,
+        }),
+      );
+    } finally {
+      setLoading(false);
+    }
+  });
+
   useEffect(() => {
     if (!supabase) {
-      setLoading(false);
-      return;
+      return scheduleEffectTask(() => setLoading(false));
     }
 
-    void bootstrapSession();
+    const cancelBootstrap = scheduleEffectTask(bootstrapSessionEffect);
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      void (async () => {
-        setNotice(null);
-        setAuthError(null);
-
-        try {
-          const nextProfile = await syncSession(session);
-          if (nextProfile && hasTeamWorkspaceAccess(nextProfile.role, nextProfile.isAdmin)) {
-            await loadWorkspace();
-          } else if (!nextProfile) {
-            setWorkspace(null);
-          } else {
-            setWorkspace(null);
-            setAuthError("This account does not have access to the team workspace.");
-          }
-        } catch (error: unknown) {
-          setAuthError(
-            toUserFacingErrorMessage(error, {
-              fallback: USER_FACING_ERROR_MESSAGES.teamWorkspace,
-            }),
-          );
-        } finally {
-          setLoading(false);
-        }
-      })();
+      void authStateChangeEffect(session);
     });
 
     return () => {
+      cancelBootstrap();
       subscription.unsubscribe();
     };
   }, [supabase]);
@@ -609,9 +614,11 @@ export default function TeamPanelClient() {
         <section className="esports-card p-6">
           <div className="flex flex-wrap items-center gap-4">
             {workspace?.team?.logoUrl ? (
-              <img
+              <Image
                 src={workspace.team.logoUrl}
                 alt={`${workspace.team.name} logo`}
+                width={80}
+                height={80}
                 className="h-20 w-20 rounded-3xl border border-white/10 bg-black/20 object-cover"
               />
             ) : (
@@ -654,9 +661,11 @@ export default function TeamPanelClient() {
                   <div key={player.id} className="rounded-3xl border border-white/10 bg-bg-primary/70 p-4">
                     <div className="flex items-start gap-3">
                       {player.avatarUrl ? (
-                        <img
+                        <Image
                           src={player.avatarUrl}
                           alt={`${player.pubgName} avatar`}
+                          width={64}
+                          height={64}
                           className="h-16 w-16 rounded-2xl border border-white/10 object-cover"
                         />
                       ) : (

@@ -1,9 +1,11 @@
 "use client";
 
 import { adminUpload } from "@/lib/admin-api";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { formatUploadSize, getUploadMaxBytes, IMAGE_FILE_INPUT_ACCEPT, type UploadType } from "@/lib/upload-config";
 import { validateImageUpload } from "@/lib/upload-validation";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 export default function FileUpload({
@@ -29,7 +31,7 @@ export default function FileUpload({
   const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
-    setPreview(currentUrl ?? null);
+    return scheduleEffectTask(() => setPreview(currentUrl ?? null));
   }, [currentUrl]);
 
   useEffect(() => {
@@ -173,7 +175,14 @@ export default function FileUpload({
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           {preview ? (
-            <img src={preview} alt={`${label} preview`} className="h-24 w-24 rounded-xl border border-white/10 object-cover" />
+            <Image
+              src={preview}
+              alt={`${label} preview`}
+              width={96}
+              height={96}
+              unoptimized
+              className="h-24 w-24 rounded-xl border border-white/10 object-cover"
+            />
           ) : (
             <div className="flex h-24 w-24 items-center justify-center rounded-xl border border-dashed border-white/20 text-center text-xs text-text-muted">
               Drop image

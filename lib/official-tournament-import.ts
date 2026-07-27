@@ -459,7 +459,8 @@ async function getDocumentDirect<T>(client: Client, collectionName: string, docI
 async function saveDocumentDirect(client: Client, collectionName: string, docId: string, data: Record<string, unknown>) {
   const now = new Date().toISOString();
   const existingDocument = await getDocumentDirect<Record<string, unknown>>(client, collectionName, docId);
-  const { id: _existingId, ...existingPayload } = existingDocument ?? {};
+  const existingPayload = { ...(existingDocument ?? {}) };
+  delete existingPayload.id;
   const mergedData = toJsonRecord({
     ...existingPayload,
     ...data,

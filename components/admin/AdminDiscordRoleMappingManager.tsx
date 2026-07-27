@@ -1,6 +1,7 @@
 "use client";
 
 import { adminFetch } from "@/lib/admin-api";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "./AuthProvider";
 
@@ -64,8 +65,7 @@ export default function AdminDiscordRoleMappingManager() {
   }, []);
 
   useEffect(() => {
-    if (role === "super_admin") void load();
-    else setLoading(false);
+    return scheduleEffectTask(() => (role === "super_admin" ? load() : setLoading(false)));
   }, [load, role]);
 
   function updateLocal(roleId: string, patch: Partial<Mapping>) {

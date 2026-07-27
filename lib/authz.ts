@@ -22,8 +22,8 @@ export function isAdminRole(role: string | null | undefined) {
   return Boolean(role && ADMIN_ROLES.has(role));
 }
 
-export function hasTeamWorkspaceAccess(role: string | null | undefined, _isAdmin = false) {
-  return Boolean(role && TEAM_WORKSPACE_ROLES.has(role));
+export function hasTeamWorkspaceAccess(role: string | null | undefined, isAdmin = false) {
+  return Boolean(!isAdmin && role && TEAM_WORKSPACE_ROLES.has(role));
 }
 
 export function hasPlayerDashboardAccess(role: string | null | undefined, isAdmin = false) {

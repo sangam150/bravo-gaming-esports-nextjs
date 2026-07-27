@@ -1,6 +1,7 @@
 "use client";
 
 import BravoLogo from "@/components/ui/BravoLogo";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { ChevronRight, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -93,11 +94,11 @@ export default function SiteHeaderClient({ watchLiveHref }: SiteHeaderClientProp
   const drawerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    setMounted(true);
+    return scheduleEffectTask(() => setMounted(true));
   }, []);
 
   useEffect(() => {
-    setMobileOpen(false);
+    return scheduleEffectTask(() => setMobileOpen(false));
   }, [pathname]);
 
   useEffect(() => {

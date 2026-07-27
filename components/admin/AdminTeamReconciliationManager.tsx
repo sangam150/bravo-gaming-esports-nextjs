@@ -1,6 +1,7 @@
 "use client";
 
 import { adminFetch } from "@/lib/admin-api";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Candidate = {
@@ -54,7 +55,7 @@ export default function AdminTeamReconciliationManager() {
     }
   }, []);
 
-  useEffect(() => void load(), [load]);
+  useEffect(() => scheduleEffectTask(load), [load]);
 
   const visible = useMemo(
     () =>

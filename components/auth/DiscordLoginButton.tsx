@@ -51,7 +51,7 @@ export default function DiscordLoginButton({ className = "", enabled }: { classN
       },
     });
     if (oauthError) {
-      setError("Discord role verification is temporarily unavailable. Please use email login or try again later.");
+      setError("Discord sign-in could not start. Please try again or use email login.");
       setLoading(false);
     }
   }

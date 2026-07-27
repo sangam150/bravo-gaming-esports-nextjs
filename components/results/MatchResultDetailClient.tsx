@@ -6,6 +6,7 @@ import { formatDisplayNumber } from "@/lib/display-format";
 import { compareMatchPlayerResults, compareMatchTeamResults } from "@/lib/ranking-sort";
 import { useRealtimeMatchResult } from "@/lib/realtime-hooks";
 import type { MatchPlayerResult, TournamentMatch } from "@/lib/types";
+import Image from "next/image";
 import Link from "next/link";
 
 function readText(value?: string | null, fallback = "TBD") {
@@ -208,9 +209,11 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                       <p className="section-title">Map</p>
                       <div className="mt-3 overflow-hidden rounded-[20px] border border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(47,152,255,0.2),transparent_32%),linear-gradient(180deg,rgba(16,24,43,0.96),rgba(8,14,28,0.96))]">
                         {matchAssets[0] ? (
-                          <img
+                          <Image
                             src={matchAssets[0]}
                             alt={`${readText(activeMatch.map)} match asset`}
+                            width={1200}
+                            height={400}
                             className="h-52 w-full object-cover opacity-80"
                           />
                         ) : (
@@ -347,7 +350,7 @@ export default function MatchResultDetailClient({ initialMatch }: { initialMatch
                         rel="noreferrer"
                         className="overflow-hidden rounded-[18px] border border-white/[0.06] bg-black/15 transition hover:border-accent-blue/25"
                       >
-                        <img src={assetUrl} alt="Match asset" className="h-44 w-full object-cover" />
+                        <Image src={assetUrl} alt="Match asset" width={800} height={352} className="h-44 w-full object-cover" />
                       </a>
                     ))}
                   </div>

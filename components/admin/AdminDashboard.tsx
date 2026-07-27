@@ -5,6 +5,7 @@ import { adminFetch } from "@/lib/admin-api";
 import type { AuditLogRecord } from "@/lib/audit-logs";
 import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
 import { formatAnnouncementDate, formatDisplayDate, formatDisplayDateTime } from "@/lib/display-format";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { formatKathmanduDateTimeInput, isManagedNewsArticlePublic } from "@/lib/news-publishing";
 import type { FooterLinkRecord, HomepageContentRecord, HomepageHeroSlideRecord, ManagedNewsArticleRecord } from "@/lib/platform-content";
 import { compareTeamLeaderboardPerformance } from "@/lib/ranking-sort";
@@ -28,6 +29,7 @@ import type {
   TournamentStatus,
   UploadRecord,
 } from "@/lib/types";
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminDiscordLinkManager from "./AdminDiscordLinkManager";
@@ -566,7 +568,7 @@ export default function AdminDashboard({
   );
 
   useEffect(() => {
-    setSection(initialSection);
+    return scheduleEffectTask(() => setSection(initialSection));
   }, [initialSection]);
 
   const loadData = useCallback(async () => {
@@ -629,32 +631,34 @@ export default function AdminDashboard({
   }, []);
 
   useEffect(() => {
-    loadData();
+    return scheduleEffectTask(loadData);
   }, [loadData]);
 
   useEffect(() => {
     if (!activeSeason) return;
 
-    setTournamentForm((currentForm) =>
-      currentForm.seasonId
-        ? currentForm
-        : {
-            ...currentForm,
-            seasonId: activeSeason.id,
-            seasonTitle: activeSeason.seriesTitle ?? activeSeason.title,
-            seasonNumber: activeSeason.seasonNumber,
-          },
-    );
+    return scheduleEffectTask(() => {
+      setTournamentForm((currentForm) =>
+        currentForm.seasonId
+          ? currentForm
+          : {
+              ...currentForm,
+              seasonId: activeSeason.id,
+              seasonTitle: activeSeason.seriesTitle ?? activeSeason.title,
+              seasonNumber: activeSeason.seasonNumber,
+            },
+      );
 
-    setScrimForm((currentForm) =>
-      currentForm.seasonId
-        ? currentForm
-        : {
-            ...currentForm,
-            seasonId: activeSeason.id,
-            seasonTitle: activeSeason.seriesTitle ?? activeSeason.title,
-          },
-    );
+      setScrimForm((currentForm) =>
+        currentForm.seasonId
+          ? currentForm
+          : {
+              ...currentForm,
+              seasonId: activeSeason.id,
+              seasonTitle: activeSeason.seriesTitle ?? activeSeason.title,
+            },
+      );
+    });
   }, [activeSeason]);
 
   function findTournamentScrim(tournamentId?: string | null) {
@@ -2989,9 +2993,11 @@ export default function AdminDashboard({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
                       {team.logoUrl || team.logo ? (
-                        <img
-                          src={team.logoUrl ?? team.logo}
+                        <Image
+                          src={team.logoUrl ?? team.logo ?? ""}
                           alt={team.name}
+                          width={56}
+                          height={56}
                           loading="lazy"
                           decoding="async"
                           className="h-14 w-14 rounded-xl border border-white/10 object-cover"
@@ -3956,9 +3962,11 @@ export default function AdminDashboard({
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="flex min-w-0 items-start gap-4">
                         {r.logoUrl ? (
-                          <img
+                          <Image
                             src={r.logoUrl}
                             alt={`${r.teamName} logo`}
+                            width={64}
+                            height={64}
                             className="h-16 w-16 rounded-2xl border border-white/10 object-cover"
                           />
                         ) : (

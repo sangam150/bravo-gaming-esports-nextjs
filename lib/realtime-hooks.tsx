@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { scheduleEffectTask } from "./effect-task";
 import {
   buildCurrentSeasonOverviewFromCollections,
   buildFallbackLeaderboardRows,
@@ -177,8 +178,7 @@ function useCollectionSnapshot<T extends DocumentRecord>(collectionName: string,
 
   useEffect(() => {
     if (!enabled || !canUseSupabaseRealtime()) {
-      setLoading(false);
-      return;
+      return scheduleEffectTask(() => setLoading(false));
     }
 
     let active = true;
@@ -232,8 +232,7 @@ function useWhereSnapshot<T extends DocumentRecord>(collectionName: string, fiel
 
   useEffect(() => {
     if (!value || !canUseSupabaseRealtime()) {
-      setLoading(false);
-      return;
+      return scheduleEffectTask(() => setLoading(false));
     }
 
     let active = true;
@@ -287,8 +286,7 @@ function useDocumentSnapshot<T extends DocumentRecord>(collectionName: string, i
 
   useEffect(() => {
     if (!id || !canUseSupabaseRealtime()) {
-      setLoading(false);
-      return;
+      return scheduleEffectTask(() => setLoading(false));
     }
 
     let active = true;

@@ -1,6 +1,7 @@
 "use client";
 
 import { adminFetch } from "@/lib/admin-api";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import type { ManagedPlatformEventRecord, ManagedPlatformGameRecord } from "@/lib/platform-cms";
 import type { SponsorItem, VideoItem } from "@/lib/types";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
@@ -122,7 +123,7 @@ export function AdminGamesManager() {
   }, []);
 
   useEffect(() => {
-    void loadGames();
+    return scheduleEffectTask(loadGames);
   }, [loadGames]);
 
   function resetForm() {
@@ -406,7 +407,7 @@ export function AdminPlatformEventsManager() {
   }, []);
 
   useEffect(() => {
-    void loadEvents();
+    return scheduleEffectTask(loadEvents);
   }, [loadEvents]);
 
   function resetForm() {
@@ -814,11 +815,11 @@ export function AdminSponsorsManager() {
   }, []);
 
   useEffect(() => {
-    void loadSponsors();
+    return scheduleEffectTask(loadSponsors);
   }, [loadSponsors]);
 
   useEffect(() => {
-    void loadEventOptions();
+    return scheduleEffectTask(loadEventOptions);
   }, [loadEventOptions]);
 
   const optionBySlug = new Map(eventOptions.map((eventOption) => [eventOption.slug, eventOption]));
@@ -1290,7 +1291,7 @@ export function AdminMediaManager() {
   }, []);
 
   useEffect(() => {
-    void loadMedia();
+    return scheduleEffectTask(loadMedia);
   }, [loadMedia]);
 
   function resetForm() {

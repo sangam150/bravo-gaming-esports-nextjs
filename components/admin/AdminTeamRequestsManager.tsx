@@ -2,6 +2,7 @@
 
 import { adminFetch } from "@/lib/admin-api";
 import { formatDisplayDateTime } from "@/lib/display-format";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -104,7 +105,7 @@ export default function AdminTeamRequestsManager() {
   }, []);
 
   useEffect(() => {
-    void loadData();
+    return scheduleEffectTask(loadData);
   }, [loadData]);
 
   async function handleReview(kind: "roster_request" | "moss_submission", id: string, status: string, currentNote: string | null) {

@@ -47,7 +47,7 @@ function getMaxUploadBytes(type: UploadType) {
   return getUploadMaxBytes(type);
 }
 
-function getAllowedExtensions(type: UploadType, _audience: UploadValidationAudience) {
+function getAllowedExtensions(type: UploadType) {
   if (isTeamLogoUploadType(type)) {
     return TEAM_LOGO_EXTENSIONS;
   }
@@ -55,7 +55,7 @@ function getAllowedExtensions(type: UploadType, _audience: UploadValidationAudie
   return isImageUploadType(type) ? ALLOWED_IMAGE_EXTENSIONS : ALLOWED_MOSS_EXTENSIONS;
 }
 
-function getAllowedContentTypes(type: UploadType, _audience: UploadValidationAudience) {
+function getAllowedContentTypes(type: UploadType) {
   if (isTeamLogoUploadType(type)) {
     return TEAM_LOGO_CONTENT_TYPES;
   }
@@ -65,7 +65,8 @@ function getAllowedContentTypes(type: UploadType, _audience: UploadValidationAud
 
 function isAllowedUploadExtension(type: UploadType, fileName: string, audience: UploadValidationAudience) {
   const extension = getFileExtension(fileName);
-  return (getAllowedExtensions(type, audience) as readonly string[]).includes(extension);
+  void audience;
+  return (getAllowedExtensions(type) as readonly string[]).includes(extension);
 }
 
 function isAllowedUploadContentType(type: UploadType, contentType: string | null | undefined, audience: UploadValidationAudience) {
@@ -74,10 +75,11 @@ function isAllowedUploadContentType(type: UploadType, contentType: string | null
     return false;
   }
 
-  return (getAllowedContentTypes(type, audience) as readonly string[]).includes(normalizedContentType);
+  void audience;
+  return (getAllowedContentTypes(type) as readonly string[]).includes(normalizedContentType);
 }
 
-function getUploadValidationMessage(type: UploadType, _audience: UploadValidationAudience) {
+function getUploadValidationMessage(type: UploadType) {
   if (isImageUploadType(type)) {
     return "Upload a PNG, JPG, JPEG, or WEBP image.";
   }
@@ -133,11 +135,11 @@ export function validateUpload(input: UploadValidationInput) {
   }
 
   if (!isAllowedUploadExtension(normalizedType, input.fileName, audience)) {
-    return getUploadValidationMessage(normalizedType, audience);
+    return getUploadValidationMessage(normalizedType);
   }
 
   if (!isAllowedUploadContentType(normalizedType, input.contentType, audience)) {
-    return getUploadValidationMessage(normalizedType, audience);
+    return getUploadValidationMessage(normalizedType);
   }
 
   return null;

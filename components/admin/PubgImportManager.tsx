@@ -1,6 +1,7 @@
 "use client";
 
 import { adminFetch } from "@/lib/admin-api";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { buildFallbackTeamNameFromSlot, parseBravoSlotNumber, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
 import { formatDisplayDateTime } from "@/lib/display-format";
 import { compareMatchPlayerResults, compareMatchTeamResults } from "@/lib/ranking-sort";
@@ -21,7 +22,7 @@ import type {
   Tournament,
 } from "@/lib/types";
 import { getUserFacingTeamLabel, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES, USER_FACING_LABELS } from "@/lib/user-facing-errors";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import FileUpload from "./FileUpload";
 
 const inputClass = "input-esports";
@@ -430,10 +431,12 @@ export default function PubgImportManager({
   const selectedDayExists = Boolean(selectedDayTournament || selectedDayScrim);
   const hasEditedMatchIds = useMemo(() => previewDrafts.some((draft) => draft.matchId.trim() !== draft.sourceMatchId), [previewDrafts]);
 
+  const previewMatchIdsEffect = useEffectEvent(previewMatchIds);
+
   useEffect(() => {
     if (selectedDayNumber !== "" || !selectedSeason) return;
     if (typeof selectedSeason.currentDay === "number" && selectedSeason.currentDay > 0) {
-      setSelectedDayNumber(selectedSeason.currentDay);
+      return scheduleEffectTask(() => setSelectedDayNumber(selectedSeason.currentDay));
     }
   }, [selectedDayNumber, selectedSeason]);
 
@@ -447,50 +450,56 @@ export default function PubgImportManager({
 
     const fallbackSeasonId = activeSeasonId ?? seasons[0]?.id ?? "";
     if (fallbackSeasonId && fallbackSeasonId !== selectedSeasonId) {
-      setSelectedSeasonId(fallbackSeasonId);
+      return scheduleEffectTask(() => setSelectedSeasonId(fallbackSeasonId));
     }
   }, [activeSeasonId, seasons, selectedSeasonId]);
 
   useEffect(() => {
     if (seasons.length === 0 && !showSeasonForm && !selectedSeasonId) {
-      setSeasonDraft(buildSeasonDraft(nextSeasonNumber));
-      setShowSeasonForm(true);
+      return scheduleEffectTask(() => {
+        setSeasonDraft(buildSeasonDraft(nextSeasonNumber));
+        setShowSeasonForm(true);
+      });
     }
   }, [nextSeasonNumber, seasons.length, selectedSeasonId, showSeasonForm]);
 
   useEffect(() => {
     if (initialMatchIds) {
-      setDirectMatchIds(initialMatchIds);
+      return scheduleEffectTask(() => setDirectMatchIds(initialMatchIds));
     }
   }, [initialMatchIds]);
 
   useEffect(() => {
     if (initialTournamentId) {
       const tournament = tournaments.find((item) => item.id === initialTournamentId);
-      setSelectedTournamentId(initialTournamentId);
-      if (tournament?.seasonId) {
-        setSelectedSeasonId(tournament.seasonId);
-      }
-      const tournamentDayNumber = tournament?.seasonDayNumber ?? tournament?.dayNumber;
-      if (typeof tournamentDayNumber === "number") {
-        setSelectedDayNumber(tournamentDayNumber);
-      }
+      return scheduleEffectTask(() => {
+        setSelectedTournamentId(initialTournamentId);
+        if (tournament?.seasonId) {
+          setSelectedSeasonId(tournament.seasonId);
+        }
+        const tournamentDayNumber = tournament?.seasonDayNumber ?? tournament?.dayNumber;
+        if (typeof tournamentDayNumber === "number") {
+          setSelectedDayNumber(tournamentDayNumber);
+        }
+      });
     }
   }, [initialTournamentId, tournaments]);
 
   useEffect(() => {
     if (initialScrimId) {
       const scrim = scrims.find((item) => item.id === initialScrimId);
-      setSelectedScrimId(initialScrimId);
-      if (scrim?.seasonId) {
-        setSelectedSeasonId(scrim.seasonId);
-      }
-      if (typeof scrim?.seasonDayNumber === "number") {
-        setSelectedDayNumber(scrim.seasonDayNumber);
-      }
-      if (scrim?.tournamentId) {
-        setSelectedTournamentId(scrim.tournamentId);
-      }
+      return scheduleEffectTask(() => {
+        setSelectedScrimId(initialScrimId);
+        if (scrim?.seasonId) {
+          setSelectedSeasonId(scrim.seasonId);
+        }
+        if (typeof scrim?.seasonDayNumber === "number") {
+          setSelectedDayNumber(scrim.seasonDayNumber);
+        }
+        if (scrim?.tournamentId) {
+          setSelectedTournamentId(scrim.tournamentId);
+        }
+      });
     }
   }, [initialScrimId, scrims]);
 
@@ -505,70 +514,76 @@ export default function PubgImportManager({
     }
 
     lastAutoPreviewRequestRef.current = autoPreviewRequestKey;
-    void previewMatchIds(normalizedMatchIds);
+    void previewMatchIdsEffect(normalizedMatchIds);
   }, [autoPreviewRequestKey, directMatchIds, initialMatchIds, selectedDayNumber, selectedSeasonId]);
 
   useEffect(() => {
     if (!selectedTournament) return;
-    if (selectedTournament.seasonId && selectedTournament.seasonId !== selectedSeasonId) {
-      setSelectedSeasonId(selectedTournament.seasonId);
-    }
-
-    const tournamentDayNumber = selectedTournament.seasonDayNumber ?? selectedTournament.dayNumber;
-    if (typeof tournamentDayNumber === "number" && tournamentDayNumber !== selectedDayNumber) {
-      setSelectedDayNumber(tournamentDayNumber);
-    }
-
-    if (!selectedScrimId) {
-      const matchingScrim = scrims.find((scrim) => scrim.tournamentId === selectedTournament.id);
-      if (matchingScrim) {
-        setSelectedScrimId(matchingScrim.id);
+    return scheduleEffectTask(() => {
+      if (selectedTournament.seasonId && selectedTournament.seasonId !== selectedSeasonId) {
+        setSelectedSeasonId(selectedTournament.seasonId);
       }
-    }
+
+      const tournamentDayNumber = selectedTournament.seasonDayNumber ?? selectedTournament.dayNumber;
+      if (typeof tournamentDayNumber === "number" && tournamentDayNumber !== selectedDayNumber) {
+        setSelectedDayNumber(tournamentDayNumber);
+      }
+
+      if (!selectedScrimId) {
+        const matchingScrim = scrims.find((scrim) => scrim.tournamentId === selectedTournament.id);
+        if (matchingScrim) {
+          setSelectedScrimId(matchingScrim.id);
+        }
+      }
+    });
   }, [scrims, selectedDayNumber, selectedScrimId, selectedSeasonId, selectedTournament]);
 
   useEffect(() => {
     if (!selectedScrim) return;
-    if (selectedScrim.seasonId && selectedScrim.seasonId !== selectedSeasonId) {
-      setSelectedSeasonId(selectedScrim.seasonId);
-    }
-    if (typeof selectedScrim.seasonDayNumber === "number" && selectedScrim.seasonDayNumber !== selectedDayNumber) {
-      setSelectedDayNumber(selectedScrim.seasonDayNumber);
-    }
-    if (selectedScrim.tournamentId && selectedScrim.tournamentId !== selectedTournamentId) {
-      setSelectedTournamentId(selectedScrim.tournamentId);
-    }
+    return scheduleEffectTask(() => {
+      if (selectedScrim.seasonId && selectedScrim.seasonId !== selectedSeasonId) {
+        setSelectedSeasonId(selectedScrim.seasonId);
+      }
+      if (typeof selectedScrim.seasonDayNumber === "number" && selectedScrim.seasonDayNumber !== selectedDayNumber) {
+        setSelectedDayNumber(selectedScrim.seasonDayNumber);
+      }
+      if (selectedScrim.tournamentId && selectedScrim.tournamentId !== selectedTournamentId) {
+        setSelectedTournamentId(selectedScrim.tournamentId);
+      }
+    });
   }, [selectedDayNumber, selectedScrim, selectedSeasonId, selectedTournamentId]);
 
   useEffect(() => {
-    if (selectedScrim) {
-      setDayTitle(selectedScrim.title ?? "");
-      setDayDate(selectedScrim.date ?? "");
-      setDayMap(selectedScrim.map ?? "");
-      setDayLobbyTime(selectedScrim.lobbyTime ?? "8:00 PM NPT");
-      setDayMapRotation((selectedScrim.mapRotation ?? []).join(", ") || defaultMapRotation);
-      setDayMatchCount(Math.max(1, selectedScrim.mapRotation?.length ?? 4));
-      return;
-    }
+    return scheduleEffectTask(() => {
+      if (selectedScrim) {
+        setDayTitle(selectedScrim.title ?? "");
+        setDayDate(selectedScrim.date ?? "");
+        setDayMap(selectedScrim.map ?? "");
+        setDayLobbyTime(selectedScrim.lobbyTime ?? "8:00 PM NPT");
+        setDayMapRotation((selectedScrim.mapRotation ?? []).join(", ") || defaultMapRotation);
+        setDayMatchCount(Math.max(1, selectedScrim.mapRotation?.length ?? 4));
+        return;
+      }
 
-    if (selectedTournament) {
-      setDayTitle(selectedTournament.title ?? "");
-      setDayDate(selectedTournament.startDate ?? "");
-      setDayMap((selectedTournament.mapRotation ?? [])[0] ?? "");
-      setDayLobbyTime("8:00 PM NPT");
-      setDayMapRotation((selectedTournament.mapRotation ?? []).join(", ") || defaultMapRotation);
-      setDayMatchCount(Math.max(1, selectedTournament.mapRotation?.length ?? 4));
-      return;
-    }
+      if (selectedTournament) {
+        setDayTitle(selectedTournament.title ?? "");
+        setDayDate(selectedTournament.startDate ?? "");
+        setDayMap((selectedTournament.mapRotation ?? [])[0] ?? "");
+        setDayLobbyTime("8:00 PM NPT");
+        setDayMapRotation((selectedTournament.mapRotation ?? []).join(", ") || defaultMapRotation);
+        setDayMatchCount(Math.max(1, selectedTournament.mapRotation?.length ?? 4));
+        return;
+      }
 
-    if (selectedSeason && selectedDayNumber !== "") {
-      setDayTitle(`${getDayLabel(Number(selectedDayNumber))} - ${selectedSeason.seriesTitle ?? selectedSeason.title}`);
-      setDayDate(addDays(selectedSeason.startDate, Math.max(Number(selectedDayNumber) - 1, 0)));
-      setDayMap("Rondo");
-      setDayLobbyTime("8:00 PM NPT");
-      setDayMapRotation(defaultMapRotation);
-      setDayMatchCount(4);
-    }
+      if (selectedSeason && selectedDayNumber !== "") {
+        setDayTitle(`${getDayLabel(Number(selectedDayNumber))} - ${selectedSeason.seriesTitle ?? selectedSeason.title}`);
+        setDayDate(addDays(selectedSeason.startDate, Math.max(Number(selectedDayNumber) - 1, 0)));
+        setDayMap("Rondo");
+        setDayLobbyTime("8:00 PM NPT");
+        setDayMapRotation(defaultMapRotation);
+        setDayMatchCount(4);
+      }
+    });
   }, [selectedDayNumber, selectedScrim, selectedSeason, selectedTournament]);
 
   async function loadWatchers() {
@@ -604,8 +619,9 @@ export default function PubgImportManager({
   }
 
   useEffect(() => {
-    void loadWatchers();
-    void loadCandidates();
+    return scheduleEffectTask(async () => {
+      await Promise.all([loadWatchers(), loadCandidates()]);
+    });
   }, []);
 
   function applyResolvedDayContext(context?: { seasonId?: string; seasonDayNumber?: number; tournamentId?: string; scrimId?: string }) {

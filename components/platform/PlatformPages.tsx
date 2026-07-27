@@ -233,7 +233,7 @@ function getEventRegistrationHref(event?: PlatformEvent | null) {
   return event && canRegisterForEvent(event) ? `/teams/register?tournament=${event.id}` : "/teams/register";
 }
 
-function getEventRulesHref(_event?: PlatformEvent | null) {
+function getEventRulesHref() {
   return "/rules";
 }
 
@@ -435,7 +435,7 @@ function EventCard({ event }: { event: PlatformEvent }) {
             Register Team
           </Link>
         ) : null}
-        <Link href={getEventRulesHref(event)} className="btn-secondary">
+        <Link href={getEventRulesHref()} className="btn-secondary">
           View Rules
         </Link>
         {showResultsCta ? (
@@ -859,7 +859,7 @@ export function PlatformEventDetailPage({
                   View Event
                 </Link>
               )}
-              <Link href={getEventRulesHref(event)} className="btn-secondary">
+              <Link href={getEventRulesHref()} className="btn-secondary">
                 View Rules
               </Link>
               <Link href="/events" className="btn-secondary">
@@ -1020,7 +1020,7 @@ export function PlatformEventDetailPage({
                 <Link href={getEventRegistrationHref(event)} className="btn-primary">
                   Register Team
                 </Link>
-                <Link href={getEventRulesHref(event)} className="btn-secondary">
+                <Link href={getEventRulesHref()} className="btn-secondary">
                   View Rules
                 </Link>
                 <Link href="/contact" className="btn-secondary">

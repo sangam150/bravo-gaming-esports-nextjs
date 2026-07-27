@@ -1,6 +1,7 @@
 "use client";
 
 import { adminFetch } from "@/lib/admin-api";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -51,7 +52,7 @@ export default function AdminDiscordLinkManager() {
   }, []);
 
   useEffect(() => {
-    void loadProfiles();
+    return scheduleEffectTask(loadProfiles);
   }, [loadProfiles]);
 
   async function saveLink(profile: DiscordLinkProfile, discordUserId: string) {

@@ -1,6 +1,6 @@
-const fs = require("fs");
-const path = require("path");
-const { test, expect, devices } = require("@playwright/test");
+import { devices, expect, test } from "@playwright/test";
+import fs from "node:fs";
+import path from "node:path";
 
 const baseURL = process.env.QA_BASE_URL || "http://localhost:3000";
 const artifactsDir = path.join(process.cwd(), "qa-artifacts");

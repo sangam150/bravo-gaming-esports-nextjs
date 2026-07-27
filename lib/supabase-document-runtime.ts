@@ -28,7 +28,8 @@ export type DocumentWriteOperation =
     };
 
 function sanitizeDocumentData(data: Record<string, unknown>) {
-  const { id: _ignoredId, ...payload } = data;
+  const payload = { ...data };
+  delete payload.id;
   return sanitizeJsonObject(payload);
 }
 

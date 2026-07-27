@@ -170,6 +170,7 @@ export async function verifyAccessToken(accessToken: string) {
 }
 
 export async function createSessionCookie(accessToken: string, _expiresInMs: number) {
+  void _expiresInMs;
   await verifyAccessToken(accessToken);
   return accessToken;
 }

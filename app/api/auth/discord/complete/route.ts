@@ -1,7 +1,15 @@
 import { DiscordRoleSyncError, syncDiscordRoles } from "@/lib/discord-role-sync";
+import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { createSessionCookie, getSessionCookieMaxAge, REFRESH_COOKIE, SESSION_COOKIE } from "@/lib/supabase-auth-server";
+import { createSessionCookie, getSessionCookieMaxAge, REFRESH_COOKIE, SESSION_COOKIE, verifyAccessToken } from "@/lib/supabase-auth-server";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
+
+function getProfileRedirect(role: string, isAdmin: boolean, teamId: string | null, playerId: string | null) {
+  if (isAdmin) return "/admin";
+  if (hasTeamWorkspaceAccess(role) && teamId) return "/team";
+  if (hasPlayerDashboardAccess(role) && playerId) return "/dashboard/player";
+  return "/";
+}
 
 export async function POST(request: Request) {
   const limited = await enforceRateLimit(request, {
@@ -24,7 +32,13 @@ export async function POST(request: Request) {
       error,
     } = await client.auth.getUser(accessToken);
     if (error || !user) return Response.json({ error: "Discord identity verification could not be completed." }, { status: 401 });
-    const result = await syncDiscordRoles(user);
+    const relationalAuthorizationEnabled = process.env.DISCORD_RELATIONAL_TEAM_AUTH_ENABLED?.trim().toLowerCase() === "true";
+    const result = relationalAuthorizationEnabled
+      ? await syncDiscordRoles(user)
+      : await verifyAccessToken(accessToken).then((session) => ({
+          role: session.role,
+          redirectTo: getProfileRedirect(session.role, session.isAdmin, session.teamId, session.playerId),
+        }));
     const maxAge = getSessionCookieMaxAge(accessToken);
     const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
     const response = Response.json(

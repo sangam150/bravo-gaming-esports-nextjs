@@ -1,10 +1,12 @@
 "use client";
 
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import type { RegistrationTargetSummary } from "@/lib/team-registration";
 import { formatUploadSize, getUploadMaxBytes, TEAM_LOGO_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
 import { validateUpload } from "@/lib/upload-validation";
 import { getResponseErrorMessage, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
@@ -121,7 +123,7 @@ export default function TeamRegistrationPageClient({
 
   useEffect(() => {
     if (selectedTournament?.id) {
-      setSelectedEventId(selectedTournament.id);
+      return scheduleEffectTask(() => setSelectedEventId(selectedTournament.id));
     }
   }, [selectedTournament?.id]);
 
@@ -411,7 +413,14 @@ export default function TeamRegistrationPageClient({
             <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 {logoPreview ? (
-                  <img src={logoPreview} alt="Team logo preview" className="h-24 w-24 rounded-2xl border border-white/10 object-cover" />
+                  <Image
+                    src={logoPreview}
+                    alt="Team logo preview"
+                    width={96}
+                    height={96}
+                    unoptimized
+                    className="h-24 w-24 rounded-2xl border border-white/10 object-cover"
+                  />
                 ) : (
                   <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-dashed border-white/15 text-center text-xs uppercase tracking-[0.14em] text-slate-500">
                     Optional Logo

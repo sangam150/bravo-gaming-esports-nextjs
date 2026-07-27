@@ -27,9 +27,22 @@ const DEMO_DOCUMENT_COLLECTIONS = [
 ] as const;
 
 type JsonObject = Record<string, unknown>;
-// The seed utility intentionally targets several tables through a shared dynamic
-// helper, so its admin client cannot use one generated table-row specialization.
-type SupabaseAdminClient = SupabaseClient<any>;
+type DynamicTable = {
+  Row: JsonObject;
+  Insert: JsonObject;
+  Update: JsonObject;
+  Relationships: [];
+};
+type DynamicDatabase = {
+  public: {
+    Tables: Record<string, DynamicTable>;
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
+type SupabaseAdminClient = SupabaseClient<DynamicDatabase>;
 
 type AppDocumentRow = {
   collection_name: string;
@@ -132,7 +145,7 @@ export function buildUuid(prefix: string, index: number) {
 }
 
 export function getSupabaseAdminClient() {
-  return createClient<any>(
+  return createClient<DynamicDatabase>(
     getRequiredEnvironmentValue("NEXT_PUBLIC_SUPABASE_URL"),
     process.env.SUPABASE_SECRET_KEY?.trim() || getRequiredEnvironmentValue("SUPABASE_SERVICE_ROLE_KEY"),
     {

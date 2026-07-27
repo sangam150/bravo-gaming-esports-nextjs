@@ -1,6 +1,7 @@
 "use client";
 
 import { adminFetch } from "@/lib/admin-api";
+import { scheduleEffectTask } from "@/lib/effect-task";
 import { compareMatchPlayerResults, compareMatchSequenceOrder, compareMatchTeamResults } from "@/lib/ranking-sort";
 import type { MatchPlayerResult, Scrim, TeamMatchResult, Tournament, TournamentMatch } from "@/lib/types";
 import {
@@ -11,6 +12,7 @@ import {
   USER_FACING_LABELS,
 } from "@/lib/user-facing-errors";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import FileUpload from "./FileUpload";
 
@@ -345,7 +347,7 @@ export default function AdminMatchManager({
   }
 
   useEffect(() => {
-    void loadMatches();
+    return scheduleEffectTask(loadMatches);
   }, []);
 
   const previewTeamResults = useMemo(() => parseTeamResults(form.teamResultsText), [form.teamResultsText]);
@@ -890,7 +892,14 @@ export default function AdminMatchManager({
                 <div className="mt-3 flex flex-wrap gap-3">
                   {form.screenshotUrls.map((url) => (
                     <div key={url} className="relative">
-                      <img src={url} alt="Match screenshot" className="h-20 w-20 rounded-card border border-white/10 object-cover" />
+                      <Image
+                        src={url}
+                        alt="Match screenshot"
+                        width={80}
+                        height={80}
+                        unoptimized
+                        className="h-20 w-20 rounded-card border border-white/10 object-cover"
+                      />
                       <button
                         type="button"
                         onClick={() =>
