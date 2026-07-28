@@ -1,6 +1,6 @@
 "use client";
 
-import { adminUpload } from "@/lib/admin-api";
+import { adminUpload, adminUploadTeamLogo } from "@/lib/admin-api";
 import { scheduleEffectTask } from "@/lib/effect-task";
 import { formatUploadSize, getUploadMaxBytes, IMAGE_FILE_INPUT_ACCEPT, type UploadType } from "@/lib/upload-config";
 import { validateImageUpload } from "@/lib/upload-validation";
@@ -72,10 +72,19 @@ export default function FileUpload({
     setProgress(0);
 
     try {
-      const res = await adminUpload(file, type, entityId || "draft", {
-        onProgress: setProgress,
-        previousUrl: currentUrl,
-      });
+      const isCanonicalTeamLogo =
+        type === "team_logo" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(entityId);
+      if (type === "team_logo" && !isCanonicalTeamLogo) {
+        throw new Error("Create the official team before uploading its logo.");
+      }
+      const res = isCanonicalTeamLogo
+        ? await adminUploadTeamLogo(file, entityId, {
+            onProgress: setProgress,
+          })
+        : await adminUpload(file, type, entityId || "draft", {
+            onProgress: setProgress,
+            previousUrl: currentUrl,
+          });
       resetPreviewObjectUrl();
       setPreview(res.url);
       onUploaded(res.url);

@@ -1,11 +1,22 @@
 import { randomUUID } from "crypto";
 import { ensureUniqueDocumentSlug, filterSoftDeleted, getDocumentByIdOrSlug, softDeleteDocumentEntity } from "./document-entities";
 import { COLLECTIONS, fetchDocumentCollection, isDocumentStoreConfigured, saveDocument } from "./document-store";
+import { nepalDateTimeLocalToUtcIso } from "./nepal-datetime";
+import { normalizeVerifiedStreamHref } from "./public-event-policy";
+import { normalizePublicActionHref } from "./public-links";
 import { slugify } from "./slug-utils";
 
 type ManagedPlatformGameStatus = "flagship" | "active" | "building" | "planned";
-type ManagedPlatformEventStatus = "live" | "upcoming" | "completed" | "planned";
+export type ManagedPlatformEventStatus = "live" | "upcoming" | "completed" | "planned" | "cancelled" | "archived";
 type ManagedPlatformContentState = "published" | "planned" | "coming_soon";
+const MANAGED_PLATFORM_EVENT_STATUSES = new Set<ManagedPlatformEventStatus>([
+  "live",
+  "upcoming",
+  "completed",
+  "planned",
+  "cancelled",
+  "archived",
+]);
 
 export interface ManagedPlatformGameRecord {
   id: string;
@@ -53,6 +64,9 @@ export interface ManagedPlatformEventRecord {
   summary: string;
   analyticsHref?: string;
   streamHref?: string;
+  registrationOpen: boolean;
+  registrationStartDate?: string;
+  registrationEndDate?: string;
   topTeamName?: string;
   topPlayerName?: string;
   sponsorName?: string;
@@ -76,6 +90,12 @@ function cleanStringArray(values?: string[] | string | null) {
   return Array.from(new Set(normalizedValues.map((value) => value.trim()).filter(Boolean)));
 }
 
+function normalizeManagedPlatformEventStatus(value?: string | null): ManagedPlatformEventStatus {
+  return value && MANAGED_PLATFORM_EVENT_STATUSES.has(value as ManagedPlatformEventStatus)
+    ? (value as ManagedPlatformEventStatus)
+    : "upcoming";
+}
+
 function normalizeManagedPlatformGame(
   data: Omit<Partial<ManagedPlatformGameRecord>, "sections"> & {
     name: string;
@@ -91,12 +111,12 @@ function normalizeManagedPlatformGame(
     name,
     shortName: cleanString(data.shortName) ?? name,
     tagline: cleanString(data.tagline) ?? "Bravo game hub",
-    summary: cleanString(data.summary) ?? "Published from admin to power the Bravo Gaming multi-title platform directory.",
+    summary: cleanString(data.summary) ?? "",
     status: data.status ?? "planned",
     flagship: Boolean(data.flagship),
     heroLabel: cleanString(data.heroLabel) ?? "Game Hub",
-    primaryHref: cleanString(data.primaryHref) ?? `/games/${cleanString(data.slug) ?? slugify(name)}`,
-    analyticsHref: cleanString(data.analyticsHref),
+    primaryHref: normalizePublicActionHref(data.primaryHref) ?? `/games/${cleanString(data.slug) ?? slugify(name)}`,
+    analyticsHref: normalizePublicActionHref(data.analyticsHref),
     sections: cleanStringArray(data.sections),
     completionLabel: cleanString(data.completionLabel) ?? "Hub ready",
     activeEvents: typeof data.activeEvents === "number" ? data.activeEvents : undefined,
@@ -126,20 +146,23 @@ function normalizeManagedPlatformEvent(
     gameSlug: cleanString(data.gameSlug) ?? "pubg-pc",
     gameName: cleanString(data.gameName) ?? "PUBG PC",
     type: cleanString(data.type) ?? "tournament",
-    status: data.status ?? "upcoming",
+    status: normalizeManagedPlatformEventStatus(data.status),
     state: data.state ?? "published",
     featured: Boolean(data.featured),
     region: cleanString(data.region) ?? "Nepal",
     organizerName: cleanString(data.organizerName) ?? "Bravo Gaming Esports",
-    prizePool: cleanString(data.prizePool) ?? "TBD",
+    prizePool: cleanString(data.prizePool) ?? "Not tracked",
     teamsCount: typeof data.teamsCount === "number" ? data.teamsCount : 0,
     matchesCount: typeof data.matchesCount === "number" ? data.matchesCount : 0,
-    startDate: cleanString(data.startDate) ?? now,
-    endDate: cleanString(data.endDate),
+    startDate: nepalDateTimeLocalToUtcIso(data.startDate) ?? "",
+    endDate: nepalDateTimeLocalToUtcIso(data.endDate),
     bannerUrl: cleanString(data.bannerUrl),
-    summary: cleanString(data.summary) ?? "Published from admin to power the Bravo Gaming event hub with fully managed public context.",
-    analyticsHref: cleanString(data.analyticsHref),
-    streamHref: cleanString(data.streamHref),
+    summary: cleanString(data.summary) ?? "",
+    analyticsHref: normalizePublicActionHref(data.analyticsHref),
+    streamHref: normalizeVerifiedStreamHref(data.streamHref) ?? undefined,
+    registrationOpen: Boolean(data.registrationOpen),
+    registrationStartDate: nepalDateTimeLocalToUtcIso(data.registrationStartDate),
+    registrationEndDate: nepalDateTimeLocalToUtcIso(data.registrationEndDate),
     topTeamName: cleanString(data.topTeamName),
     topPlayerName: cleanString(data.topPlayerName),
     sponsorName: cleanString(data.sponsorName),

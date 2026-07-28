@@ -1,4 +1,5 @@
 import { PubgResultsPage } from "@/components/pubg/PubgPublicPages";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 import type { Metadata } from "next";
 
@@ -6,10 +7,12 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export const metadata: Metadata = {
-  title: "PUBG Results",
-  description: "Browse Bravo PUBG match activity with winner, top fragger, event context, and approval state.",
-};
+export const metadata: Metadata = buildContentMetadata({
+  title: "PUBG Results | Bravo Gaming Esports",
+  description: "Browse published Bravo PUBG match results with winner, top fragger, standings, and event context.",
+  path: "/pubg/results",
+  type: "website",
+});
 
 export const revalidate = 300;
 

@@ -1,5 +1,21 @@
 ﻿import Link from "next/link";
 
+import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  ...buildContentMetadata({
+    title: "Community Highlights | Bravo Gaming Esports",
+    description: "Browse community highlights published by Bravo Gaming Esports.",
+    path: "/community/highlights",
+    type: "website",
+  }),
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
+
 export default function CommunityHighlightsPage() {
   return (
     <main className="mx-auto max-w-7xl px-6 py-10 sm:px-8 lg:py-14">

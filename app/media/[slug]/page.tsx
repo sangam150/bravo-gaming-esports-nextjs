@@ -18,9 +18,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return buildContentMetadata({
     title: item.title,
-    description: item.summary,
+    description: item.summary || `View published Bravo Gaming Esports media for ${item.title}.`,
     path: `/media/${item.slug}`,
     imageUrl: item.imageUrl,
+    type: "website",
   });
 }
 

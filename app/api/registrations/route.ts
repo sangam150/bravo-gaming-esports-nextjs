@@ -1,83 +1,47 @@
-import { requireAdmin } from "@/lib/admin-auth";
-import { writeAuditLogFromRequest } from "@/lib/audit-logs";
-import { createRegistration, getRegistration, getRegistrations, getTeam, getTeams, saveTeam, updateRegistrationStatus } from "@/lib/data";
-import { getManagedUploadRecord, getPrivateObject, readObjectBodyAsBuffer, uploadPublicFile } from "@/lib/r2/storage";
+import { requireAdmin, requirePlatformAdmin } from "@/lib/admin-auth";
+import { writeRequiredAuditLogFromRequest } from "@/lib/audit-logs";
+import { CanonicalTeamError } from "@/lib/canonical-teams";
+import {
+  createRegistration,
+  getRegistration,
+  getRegistrations,
+  getRegistrationTeamCandidates,
+  updateRegistrationStatus,
+} from "@/lib/data";
+import { COLLECTIONS, DocumentWriteConflictError, getDocument } from "@/lib/document-store";
+import { ImageDecodeError } from "@/lib/image-validation";
+import { getManagedUploadRecord } from "@/lib/r2/storage";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { revalidateCompetitionPaths, revalidateTeamPaths } from "@/lib/revalidate-public";
+import {
+  approveCanonicalTeamRegistration,
+  cleanupPendingRegistrationLogoCandidates,
+  RegistrationApprovalError,
+  RegistrationApprovalRollbackError,
+} from "@/lib/registration-approval";
+import {
+  isDefinitiveRegistrationSubmissionRejection,
+  registrationSubmissionMatchesExpectation,
+  type RegistrationSubmissionExpectation,
+} from "@/lib/registration-submission-state";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import { findTeamDuplicateCandidates } from "@/lib/team-onboarding";
 import { isValidDiscordHandle, RegistrationValidationError, validateRegistrationTarget } from "@/lib/team-registration";
-import { createUploadRecord } from "@/lib/upload-records";
+import { claimUploadRecordForEntity, releaseUploadRecordEntityClaim } from "@/lib/upload-records";
 import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
+import type { TeamRegistration } from "@/lib/types";
+import { randomUUID } from "node:crypto";
 
 function normalizeOptionalString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-async function promotePendingTeamLogo(options: {
-  fallbackLogoUrl?: string;
-  fallbackLogoPath?: string;
-  fallbackUploadId?: string;
-  teamId: string;
-  teamName: string;
-}) {
-  const uploadId = normalizeOptionalString(options.fallbackUploadId);
-  if (!uploadId) {
-    return {
-      logoPath: normalizeOptionalString(options.fallbackLogoPath),
-      logoUploadId: normalizeOptionalString(options.fallbackUploadId),
-      logoUrl: normalizeOptionalString(options.fallbackLogoUrl),
-    };
+class RegistrationSubmissionRecoveryError extends Error {
+  constructor(message: string, options: { cause: unknown }) {
+    super(message, options);
+    this.name = "RegistrationSubmissionRecoveryError";
   }
-
-  const existingUpload = await getManagedUploadRecord(uploadId).catch(() => null);
-  if (!existingUpload?.filePath || existingUpload.fileType !== "team_logo_pending") {
-    return {
-      logoPath: normalizeOptionalString(options.fallbackLogoPath),
-      logoUploadId: normalizeOptionalString(options.fallbackUploadId),
-      logoUrl: normalizeOptionalString(options.fallbackLogoUrl),
-    };
-  }
-
-  const privateObject = await getPrivateObject(existingUpload.filePath);
-  const buffer = await readObjectBodyAsBuffer(privateObject.Body);
-  if (!buffer) {
-    throw new Error("Pending team logo could not be loaded from private storage.");
-  }
-
-  const contentType = privateObject.ContentType ?? existingUpload.contentType ?? "application/octet-stream";
-  const promotedUpload = await uploadPublicFile(
-    "team_logo",
-    options.teamId,
-    existingUpload.fileName ?? `${options.teamName}.png`,
-    buffer,
-    contentType,
-  );
-  const publicRecord = await createUploadRecord({
-    fileUrl: promotedUpload.url,
-    filePath: promotedUpload.path,
-    fileType: "team_logo",
-    relatedType: "team_registration_approved",
-    relatedId: options.teamId,
-    fileName: existingUpload.fileName,
-    contentType,
-    sizeBytes: existingUpload.sizeBytes,
-  });
-
-  return {
-    logoPath: promotedUpload.path,
-    logoUploadId: publicRecord.id,
-    logoUrl: promotedUpload.url,
-  };
 }
 
 export async function GET(request: Request) {
@@ -88,6 +52,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
   const limited = await enforceRateLimit(request, {
     key: "team-registration",
     maxRequests: 5,
@@ -146,6 +112,8 @@ export async function POST(request: Request) {
       if (
         !pendingUploadRecord ||
         pendingUploadRecord.fileType !== "team_logo_pending" ||
+        pendingUploadRecord.relatedType !== "team_registration" ||
+        pendingUploadRecord.relatedId !== null ||
         pendingUploadRecord.filePath !== logoPath ||
         pendingUploadRecord.url !== logoUrl
       ) {
@@ -162,7 +130,7 @@ export async function POST(request: Request) {
       teamName,
       captainDiscord,
     });
-    const [officialTeams, existingRegistrations] = await Promise.all([getTeams(), getRegistrations()]);
+    const [officialTeams, existingRegistrations] = await Promise.all([getRegistrationTeamCandidates(), getRegistrations()]);
     const duplicateCandidates = findTeamDuplicateCandidates(
       {
         name: teamName,
@@ -191,7 +159,28 @@ export async function POST(request: Request) {
           })),
       ],
     );
-    const result = await createRegistration({
+    const registrationId = randomUUID();
+    let claimedLogoUpload = false;
+    if (logoUploadId && logoPath && logoUrl) {
+      const claimedUpload = await claimUploadRecordForEntity({
+        id: logoUploadId,
+        relatedType: "team_registration",
+        relatedId: registrationId,
+        filePath: logoPath,
+        fileUrl: logoUrl,
+      });
+      if (!claimedUpload) {
+        return Response.json(
+          {
+            error: "This logo upload is already linked to another registration. Upload the logo again before submitting.",
+          },
+          { status: 409 },
+        );
+      }
+      claimedLogoUpload = true;
+    }
+
+    const registrationInput = {
       teamName,
       teamTag: normalizeOptionalString(body.teamTag),
       captainName,
@@ -202,7 +191,57 @@ export async function POST(request: Request) {
       logoUrl,
       logoPath,
       logoUploadId,
-    });
+    };
+    const expectedRegistration: RegistrationSubmissionExpectation = {
+      ...registrationInput,
+      approvedTeamId: undefined,
+      id: registrationId,
+      status: "pending",
+    };
+    let result;
+    try {
+      result = await createRegistration(registrationInput, { id: registrationId });
+    } catch (createError) {
+      let confirmedRegistration: TeamRegistration | null;
+      try {
+        confirmedRegistration = await getDocument<TeamRegistration>(COLLECTIONS.registrations, registrationId);
+      } catch (confirmationError) {
+        throw new RegistrationSubmissionRecoveryError(
+          "The registration response failed and its saved state could not be verified. The logo claim was retained for safe recovery.",
+          {
+            cause: { confirmationError, createError },
+          },
+        );
+      }
+
+      if (confirmedRegistration && registrationSubmissionMatchesExpectation(confirmedRegistration, expectedRegistration)) {
+        result = confirmedRegistration;
+      } else if (confirmedRegistration) {
+        throw new RegistrationSubmissionRecoveryError(
+          "The registration response failed and the saved state is ambiguous. The logo claim was retained for safe recovery.",
+          {
+            cause: { confirmedRegistration, createError },
+          },
+        );
+      } else {
+        if (!isDefinitiveRegistrationSubmissionRejection(createError)) {
+          throw new RegistrationSubmissionRecoveryError(
+            "The registration response failed without a definitive database rejection. Any linked logo claim was retained for safe recovery.",
+            {
+              cause: createError,
+            },
+          );
+        }
+        if (claimedLogoUpload && logoUploadId) {
+          await releaseUploadRecordEntityClaim({
+            id: logoUploadId,
+            relatedType: "team_registration",
+            relatedId: registrationId,
+          }).catch(() => undefined);
+        }
+        throw createError;
+      }
+    }
     if (duplicateCandidates.length > 0) {
       const client = getSupabaseServiceRoleClient();
       const candidateTeamIds = duplicateCandidates
@@ -234,6 +273,17 @@ export async function POST(request: Request) {
     if (error instanceof RegistrationValidationError) {
       return Response.json({ error: error.message }, { status: 400 });
     }
+    if (error instanceof RegistrationSubmissionRecoveryError) {
+      await logServerError("registrations.create.recovery_required", error, request);
+      return Response.json(
+        {
+          success: false,
+          error: error.message,
+          code: "registration_submission_recovery_required",
+        },
+        { status: 503 },
+      );
+    }
 
     await logServerError("registrations.create", error, request);
     return jsonErrorResponse(error, {
@@ -244,8 +294,10 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const unauthorized = await requireAdmin(request);
-  if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
+  const auth = await requirePlatformAdmin(request);
+  if (auth.response) return auth.response;
 
   const limited = await enforceRateLimit(request, {
     key: "registration-admin-update",
@@ -255,117 +307,141 @@ export async function PATCH(request: Request) {
   if (limited) return limited;
 
   try {
-    const body = await request.json();
-    if (!body.id || !body.status) {
+    const body = (await request.json()) as Record<string, unknown>;
+    const registrationId = normalizeOptionalString(body.id);
+    const requestedStatus = normalizeOptionalString(body.status);
+    if (!registrationId || !requestedStatus) {
       return Response.json({ error: "id and status are required" }, { status: 400 });
     }
 
-    if (!["pending", "approved", "rejected"].includes(body.status)) {
+    if (!["pending", "approved", "rejected"].includes(requestedStatus)) {
       return Response.json({ error: "Unsupported registration status." }, { status: 400 });
     }
 
-    const registration = await getRegistration(String(body.id));
+    const registration = await getRegistration(registrationId);
     if (!registration) {
       return Response.json({ error: "Registration not found." }, { status: 404 });
     }
-
-    let approvedTeam: Awaited<ReturnType<typeof saveTeam>> | null = null;
-    let approvedLogo = {
-      logoPath: normalizeOptionalString(registration.logoPath),
-      logoUploadId: normalizeOptionalString(registration.logoUploadId),
-      logoUrl: normalizeOptionalString(registration.logoUrl),
-    };
-
-    if (body.status === "approved") {
-      const existingTeam =
-        (registration.approvedTeamId ? await getTeam(registration.approvedTeamId) : null) ??
-        (await getTeams()).find((team) => team.name.trim().toLowerCase() === registration.teamName.trim().toLowerCase()) ??
-        null;
-
-      const teamId = existingTeam?.id ?? registration.approvedTeamId ?? slugify(registration.teamName);
-      approvedLogo = await promotePendingTeamLogo({
-        fallbackLogoUrl: registration.logoUrl,
-        fallbackLogoPath: registration.logoPath,
-        fallbackUploadId: registration.logoUploadId,
-        teamId,
-        teamName: registration.teamName,
-      });
-
-      approvedTeam = await saveTeam(
+    if (registration.status !== "pending") {
+      if (requestedStatus === registration.status) {
+        const cleanupPending = requestedStatus === "approved" ? await cleanupPendingRegistrationLogoCandidates(registration.id) : false;
+        return Response.json({
+          success: true,
+          cleanupPending,
+          data: registration,
+          team: null,
+          message: `Registration is already ${registration.status}.`,
+        });
+      }
+      return Response.json(
         {
-          name: registration.teamName,
-          logo: approvedLogo.logoUrl,
-          logoUrl: approvedLogo.logoUrl,
-          captainName: registration.captainName,
-          captainDiscord: registration.captainDiscord,
-          captainPhone: registration.captainPhone,
-          captainEmail: registration.captainEmail,
-          playerIds: existingTeam?.playerIds ?? [],
-          status: "active",
-          registrationStatus: "approved",
-          totalPoints: existingTeam?.totalPoints ?? 0,
-          kills: existingTeam?.kills ?? 0,
-          matches: existingTeam?.matches ?? 0,
-          killPoints: existingTeam?.killPoints,
-          placementPoints: existingTeam?.placementPoints,
-          averagePlacement: existingTeam?.averagePlacement,
-          chickenDinners: existingTeam?.chickenDinners,
-          country: existingTeam?.country,
-          tag: existingTeam?.tag ?? registration.teamTag,
-          slotNumber: existingTeam?.slotNumber,
-          scope: existingTeam?.scope,
-          seasonId: existingTeam?.seasonId,
-          seasonTitle: existingTeam?.seasonTitle,
-          seasonDayNumbers: existingTeam?.seasonDayNumbers,
-          sourceTournamentId: existingTeam?.sourceTournamentId,
-          sourceTournamentTitle: existingTeam?.sourceTournamentTitle,
-          sourceTeamName: existingTeam?.sourceTeamName,
-          sourceProvider: existingTeam?.sourceProvider,
-          createdAt: existingTeam?.createdAt,
+          error: `This registration is already ${registration.status} and cannot be changed to ${requestedStatus}.`,
+          code: "registration_already_reviewed",
         },
-        teamId,
+        { status: 409 },
       );
-
-      revalidateTeamPaths(approvedTeam.id);
-      revalidateCompetitionPaths();
+    }
+    if (registration.approvalClaimToken && requestedStatus !== "approved") {
+      return Response.json(
+        {
+          error: "This registration is currently being approved and cannot receive a competing decision.",
+          code: "registration_approval_in_progress",
+        },
+        { status: 409 },
+      );
+    }
+    if (requestedStatus === "pending") {
+      return Response.json({
+        success: true,
+        cleanupPending: false,
+        data: registration,
+        team: null,
+        message: "Registration is already pending.",
+      });
     }
 
-    const result = await updateRegistrationStatus(String(body.id), body.status, {
-      approvedTeamId: approvedTeam?.id ?? normalizeOptionalString(registration.approvedTeamId),
-      logoPath: approvedLogo.logoPath,
-      logoUploadId: approvedLogo.logoUploadId,
-      logoUrl: approvedLogo.logoUrl,
-      tournamentId: registration.tournamentId,
-      tournamentTitle: registration.tournamentTitle,
-    });
-
-    await writeAuditLogFromRequest(request, {
-      action: "update",
-      entityId: String(body.id),
+    await writeRequiredAuditLogFromRequest(request, {
+      action: `${requestedStatus}_requested`,
+      entityId: registrationId,
       entityType: "team_registration",
-      oldValue: { status: registration.status },
+      oldValue: {
+        approvedTeamId: registration.approvedTeamId ?? null,
+        status: registration.status,
+      },
       newValue: {
-        approvedTeamId: approvedTeam?.id ?? registration.approvedTeamId ?? null,
-        status: body.status,
+        status: requestedStatus,
       },
     });
 
+    if (requestedStatus !== "approved") {
+      const result = await updateRegistrationStatus(
+        registrationId,
+        requestedStatus as "pending" | "rejected",
+        {
+          approvedTeamId: normalizeOptionalString(registration.approvedTeamId),
+          logoPath: normalizeOptionalString(registration.logoPath),
+          logoUploadId: normalizeOptionalString(registration.logoUploadId),
+          logoUrl: normalizeOptionalString(registration.logoUrl),
+          tournamentId: registration.tournamentId,
+          tournamentTitle: registration.tournamentTitle,
+        },
+        {
+          expectedRegistration: registration,
+        },
+      );
+      return Response.json({
+        success: true,
+        data: result,
+        team: null,
+        message: requestedStatus === "rejected" ? "Registration rejected." : "Registration moved back to pending.",
+      });
+    }
+
+    const approval = await approveCanonicalTeamRegistration(request, {
+      actorProfileId: auth.session.profileId,
+      registration,
+    });
     return Response.json({
       success: true,
-      data: result,
-      team: approvedTeam,
-      message:
-        body.status === "approved"
-          ? `Registration approved. ${approvedTeam?.name ?? registration.teamName} is now live.`
-          : body.status === "rejected"
-            ? "Registration rejected."
-            : "Registration moved back to pending.",
+      cleanupPending: approval.cleanupPending,
+      data: approval.registration,
+      team: approval.team,
+      message: `Registration approved. ${approval.team.name} is now live.`,
     });
   } catch (error: unknown) {
     await logServerError("registrations.update", error, request);
-    return jsonErrorResponse(error, {
-      status: 500,
-      fallback: USER_FACING_ERROR_MESSAGES.admin,
-    });
+    if (error instanceof RegistrationApprovalError || error instanceof CanonicalTeamError) {
+      return Response.json({ error: error.message, code: error.code }, { status: error.status });
+    }
+    if (error instanceof DocumentWriteConflictError) {
+      return Response.json(
+        {
+          error: "This registration changed while it was being reviewed. Refresh and try again.",
+          code: "registration_conflict",
+        },
+        { status: 409 },
+      );
+    }
+    if (error instanceof ImageDecodeError) {
+      return Response.json({ error: error.message, code: "invalid_image_signature" }, { status: 400 });
+    }
+    if (error instanceof RegistrationApprovalRollbackError) {
+      return Response.json(
+        {
+          error: error.message,
+          code: "registration_approval_rollback_required",
+        },
+        { status: 503 },
+      );
+    }
+    return Response.json(
+      {
+        error: USER_FACING_ERROR_MESSAGES.admin,
+        code: "registration_approval_failed",
+      },
+      {
+        status: 500,
+      },
+    );
   }
 }

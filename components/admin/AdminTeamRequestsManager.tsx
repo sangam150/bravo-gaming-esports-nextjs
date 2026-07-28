@@ -18,6 +18,10 @@ type AdminRosterRequest = {
   oldPlayerName: string | null;
   newPlayerName: string | null;
   newPlayerPubgName: string | null;
+  payload?: {
+    candidateUrl?: unknown;
+    fileName?: unknown;
+  } | null;
   createdAt: string;
   updatedAt: string | null;
 };
@@ -68,7 +72,7 @@ function getStatusClasses(status: string) {
   return "border-white/10 bg-white/[0.04] text-text-muted";
 }
 
-export default function AdminTeamRequestsManager() {
+export default function AdminTeamRequestsManager({ readOnly = false }: { readOnly?: boolean }) {
   const [data, setData] = useState<TeamRequestsPayload>({
     rosterRequests: [],
     mossSubmissions: [],
@@ -109,13 +113,14 @@ export default function AdminTeamRequestsManager() {
   }, [loadData]);
 
   async function handleReview(kind: "roster_request" | "moss_submission", id: string, status: string, currentNote: string | null) {
+    if (readOnly) return;
     const noteKey = `${kind}:${id}`;
     setSavingKey(noteKey);
     setMessage(null);
     setError(null);
 
     try {
-      await adminFetch("/api/admin/team-requests", {
+      const result = await adminFetch("/api/admin/team-requests", {
         method: "PATCH",
         body: JSON.stringify({
           kind,
@@ -124,7 +129,7 @@ export default function AdminTeamRequestsManager() {
           adminNote: draftNotes[noteKey] ?? currentNote ?? "",
         }),
       });
-      setMessage("Team request updated");
+      setMessage(result.cleanupPending ? "Team request updated. Asset cleanup will be retried." : "Team request updated");
       await loadData();
     } catch (saveError: unknown) {
       setError(
@@ -142,7 +147,9 @@ export default function AdminTeamRequestsManager() {
       <div>
         <h2 className="text-2xl font-black text-white">Team Requests</h2>
         <p className="mt-1 text-sm text-text-muted">
-          Review roster-change requests and MOSS submissions from team accounts before launch operations go live.
+          {readOnly
+            ? "Review roster-change requests and MOSS submissions. Approval actions require a protected platform administrator."
+            : "Review roster-change requests and MOSS submissions from team accounts before launch operations go live."}
         </p>
       </div>
 
@@ -186,7 +193,14 @@ export default function AdminTeamRequestsManager() {
           <div className="space-y-4">
             {data.rosterRequests.map((request) => {
               const noteKey = `roster_request:${request.id}`;
+              const canReview = !readOnly && (request.status === "pending" || request.status === "review_later");
               const requestLabel = request.requestType.replace(/_/g, " ");
+              const candidateUrl =
+                request.requestType === "logo_update" &&
+                typeof request.payload?.candidateUrl === "string" &&
+                request.payload.candidateUrl.startsWith("/api/uploads/private/")
+                  ? request.payload.candidateUrl
+                  : null;
               return (
                 <div key={request.id} className="esports-card p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -204,6 +218,23 @@ export default function AdminTeamRequestsManager() {
                       {request.status}
                     </span>
                   </div>
+
+                  {candidateUrl && (request.status === "pending" || request.status === "review_later") ? (
+                    <div className="mt-4 rounded-card border border-white/10 bg-bg-primary p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Proposed Team Logo</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-4">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- private authenticated routes bypass the public image optimizer */}
+                        <img
+                          src={candidateUrl}
+                          alt={`Proposed ${request.teamName} logo`}
+                          className="h-24 w-24 rounded-card border border-white/10 bg-black/20 object-contain p-2"
+                        />
+                        <a href={candidateUrl} target="_blank" rel="noreferrer" className="text-sm text-accent-blue hover:underline">
+                          Open full candidate
+                        </a>
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-card border border-white/10 bg-bg-primary p-4">
@@ -224,48 +255,60 @@ export default function AdminTeamRequestsManager() {
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    <label className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Admin Note</label>
-                    <textarea
-                      className={`${textareaClass} mt-2`}
-                      value={draftNotes[noteKey] ?? request.adminNote ?? ""}
-                      onChange={(event) =>
-                        setDraftNotes((current) => ({
-                          ...current,
-                          [noteKey]: event.target.value,
-                        }))
-                      }
-                      aria-label="Add review notes, roster conditions, or follow-up instructions."
-                      placeholder="Add review notes, roster conditions, or follow-up instructions."
-                    />
-                  </div>
+                  {canReview ? (
+                    <>
+                      <div className="mt-4">
+                        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Admin Note</label>
+                        <textarea
+                          className={`${textareaClass} mt-2`}
+                          value={draftNotes[noteKey] ?? request.adminNote ?? ""}
+                          onChange={(event) =>
+                            setDraftNotes((current) => ({
+                              ...current,
+                              [noteKey]: event.target.value,
+                            }))
+                          }
+                          aria-label="Add review notes, roster conditions, or follow-up instructions."
+                          placeholder="Add review notes, roster conditions, or follow-up instructions."
+                        />
+                      </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleReview("roster_request", request.id, "approved", request.adminNote)}
-                      disabled={savingKey === noteKey}
-                      className="btn-primary disabled:opacity-60"
-                    >
-                      {savingKey === noteKey ? "Saving..." : "Approve"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleReview("roster_request", request.id, "review_later", request.adminNote)}
-                      disabled={savingKey === noteKey}
-                      className="btn-secondary"
-                    >
-                      Review Later
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleReview("roster_request", request.id, "rejected", request.adminNote)}
-                      disabled={savingKey === noteKey}
-                      className="btn-watch-live !text-[11px]"
-                    >
-                      Reject
-                    </button>
-                  </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleReview("roster_request", request.id, "approved", request.adminNote)}
+                          disabled={savingKey === noteKey}
+                          className="btn-primary disabled:opacity-60"
+                        >
+                          {savingKey === noteKey ? "Saving..." : "Approve"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleReview("roster_request", request.id, "review_later", request.adminNote)}
+                          disabled={savingKey === noteKey}
+                          className="btn-secondary"
+                        >
+                          Review Later
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleReview("roster_request", request.id, "rejected", request.adminNote)}
+                          disabled={savingKey === noteKey}
+                          className="btn-watch-live !text-[11px]"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-4 rounded-card border border-white/10 bg-bg-primary p-4 text-sm text-text-muted">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em]">Admin Note</p>
+                      <p className="mt-2 text-slate-300">{request.adminNote || "No review note recorded."}</p>
+                      <p className="mt-2 text-xs">
+                        {readOnly ? "Read-only for your role." : "This request is final and cannot be reviewed again."}
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -286,6 +329,7 @@ export default function AdminTeamRequestsManager() {
           <div className="space-y-4">
             {data.mossSubmissions.map((submission) => {
               const noteKey = `moss_submission:${submission.id}`;
+              const canReview = !readOnly && submission.status === "submitted";
               return (
                 <div key={submission.id} className="esports-card p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -346,48 +390,60 @@ export default function AdminTeamRequestsManager() {
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    <label className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Admin Note</label>
-                    <textarea
-                      className={`${textareaClass} mt-2`}
-                      value={draftNotes[noteKey] ?? submission.adminNote ?? ""}
-                      onChange={(event) =>
-                        setDraftNotes((current) => ({
-                          ...current,
-                          [noteKey]: event.target.value,
-                        }))
-                      }
-                      aria-label="Add approval notes, missing evidence requests, or follow-up instructions."
-                      placeholder="Add approval notes, missing evidence requests, or follow-up instructions."
-                    />
-                  </div>
+                  {canReview ? (
+                    <>
+                      <div className="mt-4">
+                        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Admin Note</label>
+                        <textarea
+                          className={`${textareaClass} mt-2`}
+                          value={draftNotes[noteKey] ?? submission.adminNote ?? ""}
+                          onChange={(event) =>
+                            setDraftNotes((current) => ({
+                              ...current,
+                              [noteKey]: event.target.value,
+                            }))
+                          }
+                          aria-label="Add approval notes, missing evidence requests, or follow-up instructions."
+                          placeholder="Add approval notes, missing evidence requests, or follow-up instructions."
+                        />
+                      </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleReview("moss_submission", submission.id, "approved", submission.adminNote)}
-                      disabled={savingKey === noteKey}
-                      className="btn-primary disabled:opacity-60"
-                    >
-                      {savingKey === noteKey ? "Saving..." : "Approve"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleReview("moss_submission", submission.id, "submitted", submission.adminNote)}
-                      disabled={savingKey === noteKey}
-                      className="btn-secondary"
-                    >
-                      Keep Pending
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleReview("moss_submission", submission.id, "rejected", submission.adminNote)}
-                      disabled={savingKey === noteKey}
-                      className="btn-watch-live !text-[11px]"
-                    >
-                      Reject
-                    </button>
-                  </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleReview("moss_submission", submission.id, "approved", submission.adminNote)}
+                          disabled={savingKey === noteKey}
+                          className="btn-primary disabled:opacity-60"
+                        >
+                          {savingKey === noteKey ? "Saving..." : "Approve"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleReview("moss_submission", submission.id, "submitted", submission.adminNote)}
+                          disabled={savingKey === noteKey}
+                          className="btn-secondary"
+                        >
+                          Keep Pending
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleReview("moss_submission", submission.id, "rejected", submission.adminNote)}
+                          disabled={savingKey === noteKey}
+                          className="btn-watch-live !text-[11px]"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-4 rounded-card border border-white/10 bg-bg-primary p-4 text-sm text-text-muted">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em]">Admin Note</p>
+                      <p className="mt-2 text-slate-300">{submission.adminNote || "No review note recorded."}</p>
+                      <p className="mt-2 text-xs">
+                        {readOnly ? "Read-only for your role." : "This submission is final and cannot be reviewed again."}
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })}

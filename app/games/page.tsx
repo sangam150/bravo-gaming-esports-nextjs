@@ -1,11 +1,14 @@
 import { PlatformGamesPage } from "@/components/platform/PlatformPages";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Games",
-  description: "Browse every Bravo Gaming Esports game hub, with PUBG as the flagship and future-ready coverage for more titles.",
-};
+export const metadata: Metadata = buildContentMetadata({
+  title: "Games | Bravo Gaming Esports",
+  description: "Browse game hubs currently published by Bravo Gaming Esports.",
+  path: "/games",
+  type: "website",
+});
 
 export const revalidate = 300;
 

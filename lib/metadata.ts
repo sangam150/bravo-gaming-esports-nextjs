@@ -13,8 +13,22 @@ type ContentMetadataInput = {
   modifiedTime?: string | null;
 };
 
-function resolveAbsoluteUrl(value: string) {
-  return new URL(value, getSiteUrl()).toString();
+function resolveAbsoluteUrl(value: string, fallbackPath = "/") {
+  const siteUrl = getSiteUrl();
+
+  try {
+    const resolvedUrl = new URL(value, siteUrl);
+    return resolvedUrl.protocol === "https:" || resolvedUrl.protocol === "http:"
+      ? resolvedUrl.toString()
+      : new URL(fallbackPath, siteUrl).toString();
+  } catch {
+    return new URL(fallbackPath, siteUrl).toString();
+  }
+}
+
+function resolveBrandedTitle(title: string) {
+  const normalizedTitle = title.trim();
+  return normalizedTitle.toLowerCase().includes("bravo gaming esports") ? normalizedTitle : `${normalizedTitle} | Bravo Gaming Esports`;
 }
 
 export function buildContentMetadata({
@@ -24,26 +38,27 @@ export function buildContentMetadata({
   imageUrl,
   ogImageUrl,
   canonicalUrl,
-  type = "article",
+  type = "website",
   publishedTime,
   modifiedTime,
 }: ContentMetadataInput): Metadata {
+  const brandedTitle = resolveBrandedTitle(title);
   const canonicalPath = canonicalUrl || path;
-  const absoluteCanonicalUrl = resolveAbsoluteUrl(canonicalPath);
-  const socialImage = resolveAbsoluteUrl(ogImageUrl || imageUrl || "/images/bravo-logo.png");
+  const absoluteCanonicalUrl = resolveAbsoluteUrl(canonicalPath, path);
+  const socialImage = resolveAbsoluteUrl(ogImageUrl || imageUrl || "/images/bravo-logo.png", "/images/bravo-logo.png");
 
   return {
     title: {
-      absolute: title,
+      absolute: brandedTitle,
     },
     description,
     alternates: {
-      canonical: canonicalPath,
+      canonical: absoluteCanonicalUrl,
     },
     openGraph: {
       type,
       url: absoluteCanonicalUrl,
-      title,
+      title: brandedTitle,
       description,
       ...(type === "article"
         ? {
@@ -54,13 +69,13 @@ export function buildContentMetadata({
       images: [
         {
           url: socialImage,
-          alt: title,
+          alt: brandedTitle,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: brandedTitle,
       description,
       images: [socialImage],
     },

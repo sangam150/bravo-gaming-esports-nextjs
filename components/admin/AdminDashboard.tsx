@@ -35,9 +35,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminDiscordLinkManager from "./AdminDiscordLinkManager";
 import AdminDiscordRoleMappingManager from "./AdminDiscordRoleMappingManager";
+import HomepageFeaturedEventsManager, { type HomepageFeatureEventOption } from "./HomepageFeaturedEventsManager";
 import AdminMatchManager from "./AdminMatchManager";
+import AdminPlayerTeamLinkingManager from "./AdminPlayerTeamLinkingManager";
 import AdminRegisteredTeamsManager from "./AdminRegisteredTeamsManager";
-import AdminSidebar, { type AdminSection } from "./AdminSidebar";
+import AdminSidebar, { ADMIN_SECTION_ROUTES, getAdminSectionLabel, type AdminSection } from "./AdminSidebar";
 import AdminTeamRequestsManager from "./AdminTeamRequestsManager";
 import { useAdminAuth } from "./AuthProvider";
 import BulkTeamLogoUpload from "./BulkTeamLogoUpload";
@@ -67,30 +69,41 @@ type ManagedNewsFormState = Partial<ManagedNewsArticleRecord> & {
   bodyText: string;
 };
 
+async function fetchApiData<T>(href: string, resourceLabel: string): Promise<T> {
+  const response = await fetch(href, {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  const payload = (await response.json().catch(() => null)) as { data?: T; error?: unknown } | null;
+  if (!response.ok) {
+    throw new Error(`${resourceLabel} could not be loaded (${response.status}).`);
+  }
+  if (!payload || !Object.prototype.hasOwnProperty.call(payload, "data")) {
+    throw new Error(`${resourceLabel} returned an incomplete response.`);
+  }
+  return payload.data as T;
+}
+
 const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
 const btnDanger = "btn-watch-live !text-[11px] !py-1.5";
 const ROLES: PlayerRole[] = ["IGL", "Assaulter", "Support", "Sniper", "Substitute"];
 const defaultSeasonForm: Partial<Season> = {
-  title: "BRAVO GAMING ESPORTS DAILY PUBG PC SCRIMS Season 1",
-  slug: "bravo-gaming-esports-daily-pubg-pc-scrims-season-1",
-  seriesTitle: "BRAVO GAMING ESPORTS DAILY PUBG PC SCRIMS",
   seasonNumber: 1,
-  status: "active",
-  startDate: "2026-06-05",
+  status: "planned",
   configuredDays: 15,
-  currentDay: 6,
+  currentDay: 0,
   game: "PUBG PC",
   format: "Squad",
-  region: "Global",
+  region: "Nepal",
   perspective: "TPP",
 };
 const defaultScrimForm: Partial<Scrim> = {
   status: "scheduled",
   teamIds: [],
   mapRotation: [],
-  lobbyTime: "8:00 PM NPT",
   pubgMatchIds: [],
+  published: false,
 };
 
 function buildDefaultTournamentForm(season?: Season | null): Partial<Tournament> {
@@ -111,7 +124,7 @@ const defaultHomepageForm: HomepageContentRecord = {
   heroSlides: [
     {
       id: "hero-slide-1",
-      badge: "Nepal's Premier Esports Platform",
+      badge: "Nepal Esports Platform",
       title: "Published matches, rankings, news, and events in one home",
       description:
         "Bravo Gaming Esports brings together real match coverage, verified standings, news, and community updates for Nepal esports.",
@@ -164,16 +177,17 @@ const defaultHomepageForm: HomepageContentRecord = {
   breakingNewsSlug: "",
   featuredNewsSlugs: [],
   featuredEventSlugs: [],
+  featuredEvents: [],
   featuredSponsorSlugs: [],
   featuredMediaIds: [],
   featuredTeamIds: [],
   featuredPlayerIds: [],
   liveTitle: "Bravo Gaming Esports Live Feed",
   liveSubtitle: "Published broadcasts and live coverage will appear here automatically once a stream is active.",
-  liveViewers: "Broadcast scheduled",
+  liveViewers: undefined,
   liveHref: "/live-stream",
   footerTitle: "Bravo Gaming Esports",
-  footerTagline: "Nepal's Premier Esports Platform",
+  footerTagline: "Nepal Esports Platform",
   footerDescription:
     "Bravo Gaming Esports is building a clean, trustworthy home for Nepal esports with published match data, verified standings, and community-first coverage.",
   footerPrimaryLabel: "Watch Live",
@@ -239,7 +253,7 @@ const defaultHomepageForm: HomepageContentRecord = {
     },
   ],
   footerBottomPrimary: "Copyright 2026 Bravo Gaming Esports Nepal",
-  footerBottomSecondary: "Daily scrims, major events, rankings, media, sponsors, and community coverage for Nepal esports.",
+  footerBottomSecondary: "Published events, results, rankings, media, sponsors, and community coverage for Nepal esports.",
   updatedAt: "",
 };
 const defaultNewsForm: ManagedNewsFormState = {
@@ -315,6 +329,7 @@ function normalizeHomepageFormInput(data?: HomepageContentRecord | null): Homepa
     })),
     featuredNewsSlugs: data?.featuredNewsSlugs ?? [],
     featuredEventSlugs: data?.featuredEventSlugs ?? [],
+    featuredEvents: data?.featuredEvents ?? [],
     featuredSponsorSlugs: data?.featuredSponsorSlugs ?? [],
     featuredMediaIds: data?.featuredMediaIds ?? [],
     featuredTeamIds: data?.featuredTeamIds ?? [],
@@ -399,7 +414,9 @@ export default function AdminDashboard({
 }) {
   const demoSeedTag = "bravo_demo_seed_2026";
   const discordAuthEnabled = useDiscordProviderEnabled();
-  const { user, logout } = useAdminAuth();
+  const { user, role, logout } = useAdminAuth();
+  const canManageCanonicalTeams = role === "super_admin" || role === "admin";
+  const canManagePlatformAdmin = canManageCanonicalTeams;
   const [section, setSection] = useState<AdminSection>(initialSection);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -414,22 +431,20 @@ export default function AdminDashboard({
   const [recentUploads, setRecentUploads] = useState<UploadRecord[]>([]);
   const [errorLogs, setErrorLogs] = useState<ErrorLogRecord[]>([]);
   const [homepageForm, setHomepageForm] = useState<HomepageContentRecord>(defaultHomepageForm);
+  const [homepageEventOptions, setHomepageEventOptions] = useState<HomepageFeatureEventOption[]>([]);
   const [newsArticles, setNewsArticles] = useState<ManagedNewsArticleRecord[]>([]);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resourceWarnings, setResourceWarnings] = useState<string[]>([]);
   const [savingHomepage, setSavingHomepage] = useState(false);
   const [savingNews, setSavingNews] = useState(false);
 
   const [tournamentForm, setTournamentForm] = useState<Partial<Tournament>>(() => buildDefaultTournamentForm());
   const [teamForm, setTeamForm] = useState<Partial<Team>>({
-    totalPoints: 0,
-    kills: 0,
-    matches: 0,
     status: "active",
-    registrationStatus: "approved",
   });
   const [playerForm, setPlayerForm] = useState<Partial<Player>>({
     kills: 0,
@@ -572,58 +587,163 @@ export default function AdminDashboard({
     return scheduleEffectTask(() => setSection(initialSection));
   }, [initialSection]);
 
+  const handleSectionChange = useCallback((nextSection: AdminSection) => {
+    setError(null);
+    setMessage(null);
+    setSection(nextSection);
+
+    const route = ADMIN_SECTION_ROUTES[nextSection];
+    const nextPath = route ? `/admin/${route}` : "/admin";
+    if (window.location.pathname !== nextPath) {
+      window.history.replaceState(window.history.state, "", nextPath);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setResourceWarnings([]);
     try {
-      const [statsRes, seasonsRes, tournamentsRes, teamsRes, playersRes, announcementsRes] = await Promise.all([
+      const [statsRes, seasonsData, tournamentsData, publicTeams, playersData, announcementsData] = await Promise.all([
         adminFetch("/api/stats?admin=true"),
-        fetch("/api/seasons").then((r) => r.json()),
-        fetch("/api/tournaments").then((r) => r.json()),
-        fetch("/api/teams").then((r) => r.json()),
-        fetch("/api/players").then((r) => r.json()),
-        fetch("/api/announcements").then((r) => r.json()),
+        fetchApiData<Season[]>("/api/seasons", "Seasons"),
+        fetchApiData<Tournament[]>("/api/tournaments", "Tournaments"),
+        fetchApiData<Team[]>("/api/teams", "Public teams"),
+        fetchApiData<Player[]>("/api/players", "Players"),
+        fetchApiData<Announcement[]>("/api/announcements", "Announcements"),
       ]);
       setStats(statsRes.data);
-      setSeasons(seasonsRes.data ?? []);
-      setTournaments(tournamentsRes.data);
-      setTeams(teamsRes.data);
-      setPlayers(playersRes.data);
-      setAnnouncements(announcementsRes.data);
+      setSeasons(seasonsData);
+      setTournaments(tournamentsData);
+      setTeams(publicTeams);
+      setPlayers(playersData);
+      setAnnouncements(announcementsData);
 
+      const optionalWarnings: string[] = [];
       try {
-        const [homepageRes, newsRes, messagesRes, regRes, scrimRes, matchRes, errorRes, importBatchRes, auditRes] = await Promise.all([
-          adminFetch("/api/admin/homepage"),
-          adminFetch("/api/admin/news"),
-          adminFetch("/api/admin/messages"),
-          adminFetch("/api/registrations"),
-          adminFetch("/api/admin/scrims"),
-          adminFetch("/api/admin/matches"),
-          adminFetch("/api/admin/errors?limit=10"),
-          adminFetch("/api/admin/pending-imports"),
-          adminFetch("/api/admin/audit-logs?limit=12"),
-        ]);
-        setHomepageForm(normalizeHomepageFormInput(homepageRes.data));
-        setNewsArticles(newsRes.data ?? []);
-        setMessages(messagesRes.data ?? []);
-        setRegistrations(regRes.data);
-        setScrims(scrimRes.data);
-        setLiveMatches(matchRes.data?.matches ?? []);
-        setRecentUploads(matchRes.data?.uploads ?? []);
-        setErrorLogs(errorRes.data ?? []);
-        setImportBatches(importBatchRes.data ?? []);
-        setAuditLogs(auditRes.data ?? []);
+        const canonicalTeamsResponse = await adminFetch("/api/admin/teams");
+        const publicTeamById = new Map(publicTeams.map((team) => [team.id, team] as const));
+        const canonicalTeams = (canonicalTeamsResponse.data?.teams ?? []) as Array<{
+          aliases?: Array<string | { alias: string }>;
+          createdAt?: string;
+          id: string;
+          logoUrl?: string | null;
+          name: string;
+          region?: string | null;
+          slug?: string | null;
+          slotNumber?: number | null;
+          status?: string;
+          tag?: string | null;
+          updatedAt?: string;
+        }>;
+        setTeams(
+          canonicalTeams.map((canonicalTeam) => {
+            const publicTeam = publicTeamById.get(canonicalTeam.id);
+            return {
+              ...publicTeam,
+              ...canonicalTeam,
+              country: canonicalTeam.region ?? publicTeam?.country,
+              createdAt: canonicalTeam.createdAt ?? publicTeam?.createdAt,
+              id: canonicalTeam.id,
+              kills: publicTeam?.kills ?? 0,
+              logo: canonicalTeam.logoUrl ?? publicTeam?.logo,
+              logoUrl: canonicalTeam.logoUrl ?? publicTeam?.logoUrl,
+              matches: publicTeam?.matches ?? 0,
+              name: canonicalTeam.name,
+              slug: canonicalTeam.slug ?? publicTeam?.slug,
+              slotNumber: canonicalTeam.slotNumber ?? publicTeam?.slotNumber,
+              status:
+                canonicalTeam.status === "active" || canonicalTeam.status === "pending"
+                  ? canonicalTeam.status
+                  : canonicalTeam.status
+                    ? "inactive"
+                    : publicTeam?.status,
+              tag: canonicalTeam.tag ?? publicTeam?.tag,
+              totalPoints: publicTeam?.totalPoints ?? 0,
+              updatedAt: canonicalTeam.updatedAt ?? publicTeam?.updatedAt,
+            } satisfies Team;
+          }),
+        );
       } catch {
-        setHomepageForm(defaultHomepageForm);
-        setNewsArticles([]);
-        setMessages([]);
-        setRegistrations([]);
-        setScrims([]);
-        setLiveMatches([]);
-        setErrorLogs([]);
-        setImportBatches([]);
-        setAuditLogs([]);
+        optionalWarnings.push("Official team registry unavailable; the public team view is shown instead.");
       }
+
+      const [
+        homepageResult,
+        eventOptionsResult,
+        newsResult,
+        messagesResult,
+        registrationsResult,
+        scrimsResult,
+        matchesResult,
+        errorsResult,
+        importsResult,
+        auditResult,
+      ] = await Promise.allSettled([
+        adminFetch("/api/admin/homepage"),
+        adminFetch("/api/admin/platform-event-options"),
+        adminFetch("/api/admin/news"),
+        adminFetch("/api/admin/messages"),
+        adminFetch("/api/registrations"),
+        adminFetch("/api/admin/scrims"),
+        adminFetch("/api/admin/matches"),
+        adminFetch("/api/admin/errors?limit=10"),
+        adminFetch("/api/admin/pending-imports"),
+        adminFetch("/api/admin/audit-logs?limit=12"),
+      ]);
+
+      if (homepageResult.status === "fulfilled") {
+        setHomepageForm(normalizeHomepageFormInput(homepageResult.value.data));
+      } else {
+        optionalWarnings.push("Homepage content could not be loaded.");
+      }
+      if (eventOptionsResult.status === "fulfilled") {
+        setHomepageEventOptions(eventOptionsResult.value.data ?? []);
+      } else {
+        optionalWarnings.push("Homepage event options could not be loaded.");
+      }
+      if (newsResult.status === "fulfilled") {
+        setNewsArticles(newsResult.value.data ?? []);
+      } else {
+        optionalWarnings.push("News management data could not be loaded.");
+      }
+      if (messagesResult.status === "fulfilled") {
+        setMessages(messagesResult.value.data ?? []);
+      } else {
+        optionalWarnings.push("Inbox messages could not be loaded.");
+      }
+      if (registrationsResult.status === "fulfilled") {
+        setRegistrations(registrationsResult.value.data ?? []);
+      } else {
+        optionalWarnings.push("Team registrations could not be loaded.");
+      }
+      if (scrimsResult.status === "fulfilled") {
+        setScrims(scrimsResult.value.data ?? []);
+      } else {
+        optionalWarnings.push("Scrim management data could not be loaded.");
+      }
+      if (matchesResult.status === "fulfilled") {
+        setLiveMatches(matchesResult.value.data?.matches ?? []);
+        setRecentUploads(matchesResult.value.data?.uploads ?? []);
+      } else {
+        optionalWarnings.push("Published matches and recent uploads could not be loaded.");
+      }
+      if (errorsResult.status === "fulfilled") {
+        setErrorLogs(errorsResult.value.data ?? []);
+      } else {
+        optionalWarnings.push("Server error logs could not be loaded.");
+      }
+      if (importsResult.status === "fulfilled") {
+        setImportBatches(importsResult.value.data ?? []);
+      } else {
+        optionalWarnings.push("PUBG import history could not be loaded.");
+      }
+      if (auditResult.status === "fulfilled") {
+        setAuditLogs(auditResult.value.data ?? []);
+      } else {
+        optionalWarnings.push("Audit logs could not be loaded.");
+      }
+      setResourceWarnings(optionalWarnings);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -673,6 +793,54 @@ export default function AdminDashboard({
     setTournamentImportMatchIds("");
   }
 
+  function openAdminTeamEditor(teamId: string | null) {
+    setSelectedTeamId(teamId);
+    if (!teamId) {
+      setEditingTeam(null);
+      setTeamForm({
+        status: "active",
+      });
+      handleSectionChange("teams");
+      return;
+    }
+
+    const team = teams.find((candidate) => candidate.id === teamId);
+    if (!team) {
+      handleSectionChange("teams");
+      setError("That team is not in the current registry view. Refresh the canonical team list and try again.");
+      return;
+    }
+
+    setEditingTeam(team.id);
+    setTeamForm(team);
+    handleSectionChange("teams");
+  }
+
+  function openAdminTeamRoster(teamId: string) {
+    setSelectedTeamId(teamId);
+    handleSectionChange("players");
+  }
+
+  async function archiveAdminTeam(teamId: string) {
+    const team = teams.find((candidate) => candidate.id === teamId);
+    if (!window.confirm(`Archive ${team?.name ?? "this official team"}? Historical records will be preserved.`)) {
+      return false;
+    }
+
+    setError(null);
+    try {
+      await adminFetch(`/api/admin/teams/${encodeURIComponent(teamId)}`, {
+        method: "DELETE",
+      });
+      setMessage(`${team?.name ?? "Team"} archived. Historical match and roster records were preserved.`);
+      await loadData();
+      return true;
+    } catch (archiveError) {
+      setError(archiveError instanceof Error ? archiveError.message : "The team could not be archived.");
+      return false;
+    }
+  }
+
   function openTournamentEditor(tournament: Tournament) {
     setEditingTournament(tournament.id);
     setTournamentForm(tournament);
@@ -685,7 +853,7 @@ export default function AdminDashboard({
     setImportTournamentId(tournamentId);
     setImportScrimId(linkedScrim?.id ?? "");
     setImportAutoPreviewKey(`${tournamentId}:${Date.now()}`);
-    setSection("pubg");
+    handleSectionChange("pubg");
   }
 
   function handleTournamentMatchPull() {
@@ -765,7 +933,7 @@ export default function AdminDashboard({
   function startNewsEdit(article: ManagedNewsArticleRecord) {
     setEditingNewsId(article.id);
     setNewsForm(buildNewsFormState(article));
-    setSection("news");
+    handleSectionChange("news");
   }
 
   async function handleHomepageSubmit(e: React.FormEvent) {
@@ -1044,30 +1212,30 @@ export default function AdminDashboard({
     e.preventDefault();
     if (!teamForm.name) return;
     try {
+      const canonicalStatus = teamForm.status ?? "active";
       const payload = {
-        ...teamForm,
-        logo: teamForm.logoUrl ?? teamForm.logo,
-        createdAt: teamForm.createdAt ?? new Date().toISOString(),
+        name: teamForm.name.trim(),
+        tag: teamForm.tag?.trim() || null,
+        region: teamForm.country?.trim() || null,
+        slotNumber: teamForm.slotNumber ?? null,
+        status: canonicalStatus,
+        isActive: canonicalStatus === "active" || canonicalStatus === "pending",
       };
       if (editingTeam) {
-        await adminFetch(`/api/teams/${editingTeam}`, {
-          method: "PUT",
+        await adminFetch(`/api/admin/teams/${editingTeam}`, {
+          method: "PATCH",
           body: JSON.stringify(payload),
         });
         setMessage("Team updated");
       } else {
-        await adminFetch("/api/teams", {
+        await adminFetch("/api/admin/teams", {
           method: "POST",
           body: JSON.stringify(payload),
         });
         setMessage("Team created");
       }
       setTeamForm({
-        totalPoints: 0,
-        kills: 0,
-        matches: 0,
         status: "active",
-        registrationStatus: "approved",
       });
       setEditingTeam(null);
       loadData();
@@ -1250,20 +1418,43 @@ export default function AdminDashboard({
     <div className="flex flex-col gap-6 xl:flex-row">
       <AdminSidebar
         active={section}
-        onChange={setSection}
+        onChange={handleSectionChange}
         dataConnected={stats?.dataConnected ?? false}
         dataBackend={stats?.dataBackend}
         onLogout={() => void logout()}
         adminEmail={user?.email ?? undefined}
+        canManagePlatformAdmin={canManagePlatformAdmin}
       />
 
       <div className="min-w-0 flex-1 space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="section-title">Staff Control Center</p>
-            <h1 className="font-display text-3xl font-black uppercase text-white">Admin Panel</h1>
+            <nav
+              aria-label="Breadcrumb"
+              className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted"
+            >
+              <Link href="/" className="hover:text-white">
+                Bravo Gaming
+              </Link>
+              <span aria-hidden="true">/</span>
+              <button type="button" onClick={() => handleSectionChange("dashboard")} className="hover:text-white">
+                Admin
+              </button>
+              {section !== "dashboard" ? (
+                <>
+                  <span aria-hidden="true">/</span>
+                  <span aria-current="page" className="text-accent-blue">
+                    {getAdminSectionLabel(section)}
+                  </span>
+                </>
+              ) : null}
+            </nav>
+            <h1 className="font-display text-3xl font-black uppercase text-white">{getAdminSectionLabel(section)}</h1>
           </div>
-          <p className="text-xs text-text-muted">Live stats import from PUBG PC API only - no synthetic results.</p>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
+            <span className="rounded-full border border-white/10 px-3 py-1">Production data</span>
+            <span>Published PUBG results only</span>
+          </div>
         </div>
 
         {(message || error) && (
@@ -1285,6 +1476,21 @@ export default function AdminDashboard({
             </button>
           </div>
         )}
+
+        {resourceWarnings.length > 0 ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-2xl border border-accent-yellow/30 bg-accent-yellow/10 px-4 py-3 text-sm text-amber-100"
+          >
+            <p className="font-semibold">Some admin resources are temporarily unavailable:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {resourceWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {hasDemoSeededData && (
           <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
@@ -1634,6 +1840,19 @@ export default function AdminDashboard({
                 ))}
               </div>
 
+              <HomepageFeaturedEventsManager
+                value={homepageForm.featuredEvents}
+                eventOptions={homepageEventOptions}
+                disabled={savingHomepage}
+                onChange={(featuredEvents) =>
+                  setHomepageForm((currentForm) => ({
+                    ...currentForm,
+                    featuredEvents,
+                    featuredEventSlugs: featuredEvents.map((feature) => feature.eventSlug),
+                  }))
+                }
+              />
+
               <div className="grid gap-6 xl:grid-cols-[1fr,1fr]">
                 <div className="esports-card grid gap-4 p-6">
                   <div>
@@ -1705,24 +1924,11 @@ export default function AdminDashboard({
 
                 <div className="esports-card grid gap-4 p-6">
                   <div>
-                    <p className="font-display text-sm font-black uppercase text-white">Featured Ordering</p>
+                    <p className="font-display text-sm font-black uppercase text-white">Featured Content Ordering</p>
                     <p className="mt-1 text-sm text-text-muted">
-                      Use comma-separated slugs or ids to control exactly what appears on the homepage.
+                      Order the remaining editorial, sponsor, media, team, and player highlights.
                     </p>
                   </div>
-                  <textarea
-                    className={inputClass}
-                    aria-label="Featured event slugs"
-                    placeholder="Featured event slugs"
-                    rows={2}
-                    value={joinDelimitedValues(homepageForm.featuredEventSlugs)}
-                    onChange={(e) =>
-                      setHomepageForm({
-                        ...homepageForm,
-                        featuredEventSlugs: splitDelimitedValues(e.target.value),
-                      })
-                    }
-                  />
                   <textarea
                     className={inputClass}
                     aria-label="Featured news slugs"
@@ -2333,17 +2539,34 @@ export default function AdminDashboard({
         {section === "teamRequests" && (
           <div className="space-y-10">
             {discordAuthEnabled ? (
-              <AdminDiscordLinkManager />
+              <AdminDiscordLinkManager readOnly={!canManageCanonicalTeams} />
             ) : (
               <div className="esports-card border border-white/10 bg-white/[0.03] p-6 text-sm text-text-muted">
                 Discord OAuth is disabled for first launch. Team login stays on email/password until provider credentials are configured.
               </div>
             )}
-            <AdminTeamRequestsManager />
+            <AdminTeamRequestsManager readOnly={!canManagePlatformAdmin} />
           </div>
         )}
         {section === "discordRoles" && <AdminDiscordRoleMappingManager embedded />}
-        {section === "registeredTeams" && <AdminRegisteredTeamsManager />}
+        {section === "registeredTeams" && (
+          <AdminRegisteredTeamsManager
+            onNavigate={handleSectionChange}
+            onEditTeam={canManageCanonicalTeams ? openAdminTeamEditor : undefined}
+            onManageRoster={openAdminTeamRoster}
+            onOpenLogoUpload={canManageCanonicalTeams ? () => handleSectionChange("teams") : undefined}
+            onArchiveTeam={canManageCanonicalTeams ? archiveAdminTeam : undefined}
+          />
+        )}
+
+        {section === "playerTeamLinking" &&
+          (canManagePlatformAdmin ? (
+            <AdminPlayerTeamLinkingManager />
+          ) : (
+            <div role="alert" className="esports-card border border-accent-yellow/30 p-5 text-sm text-text-muted">
+              Player-team linking is available only to a protected platform administrator.
+            </div>
+          ))}
 
         {section === "inbox" && (
           <div className="space-y-6">
@@ -2604,7 +2827,7 @@ export default function AdminDashboard({
                         onClick={() => {
                           setEditingSeason(season.id);
                           setSeasonForm(season);
-                          setSection("seasons");
+                          handleSectionChange("seasons");
                         }}
                         className="text-bravoBlue hover:underline"
                       >
@@ -2972,123 +3195,106 @@ export default function AdminDashboard({
         )}
         {section === "teams" && (
           <div className="space-y-6">
-            <BulkTeamLogoUpload teams={teams} onComplete={loadData} />
-            <h2 className="text-2xl font-black text-white">{editingTeam ? "Edit Team" : "Add Team"}</h2>
-            <form onSubmit={handleTeamSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
-              <input
-                className={inputClass}
-                aria-label="Team Name"
-                placeholder="Team Name"
-                value={teamForm.name ?? ""}
-                onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
-                required
-              />
-              <input
-                className={inputClass}
-                aria-label="Tag"
-                placeholder="Tag"
-                value={teamForm.tag ?? ""}
-                onChange={(e) => setTeamForm({ ...teamForm, tag: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                aria-label="Country"
-                placeholder="Country"
-                value={teamForm.country ?? ""}
-                onChange={(e) => setTeamForm({ ...teamForm, country: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                aria-label="Captain Name"
-                placeholder="Captain Name"
-                value={teamForm.captainName ?? ""}
-                onChange={(e) => setTeamForm({ ...teamForm, captainName: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                aria-label="Captain Discord"
-                placeholder="Captain Discord"
-                value={teamForm.captainDiscord ?? ""}
-                onChange={(e) => setTeamForm({ ...teamForm, captainDiscord: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                aria-label="Captain Phone"
-                placeholder="Captain Phone"
-                value={teamForm.captainPhone ?? ""}
-                onChange={(e) => setTeamForm({ ...teamForm, captainPhone: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                aria-label="Captain Email"
-                placeholder="Captain Email"
-                value={teamForm.captainEmail ?? ""}
-                onChange={(e) => setTeamForm({ ...teamForm, captainEmail: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                type="number"
-                aria-label="Slot Number"
-                placeholder="Slot Number"
-                value={teamForm.slotNumber ?? ""}
-                onChange={(e) =>
-                  setTeamForm({
-                    ...teamForm,
-                    slotNumber: e.target.value ? Number(e.target.value) : undefined,
-                  })
-                }
-              />
-              <select
-                className={inputClass}
-                aria-label="Team registration status"
-                value={teamForm.registrationStatus ?? "approved"}
-                onChange={(e) =>
-                  setTeamForm({
-                    ...teamForm,
-                    registrationStatus: e.target.value as RegistrationStatus,
-                  })
-                }
-              >
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-              <div className="sm:col-span-2">
-                <FileUpload
-                  type="team_logo"
-                  entityId={editingTeam ?? teamForm.name ?? "new"}
-                  label="Team Logo"
-                  currentUrl={teamForm.logoUrl ?? teamForm.logo}
-                  onUploaded={(url) => setTeamForm({ ...teamForm, logoUrl: url })}
-                />
-              </div>
-              <p className="sm:col-span-2 text-xs text-text-muted">
-                Match stats (points, kills) update automatically from live PUBG imports. Manual edits are for corrections only.
-              </p>
-              <div className="flex gap-3 sm:col-span-2">
-                <button type="submit" className={btnPrimary}>
-                  {editingTeam ? "Update" : "Create"} Team
-                </button>
-                {editingTeam && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingTeam(null);
+            {canManageCanonicalTeams ? (
+              <>
+                <BulkTeamLogoUpload teams={teams} onComplete={loadData} />
+                <h2 className="text-2xl font-black text-white">{editingTeam ? "Edit Team" : "Add Team"}</h2>
+                <form onSubmit={handleTeamSubmit} className="esports-card grid gap-4 p-6 sm:grid-cols-2">
+                  <input
+                    className={inputClass}
+                    aria-label="Team Name"
+                    placeholder="Team Name"
+                    value={teamForm.name ?? ""}
+                    onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+                    required
+                  />
+                  <input
+                    className={inputClass}
+                    aria-label="Tag"
+                    placeholder="Tag"
+                    value={teamForm.tag ?? ""}
+                    onChange={(e) => setTeamForm({ ...teamForm, tag: e.target.value })}
+                  />
+                  <input
+                    className={inputClass}
+                    aria-label="Region"
+                    placeholder="Region"
+                    value={teamForm.country ?? ""}
+                    onChange={(e) => setTeamForm({ ...teamForm, country: e.target.value })}
+                  />
+                  <input
+                    className={inputClass}
+                    type="number"
+                    aria-label="Slot Number"
+                    placeholder="Slot Number"
+                    value={teamForm.slotNumber ?? ""}
+                    onChange={(e) =>
                       setTeamForm({
-                        totalPoints: 0,
-                        kills: 0,
-                        matches: 0,
-                        status: "active",
-                        registrationStatus: "approved",
-                      });
-                    }}
-                    className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300"
+                        ...teamForm,
+                        slotNumber: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                  />
+                  <select
+                    className={inputClass}
+                    aria-label="Official team status"
+                    value={teamForm.status ?? "active"}
+                    onChange={(e) =>
+                      setTeamForm({
+                        ...teamForm,
+                        status: e.target.value as Team["status"],
+                      })
+                    }
                   >
-                    Cancel
-                  </button>
-                )}
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <div className="sm:col-span-2">
+                    {editingTeam ? (
+                      <FileUpload
+                        type="team_logo"
+                        entityId={editingTeam}
+                        label="Team Logo"
+                        currentUrl={teamForm.logoUrl ?? teamForm.logo}
+                        onUploaded={(url) => setTeamForm({ ...teamForm, logoUrl: url })}
+                      />
+                    ) : (
+                      <div className="rounded-card border border-white/10 bg-bg-primary p-4 text-sm text-text-muted">
+                        Create the official team first, then upload its logo to the team’s versioned asset path.
+                      </div>
+                    )}
+                  </div>
+                  <p className="sm:col-span-2 text-xs text-text-muted">
+                    This editor persists only the official team identity, region, slot, status, and approved logo. Registration contacts and
+                    captain access are managed from Registrations and Registered Teams; match statistics come from published PUBG imports.
+                  </p>
+                  <div className="flex gap-3 sm:col-span-2">
+                    <button type="submit" className={btnPrimary}>
+                      {editingTeam ? "Update" : "Create"} Team
+                    </button>
+                    {editingTeam && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTeam(null);
+                          setTeamForm({
+                            status: "active",
+                          });
+                        }}
+                        className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </>
+            ) : (
+              <div className="esports-card p-5 text-sm text-text-muted">
+                Team records are read-only for your role. A protected admin must approve identity, logo, and archive changes.
               </div>
-            </form>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               {teams.map((team) => (
                 <div key={team.id} className="esports-card p-5">
@@ -3114,7 +3320,7 @@ export default function AdminDashboard({
                           {team.name} {team.tag && <span className="text-accent-blue">[{team.tag}]</span>}
                         </p>
                         <p className="text-sm text-slate-400">
-                          {team.country ?? "—"} · Captain: {team.captainName ?? "—"}
+                          {team.country ?? "—"} · Official status: {team.status ?? "—"}
                         </p>
                         <p className="mt-1 text-xs text-text-muted">
                           Slot #{team.slotNumber ?? "—"} · Rank #{team.rank ?? "—"} · {team.totalPoints ?? 0} pts · {team.matches ?? 0}{" "}
@@ -3129,34 +3335,33 @@ export default function AdminDashboard({
                           setEditingTeam(team.id);
                           setTeamForm(team);
                           setSelectedTeamId(team.id);
-                          setSection("players");
+                          handleSectionChange("players");
                         }}
                         className="text-bravoBlue text-sm hover:underline"
                       >
                         Players
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingTeam(team.id);
-                          setTeamForm(team);
-                        }}
-                        className="text-bravoBlue text-sm hover:underline"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          await adminFetch(`/api/teams/${team.id}`, {
-                            method: "DELETE",
-                          });
-                          loadData();
-                        }}
-                        className="text-bravoRed text-sm hover:underline"
-                      >
-                        Delete
-                      </button>
+                      {canManageCanonicalTeams ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTeam(team.id);
+                              setTeamForm(team);
+                            }}
+                            className="text-bravoBlue text-sm hover:underline"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void archiveAdminTeam(team.id)}
+                            className="text-bravoRed text-sm hover:underline"
+                          >
+                            Archive
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -3449,7 +3654,7 @@ export default function AdminDashboard({
                             setMatchId(formatScrimMatchIds(linkedScrim));
                             setImportScrimId(linkedScrim?.id ?? "");
                             setImportTournamentId(tournament.id);
-                            setSection("pubg");
+                            handleSectionChange("pubg");
                           }}
                           className="btn-secondary !text-[11px]"
                         >
@@ -3632,6 +3837,14 @@ export default function AdminDashboard({
                 value={scrimForm.announcement ?? ""}
                 onChange={(e) => setScrimForm({ ...scrimForm, announcement: e.target.value })}
               />
+              <label className="flex items-center gap-3 rounded-card border border-white/10 px-4 py-3 text-sm text-white sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={scrimForm.published === true}
+                  onChange={(event) => setScrimForm({ ...scrimForm, published: event.target.checked })}
+                />
+                Publish this scrim schedule and its verified results on the public website
+              </label>
               <div className="sm:col-span-2">
                 <p className="mb-2 text-xs font-semibold uppercase text-text-muted">Assigned Teams</p>
                 <div className="flex flex-wrap gap-2">
@@ -3692,7 +3905,7 @@ export default function AdminDashboard({
                           setMatchId(formatScrimMatchIds(s));
                           setImportScrimId(s.id);
                           setImportTournamentId(s.tournamentId ?? "");
-                          setSection("pubg");
+                          handleSectionChange("pubg");
                         }}
                         className="btn-secondary !text-[11px]"
                       >
@@ -3748,7 +3961,7 @@ export default function AdminDashboard({
                   This batch is already <span className="font-semibold text-white">{focusedImportBatch.status}</span>. Open the audit
                   history below to inspect the final result.
                 </p>
-                <button type="button" onClick={() => setSection("approvedImports")} className="btn-secondary w-fit">
+                <button type="button" onClick={() => handleSectionChange("approvedImports")} className="btn-secondary w-fit">
                   Open Approved Imports
                 </button>
               </div>
@@ -3896,7 +4109,7 @@ export default function AdminDashboard({
                           setMatchId((batch.matchIds ?? []).join("\n"));
                           setImportTournamentId(batch.tournamentId ?? "");
                           setImportScrimId(batch.scrimId ?? "");
-                          setSection("pubg");
+                          handleSectionChange("pubg");
                         }}
                         className="text-bravoBlue text-sm hover:underline"
                       >

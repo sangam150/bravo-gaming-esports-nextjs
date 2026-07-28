@@ -1,4 +1,4 @@
-import { CompetitionLeaderboardsPage } from "@/components/public/CompetitionReferencePages";
+import { CompetitionLeaderboardsPage } from "@/components/public/competition/CompetitionLeaderboardsPage";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 import type { Metadata } from "next";

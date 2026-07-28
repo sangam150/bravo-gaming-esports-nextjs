@@ -87,11 +87,6 @@ export function resolveDiscordMemberRoles(memberRoleIds: string[], mappings: Dis
   };
 }
 
-export function resolveDiscordRoleIds(memberRoleIds: string[], mappings: Array<{ roleId: string; appRole: DiscordMappedRole }>) {
-  const mappedRoles = mappings.filter((mapping) => memberRoleIds.includes(mapping.roleId)).map((mapping) => mapping.appRole);
-  return { primaryRole: mappedRoles[0] ?? "viewer", mappedRoles };
-}
-
 export function resolveApprovedDiscordRole(
   mappedPrimaryRole: DiscordMappedRole | "viewer",
   existingRole: BravoApplicationRole,

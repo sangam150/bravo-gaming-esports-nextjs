@@ -1,3 +1,4 @@
+import JsonLd from "@/components/JsonLd";
 import TournamentDetailClient from "@/components/tournaments/TournamentDetailClient";
 import {
   getPlayers,
@@ -8,6 +9,8 @@ import {
   getTournamentStandings,
   getTournamentTeams,
 } from "@/lib/data";
+import { buildContentMetadata } from "@/lib/metadata";
+import { buildBreadcrumbStructuredData, buildPublicEventStructuredData } from "@/lib/structured-data";
 import { buildTournamentStandings } from "@/lib/tournament-standings";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -24,10 +27,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  return {
-    title: `${tournament.title} Tournament`,
+  return buildContentMetadata({
+    title: `${tournament.title} | Bravo Gaming Esports`,
     description: `Follow ${tournament.title} standings, teams, and match results on Bravo Gaming Esports.`,
-  };
+    path: `/tournaments/${tournament.id}`,
+    imageUrl: tournament.bannerUrl,
+    type: "website",
+  });
 }
 
 export default async function TournamentDetailPage({ params }: PageProps) {
@@ -54,5 +60,33 @@ export default async function TournamentDetailPage({ params }: PageProps) {
 
   const standings = storedStandings.length > 0 ? storedStandings : buildTournamentStandings(tournamentId, tournament.title, matches);
 
-  return <TournamentDetailClient tournament={tournament} matches={matches} teams={teams} players={players} standings={standings} />;
+  const tournamentPath = `/tournaments/${tournament.id}`;
+  const lifecycle = tournament.status === "LIVE" ? "ongoing" : tournament.status === "COMPLETED" ? "completed" : "upcoming";
+
+  return (
+    <>
+      <JsonLd
+        data={buildPublicEventStructuredData({
+          bannerUrl: tournament.bannerUrl,
+          endDate: tournament.endDate,
+          lifecycle,
+          name: tournament.title,
+          organizerName: "Bravo Gaming Esports",
+          path: tournamentPath,
+          region: tournament.server,
+          slug: tournament.id,
+          startDate: tournament.startDate,
+          summary: tournament.description,
+        })}
+      />
+      <JsonLd
+        data={buildBreadcrumbStructuredData([
+          { name: "Home", path: "/" },
+          { name: "Tournaments", path: "/tournaments" },
+          { name: tournament.title, path: tournamentPath },
+        ])}
+      />
+      <TournamentDetailClient tournament={tournament} matches={matches} teams={teams} players={players} standings={standings} />
+    </>
+  );
 }

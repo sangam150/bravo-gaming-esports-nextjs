@@ -1,20 +1,25 @@
 import { requireAuthenticatedUser } from "@/lib/admin-auth";
-import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { writeRequiredAuditLogFromRequest } from "@/lib/audit-logs";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
+import { prepareCanonicalPublicImageUpload, type CanonicalImageAssetMetadata } from "@/lib/canonical-image-upload";
+import { ImageDecodeError } from "@/lib/image-validation";
 import {
   buildPrivateUploadUrl,
-  deleteFromStorageByUrl,
+  deletePrivateObjectByKey,
+  deletePublicObjectByKey,
   getPublicObject,
   isR2ObjectMissingError,
   normalizeManagedPublicObjectKey,
-  toReadableStream,
+  readObjectBodyAsBuffer,
   uploadPrivateFile,
-  uploadPublicFile,
+  uploadPublicObjectAtKey,
+  verifyPublicObjectDelivery,
 } from "@/lib/r2/storage";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
-import { isPrivateUploadType, normalizeUploadType, type UploadType } from "@/lib/upload-config";
-import { createUploadRecord } from "@/lib/upload-records";
+import { isImageUploadType, isPrivateUploadType, normalizeUploadType, type UploadType } from "@/lib/upload-config";
+import { createUploadRecord, deleteUploadRecord } from "@/lib/upload-records";
 import { resolveUploadContentType, validateUpload } from "@/lib/upload-validation";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import { randomUUID } from "crypto";
@@ -22,76 +27,6 @@ import { randomUUID } from "crypto";
 export const runtime = "nodejs";
 
 const TEAM_UPLOAD_TYPES = new Set<UploadType>(["team_logo", "moss_file"]);
-
-function resolvePublicAssetKind(objectKey: string) {
-  const segments = objectKey.split("/").filter(Boolean);
-  const [rootFolder, , nestedFolder] = segments;
-  const managedFolder = rootFolder === "demo" ? nestedFolder : rootFolder;
-
-  if (managedFolder === "players") {
-    return "PLAYER AVATAR";
-  }
-
-  if (managedFolder === "teams") {
-    return "TEAM ASSET";
-  }
-
-  if (managedFolder === "sponsors") {
-    return "SPONSOR ASSET";
-  }
-
-  if (managedFolder === "events") {
-    return "EVENT ART";
-  }
-
-  if (managedFolder === "news") {
-    return "NEWS ART";
-  }
-
-  if (managedFolder === "media") {
-    return "MEDIA ART";
-  }
-
-  return "BRAVO ASSET";
-}
-
-function buildPublicAssetFallbackResponse(objectKey: string) {
-  const kind = resolvePublicAssetKind(objectKey);
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-label="${kind}">
-      <defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#07111c" />
-          <stop offset="100%" stop-color="#13263d" />
-        </linearGradient>
-        <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#1d9bf0" />
-          <stop offset="100%" stop-color="#56c2ff" />
-        </linearGradient>
-      </defs>
-      <rect width="1280" height="720" rx="40" fill="url(#bg)" />
-      <rect x="72" y="72" width="1136" height="576" rx="30" fill="none" stroke="rgba(255,255,255,0.12)" />
-      <circle cx="196" cy="182" r="32" fill="url(#accent)" opacity="0.95" />
-      <path d="M184 182h188" stroke="url(#accent)" stroke-width="12" stroke-linecap="round" opacity="0.9" />
-      <text x="96" y="300" fill="#f8fafc" font-size="92" font-family="Arial, Helvetica, sans-serif" font-weight="700" letter-spacing="8">
-        BRAVO GAMING
-      </text>
-      <text x="96" y="390" fill="#93c5fd" font-size="36" font-family="Arial, Helvetica, sans-serif" font-weight="700" letter-spacing="10">
-        ${kind}
-      </text>
-      <text x="96" y="470" fill="#cbd5e1" font-size="28" font-family="Arial, Helvetica, sans-serif">
-        Managed public asset fallback served because the requested upload is unavailable.
-      </text>
-    </svg>
-  `.trim();
-
-  return new Response(svg, {
-    headers: {
-      "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
-      "Content-Type": "image/svg+xml; charset=utf-8",
-    },
-  });
-}
 
 export async function GET(request: Request) {
   try {
@@ -103,31 +38,22 @@ export async function GET(request: Request) {
     }
 
     const object = await getPublicObject(objectKey);
-    const stream = toReadableStream(object.Body);
+    const body = await readObjectBodyAsBuffer(object.Body);
 
-    if (!stream) {
-      return buildPublicAssetFallbackResponse(objectKey);
+    if (!body) {
+      return Response.json({ error: "Public upload not found." }, { status: 404, headers: { "Cache-Control": "public, max-age=60" } });
     }
 
     const headers = new Headers();
     headers.set("Cache-Control", object.CacheControl ?? "public, max-age=31536000, immutable");
     headers.set("Content-Type", object.ContentType ?? "application/octet-stream");
 
-    if (typeof object.ContentLength === "number") {
-      headers.set("Content-Length", String(object.ContentLength));
-    }
+    headers.set("Content-Length", String(body.byteLength));
 
-    return new Response(stream as unknown as BodyInit, { headers });
+    return new Response(new Uint8Array(body), { headers });
   } catch (error: unknown) {
     if (isR2ObjectMissingError(error)) {
-      const { searchParams } = new URL(request.url);
-      const objectKey = normalizeManagedPublicObjectKey(searchParams.get("key") ?? "");
-
-      if (objectKey) {
-        return buildPublicAssetFallbackResponse(objectKey);
-      }
-
-      return Response.json({ error: "Public upload not found." }, { status: 404 });
+      return Response.json({ error: "Public upload not found." }, { status: 404, headers: { "Cache-Control": "public, max-age=60" } });
     }
 
     await logServerError("uploads.r2.public.get", error, request);
@@ -144,6 +70,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
   const limited = await enforceRateLimit(request, {
     key: "shared-upload-r2",
     maxRequests: 20,
@@ -165,7 +93,6 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const type = normalizeUploadType(formData.get("type") as string | null);
-    const previousUrl = (formData.get("previousUrl") as string | null) ?? undefined;
     const requestedEntityId = (formData.get("entityId") as string | null)?.trim() || "general";
 
     if (!file || !type) {
@@ -192,6 +119,29 @@ export async function POST(request: Request) {
       }
     }
 
+    if (type === "team_logo") {
+      return Response.json(
+        {
+          success: false,
+          error: auth.session.isAdmin
+            ? "Use the official team logo uploader after selecting a canonical team."
+            : "Use the team workspace logo uploader so the official team record is updated safely.",
+          code: "canonical_team_logo_route_required",
+        },
+        { status: 400 },
+      );
+    }
+    if (type === "team_logo_pending") {
+      return Response.json(
+        {
+          success: false,
+          error: "Pending registration logos must use the protected registration upload route.",
+          code: "registration_logo_route_required",
+        },
+        { status: 400 },
+      );
+    }
+
     const audience = auth.session.isAdmin ? "admin" : "team";
     const validationError = validateUpload({
       audience,
@@ -206,54 +156,100 @@ export async function POST(request: Request) {
     }
 
     const entityId = auth.session.isAdmin ? requestedEntityId : auth.session.teamId!;
-    const contentType = resolveUploadContentType(type, file.name, file.type, { audience }) || "application/octet-stream";
     const buffer = Buffer.from(await file.arrayBuffer());
     const uploadRecordId = randomUUID();
-    const uploadResult = isPrivateUploadType(type)
-      ? await uploadPrivateFile(type, entityId, file.name, buffer, contentType)
-      : await uploadPublicFile(type, entityId, file.name, buffer, contentType);
-    const url = uploadResult.visibility === "private" ? buildPrivateUploadUrl(uploadRecordId) : uploadResult.url;
+    let contentType: string;
+    let imageMetadata: CanonicalImageAssetMetadata | null = null;
+    let path: string;
+    let persistedUploadRecordId: string | null = null;
+    let privateObjectKey: string | null = null;
+    let publicObjectKey: string | null = null;
+    let url: string;
+    let visibility: "private" | "public";
 
-    const record = await createUploadRecord({
-      id: uploadRecordId,
-      fileUrl: url,
-      filePath: uploadResult.path,
-      fileType: type,
-      relatedType: auth.session.isAdmin ? "shared_upload" : type === "moss_file" ? "moss_submission" : "team_asset",
-      relatedId: entityId,
-      uploadedBy: auth.session.profileId,
-      fileName: file.name,
-      contentType,
-      sizeBytes: file.size,
-    });
+    try {
+      if (isImageUploadType(type) && !isPrivateUploadType(type)) {
+        const preparedImage = await prepareCanonicalPublicImageUpload({
+          buffer,
+          declaredContentType: file.type,
+          entityId,
+          fileName: file.name,
+          type,
+        });
+        contentType = preparedImage.decoded.contentType;
+        imageMetadata = preparedImage.metadata;
+        path = preparedImage.objectKey;
+        publicObjectKey = path;
+        url = preparedImage.publicUrl;
+        visibility = "public";
+        await uploadPublicObjectAtKey(path, buffer, contentType);
+        await verifyPublicObjectDelivery(path, {
+          contentType,
+          sizeBytes: preparedImage.decoded.sizeBytes,
+        });
+      } else {
+        contentType = resolveUploadContentType(type, file.name, file.type, { audience }) || "application/octet-stream";
+        const uploadResult = await uploadPrivateFile(type, entityId, file.name, buffer, contentType);
+        path = uploadResult.path;
+        privateObjectKey = path;
+        url = buildPrivateUploadUrl(uploadRecordId);
+        visibility = "private";
+      }
 
-    if (previousUrl && previousUrl !== url) {
-      await deleteFromStorageByUrl(previousUrl).catch(() => undefined);
-    }
-
-    await writeAuditLogFromRequest(request, {
-      action: "upload",
-      entityId: record.id,
-      entityType: "upload",
-      newValue: {
-        fileType: type,
+      const record = await createUploadRecord({
+        id: uploadRecordId,
         fileUrl: url,
-        key: uploadResult.path,
-        visibility: uploadResult.visibility,
-        scopedAs: auth.session.isAdmin ? "admin" : "team",
-        teamId: auth.session.teamId,
-      },
-    });
+        filePath: path,
+        fileType: type,
+        relatedType: auth.session.isAdmin ? "shared_upload" : type === "moss_file" ? "moss_submission" : "team_asset",
+        relatedId: entityId,
+        uploadedBy: auth.session.profileId,
+        fileName: file.name,
+        contentType,
+        sizeBytes: buffer.byteLength,
+      });
+      persistedUploadRecordId = record.id;
 
-    return Response.json({
-      success: true,
-      id: record.id,
-      key: uploadResult.path,
-      path: uploadResult.path,
-      url,
-    });
+      await writeRequiredAuditLogFromRequest(request, {
+        action: "upload",
+        entityId: record.id,
+        entityType: "upload",
+        newValue: {
+          asset: imageMetadata,
+          fileType: type,
+          fileUrl: url,
+          key: path,
+          visibility,
+          scopedAs: auth.session.isAdmin ? "admin" : "team",
+          teamId: auth.session.teamId,
+        },
+      });
+
+      return Response.json({
+        success: true,
+        id: record.id,
+        key: path,
+        metadata: imageMetadata,
+        path,
+        url,
+      });
+    } catch (error) {
+      if (persistedUploadRecordId) {
+        await deleteUploadRecord(persistedUploadRecordId).catch(() => undefined);
+      }
+      if (publicObjectKey) {
+        await deletePublicObjectByKey(publicObjectKey).catch(() => undefined);
+      }
+      if (privateObjectKey) {
+        await deletePrivateObjectByKey(privateObjectKey).catch(() => undefined);
+      }
+      throw error;
+    }
   } catch (error: unknown) {
     await logServerError("uploads.r2", error, request);
+    if (error instanceof ImageDecodeError) {
+      return Response.json({ success: false, error: error.message, code: "invalid_image_signature" }, { status: 400 });
+    }
     return Response.json(
       {
         success: false,

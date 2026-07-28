@@ -1,4 +1,5 @@
 import { PlatformOrganizationDetailPage } from "@/components/platform/PlatformPages";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData, getPlatformOrganizationBySlug } from "@/lib/platform-hub";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -15,10 +16,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Organization Not Found" };
   }
 
-  return {
-    title: organization.name,
-    description: organization.summary,
-  };
+  return buildContentMetadata({
+    title: `${organization.name} | Bravo Gaming Esports`,
+    description: organization.summary || `View the published organization profile for ${organization.name}.`,
+    path: `/organizations/${organization.slug}`,
+    type: "website",
+  });
 }
 
 export const revalidate = 300;

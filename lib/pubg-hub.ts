@@ -12,13 +12,17 @@ import {
   type PubgTeamBoardRow,
 } from "./pubg-rankings";
 import { hasPublicDemoMarker, sanitizePublicAssetUrl, sanitizePublicCopy } from "./public-content";
+import { resolvePublicEventPolicy, type PublicEventLifecycle } from "./public-event-policy";
+import { normalizePublicActionHref } from "./public-links";
+import { isPublicScrim } from "./public-scrims";
+import { slugify } from "./slug-utils";
 import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { normalizeMapName } from "./tournament-standings";
 import type { Player, Scrim, Team, Tournament, TournamentMatch } from "./types";
 import { getUserFacingPlayerLabel, getUserFacingTeamLabel } from "./user-facing-errors";
 
-export type PubgHubSource = "supabase" | "launch_seed" | "empty";
+export type PubgHubSource = "supabase" | "empty";
 export type PubgHubEventStatus = "upcoming" | "ongoing" | "finished";
 export type PubgHubEventState = "published" | "locked" | "draft";
 
@@ -45,7 +49,7 @@ export interface PubgHubMapStat {
   points: number;
   wins: number;
   avgPlacement: number;
-  damage: number;
+  damage: number | null;
 }
 
 export interface PubgHubRecentMatch {
@@ -83,6 +87,7 @@ interface PubgHubEventStandingRow {
   killPoints: number;
   placementPoints: number;
   totalPoints: number;
+  damage: number | null;
   avgPlacement: number;
   bestPlacement: number;
   trend: number[];
@@ -118,6 +123,7 @@ interface PubgHubTeamEventStat {
   kills: number;
   wins: number;
   totalPoints: number;
+  damage: number | null;
   avgPlacement: number;
   rank?: number;
 }
@@ -193,10 +199,12 @@ export interface PubgHubTeam {
   region?: string | null;
   slotNumber?: number | null;
   active: boolean;
+  statsTracked: boolean;
   matches: number;
   wins: number;
   kills: number;
   damage: number;
+  damageTracked: boolean;
   placementPoints: number;
   killPoints: number;
   totalPoints: number;
@@ -223,6 +231,7 @@ export interface PubgHubPlayer {
   currentTeamTag?: string | null;
   currentTeamLogoUrl?: string | null;
   active: boolean;
+  statsTracked: boolean;
   matches: number;
   kills: number;
   assists: number;
@@ -249,6 +258,7 @@ export interface PubgHubEvent {
   name: string;
   slug: string;
   type: string;
+  lifecycle: PublicEventLifecycle;
   status: PubgHubEventStatus;
   state: PubgHubEventState;
   syncStatus: "synced" | "awaiting_approval" | "scheduled" | "draft";
@@ -264,6 +274,9 @@ export interface PubgHubEvent {
   rules?: string | null;
   streamUrl?: string | null;
   discordUrl?: string | null;
+  registrationOpen: boolean;
+  registrationStartDate?: string | null;
+  registrationEndDate?: string | null;
   teamCount: number;
   matchCount: number;
   teamIds: string[];
@@ -338,6 +351,7 @@ type BasePlayerRow = {
   pubgName: string;
   avatarUrl?: string | null;
   teamId?: string | null;
+  role?: string | null;
   active: boolean;
   matches: number;
   kills: number;
@@ -364,6 +378,7 @@ type BaseEventRow = {
   name: string;
   slug: string;
   type: string;
+  lifecycle: PublicEventLifecycle;
   status: PubgHubEventStatus;
   state: PubgHubEventState;
   region: string;
@@ -378,6 +393,9 @@ type BaseEventRow = {
   rules?: string | null;
   streamUrl?: string | null;
   discordUrl?: string | null;
+  registrationOpen: boolean;
+  registrationStartDate?: string | null;
+  registrationEndDate?: string | null;
   published: boolean;
 };
 
@@ -434,12 +452,8 @@ type BaseDataset = {
   playerResults: BasePlayerResultRow[];
 };
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
+type SupabaseBaseDatasetResult =
+  { status: "unconfigured"; dataset: null } | { status: "available"; dataset: BaseDataset } | { status: "failed"; dataset: null };
 
 function toNumber(value: unknown, fallback = 0) {
   const numeric = typeof value === "number" ? value : Number(value);
@@ -477,27 +491,9 @@ function sortByNewest<T extends { startTime?: string; startDate?: string }>(firs
   return (secondValue.startTime ?? secondValue.startDate ?? "").localeCompare(firstValue.startTime ?? firstValue.startDate ?? "");
 }
 
-function buildEventStatus(rawStatus: string, startDate?: string | null, endDate?: string | null): PubgHubEventStatus {
-  const normalizedStatus = rawStatus.trim().toLowerCase();
-  if (["finished", "completed", "archived"].includes(normalizedStatus)) {
-    return "finished";
-  }
-  if (["ongoing", "active", "live"].includes(normalizedStatus)) {
-    return "ongoing";
-  }
-
-  const now = Date.now();
-  const startTime = startDate ? new Date(startDate).getTime() : Number.NaN;
-  const endTime = endDate ? new Date(endDate).getTime() : Number.NaN;
-
-  if (Number.isFinite(startTime) && startTime > now) {
-    return "upcoming";
-  }
-
-  if (Number.isFinite(endTime) && endTime < now) {
-    return "finished";
-  }
-
+function toPubgHubEventStatus(status: ReturnType<typeof resolvePublicEventPolicy>["status"]): PubgHubEventStatus {
+  if (status === "live") return "ongoing";
+  if (status === "completed") return "finished";
   return "upcoming";
 }
 
@@ -528,30 +524,6 @@ function buildEmptyBaseDataset(): BaseDataset {
   };
 }
 
-function buildHiddenLaunchSeedDataset(): PubgHubDataset {
-  return {
-    source: "launch_seed",
-    generatedAt: new Date().toISOString(),
-    communities: [],
-    summary: {
-      trackedMatches: 0,
-      activeEvents: 0,
-      teamsInForm: 0,
-      recentEvents: 0,
-      communitiesActive: 0,
-    },
-    teams: [],
-    players: [],
-    events: [],
-    matches: [],
-    fantasy: {
-      enabled: false,
-      events: [],
-      leaderboard: [],
-    },
-  };
-}
-
 async function fetchSupabaseRows<TableName extends keyof Database["public"]["Tables"]>(tableName: TableName) {
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client.from(tableName).select("*");
@@ -561,9 +533,9 @@ async function fetchSupabaseRows<TableName extends keyof Database["public"]["Tab
   return (data ?? []) as unknown as Array<Database["public"]["Tables"][TableName]["Row"]>;
 }
 
-async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
+async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
   if (!isSupabaseServiceRoleConfigured()) {
-    return null;
+    return { status: "unconfigured", dataset: null };
   }
 
   try {
@@ -578,20 +550,24 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
       matchPlayerResultRows,
       rosterHistoryRows,
     ] = await Promise.all([
-      fetchSupabaseRows("seasons").catch(() => []),
-      fetchSupabaseRows("teams").catch(() => []),
-      fetchSupabaseRows("players").catch(() => []),
-      fetchSupabaseRows("events").catch(() => []),
-      fetchSupabaseRows("event_teams").catch(() => []),
-      fetchSupabaseRows("matches").catch(() => []),
-      fetchSupabaseRows("match_team_results").catch(() => []),
-      fetchSupabaseRows("match_player_results").catch(() => []),
-      fetchSupabaseRows("team_roster_history").catch(() => []),
+      fetchSupabaseRows("seasons"),
+      fetchSupabaseRows("teams"),
+      fetchSupabaseRows("players"),
+      fetchSupabaseRows("events"),
+      fetchSupabaseRows("event_teams"),
+      fetchSupabaseRows("matches"),
+      fetchSupabaseRows("match_team_results"),
+      fetchSupabaseRows("match_player_results"),
+      fetchSupabaseRows("team_roster_history"),
     ]);
 
     const hiddenSeasonIds = new Set(
       seasonRows
-        .filter((row) => hasPublicDemoMarker(toOptionalText(row.name), toOptionalText(row.slug), toOptionalText(row.series_title)))
+        .filter(
+          (row) =>
+            !["active", "completed"].includes(toText(row.status).trim().toLowerCase()) ||
+            hasPublicDemoMarker(toOptionalText(row.name), toOptionalText(row.slug), toOptionalText(row.series_title)),
+        )
         .map((row) => toText(row.id))
         .filter(Boolean),
     );
@@ -601,6 +577,9 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
         const normalizedStatus = toText(row.status, "active");
         const isActiveFlag = toBoolean(row.is_active, normalizedStatus.toLowerCase() !== "inactive");
         const isDeleted = Boolean(toOptionalText(row.deleted_at));
+        const isArchived = Boolean(toOptionalText(row.archived_at));
+        const isMerged = Boolean(toOptionalText(row.merged_into_team_id));
+        const isRevoked = toText(row.verification_status).trim().toLowerCase() === "revoked";
 
         return {
           id: toText(row.id),
@@ -610,7 +589,7 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
           logoUrl: toOptionalText(row.logo_url),
           region: toOptionalText(row.region),
           slotNumber: toOptionalNumber(row.slot_number),
-          active: isActiveFlag && !isDeleted && !isHiddenPublicStatus(normalizedStatus),
+          active: isActiveFlag && !isDeleted && !isArchived && !isMerged && !isRevoked && !isHiddenPublicStatus(normalizedStatus),
         };
       })
       .filter((team): team is BaseTeamRow => Boolean(team?.id && team.name));
@@ -623,6 +602,7 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
           pubgName: toText(row.pubg_name ?? row.display_name),
           avatarUrl: toOptionalText(row.avatar_url ?? row.photo_url),
           teamId: toOptionalText(row.current_team_id),
+          role: null,
           active: toBoolean(row.is_active, true) && !Boolean(toOptionalText(row.deleted_at)),
           matches: 0,
           kills: 0,
@@ -647,28 +627,45 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
         const eventName = toText(row.name ?? row.title);
         const startDate = toText(row.start_date);
         const endDate = toOptionalText(row.end_date);
-        const status = buildEventStatus(toText(row.status, "upcoming"), startDate, endDate);
-        const published = toBoolean(row.published, true);
+        const published = row.published === true;
+        const eventPolicy = resolvePublicEventPolicy({
+          status: toText(row.lifecycle_status ?? row.competition_status ?? row.status, "upcoming"),
+          published,
+          startDate,
+          endDate,
+          registrationStatus: toOptionalText(row.registration_status),
+          registrationStartDate: toOptionalText(row.registration_start),
+          registrationEndDate: toOptionalText(row.registration_end),
+          registrationRequiresWindow: true,
+          teamCount: toNumber(row.team_count, 0),
+          maxTeams: toNumber(row.max_teams, 0),
+          streamHref: toOptionalText(row.stream_url),
+        });
+        const status = toPubgHubEventStatus(eventPolicy.status);
 
         return {
           id: toText(row.id),
           name: eventName,
           slug: toText(row.slug, slugify(eventName)),
           type: toText(row.type ?? row.event_type, "scrim"),
+          lifecycle: eventPolicy.lifecycle,
           status,
           state: buildEventState(published, status),
-          region: toText(row.region, "Nepal"),
+          region: toText(row.region, "Not tracked"),
           game: toText(row.game, "PUBG PC"),
           mode: toText(row.mode, "Squad"),
           perspective: toText(row.perspective, "TPP"),
-          prizePool: toText(row.prize_pool, "TBD"),
+          prizePool: toText(row.prize_pool, "Not tracked"),
           startDate,
           endDate,
           bannerUrl: toOptionalText(row.banner_url),
           description: toOptionalText(row.description),
           rules: toOptionalText(row.rules),
-          streamUrl: toOptionalText(row.stream_url),
+          streamUrl: eventPolicy.streamHref,
           discordUrl: toOptionalText(row.discord_url),
+          registrationOpen: eventPolicy.registrationOpen,
+          registrationStartDate: toOptionalText(row.registration_start),
+          registrationEndDate: toOptionalText(row.registration_end),
           published,
         };
       })
@@ -686,6 +683,7 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
       .filter((row): row is BaseEventTeamRow => Boolean(row?.eventId && row.teamId));
 
     const matches: BaseMatchRow[] = matchRows
+      .filter((row) => toText(row.status).trim().toLowerCase() === "published")
       .map<BaseMatchRow | null>((row) => {
         if (toOptionalText(row.season_id) && hiddenSeasonIds.has(toText(row.season_id))) {
           return null;
@@ -747,38 +745,23 @@ async function buildSupabaseBaseDataset(): Promise<BaseDataset | null> {
       })
       .filter((row): row is BaseRosterRow => Boolean(row?.teamId && row.playerId));
 
-    if (teams.length === 0 && events.length === 0 && matches.length === 0) {
-      return null;
-    }
-
     return {
-      source: "supabase",
-      teams,
-      players,
-      rosterHistory,
-      events,
-      eventTeams,
-      matches,
-      teamResults,
-      playerResults,
+      status: "available",
+      dataset: {
+        source: "supabase",
+        teams,
+        players,
+        rosterHistory,
+        events,
+        eventTeams,
+        matches,
+        teamResults,
+        playerResults,
+      },
     };
   } catch {
-    return null;
+    return { status: "failed", dataset: null };
   }
-}
-
-function mapTournamentStatusToHubStatus(status?: string): PubgHubEventStatus {
-  const normalizedStatus = status?.trim().toLowerCase() ?? "";
-  if (normalizedStatus === "live") return "ongoing";
-  if (normalizedStatus === "completed") return "finished";
-  return "upcoming";
-}
-
-function mapScrimStatusToHubStatus(status?: string): PubgHubEventStatus {
-  const normalizedStatus = status?.trim().toLowerCase() ?? "";
-  if (normalizedStatus === "live") return "ongoing";
-  if (normalizedStatus === "completed") return "finished";
-  return "upcoming";
 }
 
 async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
@@ -788,13 +771,13 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
 
   try {
     const [teamsDocs, playersDocs, tournamentDocs, scrimDocs, resultDocs, matchDocs, tournamentMatchDocs] = await Promise.all([
-      fetchDocumentCollection<Team>(COLLECTIONS.teams, 800).catch(() => []),
-      fetchDocumentCollection<Player>(COLLECTIONS.players, 2000).catch(() => []),
-      fetchDocumentCollection<Tournament>(COLLECTIONS.tournaments, 300).catch(() => []),
-      fetchDocumentCollection<Scrim>(COLLECTIONS.scrims, 400).catch(() => []),
-      fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matchResults, 500).catch(() => []),
-      fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matches, 500).catch(() => []),
-      fetchDocumentCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, 500).catch(() => []),
+      fetchDocumentCollection<Team>(COLLECTIONS.teams, 800),
+      fetchDocumentCollection<Player>(COLLECTIONS.players, 2000),
+      fetchDocumentCollection<Tournament>(COLLECTIONS.tournaments, 300),
+      fetchDocumentCollection<Scrim>(COLLECTIONS.scrims, 400),
+      fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matchResults, 500),
+      fetchDocumentCollection<TournamentMatch>(COLLECTIONS.matches, 500),
+      fetchDocumentCollection<TournamentMatch>(COLLECTIONS.tournamentMatches, 500),
     ]);
 
     const teams: BaseTeamRow[] = teamsDocs
@@ -805,9 +788,9 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
         name: team.name,
         tag: team.tag ?? null,
         logoUrl: team.logoUrl ?? team.logo ?? null,
-        region: team.country ?? "Nepal",
+        region: team.country ?? null,
         slotNumber: team.slotNumber ?? null,
-        active: (team.status ?? "active") !== "inactive",
+        active: (team.status ?? "active") === "active" && !team.deletedAt,
       }));
 
     const players: BasePlayerRow[] = playersDocs
@@ -818,7 +801,8 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
         pubgName: player.pubgName ?? player.inGameName ?? player.name,
         avatarUrl: player.avatarUrl ?? player.avatar ?? null,
         teamId: player.teamId ?? null,
-        active: (player.playerStatus ?? "active") !== "inactive",
+        role: player.role ?? null,
+        active: (player.playerStatus ?? "active") === "active" && !player.deletedAt,
         matches: toNumber(player.matches, 0),
         kills: toNumber(player.kills, 0),
         assists: toNumber(player.assists, 0),
@@ -833,24 +817,41 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
         sourceTournamentId: toOptionalText(player.sourceTournamentId),
       }));
 
-    const tournaments = tournamentDocs.filter((tournament) => tournament.id && tournament.title);
-    const scrims = scrimDocs.filter((scrim) => scrim.id && scrim.title);
+    const tournaments = tournamentDocs.filter(
+      (tournament) =>
+        tournament.id &&
+        tournament.title &&
+        tournament.published === true &&
+        tournament.state?.trim().toLowerCase() !== "draft",
+    );
+    const scrims = scrimDocs.filter((scrim) => scrim.id && scrim.title && isPublicScrim(scrim));
     const eventsById = new Map<string, BaseEventRow>();
 
     for (const tournament of tournaments) {
-      const status = mapTournamentStatusToHubStatus(tournament.status);
+      const eventPolicy = resolvePublicEventPolicy({
+        status: tournament.status,
+        state: tournament.state,
+        published: tournament.published,
+        startDate: tournament.startDate,
+        endDate: tournament.endDate,
+        registrationOpen: tournament.status === "OPEN" || tournament.status === "REGISTERING",
+        teamCount: tournament.teamCount,
+        maxTeams: tournament.maxTeams,
+      });
+      const status = toPubgHubEventStatus(eventPolicy.status);
       eventsById.set(tournament.id, {
         id: tournament.id,
         name: tournament.title,
         slug: tournament.id,
         type: "tournament",
+        lifecycle: eventPolicy.lifecycle,
         status,
-        state: buildEventState(true, status),
-        region: tournament.server || "Nepal",
+        state: buildEventState(eventPolicy.published, status),
+        region: tournament.server || "Not tracked",
         game: tournament.mode || "PUBG PC",
         mode: tournament.format || "Squad",
         perspective: tournament.perspective || "TPP",
-        prizePool: tournament.prizePool || "TBD",
+        prizePool: tournament.prizePool || "Not tracked",
         startDate: tournament.startDate,
         endDate: tournament.endDate ?? null,
         bannerUrl: tournament.bannerUrl ?? null,
@@ -858,25 +859,34 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
         rules: tournament.rules ?? null,
         streamUrl: null,
         discordUrl: null,
-        published: true,
+        registrationOpen: eventPolicy.registrationOpen,
+        registrationStartDate: null,
+        registrationEndDate: null,
+        published: eventPolicy.published,
       });
     }
 
     for (const scrim of scrims) {
       if (eventsById.has(scrim.id)) continue;
-      const status = mapScrimStatusToHubStatus(scrim.status);
+      const eventPolicy = resolvePublicEventPolicy({
+        status: scrim.status,
+        published: scrim.published === true && !scrim.deletedAt,
+        startDate: scrim.date,
+      });
+      const status = toPubgHubEventStatus(eventPolicy.status);
       eventsById.set(scrim.id, {
         id: scrim.id,
         name: scrim.title,
         slug: scrim.id,
         type: "scrim",
+        lifecycle: eventPolicy.lifecycle,
         status,
         state: buildEventState(true, status),
-        region: "Nepal",
+        region: "Not tracked",
         game: "PUBG PC",
         mode: "Squad",
         perspective: "TPP",
-        prizePool: "TBD",
+        prizePool: "Not tracked",
         startDate: scrim.date,
         endDate: null,
         bannerUrl: null,
@@ -884,40 +894,17 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
         rules: null,
         streamUrl: null,
         discordUrl: null,
-        published: true,
+        registrationOpen: false,
+        registrationStartDate: null,
+        registrationEndDate: null,
+        published: eventPolicy.published,
       });
     }
 
     const uniqueMatches = new Map<string, TournamentMatch>();
     for (const match of [...matchDocs, ...tournamentMatchDocs, ...resultDocs]) {
-      uniqueMatches.set(match.id, match);
-    }
-
-    for (const match of uniqueMatches.values()) {
-      const eventId = match.tournamentId ?? match.scrimId ?? match.eventSlug ?? match.id;
-      if (!eventsById.has(eventId)) {
-        const status = match.status === "draft" ? "upcoming" : "finished";
-        eventsById.set(eventId, {
-          id: eventId,
-          name: match.eventName ?? "Published Match Event",
-          slug: match.eventSlug ?? eventId,
-          type: "match-group",
-          status,
-          state: buildEventState(match.status !== "draft", status),
-          region: "Nepal",
-          game: "PUBG PC",
-          mode: "Squad",
-          perspective: "TPP",
-          prizePool: "TBD",
-          startDate: match.playedAt ?? match.syncedAt ?? new Date().toISOString(),
-          endDate: null,
-          bannerUrl: null,
-          description: null,
-          rules: null,
-          streamUrl: null,
-          discordUrl: null,
-          published: match.status !== "draft",
-        });
+      if (match.status?.trim().toLowerCase() === "published") {
+        uniqueMatches.set(match.id, match);
       }
     }
 
@@ -950,19 +937,17 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
     ].filter((eventTeam) => eventTeam.eventId && eventTeam.teamId);
 
     const matches: BaseMatchRow[] = Array.from(uniqueMatches.values())
-      .filter((match) => (match.status ?? "published") !== "draft")
       .map((match) => ({
         id: match.id,
         eventId: match.tournamentId ?? match.scrimId ?? match.eventSlug ?? match.id,
         matchNumber: match.matchNumber ?? match.sequenceNumber ?? 1,
         mapName: normalizeMapName(match.map || "Unknown"),
-        startTime: match.playedAt ?? match.syncedAt ?? new Date().toISOString(),
-        status: match.status ?? "published",
+        startTime: match.playedAt ?? match.syncedAt ?? "",
+        status: match.status ?? "draft",
         vodUrl: match.vodUrl ?? null,
       }));
 
     const teamResults: BaseTeamResultRow[] = Array.from(uniqueMatches.values())
-      .filter((match) => (match.status ?? "published") !== "draft")
       .flatMap((match) =>
         (match.teamResults ?? []).map((teamResult, index) => ({
           id: `${match.id}-${teamResult.teamId ?? teamResult.teamName}-${index}`,
@@ -978,7 +963,6 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
       );
 
     const playerResults: BasePlayerResultRow[] = Array.from(uniqueMatches.values())
-      .filter((match) => (match.status ?? "published") !== "draft")
       .flatMap((match) =>
         (match.playerResults ?? []).map((playerResult, index) => ({
           id: `${match.id}-${playerResult.playerId}-${index}`,
@@ -993,15 +977,7 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
         })),
       );
 
-    const rosterHistory: BaseRosterRow[] = players
-      .filter((player) => player.teamId)
-      .map((player) => ({
-        teamId: player.teamId ?? "",
-        playerId: player.id,
-        startDate: "2026-01-01",
-        endDate: null,
-        status: "active",
-      }));
+    const rosterHistory: BaseRosterRow[] = [];
 
     const events = Array.from(eventsById.values()).filter((event) => event.published);
 
@@ -1025,44 +1001,13 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
   }
 }
 
-function mergeRecords<T>(records: T[], getKey: (record: T) => string) {
-  const mergedRecords = new Map<string, T>();
-
-  for (const record of records) {
-    mergedRecords.set(getKey(record), record);
-  }
-
-  return Array.from(mergedRecords.values());
-}
-
-function mergeBaseDatasets(primary: BaseDataset | null, secondary: BaseDataset | null): BaseDataset | null {
-  if (!primary && !secondary) return null;
-  if (!primary) return secondary;
-  if (!secondary) return primary;
-
-  return {
-    source: primary.source,
-    teams: mergeRecords([...primary.teams, ...secondary.teams], (record) => record.id),
-    players: mergeRecords([...primary.players, ...secondary.players], (record) => record.id),
-    rosterHistory: mergeRecords(
-      [...primary.rosterHistory, ...secondary.rosterHistory],
-      (record) => `${record.teamId}-${record.playerId}-${record.startDate}-${record.status}`,
-    ),
-    events: mergeRecords([...primary.events, ...secondary.events], (record) => record.id),
-    eventTeams: mergeRecords([...primary.eventTeams, ...secondary.eventTeams], (record) => `${record.eventId}-${record.teamId}`),
-    matches: mergeRecords([...primary.matches, ...secondary.matches], (record) => record.id),
-    teamResults: mergeRecords([...primary.teamResults, ...secondary.teamResults], (record) => `${record.matchId}-${record.teamId}`),
-    playerResults: mergeRecords([...primary.playerResults, ...secondary.playerResults], (record) => `${record.matchId}-${record.playerId}`),
-  };
-}
-
 function aggregateMapStats(
   values: Array<{
     mapName: string;
     placement: number;
     kills: number;
     totalPoints: number;
-    damage: number;
+    damage: number | null;
     wwcd: boolean;
   }>,
 ) {
@@ -1076,6 +1021,7 @@ function aggregateMapStats(
       points: number;
       wins: number;
       damage: number;
+      damageComplete: boolean;
     }
   >();
 
@@ -1088,6 +1034,7 @@ function aggregateMapStats(
       points: 0,
       wins: 0,
       damage: 0,
+      damageComplete: true,
     };
 
     existingMap.matches += 1;
@@ -1095,7 +1042,11 @@ function aggregateMapStats(
     existingMap.kills += value.kills;
     existingMap.points += value.totalPoints;
     existingMap.wins += value.wwcd ? 1 : 0;
-    existingMap.damage += value.damage;
+    if (value.damage === null) {
+      existingMap.damageComplete = false;
+    } else {
+      existingMap.damage += value.damage;
+    }
 
     groupedMaps.set(value.mapName, existingMap);
   }
@@ -1108,9 +1059,29 @@ function aggregateMapStats(
       points: value.points,
       wins: value.wins,
       avgPlacement: Number((value.placementTotal / Math.max(value.matches, 1)).toFixed(2)),
-      damage: value.damage,
+      damage: value.damageComplete ? value.damage : null,
     }))
     .sort((firstValue, secondValue) => secondValue.points - firstValue.points || firstValue.avgPlacement - secondValue.avgPlacement);
+}
+
+export function buildEventTeamDamageTotals(rows: ReadonlyArray<{ playerId: string; teamId?: string | null; damage: number }>) {
+  const uniquePlayers = new Map<string, { teamId: string; damage: number }>();
+
+  for (const row of rows) {
+    const playerId = row.playerId.trim().toLowerCase();
+    const teamId = row.teamId?.trim();
+    if (!playerId || !teamId || !Number.isFinite(row.damage)) continue;
+    const current = uniquePlayers.get(playerId);
+    if (!current || row.damage > current.damage) {
+      uniquePlayers.set(playerId, { teamId, damage: row.damage });
+    }
+  }
+
+  const totals = new Map<string, number>();
+  for (const row of uniquePlayers.values()) {
+    totals.set(row.teamId, (totals.get(row.teamId) ?? 0) + row.damage);
+  }
+  return totals;
 }
 
 function buildAggregateEventPlayerRows(players: readonly BasePlayerRow[], eventId: string, teamsById: ReadonlyMap<string, BaseTeamRow>) {
@@ -1147,21 +1118,27 @@ function buildAggregateEventPlayerRows(players: readonly BasePlayerRow[], eventI
 
 export function isPublicPubgMatchStatus(status: string) {
   const normalizedStatus = status.trim().toLowerCase();
-  return normalizedStatus === "approved" || normalizedStatus === "published" || normalizedStatus === "completed";
+  return normalizedStatus === "published";
+}
+
+function isPublicEventTeamStatus(status: string) {
+  const normalizedStatus = status.trim().toLowerCase();
+  return normalizedStatus === "approved" || normalizedStatus === "confirmed" || normalizedStatus === "accepted";
 }
 
 function buildDataset(base: BaseDataset): PubgHubDataset {
-  if (base.source === "launch_seed") {
-    return buildHiddenLaunchSeedDataset();
-  }
-
   const teamsById = new Map(base.teams.map((team) => [team.id, team] as const));
   const playersById = new Map(base.players.map((player) => [player.id, player] as const));
-  const publicEvents = base.events.filter((event) => event.published);
+  const publicEvents = base.events.filter(
+    (event) => event.published && event.lifecycle !== "draft" && event.lifecycle !== "cancelled" && event.lifecycle !== "archived",
+  );
   const eventsById = new Map(publicEvents.map((event) => [event.id, event] as const));
   const eventTeamIds = new Map<string, Set<string>>();
 
   for (const eventTeam of base.eventTeams) {
+    if (!eventsById.has(eventTeam.eventId) || !isPublicEventTeamStatus(eventTeam.status)) {
+      continue;
+    }
     const currentEventTeams = eventTeamIds.get(eventTeam.eventId) ?? new Set<string>();
     currentEventTeams.add(eventTeam.teamId);
     eventTeamIds.set(eventTeam.eventId, currentEventTeams);
@@ -1410,6 +1387,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
           killPoints: value.killPoints,
           placementPoints: value.placementPoints,
           totalPoints: value.totalPoints,
+          damage: null,
           avgPlacement: Number((value.placementTotal / Math.max(value.matches, 1)).toFixed(2)),
           bestPlacement: Number.isFinite(value.bestPlacement) ? value.bestPlacement : 0,
           trend: value.trend.slice(-5),
@@ -1490,6 +1468,11 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
       const fallbackPlayerTable =
         matchDerivedPlayerTable.length > 0 ? [] : buildAggregateEventPlayerRows(base.players, event.id, teamsById);
       const playerTable = matchDerivedPlayerTable.length > 0 ? matchDerivedPlayerTable : fallbackPlayerTable;
+      const eventDamageByTeamId = buildEventTeamDamageTotals(playerTable);
+      const standingsWithDamage = standings.map((standing) => ({
+        ...standing,
+        damage: eventDamageByTeamId.get(standing.teamId) ?? null,
+      }));
 
       const derivedTeamIds = Array.from(eventTeamIds.get(event.id) ?? new Set<string>());
       const teamCount = derivedTeamIds.length > 0 ? derivedTeamIds.length : standings.length;
@@ -1501,9 +1484,10 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
             placement: teamResult.placement,
             kills: teamResult.kills,
             totalPoints: teamResult.totalPoints,
-            damage: match.playerResults
-              .filter((playerResult) => playerResult.teamId === teamResult.teamId)
-              .reduce((sum, currentValue) => sum + currentValue.damage, 0),
+            damage: (() => {
+              const teamPlayerResults = match.playerResults.filter((playerResult) => playerResult.teamId === teamResult.teamId);
+              return teamPlayerResults.length > 0 ? teamPlayerResults.reduce((sum, currentValue) => sum + currentValue.damage, 0) : null;
+            })(),
             wwcd: teamResult.wwcd,
           })),
         ),
@@ -1514,7 +1498,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
           ? "draft"
           : eventMatches.length === 0
             ? "scheduled"
-            : eventMatches.every((match) => ["published", "approved", "completed"].includes(match.status.toLowerCase()))
+            : eventMatches.every((match) => match.status.toLowerCase() === "published")
               ? "synced"
               : "awaiting_approval";
 
@@ -1523,6 +1507,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         name: event.name,
         slug: event.slug,
         type: event.type,
+        lifecycle: event.lifecycle,
         status: event.status,
         state: event.state,
         syncStatus,
@@ -1538,12 +1523,15 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         rules: event.rules ?? null,
         streamUrl: event.streamUrl ?? null,
         discordUrl: event.discordUrl ?? null,
+        registrationOpen: event.registrationOpen,
+        registrationStartDate: event.registrationStartDate ?? null,
+        registrationEndDate: event.registrationEndDate ?? null,
         teamCount,
         matchCount: eventMatches.length,
         teamIds: derivedTeamIds,
-        topTeamId: standings[0]?.teamId,
+        topTeamId: standingsWithDamage[0]?.teamId,
         topPlayerId: playerTable[0]?.playerId,
-        standings,
+        standings: standingsWithDamage,
         playerTable,
         matches: eventMatches,
         mapStats,
@@ -1568,6 +1556,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
       wins: number;
       kills: number;
       damage: number;
+      damageTracked: boolean;
       placementPoints: number;
       killPoints: number;
       totalPoints: number;
@@ -1581,7 +1570,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         placement: number;
         kills: number;
         totalPoints: number;
-        damage: number;
+        damage: number | null;
         wwcd: boolean;
       }>;
     }
@@ -1608,6 +1597,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
       wins: 0,
       kills: 0,
       damage: 0,
+      damageTracked: false,
       placementPoints: 0,
       killPoints: 0,
       totalPoints: 0,
@@ -1657,14 +1647,17 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
           active: team?.active ?? true,
         });
 
-      const teamDamage = match.playerResults
-        .filter((playerResult) => playerResult.teamId === teamResult.teamId)
-        .reduce((sum, currentValue) => sum + currentValue.damage, 0);
+      const teamPlayerResults = match.playerResults.filter((playerResult) => playerResult.teamId === teamResult.teamId);
+      const teamDamage =
+        teamPlayerResults.length > 0 ? teamPlayerResults.reduce((sum, currentValue) => sum + currentValue.damage, 0) : null;
 
       currentValue.matches += 1;
       currentValue.wins += teamResult.wwcd ? 1 : 0;
       currentValue.kills += teamResult.kills;
-      currentValue.damage += teamDamage;
+      if (teamDamage !== null) {
+        currentValue.damage += teamDamage;
+        currentValue.damageTracked = true;
+      }
       currentValue.placementPoints += teamResult.placementPoints;
       currentValue.killPoints += teamResult.killPoints;
       currentValue.totalPoints += teamResult.totalPoints;
@@ -1705,11 +1698,11 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
     Array.from(teamSummaryMap.values()).map((value) => {
       const roster = base.players
         .filter((player) => player.teamId === value.id && player.active)
-        .map((player, index) => ({
+        .map((player) => ({
           playerId: player.id,
           pubgName: player.pubgName,
           avatarUrl: player.avatarUrl ?? null,
-          role: index === 0 ? "IGL" : index === 3 ? "Support" : "Fragger",
+          role: player.role ?? "Not tracked",
           active: true,
         }))
         .sort((firstValue, secondValue) => firstValue.pubgName.localeCompare(secondValue.pubgName));
@@ -1733,6 +1726,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
             kills: standing?.kills ?? 0,
             wins: standing?.wins ?? 0,
             totalPoints: standing?.totalPoints ?? 0,
+            damage: standing?.damage ?? null,
             avgPlacement: standing?.avgPlacement ?? 0,
             rank: standing?.rank,
           } satisfies PubgHubTeamEventStat;
@@ -1745,6 +1739,9 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
 
       const trimmedPlacements = value.recentPlacements.slice(0, 6).reverse();
       const trimmedPoints = value.recentPoints.slice(0, 6).reverse();
+      const fallbackEventDamage = eventStats.map((eventStat) => eventStat.damage).filter((damage): damage is number => damage !== null);
+      const damageTracked = value.damageTracked || fallbackEventDamage.length > 0;
+      const damage = value.damageTracked ? value.damage : fallbackEventDamage.reduce((sum, currentDamage) => sum + currentDamage, 0);
       const formScore =
         (trimmedPoints.reduce((sum, currentValue) => sum + currentValue, 0) / Math.max(trimmedPoints.length, 1)) * 0.35 +
         (trimmedPlacements.reduce((sum, currentValue) => sum + (17 - currentValue), 0) / Math.max(trimmedPlacements.length, 1)) * 0.9;
@@ -1755,19 +1752,21 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         name: value.name,
         tag: value.tag ?? null,
         logoUrl: value.logoUrl ?? null,
-        region: value.region ?? "Nepal",
+        region: value.region ?? null,
         slotNumber: value.slotNumber ?? null,
         active: value.active,
+        statsTracked: value.matches > 0 || eventStats.some((eventStat) => eventStat.matches > 0),
         matches: value.matches,
         wins: value.wins,
         kills: value.kills,
-        damage: value.damage,
+        damage,
+        damageTracked,
         placementPoints: value.placementPoints,
         killPoints: value.killPoints,
         totalPoints: value.totalPoints,
         avgPlacement: Number((value.placementTotal / Math.max(value.matches, 1)).toFixed(2)),
         formScore: Number(formScore.toFixed(2)),
-        formLabel: getFormLabel(formScore),
+        formLabel: value.matches > 0 || eventStats.some((eventStat) => eventStat.matches > 0) ? getFormLabel(formScore) : "Pending",
         currentRoster: roster,
         rosterHistory: currentHistory,
         recentPlacements: trimmedPlacements,
@@ -2036,6 +2035,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         currentTeamTag: team?.tag ?? null,
         currentTeamLogoUrl: team?.logoUrl ?? null,
         active: playersById.get(value.id)?.active ?? true,
+        statsTracked: matches > 0,
         matches,
         kills,
         assists,
@@ -2046,7 +2046,7 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
         wins: value.wins,
         mvpCount: playerMvpById.get(value.id) ?? 0,
         formScore: Number(formScore.toFixed(2)),
-        formLabel: getFormLabel(formScore / 2),
+        formLabel: matches > 0 ? getFormLabel(formScore / 2) : "Pending",
         bestMatch: value.bestMatch ?? null,
         recentTrend: recentKills,
         recentDamageTrend,
@@ -2165,9 +2165,12 @@ function sanitizePubgDatasetForPublicDisplay(dataset: PubgHubDataset): PubgHubDa
     event.teamIds.forEach((teamId) => visibleEventTeamIds.add(teamId));
     event.standings.forEach((row) => visibleEventTeamIds.add(row.teamId));
   }
-  const rawCandidateMatches = dataset.matches.filter(
-    (match) => visibleEventIds.has(match.eventId) && !hasPublicDemoMarker(match.eventName, match.eventSlug),
-  );
+  const rawCandidateMatches = dataset.matches
+    .filter((match) => visibleEventIds.has(match.eventId) && !hasPublicDemoMarker(match.eventName, match.eventSlug))
+    .map((match) => ({
+      ...match,
+      vodUrl: normalizePublicActionHref(match.vodUrl) ?? null,
+    }));
   const visibleMatchTeamIds = new Set<string>();
   const visibleMatchPlayerIds = new Set<string>();
   for (const match of rawCandidateMatches) {
@@ -2185,6 +2188,10 @@ function sanitizePubgDatasetForPublicDisplay(dataset: PubgHubDataset): PubgHubDa
 
   const teams = dataset.teams
     .filter((team) => {
+      if (!team.active) {
+        return false;
+      }
+
       if (hasPublicDemoMarker(team.name, team.tag ?? undefined, team.slug, team.region ?? undefined)) {
         return false;
       }
@@ -2201,10 +2208,15 @@ function sanitizePubgDatasetForPublicDisplay(dataset: PubgHubDataset): PubgHubDa
           avatarUrl: sanitizePublicAssetUrl(player.avatarUrl ?? undefined) ?? null,
         })),
       rosterHistory: team.rosterHistory.filter((player) => !hasPublicDemoMarker(player.pubgName)),
-      recentMatches: team.recentMatches.filter(
-        (match) =>
-          visibleEventIds.has(match.eventId) && !hasPublicDemoMarker(match.eventName, match.eventSlug, match.teamName, match.playerName),
-      ),
+      recentMatches: team.recentMatches
+        .filter(
+          (match) =>
+            visibleEventIds.has(match.eventId) && !hasPublicDemoMarker(match.eventName, match.eventSlug, match.teamName, match.playerName),
+        )
+        .map((match) => ({
+          ...match,
+          vodUrl: normalizePublicActionHref(match.vodUrl) ?? null,
+        })),
       eventStats: team.eventStats.filter(
         (event) => visibleEventIds.has(event.eventId) && !hasPublicDemoMarker(event.eventName, event.eventSlug),
       ),
@@ -2233,10 +2245,15 @@ function sanitizePubgDatasetForPublicDisplay(dataset: PubgHubDataset): PubgHubDa
       ...player,
       avatarUrl: sanitizePublicAssetUrl(player.avatarUrl ?? undefined) ?? null,
       currentTeamLogoUrl: sanitizePublicAssetUrl(player.currentTeamLogoUrl ?? undefined) ?? null,
-      recentMatches: player.recentMatches.filter(
-        (match) =>
-          visibleEventIds.has(match.eventId) && !hasPublicDemoMarker(match.eventName, match.eventSlug, match.teamName, match.playerName),
-      ),
+      recentMatches: player.recentMatches
+        .filter(
+          (match) =>
+            visibleEventIds.has(match.eventId) && !hasPublicDemoMarker(match.eventName, match.eventSlug, match.teamName, match.playerName),
+        )
+        .map((match) => ({
+          ...match,
+          vodUrl: normalizePublicActionHref(match.vodUrl) ?? null,
+        })),
       eventStats: player.eventStats.filter(
         (event) => visibleEventIds.has(event.eventId) && !hasPublicDemoMarker(event.eventName, event.eventSlug),
       ),
@@ -2344,12 +2361,15 @@ function sanitizePubgDatasetForPublicDisplay(dataset: PubgHubDataset): PubgHubDa
 }
 
 export const getPubgHubDataset = cache(async () => {
-  const liveDataset = await buildSupabaseBaseDataset();
-  const documentStoreDataset = await buildDocumentStoreBaseDataset();
-  const mergedDataset = mergeBaseDatasets(liveDataset, documentStoreDataset);
+  const authoritativeResult = await buildSupabaseBaseDataset();
+  if (authoritativeResult.status === "failed") {
+    return sanitizePubgDatasetForPublicDisplay(buildDataset(buildEmptyBaseDataset()));
+  }
 
-  if (mergedDataset) {
-    const aggregatedLive = sanitizePubgDatasetForPublicDisplay(buildDataset(mergedDataset));
+  const baseDataset = authoritativeResult.status === "available" ? authoritativeResult.dataset : await buildDocumentStoreBaseDataset();
+
+  if (baseDataset) {
+    const aggregatedLive = sanitizePubgDatasetForPublicDisplay(buildDataset(baseDataset));
     if (
       aggregatedLive.matches.length > 0 ||
       aggregatedLive.events.length > 0 ||
@@ -2365,8 +2385,8 @@ export const getPubgHubDataset = cache(async () => {
 
 export async function getPubgDashboardData() {
   const dataset = await getPubgHubDataset();
-  const topTeams = getRankedTeams(dataset.teams).slice(0, 6);
-  const topPlayers = getRankedPlayers(dataset.players).slice(0, 6);
+  const topTeams = getRankedTeams(dataset.teams.filter((team) => team.statsTracked)).slice(0, 6);
+  const topPlayers = getRankedPlayers(dataset.players.filter((player) => player.statsTracked)).slice(0, 6);
   const activeEvents = dataset.events.filter((event) => event.status !== "finished").slice(0, 4);
   const recentEvents = [...dataset.events].sort(sortByNewest).slice(0, 5);
   const recentMatches = dataset.matches.slice(0, 8);
@@ -2428,6 +2448,7 @@ function getFallbackFormLabel(matches: number, hotSignal: number) {
 function mergePublicTeamWithBoardRow(team: PubgHubTeam, boardRow: PubgTeamBoardRow): PubgHubTeam {
   const recentPoints = boardRow.trend.length > 0 ? boardRow.trend : team.recentPoints;
   const fallbackFormScore = recentPoints.reduce((sum, value) => sum + value, 0) / Math.max(recentPoints.length, 1);
+  const boardDamageTracked = boardRow.damage > 0;
 
   return {
     ...team,
@@ -2436,10 +2457,12 @@ function mergePublicTeamWithBoardRow(team: PubgHubTeam, boardRow: PubgTeamBoardR
     tag: team.tag ?? boardRow.tag ?? null,
     logoUrl: team.logoUrl ?? boardRow.logoUrl ?? null,
     slotNumber: team.slotNumber ?? null,
+    statsTracked: boardRow.matches > 0 || team.statsTracked,
     matches: boardRow.matches,
     wins: boardRow.wins,
     kills: boardRow.kills,
-    damage: boardRow.damage,
+    damage: boardDamageTracked ? boardRow.damage : team.damage,
+    damageTracked: boardDamageTracked || team.damageTracked,
     placementPoints: boardRow.placementPoints,
     killPoints: boardRow.killPoints,
     totalPoints: boardRow.totalPoints,
@@ -2462,10 +2485,12 @@ function createPublicTeamFromBoardRow(boardRow: PubgTeamBoardRow): PubgHubTeam {
     region: null,
     slotNumber: null,
     active: true,
+    statsTracked: boardRow.matches > 0,
     matches: boardRow.matches,
     wins: boardRow.wins,
     kills: boardRow.kills,
     damage: boardRow.damage,
+    damageTracked: boardRow.damage > 0,
     placementPoints: boardRow.placementPoints,
     killPoints: boardRow.killPoints,
     totalPoints: boardRow.totalPoints,
@@ -2502,6 +2527,7 @@ function mergePublicPlayerWithBoardRow(
     currentTeamName: boardRow.teamName ?? player.currentTeamName ?? null,
     currentTeamTag: currentTeam?.tag ?? player.currentTeamTag ?? null,
     currentTeamLogoUrl: currentTeam?.logoUrl ?? player.currentTeamLogoUrl ?? null,
+    statsTracked: boardRow.matches > 0 || player.statsTracked,
     matches: boardRow.matches,
     wins: boardRow.wins,
     kills: boardRow.kills,
@@ -2533,6 +2559,7 @@ function createPublicPlayerFromBoardRow(boardRow: PubgPlayerBoardRow, publicTeam
     currentTeamTag: currentTeam?.tag ?? null,
     currentTeamLogoUrl: currentTeam?.logoUrl ?? null,
     active: true,
+    statsTracked: boardRow.matches > 0,
     matches: boardRow.matches,
     kills: boardRow.kills,
     assists: boardRow.assists,

@@ -1,5 +1,8 @@
+import JsonLd from "@/components/JsonLd";
 import { PubgTeamProfileShowcasePage } from "@/components/pubg/PubgShowcasePages";
+import { buildContentMetadata } from "@/lib/metadata";
 import { findPublicPubgTeam, getPubgHubDataset, getPubgTeamById } from "@/lib/pubg-hub";
+import { buildBreadcrumbStructuredData } from "@/lib/structured-data";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
@@ -34,10 +37,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "PUBG Team Not Found" };
   }
 
-  return {
-    title: `${team.name} Team Profile`,
+  return buildContentMetadata({
+    title: `${team.name} Team Profile | Bravo Gaming Esports`,
     description: `Track ${team.name} on Bravo with roster context, event stats, match history, map splits, and form indicators.`,
-  };
+    path: `/pubg/teams/${team.slug}`,
+    imageUrl: team.logoUrl,
+    type: "website",
+  });
 }
 
 export const revalidate = 300;
@@ -54,5 +60,17 @@ export default async function PubgTeamDetailRoute({ params, searchParams }: Page
     redirect(`/pubg/teams/${team.slug}`);
   }
 
-  return <PubgTeamProfileShowcasePage team={team} dataset={dataset} searchParams={resolvedSearchParams} />;
+  return (
+    <>
+      <JsonLd
+        data={buildBreadcrumbStructuredData([
+          { name: "Home", path: "/" },
+          { name: "PUBG", path: "/pubg" },
+          { name: "Teams", path: "/pubg/teams" },
+          { name: team.name, path: `/pubg/teams/${team.slug}` },
+        ])}
+      />
+      <PubgTeamProfileShowcasePage team={team} dataset={dataset} searchParams={resolvedSearchParams} />
+    </>
+  );
 }

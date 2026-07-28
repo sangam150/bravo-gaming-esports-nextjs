@@ -4,6 +4,7 @@ import type { Tables } from "@/types/database.types";
 import { getRegistrations, getTournament, getTournamentTeams, getTournaments } from "./data";
 import { isSupabaseServiceRoleConfigured } from "./supabase/server-env";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
+import { resolvePublicEventPolicy } from "./public-event-policy";
 import type { Tournament, TournamentStatus } from "./types";
 
 type RegistrationTargetState = "open" | "closed" | "full";
@@ -21,8 +22,6 @@ export type RegistrationTargetSummary = {
 };
 
 export class RegistrationValidationError extends Error {}
-
-const OPEN_REGISTRATION_STATUSES = new Set<TournamentStatus>(["OPEN", "REGISTERING", "UPCOMING"]);
 
 function looksLikeUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -60,22 +59,28 @@ function toTournamentStatus(row: Tables<"events">): TournamentStatus {
 }
 
 function summarizeRegistrationTarget(tournament: Tournament): RegistrationTargetSummary {
-  const startTimestamp = tournament.startDate ? Date.parse(tournament.startDate) : Number.NaN;
-  const hasStarted = Number.isFinite(startTimestamp) && startTimestamp <= Date.now();
   const isFull = tournament.teamCount >= tournament.maxTeams;
-  const registrationState: RegistrationTargetState = isFull
-    ? "full"
-    : tournament.status === "COMPLETED" || hasStarted || !OPEN_REGISTRATION_STATUSES.has(tournament.status)
-      ? "closed"
-      : "open";
+  const policy = resolvePublicEventPolicy({
+    status: tournament.status,
+    published: true,
+    startDate: tournament.startDate,
+    endDate: tournament.endDate,
+    registrationStatus: tournament.registrationStatus,
+    registrationStartDate: tournament.registrationStartDate,
+    registrationEndDate: tournament.registrationEndDate,
+    registrationRequiresWindow: tournament.sourceProvider === "supabase_relational",
+    teamCount: tournament.teamCount,
+    maxTeams: tournament.maxTeams,
+  });
+  const registrationState: RegistrationTargetState = isFull ? "full" : policy.registrationOpen ? "open" : "closed";
 
   const registrationMessage =
     registrationState === "full"
       ? "This event has reached its current registration limit."
       : registrationState === "closed"
-        ? hasStarted || tournament.status === "LIVE"
+        ? policy.lifecycle === "ongoing"
           ? "Registration has closed because this event is already underway."
-          : tournament.status === "COMPLETED"
+          : policy.lifecycle === "completed" || policy.lifecycle === "archived"
             ? "Registration has closed because this event has already been completed."
             : "Registration is not open for this event right now."
         : "Registration is open. Bravo admins review team details before confirming slots.";
@@ -141,6 +146,9 @@ async function getPublishedEventTournament(idOrSlug: string): Promise<Tournament
         maxTeams: row.max_teams ?? 32,
         startDate: row.start_date ?? "",
         endDate: row.end_date ?? undefined,
+        registrationStatus: row.registration_status === "open" ? "open" : "closed",
+        registrationStartDate: row.registration_start ?? undefined,
+        registrationEndDate: row.registration_end ?? undefined,
         format: row.mode ?? "Squad",
         mode: row.game,
         server: row.server ?? row.region ?? "Global",
@@ -154,6 +162,7 @@ async function getPublishedEventTournament(idOrSlug: string): Promise<Tournament
         seasonDayNumber: row.season_day_number ?? undefined,
         dayNumber: row.season_day_number ?? undefined,
         matchCount: row.match_count ?? undefined,
+        sourceProvider: "supabase_relational",
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };
@@ -200,6 +209,9 @@ export async function listRegistrationTargets(options: { includeClosed?: boolean
           maxTeams: row.max_teams ?? 32,
           startDate: row.start_date ?? "",
           endDate: row.end_date ?? undefined,
+          registrationStatus: row.registration_status === "open" ? "open" : "closed",
+          registrationStartDate: row.registration_start ?? undefined,
+          registrationEndDate: row.registration_end ?? undefined,
           format: row.mode ?? "Squad",
           mode: row.game,
           server: row.server ?? row.region ?? "Global",
@@ -213,6 +225,7 @@ export async function listRegistrationTargets(options: { includeClosed?: boolean
           seasonDayNumber: row.season_day_number ?? undefined,
           dayNumber: row.season_day_number ?? undefined,
           matchCount: row.match_count ?? undefined,
+          sourceProvider: "supabase_relational",
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         }),

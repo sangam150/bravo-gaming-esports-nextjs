@@ -42,8 +42,8 @@ export default function CurrentSeasonPageClient({
         <div className="page-inner">
           <section className="page-hero p-8 text-center">
             <p className="section-title">Season Overview</p>
-            <h1 className="hero-h1 mt-2 !text-4xl">Season details will appear after admin approval</h1>
-            <p className="mt-4 text-text-muted">Results will be published after admin approval.</p>
+            <h1 className="hero-h1 mt-2 !text-4xl">Season details pending</h1>
+            <p className="mt-4 text-text-muted">Verified season details and results have not been published.</p>
           </section>
         </div>
       </main>
@@ -147,7 +147,7 @@ export default function CurrentSeasonPageClient({
               <p className="section-heading !text-sm">Recent Results</p>
               <div className="mt-4 space-y-3">
                 {recentResults.length === 0 ? (
-                  <p className="text-sm text-text-muted">Completed day results will appear here after admin approval.</p>
+                  <p className="text-sm text-text-muted">Verified day results have not been published.</p>
                 ) : (
                   recentResults.map((tournament) => (
                     <Link

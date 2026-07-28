@@ -42,6 +42,8 @@ export interface Season {
 export interface Tournament {
   id: string;
   title: string;
+  state?: string;
+  published?: boolean;
   tier: string;
   status: TournamentStatus;
   prizePool: string;
@@ -49,6 +51,9 @@ export interface Tournament {
   maxTeams: number;
   startDate: string;
   endDate?: string;
+  registrationStatus?: "open" | "closed";
+  registrationStartDate?: string;
+  registrationEndDate?: string;
   format: string;
   mode: string;
   server: string;
@@ -137,6 +142,7 @@ export interface MatchPlayerResult {
   survivalTime: number;
   placementPoints: number;
   totalPoints: number;
+  linkEligibility?: "eligible" | "substitute" | "rejected" | "ambiguous";
 }
 
 export interface Team {
@@ -242,6 +248,8 @@ export interface Scrim {
   seasonTitle?: string;
   seasonDayNumber?: number;
   tournamentId?: string;
+  published?: boolean;
+  deletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -330,18 +338,21 @@ export interface TeamRegistration {
   logoPath?: string;
   logoUploadId?: string;
   approvedTeamId?: string;
+  approvalClaimToken?: string;
+  approvalClaimedAt?: string;
+  approvalClaimedBy?: string;
   status: RegistrationStatus;
   createdAt: string;
   updatedAt?: string;
 }
 
 export interface SiteStats {
-  teamsRegistered: number;
-  matchesHosted: number;
-  tournamentsCompleted: number;
-  prizePoolsAwarded: string;
-  communityMembers: number;
-  youtubeViews: string;
+  teamsRegistered: number | null;
+  matchesHosted: number | null;
+  tournamentsCompleted: number | null;
+  prizePoolsAwarded: string | null;
+  communityMembers: number | null;
+  youtubeViews: string | null;
   currentSeasonId?: string;
   currentSeasonTitle?: string;
   currentSeasonStatus?: SeasonStatus;
@@ -401,6 +412,7 @@ export interface VideoItem {
 }
 
 export type SponsorKind = "sponsor" | "partner" | "design";
+export type SponsorClickDestination = "auto" | "website" | "campaign" | "social" | "none";
 
 export interface SponsorItem {
   id: string;
@@ -409,7 +421,10 @@ export interface SponsorItem {
   tier: string;
   url?: string;
   websiteUrl?: string;
+  campaignUrl?: string;
   socialUrl?: string;
+  homepageClickDestination?: SponsorClickDestination;
+  openInNewTab?: boolean;
   logoUrl?: string;
   bannerUrl?: string;
   designAssetUrl?: string;

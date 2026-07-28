@@ -1,7 +1,7 @@
 import type { Json } from "@/types/database.types";
 import type { User } from "@supabase/supabase-js";
 import "server-only";
-import { writeAuditLog } from "./audit-logs";
+import { writeAuditLog } from "./audit-log-writer";
 import { extractDiscordUserId } from "./discord-auth";
 import {
   DISCORD_ROLE_PRIORITY,

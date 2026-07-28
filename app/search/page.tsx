@@ -1,3 +1,4 @@
+import { buildContentMetadata } from "@/lib/metadata";
 import { searchPlatformContent } from "@/lib/search-service";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -7,8 +8,12 @@ type PageProps = {
 };
 
 export const metadata: Metadata = {
-  title: "Search",
-  description: "Search Bravo Gaming teams, players, events, matches, seasons, news, sponsors, and media.",
+  ...buildContentMetadata({
+    title: "Search | Bravo Gaming Esports",
+    description: "Search published Bravo Gaming Esports teams, players, events, matches, seasons, news, sponsors, and media.",
+    path: "/search",
+    type: "website",
+  }),
   robots: {
     index: false,
     follow: true,

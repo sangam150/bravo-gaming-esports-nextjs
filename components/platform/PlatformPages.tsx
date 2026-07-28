@@ -23,6 +23,9 @@ import type {
   PlatformSponsorProfile,
 } from "@/lib/platform-hub";
 import type { PubgHubDataset } from "@/lib/pubg-hub";
+import { canRegisterForPublicEvent } from "@/lib/public-event-policy";
+import { getCanonicalPublicEventHref } from "@/lib/public-links";
+import { resolveSponsorDestination } from "@/lib/sponsor-links";
 import { getSiteUrl } from "@/lib/site";
 import Link from "next/link";
 
@@ -83,10 +86,25 @@ function buildAbsoluteUrl(path: string) {
   return new URL(path, getSiteUrl()).toString();
 }
 
-function HeroActionLink({ href, label, className }: { href: string; label: string; className: string }) {
+function HeroActionLink({
+  href,
+  label,
+  className,
+  openInNewTab = true,
+}: {
+  href: string;
+  label: string;
+  className: string;
+  openInNewTab?: boolean;
+}) {
   if (href.startsWith("http")) {
     return (
-      <a href={href} target="_blank" rel="noreferrer" className={className}>
+      <a
+        href={href}
+        target={openInNewTab ? "_blank" : undefined}
+        rel={openInNewTab ? "noopener noreferrer" : undefined}
+        className={className}
+      >
         {label}
       </a>
     );
@@ -221,11 +239,11 @@ function CategoryPill({ label }: { label: string }) {
 }
 
 function getEventDetailHref(event: PlatformEvent) {
-  return `/events/${event.slug}`;
+  return getCanonicalPublicEventHref(event);
 }
 
 function canRegisterForEvent(event?: PlatformEvent | null) {
-  return Boolean(event && event.state === "published" && event.status === "upcoming");
+  return Boolean(event && canRegisterForPublicEvent(event));
 }
 
 function getEventRegistrationHref(event?: PlatformEvent | null) {
@@ -487,7 +505,7 @@ function MatchCard({ match }: { match: PlatformMatch }) {
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">Viewer Count</p>
-          <p className="mt-1 text-white">{match.viewerCount ?? "Audience TBA"}</p>
+          <p className="mt-1 text-white">{match.viewerCount ?? "Not tracked"}</p>
         </div>
       </div>
     </Link>
@@ -562,18 +580,19 @@ export function PlatformGamesPage({ hub }: { hub: PlatformHubData }) {
           badge="Games Hub"
           title={
             <>
-              Every game gets
-              <br />a scalable Bravo home
+              Published game
+              <br />
+              coverage
             </>
           }
-          description="PUBG PC is the active flagship today. Additional Bravo game hubs will open as coverage expands, without fragmenting the platform."
+          description="Browse game hubs that Bravo has published. PUBG PC is the current flagship competition and statistics hub."
           actions={
             <>
               <Link href="/pubg" className="btn-primary">
                 Open PUBG flagship
               </Link>
               <Link href="/events" className="btn-secondary">
-                Event system
+                Browse events
               </Link>
             </>
           }
@@ -692,21 +711,6 @@ export function PlatformGameDetailPage({ hub, game, pubg }: { hub: PlatformHubDa
                     Request Coverage
                   </Link>
                 </div>
-              </div>
-              <div className="rounded-card border border-white/[0.08] bg-bg-primary p-5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Launch Plan</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <CategoryPill label="Teams" />
-                  <CategoryPill label="Players" />
-                  <CategoryPill label="Matches" />
-                  <CategoryPill label="Standings" />
-                  <CategoryPill label="Media" />
-                  <CategoryPill label="News" />
-                </div>
-                <p className="mt-4 text-sm leading-7 text-slate-300">
-                  This hub will stay intentionally lightweight until real Bravo coverage begins. No fake stats, empty tables, or filler
-                  standings will be shown here.
-                </p>
               </div>
             </div>
           </section>
@@ -833,7 +837,7 @@ export function PlatformEventDetailPage({
     pubgEvent ? { label: "Standings", href: "#standings" } : null,
     { label: "Teams", href: "#teams" },
     { label: "Rules", href: "#rules" },
-    { label: "Stream", href: "#stream" },
+    event.status === "live" && event.streamHref ? { label: "Stream", href: "#stream" } : null,
   ].filter((item): item is { label: string; href: string } => Boolean(item));
 
   return (
@@ -902,7 +906,7 @@ export function PlatformEventDetailPage({
               ) : null}
               <div>
                 <p className="section-title">Tournament Overview</p>
-                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Clean public event page</h2>
+                <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Event information</h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 <PlatformStatusPill status={event.status} />
@@ -911,7 +915,13 @@ export function PlatformEventDetailPage({
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Quick navigation</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {eventQuickLinks.map((item) => (
-                    <CategoryPill key={item.label} label={item.label} />
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className="rounded-full border border-white/10 bg-bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted transition hover:border-accent-blue/30 hover:text-white"
+                    >
+                      {item.label}
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -922,7 +932,7 @@ export function PlatformEventDetailPage({
         <DetailTrustBar
           items={[{ label: "Home", href: "/" }, { label: "Events", href: "/events" }, { label: event.name }]}
           title={event.name}
-          path={`/events/${event.slug}`}
+          path={getCanonicalPublicEventHref(event)}
           updatedAt={event.updatedAt ?? event.startDate}
         />
 
@@ -960,7 +970,7 @@ export function PlatformEventDetailPage({
             <SectionHeader
               eyebrow="Schedule"
               title="Match and broadcast context"
-              description="These details anchor the event even when some deeper modules are still planned."
+              description="Official match timing, format, and broadcast information."
             />
             <div className="mt-5 space-y-3">
               {relatedMatches.slice(0, 4).map((match) => (
@@ -1035,7 +1045,7 @@ export function PlatformEventDetailPage({
             <SectionHeader
               eyebrow="Rules"
               title="Rules, anti-cheat, and support"
-              description="Core competition links stay visible without crowding the event page with internal-style labels."
+              description="Review competition rules, anti-cheat guidance, and official support channels."
             />
             <div className="mt-5 flex flex-wrap gap-2">
               <Link href="/rules" className="btn-secondary">
@@ -1047,36 +1057,36 @@ export function PlatformEventDetailPage({
               <Link href="/sponsor-kit" className="btn-secondary">
                 Sponsor Inquiry
               </Link>
-              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
+              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noopener noreferrer" className="btn-secondary">
                 Official Discord
               </a>
             </div>
           </div>
         </section>
 
-        <section id="stream" className="esports-card scroll-mt-32 p-6">
-          <SectionHeader
-            eyebrow="Stream"
-            title="Watch live coverage and follow updates"
-            description="Broadcast, Discord, and results links stay ready whether the lobby is upcoming, live, or completed."
-          />
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link href={event.streamHref ?? "/live-stream"} className="btn-primary">
-              Watch Live
-            </Link>
-            {event.analyticsHref ? (
-              <Link href={event.analyticsHref} className="btn-secondary">
-                View Results
+        {event.status === "live" && event.streamHref ? (
+          <section id="stream" className="esports-card scroll-mt-32 p-6">
+            <SectionHeader
+              eyebrow="Stream"
+              title="Watch live coverage"
+              description="Open the verified event broadcast or follow the published results."
+            />
+            <div className="mt-5 flex flex-wrap gap-3">
+              <HeroActionLink href={event.streamHref} label="Watch Live" className="btn-primary" />
+              {event.analyticsHref ? (
+                <Link href={event.analyticsHref} className="btn-secondary">
+                  View Results
+                </Link>
+              ) : null}
+              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+                Join Discord
+              </a>
+              <Link href="/events" className="btn-secondary">
+                Browse Events
               </Link>
-            ) : null}
-            <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-secondary">
-              Join Discord
-            </a>
-            <Link href="/events" className="btn-secondary">
-              Browse Events
-            </Link>
-          </div>
-        </section>
+            </div>
+          </section>
+        ) : null}
 
         {pubgEvent ? (
           <section id="standings" className="grid scroll-mt-32 gap-6 xl:grid-cols-[1fr,1fr]">
@@ -1126,31 +1136,14 @@ export function PlatformEventDetailPage({
               </div>
             </div>
           </section>
-        ) : (
-          <section className="esports-card p-6">
-            <SectionHeader
-              eyebrow="Event Modules"
-              title="Statistics, media, sponsors, and rules"
-              description="This event route already exposes the public structure every future game hub will need."
-            />
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {["Standings and rankings", "Teams and players", "Matches and schedule", "Statistics, media, sponsors, and rules"].map(
-                (item) => (
-                  <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary p-4 text-sm text-white">
-                    {item}
-                  </div>
-                ),
-              )}
-            </div>
-          </section>
-        )}
+        ) : null}
 
         {relatedSponsors.length > 0 ? (
           <section id="sponsors" className="esports-card scroll-mt-32 p-6">
             <SectionHeader
               eyebrow="Sponsor Context"
               title="Assigned sponsors and partners"
-              description="Event-level sponsor visibility is now part of the core public information model."
+              description="Official partners connected with this event."
             />
             <div className="mt-5 grid gap-4 xl:grid-cols-2">
               {relatedSponsors.map((sponsor) => (
@@ -1191,8 +1184,22 @@ export function PlatformEventDetailPage({
                     <Link href={`/sponsors/${sponsor.slug}`} className="btn-secondary">
                       Open Profile
                     </Link>
-                    {sponsor.websiteUrl ? <HeroActionLink href={sponsor.websiteUrl} label="Visit Website" className="btn-primary" /> : null}
-                    {sponsor.socialUrl ? <HeroActionLink href={sponsor.socialUrl} label="Open Social" className="btn-secondary" /> : null}
+                    {resolveSponsorDestination(sponsor) ? (
+                      <HeroActionLink
+                        href={resolveSponsorDestination(sponsor) ?? ""}
+                        label="Visit Partner"
+                        className="btn-primary"
+                        openInNewTab={sponsor.openInNewTab}
+                      />
+                    ) : null}
+                    {sponsor.socialUrl ? (
+                      <HeroActionLink
+                        href={sponsor.socialUrl}
+                        label="Open Social"
+                        className="btn-secondary"
+                        openInNewTab={sponsor.openInNewTab}
+                      />
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -1322,6 +1329,8 @@ export function PlatformRankingsPage({
 }) {
   const timeframe = readSearchParam(searchParams.timeframe, "seasonal");
   const view = readSearchParam(searchParams.view, "teams");
+  const rankedTeams = pubg.teams.filter((team) => team.statsTracked);
+  const rankedPlayers = pubg.players.filter((player) => player.statsTracked);
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -1339,7 +1348,7 @@ export function PlatformRankingsPage({
           actions={
             <>
               <Link href="/pubg/leaderboards" className="btn-primary">
-                PUBG live board
+                PUBG leaderboard
               </Link>
               <Link href="/games" className="btn-secondary">
                 Games hub
@@ -1349,16 +1358,16 @@ export function PlatformRankingsPage({
           stats={[
             { label: "Timeframe", value: timeframe, tone: "blue" },
             {
-              label: "Live PUBG Teams",
+              label: "Published PUBG Teams",
               value: pubg.teams.length,
               tone: "green",
             },
             {
-              label: "Live PUBG Players",
+              label: "Published PUBG Players",
               value: pubg.players.length,
               tone: "yellow",
             },
-            { label: "Games In Model", value: hub.games.length, tone: "red" },
+            { label: "Published Game Hubs", value: hub.games.length, tone: "red" },
           ]}
         />
 
@@ -1393,7 +1402,7 @@ export function PlatformRankingsPage({
               <SectionHeader
                 eyebrow="Team Rankings"
                 title="Current flagship team board"
-                description="PUBG supplies the first live ranking board while the structure scales outward."
+                description="Team rankings calculated from published PUBG match results."
               />
             </div>
             <div className="table-scroll" tabIndex={0}>
@@ -1412,7 +1421,7 @@ export function PlatformRankingsPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {pubg.teams.slice(0, 10).map((team, index) => (
+                  {rankedTeams.slice(0, 10).map((team, index) => (
                     <tr key={team.id}>
                       <td>
                         <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="sm" />
@@ -1442,7 +1451,7 @@ export function PlatformRankingsPage({
               <SectionHeader
                 eyebrow="Player Rankings"
                 title="Current flagship player board"
-                description="Kills, damage, and form anchor the first live player ranking view."
+                description="Player rankings calculated from published PUBG match results."
               />
             </div>
             <div className="table-scroll" tabIndex={0}>
@@ -1461,7 +1470,7 @@ export function PlatformRankingsPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {pubg.players.slice(0, 10).map((player, index) => (
+                  {rankedPlayers.slice(0, 10).map((player, index) => (
                     <tr key={player.id}>
                       <td>
                         <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="sm" />
@@ -1529,15 +1538,15 @@ export function PlatformRankingsPage({
             <div className="esports-card p-6">
               <SectionHeader
                 eyebrow="Why It Matters"
-                title="Toward an official ecosystem ranking"
-                description="The goal is bigger than a single game leaderboard."
+                title="Published coverage status"
+                description="A concise view of the game hubs and rankings currently available from Bravo."
               />
               <div className="mt-5 grid gap-3">
                 {[
-                  "Give teams and players a public reference point",
-                  "Help organizers and sponsors evaluate scene momentum",
-                  "Create continuity across seasons and multiple titles",
-                  "Position Bravo as the most complete esports hub in Nepal",
+                  "Team and player rankings use published match results",
+                  "Event pages link to their related standings and results",
+                  "Unavailable metrics are identified instead of estimated",
+                  "Additional game coverage appears only after publication",
                 ].map((item) => (
                   <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white">
                     {item}
@@ -1814,14 +1823,10 @@ export function PlatformSponsorDetailPage({ hub, sponsor }: { hub: PlatformHubDa
   const relatedEvents = hub.events.filter(
     (event) => sponsor.eventSlugs.includes(event.slug) || sponsor.supportedEvents.includes(event.name),
   );
-  const placements = [
-    sponsor.showOnHomepage ? "Homepage" : null,
-    sponsor.showOnSponsorsPage ? "Sponsors page" : null,
-    sponsor.showOnEventPage ? "Event pages" : null,
-    sponsor.showOnPubgPage ? "PUBG page" : null,
-  ].filter((item): item is string => Boolean(item));
   const tierLabel = sponsorTierLabel(sponsor);
   const supportingLabel = sponsorSupportingLabel(sponsor);
+  const destination = resolveSponsorDestination(sponsor);
+  const partnerVisual = sponsor.bannerUrl ?? sponsor.designAssetUrl ?? sponsor.logoUrl ?? null;
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -1841,28 +1846,19 @@ export function PlatformSponsorDetailPage({ hub, sponsor }: { hub: PlatformHubDa
               <Link href="/sponsors" className="btn-secondary">
                 Back to sponsors
               </Link>
-              {sponsor.websiteUrl ? <HeroActionLink href={sponsor.websiteUrl} label="Visit Website" className="btn-primary" /> : null}
-              {sponsor.socialUrl ? <HeroActionLink href={sponsor.socialUrl} label="Open Social" className="btn-secondary" /> : null}
+              {destination ? (
+                <HeroActionLink href={destination} label="Visit Partner" className="btn-primary" openInNewTab={sponsor.openInNewTab} />
+              ) : null}
+              {sponsor.socialUrl ? (
+                <HeroActionLink
+                  href={sponsor.socialUrl}
+                  label="Open Social"
+                  className="btn-secondary"
+                  openInNewTab={sponsor.openInNewTab}
+                />
+              ) : null}
             </>
           }
-          stats={[
-            {
-              label: "Kind",
-              value: sponsorKindLabel(sponsor.kind),
-              tone: "blue",
-            },
-            {
-              label: "Supported Events",
-              value: sponsor.supportedEvents.length,
-              tone: "green",
-            },
-            { label: "Placements", value: placements.length, tone: "yellow" },
-            {
-              label: "History Items",
-              value: sponsor.partnershipHistory.length,
-              tone: "red",
-            },
-          ]}
         />
 
         <DetailTrustBar
@@ -1874,90 +1870,59 @@ export function PlatformSponsorDetailPage({ hub, sponsor }: { hub: PlatformHubDa
 
         <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
           <div className="esports-card p-6">
-            <SectionHeader
-              eyebrow="Assets and Placement"
-              title="Brand assets and placement"
-              description="Official logos, banners, and design visuals used across Bravo public coverage."
-            />
+            <SectionHeader eyebrow="Official Partner" title={`${sponsor.name} and Bravo Gaming`} description={sponsor.description} />
             <div className="mt-5 space-y-4">
-              {sponsor.bannerUrl ? (
+              {partnerVisual ? (
                 <ManagedImage
-                  src={sponsor.bannerUrl}
-                  alt={`${sponsor.name} banner`}
-                  sizes="(min-width: 1280px) 50vw, 100vw"
-                  wrapperClassName="h-44 rounded-card border border-white/[0.08] bg-bg-primary"
-                  className="object-cover"
-                />
-              ) : null}
-              {sponsor.designAssetUrl ? (
-                <ManagedImage
-                  src={sponsor.designAssetUrl}
-                  alt={`${sponsor.name} design asset`}
-                  sizes="(min-width: 1280px) 50vw, 100vw"
-                  wrapperClassName="h-44 rounded-card border border-white/[0.08] bg-bg-primary"
-                  className="object-cover"
-                />
-              ) : null}
-              {sponsor.logoUrl ? (
-                <ManagedImage
-                  src={sponsor.logoUrl}
+                  src={partnerVisual}
                   alt={sponsor.name}
-                  sizes="320px"
-                  wrapperClassName="h-24 rounded-card border border-white/[0.08] bg-bg-primary"
+                  sizes="(min-width: 1280px) 50vw, 100vw"
+                  wrapperClassName="h-52 rounded-card border border-white/[0.08] bg-bg-primary"
                   className="object-contain p-4"
                 />
               ) : null}
-              <div className="flex flex-wrap gap-2">
-                {placements.map((placement) => (
-                  <CategoryPill key={placement} label={placement} />
+            </div>
+          </div>
+
+          {relatedEvents.length > 0 || sponsor.supportedEvents.length > 0 ? (
+            <div className="esports-card p-6">
+              <SectionHeader
+                eyebrow="Supported Events"
+                title="Featured collaborations"
+                description="Published Bravo events connected with this partner."
+              />
+              <div className="mt-5 grid gap-3">
+                {relatedEvents.map((event) => (
+                  <Link
+                    key={event.id}
+                    href={getCanonicalPublicEventHref(event)}
+                    className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white transition hover:border-accent-blue/30 hover:bg-bg-hover"
+                  >
+                    <p className="font-semibold text-white">{event.name}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.14em] text-text-muted">
+                      {event.gameName} | {formatDateRange(event.startDate, event.endDate)}
+                    </p>
+                  </Link>
                 ))}
-                {placements.length === 0 ? <CategoryPill label="Profile only" /> : null}
+                {relatedEvents.length === 0 && sponsor.supportedEvents.length > 0
+                  ? sponsor.supportedEvents.map((item) => (
+                      <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white">
+                        {item}
+                      </div>
+                    ))
+                  : null}
               </div>
             </div>
-          </div>
-
-          <div className="esports-card p-6">
-            <SectionHeader
-              eyebrow="Supported Events"
-              title="Where this profile shows up"
-              description="Published event connections and public placements for this partner."
-            />
-            <div className="mt-5 grid gap-3">
-              {relatedEvents.map((event) => (
-                <Link
-                  key={event.id}
-                  href={`/events/${event.slug}`}
-                  className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white transition hover:border-accent-blue/30 hover:bg-bg-hover"
-                >
-                  <p className="font-semibold text-white">{event.name}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.14em] text-text-muted">
-                    {event.gameName} | {formatDateRange(event.startDate, event.endDate)}
-                  </p>
-                </Link>
-              ))}
-              {relatedEvents.length === 0 && sponsor.supportedEvents.length > 0
-                ? sponsor.supportedEvents.map((item) => (
-                    <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white">
-                      {item}
-                    </div>
-                  ))
-                : null}
-              {relatedEvents.length === 0 && sponsor.supportedEvents.length === 0 ? (
-                <div className="rounded-card border border-dashed border-white/10 bg-bg-primary px-4 py-5 text-sm text-text-muted">
-                  No specific events are attached yet.
-                </div>
-              ) : null}
-            </div>
-          </div>
+          ) : null}
         </section>
 
-        <section className="esports-card p-6">
-          <SectionHeader
-            eyebrow="Partnership History"
-            title="Relationship timeline"
-            description="Key milestones and public partnership highlights for this partner."
-          />
-          {sponsor.partnershipHistory.length > 0 ? (
+        {sponsor.partnershipHistory.length > 0 ? (
+          <section className="esports-card p-6">
+            <SectionHeader
+              eyebrow="Partnership History"
+              title="Relationship timeline"
+              description="Key milestones and public partnership highlights for this partner."
+            />
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               {sponsor.partnershipHistory.map((item) => (
                 <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white">
@@ -1965,12 +1930,8 @@ export function PlatformSponsorDetailPage({ hub, sponsor }: { hub: PlatformHubDa
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="mt-5 rounded-card border border-dashed border-white/10 bg-bg-primary px-4 py-5 text-sm text-text-muted">
-              Partner details will be updated soon.
-            </div>
-          )}
-        </section>
+          </section>
+        ) : null}
       </div>
     </main>
   );
@@ -2001,8 +1962,8 @@ export function PlatformDashboardIndexPage() {
             </>
           }
           stats={[
-            { label: "Live Roles", value: 2, tone: "green" },
-            { label: "Team Roles", value: 3, tone: "yellow" },
+            { label: "Admin Access", value: "Protected", tone: "green" },
+            { label: "Team Access", value: "Role-based", tone: "yellow" },
             { label: "Auth", value: "Supabase", tone: "blue" },
             { label: "Scope", value: "Platform", tone: "red" },
           ]}
@@ -2041,84 +2002,41 @@ export function PlatformDashboardIndexPage() {
   );
 }
 
-export function PlatformFantasyPage({ hub }: { hub: PlatformHubData }) {
+export function PlatformFantasyPage() {
   return (
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="Fantasy"
+          badge="Feature Status"
           title={
             <>
-              Cross-game fantasy
+              Fantasy competition
               <br />
-              starts with PUBG
+              is not available
             </>
           }
-          description="Fantasy is being built as a platform feature, not a one-off mode. PUBG provides the first strong data model, while other titles can join once their event and player stats mature."
+          description="Bravo has not published a fantasy competition. No entries, scores, rewards, or fantasy leaderboards are currently active."
           actions={
             <>
-              <Link href="/pubg/fantasy" className="btn-primary">
-                Open PUBG Fantasy
+              <Link href="/pubg" className="btn-primary">
+                Browse PUBG
               </Link>
-              <Link href="/team/login" className="btn-secondary">
-                Team Login
+              <Link href="/events" className="btn-secondary">
+                View Events
               </Link>
             </>
           }
-          stats={[
-            { label: "Active Fantasy Games", value: 1, tone: "green" },
-            {
-              label: "Future Games",
-              value: hub.games.length - 1,
-              tone: "yellow",
-            },
-            { label: "Monetization Ready", value: "Yes", tone: "blue" },
-            { label: "Leaderboard Mode", value: "Planned", tone: "red" },
-          ]}
         />
 
-        <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
-          <div className="esports-card p-6">
-            <SectionHeader
-              eyebrow="Current Lane"
-              title="PUBG flagship fantasy"
-              description="The first fantasy lane grows out of the strongest current data foundation."
-            />
-            <div className="mt-5 grid gap-3">
-              {[
-                "Pick five-player squads from real event pools",
-                "Lock entries automatically once the event starts",
-                "Score from actual tracked player results",
-                "Expand later into rewards and monetization",
-              ].map((item) => (
-                <div key={item} className="rounded-card border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white">
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="esports-card p-6">
-            <SectionHeader
-              eyebrow="Future Lane"
-              title="Multi-game expansion path"
-              description="Once game hubs gain event and player depth, fantasy can grow without rebuilding the platform."
-            />
-            <div className="mt-5 grid gap-3">
-              {hub.games
-                .filter((game) => game.slug !== "pubg-pc")
-                .map((game) => (
-                  <div key={game.slug} className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold text-white">{game.name}</p>
-                      <GameStatusPill status={game.status} />
-                    </div>
-                    <p className="mt-2 text-sm text-text-muted">{game.completionLabel}</p>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </section>
+        <EmptyState
+          title="No fantasy competition is published"
+          description="Published events, results, teams, and player statistics remain available in the PUBG hub."
+          action={
+            <Link href="/pubg/leaderboards" className="btn-secondary">
+              View Leaderboards
+            </Link>
+          }
+        />
       </div>
     </main>
   );

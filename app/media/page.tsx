@@ -1,4 +1,5 @@
-import { MediaReferencePage } from "@/components/public/ContentReferencePages";
+import { MediaReferencePage } from "@/components/public/content/MediaReferencePage";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import type { Metadata } from "next";
 
@@ -6,10 +7,12 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export const metadata: Metadata = {
-  title: "Media",
-  description: "Bravo Gaming Esports media center for videos, highlights, clips, interviews, posters, and VODs.",
-};
+export const metadata: Metadata = buildContentMetadata({
+  title: "Media | Bravo Gaming Esports",
+  description: "Browse published Bravo Gaming Esports videos, highlights, clips, interviews, posters, and VODs.",
+  path: "/media",
+  type: "website",
+});
 
 export const revalidate = 300;
 

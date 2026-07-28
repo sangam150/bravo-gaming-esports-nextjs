@@ -1,4 +1,4 @@
-import { writeAuditLog } from "@/lib/audit-logs";
+import { writeAuditLog } from "@/lib/audit-log-writer";
 import { COLLECTIONS, fetchDocumentCollection, getDocument, saveDocument } from "@/lib/document-store";
 import { fetchPubgPlayerRecentMatches, fetchPubgPlayerRecentMatchesById } from "@/lib/pubg";
 import { processAutoDetectedPubgCandidate } from "@/lib/pubg-import-candidates";

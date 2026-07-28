@@ -1,4 +1,4 @@
-import { EventsReferencePage } from "@/components/public/ContentReferencePages";
+import { EventsReferencePage } from "@/components/public/content/EventsReferencePage";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import type { Metadata } from "next";

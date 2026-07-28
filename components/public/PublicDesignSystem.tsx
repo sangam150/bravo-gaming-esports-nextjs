@@ -1,6 +1,8 @@
 import ManagedImage from "@/components/ui/ManagedImage";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PlatformSponsorProfile } from "@/lib/platform-hub";
+import { normalizePublicActionHref } from "@/lib/public-links";
+import { resolveSponsorDestination, sponsorOpensInNewTab } from "@/lib/sponsor-links";
 import { ArrowRight, ExternalLink, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -67,12 +69,14 @@ export function PublicActionLink({
   variant = "primary",
   className,
   externalLabel,
+  openInNewTab = true,
 }: {
   href: string;
   children: ReactNode;
   variant?: "primary" | "secondary" | "ghost" | "discord";
   className?: string;
   externalLabel?: string;
+  openInNewTab?: boolean;
 }) {
   const variantClass =
     variant === "secondary"
@@ -83,10 +87,19 @@ export function PublicActionLink({
           ? "btn-discord"
           : "btn-primary";
   const resolvedClassName = joinClasses(variantClass, className);
+  const resolvedHref = normalizePublicActionHref(href);
+  if (!resolvedHref) {
+    return null;
+  }
 
-  if (isExternalHref(href)) {
+  if (isExternalHref(resolvedHref)) {
     return (
-      <a href={href} target="_blank" rel="noreferrer" className={resolvedClassName}>
+      <a
+        href={resolvedHref}
+        target={openInNewTab ? "_blank" : undefined}
+        rel={openInNewTab ? "noopener noreferrer" : undefined}
+        className={resolvedClassName}
+      >
         {children}
         {externalLabel ? <span className="sr-only">{externalLabel}</span> : null}
         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -95,7 +108,7 @@ export function PublicActionLink({
   }
 
   return (
-    <Link href={href} className={resolvedClassName}>
+    <Link href={resolvedHref} className={resolvedClassName}>
       {children}
     </Link>
   );
@@ -116,6 +129,7 @@ export function PublicBreadcrumbs({ current }: { current: string }) {
 }
 
 export function PublicPageHero({
+  breadcrumbCurrent,
   eyebrow,
   title,
   description,
@@ -125,7 +139,8 @@ export function PublicPageHero({
   className,
   children,
 }: {
-  eyebrow: string;
+  breadcrumbCurrent?: string;
+  eyebrow?: string;
   title: string;
   description: string;
   imageUrl?: string | null;
@@ -159,7 +174,8 @@ export function PublicPageHero({
       </div>
       <div className="public-container grid min-h-[260px] gap-6 px-4 py-9 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.42fr)] lg:items-center lg:px-8 lg:py-10">
         <div className="max-w-3xl">
-          <p className="public-eyebrow">{eyebrow}</p>
+          {breadcrumbCurrent ? <PublicBreadcrumbs current={breadcrumbCurrent} /> : null}
+          {eyebrow ? <p className={joinClasses("public-eyebrow", breadcrumbCurrent && "mt-3")}>{eyebrow}</p> : null}
           <h1 className="public-title mt-3">{title}</h1>
           <p className="public-copy mt-4">{description}</p>
           {actions ? <div className="mt-6 flex flex-wrap gap-3">{actions}</div> : null}
@@ -322,27 +338,41 @@ export function PublicPartnerStrip({ sponsors }: { sponsors: PlatformSponsorProf
         >
           {visibleSponsors.slice(0, 6).map((sponsor) => {
             const visualUrl = sponsorVisualUrl(sponsor);
-            return (
-              <Link
+            const destination = resolveSponsorDestination(sponsor);
+            const openInNewTab = sponsorOpensInNewTab(sponsor);
+            const visual = visualUrl ? (
+              <ManagedImage
+                src={visualUrl}
+                alt={sponsor.name}
+                sizes={sponsor.slug === "hukut" ? "512px" : "180px"}
+                wrapperClassName={sponsor.slug === "hukut" ? "h-10 w-60 max-w-full" : "h-10 w-full"}
+                className={joinClasses(
+                  "object-contain grayscale opacity-80 transition hover:grayscale-0 hover:opacity-100",
+                  sponsor.slug === "hukut" && "translate-y-0.5 scale-[3.75]",
+                )}
+              />
+            ) : (
+              <span className="truncate">{sponsor.name}</span>
+            );
+
+            return destination ? (
+              <a
                 key={sponsor.id}
-                href={`/sponsors/${sponsor.slug}`}
+                href={destination}
+                target={openInNewTab ? "_blank" : undefined}
+                rel={openInNewTab ? "noopener noreferrer" : undefined}
+                aria-label={`Visit ${sponsor.name} website${openInNewTab ? " (opens in a new tab)" : ""}`}
                 className="flex min-h-12 items-center justify-center px-3 text-center font-display text-lg font-bold text-white/80 transition hover:text-white"
               >
-                {visualUrl ? (
-                  <ManagedImage
-                    src={visualUrl}
-                    alt={sponsor.name}
-                    sizes={sponsor.slug === "hukut" ? "512px" : "180px"}
-                    wrapperClassName={sponsor.slug === "hukut" ? "h-10 w-60 max-w-full" : "h-10 w-full"}
-                    className={joinClasses(
-                      "object-contain grayscale opacity-80 transition hover:grayscale-0 hover:opacity-100",
-                      sponsor.slug === "hukut" && "translate-y-0.5 scale-[3.75]",
-                    )}
-                  />
-                ) : (
-                  <span className="truncate">{sponsor.name}</span>
-                )}
-              </Link>
+                {visual}
+              </a>
+            ) : (
+              <div
+                key={sponsor.id}
+                className="flex min-h-12 items-center justify-center px-3 text-center font-display text-lg font-bold text-white/80"
+              >
+                {visual}
+              </div>
             );
           })}
         </div>

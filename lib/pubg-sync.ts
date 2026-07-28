@@ -22,6 +22,7 @@ import { buildPlayerAppearanceMapFromMatches, choosePreferredPlayerTeam } from "
 import { placementPoints } from "./pubg";
 import { parsePubgMatch, type ParsedPubgMatchPlayer } from "./pubg/pubg-parser";
 import { ensureRawPubgMatch, refetchRawPubgMatch } from "./pubg/raw-match-cache";
+import { isExplicitlyPublishedMatch, sanitizePublicMatch } from "./public-match";
 import {
   compareMatchPlayerResults,
   compareMatchTeamResults,
@@ -29,6 +30,7 @@ import {
   comparePlayerLeaderboardPerformance,
 } from "./ranking-sort";
 import { syncSeasonDerivedData } from "./season-derived-sync";
+import { slugify } from "./slug-utils";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { buildTournamentStandings } from "./tournament-standings";
 import type {
@@ -54,13 +56,6 @@ import type {
   TournamentMatch,
   TournamentStanding,
 } from "./types";
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 function buildTournamentScopedTeamId(tournamentId: string, teamName: string) {
   const resolvedTeam = resolveBravoTeamIdentity(teamName);
@@ -505,7 +500,7 @@ async function resolveImportContext(options?: ImportTargetOptions & { requireDay
   const initialScrim = options?.scrimId ? await getDocument<Scrim>(COLLECTIONS.scrims, options.scrimId) : null;
   let scrim = initialScrim;
   let tournamentId = options?.tournamentId ?? initialScrim?.tournamentId;
-  let tournament = tournamentId ? await getTournament(tournamentId) : null;
+  let tournament = tournamentId ? await getTournament(tournamentId, { includeInternal: true }) : null;
   let createdDay = false;
 
   const currentSeason = !options?.seasonId && !tournament?.seasonId && !scrim?.seasonId ? await getCurrentSeason() : null;
@@ -888,7 +883,7 @@ function buildMatchPlayerRecords(match: TournamentMatch, tournament?: Tournament
 }
 
 async function syncTournamentDerivedData(tournamentId: string, tournament?: Tournament | null) {
-  const currentTournament = tournament ?? (await getTournament(tournamentId));
+  const currentTournament = tournament ?? (await getTournament(tournamentId, { includeInternal: true }));
   if (!currentTournament) return;
 
   const [matches, existingStandings, existingTeams, existingPlayers, existingMatchPlayers] = await Promise.all([
@@ -1204,7 +1199,7 @@ async function syncTournamentAndSeasonDerivedData(tournamentId?: string | null, 
     return;
   }
 
-  const resolvedTournament = tournament ?? (await getTournament(resolvedTournamentId));
+  const resolvedTournament = tournament ?? (await getTournament(resolvedTournamentId, { includeInternal: true }));
   if (!resolvedTournament) {
     return;
   }
@@ -1589,12 +1584,10 @@ export async function getMatchResult(matchId: string) {
     return null;
   }
 
-  const isPublicMatchStatus = (status: string | null | undefined) => status === "published" || status === "approved";
-
   try {
     const match = await getCompetitionMatch(normalizedMatchId);
     if (match) {
-      return isPublicMatchStatus(match.status) ? match : null;
+      return isExplicitlyPublishedMatch(match) ? sanitizePublicMatch(match) : null;
     }
   } catch {
     // Fall back to the document compatibility layer when relational data is unavailable.
@@ -1605,7 +1598,7 @@ export async function getMatchResult(matchId: string) {
     if (!match) return null;
 
     const normalizedMatch = normalizeStoredMatchForDisplay(match);
-    return isPublicMatchStatus(normalizedMatch.status) ? normalizedMatch : null;
+    return isExplicitlyPublishedMatch(normalizedMatch) ? sanitizePublicMatch(normalizedMatch) : null;
   } catch {
     return null;
   }

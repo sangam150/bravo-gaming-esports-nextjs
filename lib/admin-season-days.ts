@@ -2,6 +2,7 @@ import { compareBravoTeamSlotOrder } from "./bravo-teams";
 import { getCompetitionMatchesForEvent, saveCompetitionMatch } from "./competition-relational";
 import { getScrims, getSeason, getSeasonTeams, getSeasonTournaments, saveSeason, saveTournament } from "./data";
 import { COLLECTIONS, isDocumentStoreConfigured, saveDocument } from "./document-store";
+import { slugify } from "./slug-utils";
 import type { Scrim, Season, Team, Tournament, TournamentMatch } from "./types";
 
 const DEFAULT_LOBBY_TIME = "8:00 PM NPT";
@@ -16,13 +17,6 @@ type SeasonDayOverrides = {
   dayMapRotation?: string[];
   dayMatchCount?: number;
 };
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 function addDays(startDate: string, dayOffset: number) {
   const [year, month, day] = startDate.split("-").map((value) => Number(value));

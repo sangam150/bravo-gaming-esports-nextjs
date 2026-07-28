@@ -1,4 +1,5 @@
 import MatchResultDetailClient from "@/components/results/MatchResultDetailClient";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getMatchResult } from "@/lib/pubg-sync";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -23,10 +24,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     notFound();
   }
 
-  return {
-    title: `PUBG Match ${matchResult.sequenceNumber ?? "-"}`,
-    description: `View the full Bravo Gaming Esports PUBG match page for ${matchResult.pubgMatchId}, including standings, MVP, media, and screenshots.`,
-  };
+  const matchLabel =
+    typeof matchResult.sequenceNumber === "number" ? `Match ${matchResult.sequenceNumber}` : `Match ${matchResult.pubgMatchId}`;
+
+  return buildContentMetadata({
+    title: `${matchLabel} | Bravo Gaming Esports`,
+    description: `View published PUBG standings, player statistics, and available media for ${matchLabel}.`,
+    path: `/pubg/matches/${slug}`,
+    type: "website",
+  });
 }
 
 export const revalidate = 300;

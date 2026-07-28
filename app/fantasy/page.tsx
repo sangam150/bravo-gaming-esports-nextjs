@@ -1,10 +1,14 @@
 import { PlatformFantasyPage } from "@/components/platform/PlatformPages";
-import { getPlatformHubData } from "@/lib/platform-hub";
+import { buildContentMetadata } from "@/lib/metadata";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Fantasy",
-  description: "Bravo Gaming Esports fantasy hub with PUBG-first foundations and future multi-game expansion.",
+  ...buildContentMetadata({
+    title: "Fantasy | Bravo Gaming Esports",
+    description: "Review the current Bravo Gaming Esports fantasy feature status.",
+    path: "/fantasy",
+    type: "website",
+  }),
   robots: {
     index: false,
     follow: false,
@@ -13,7 +17,6 @@ export const metadata: Metadata = {
 
 export const revalidate = 300;
 
-export default async function FantasyPage() {
-  const hub = await getPlatformHubData();
-  return <PlatformFantasyPage hub={hub} />;
+export default function FantasyPage() {
+  return <PlatformFantasyPage />;
 }

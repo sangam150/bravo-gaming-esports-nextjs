@@ -1,5 +1,14 @@
 import { getLiveStreamFeed, getStreams } from "@/lib/data";
+import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = buildContentMetadata({
+  title: "Stream Schedule | Bravo Gaming Esports",
+  description: "Check published Bravo Gaming Esports broadcast times and open the official live stream page.",
+  path: "/stream-schedule",
+  type: "website",
+});
 
 export default async function StreamSchedulePage() {
   const [liveFeed, streams] = await Promise.all([getLiveStreamFeed(), getStreams()]);
@@ -25,8 +34,8 @@ export default async function StreamSchedulePage() {
             <p className="text-lg font-semibold text-white">{liveFeed.isLive ? "Live coverage" : "Channel feed"}</p>
             <p className="mt-3 text-slate-300">
               {liveFeed.isLive
-                ? "You are live right now. Visitors can open the live-stream page and watch the embedded broadcast instantly."
-                : "When your YouTube channel goes live, the live-stream page can show the live player automatically if you set your channel ID."}
+                ? "A verified Bravo broadcast is live now."
+                : "No verified Bravo broadcast is live right now. Published schedules appear below."}
             </p>
             <div className="mt-5">
               <Link

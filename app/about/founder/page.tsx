@@ -1,5 +1,21 @@
 ﻿import Link from "next/link";
 
+import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  ...buildContentMetadata({
+    title: "Founder | Bravo Gaming Esports",
+    description: "Read about the leadership focus and competition values presented by Bravo Gaming Esports.",
+    path: "/about/founder",
+    type: "website",
+  }),
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
+
 export default function FounderPage() {
   return (
     <main className="mx-auto max-w-7xl px-6 py-10 sm:px-8 lg:py-14">

@@ -1,6 +1,8 @@
+import JsonLd from "@/components/JsonLd";
 import { PubgEventDetailPage } from "@/components/pubg/PubgPublicPages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPubgEventBySlug, getPubgHubDataset } from "@/lib/pubg-hub";
+import { buildBreadcrumbStructuredData, buildPublicEventStructuredData } from "@/lib/structured-data";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -37,7 +39,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return buildContentMetadata({
     title: `${event.name} | Bravo Gaming Esports`,
-    description: `Track ${event.name} on Bravo with standings, player stats, match lists, map splits, and approval state.`,
+    description: event.description || `View published event details, standings, and results for ${event.name}.`,
     path: `/pubg/events/${event.slug}`,
     imageUrl: event.bannerUrl,
     type: "website",
@@ -54,5 +56,31 @@ export default async function PubgEventDetailRoute({ params, searchParams }: Pag
     notFound();
   }
 
-  return <PubgEventDetailPage dataset={dataset} event={event} searchParams={resolvedSearchParams} />;
+  return (
+    <>
+      <JsonLd
+        data={buildPublicEventStructuredData({
+          bannerUrl: event.bannerUrl,
+          endDate: event.endDate,
+          lifecycle: event.lifecycle,
+          name: event.name,
+          organizerName: "Bravo Gaming Esports",
+          path: `/pubg/events/${event.slug}`,
+          region: event.region,
+          slug: event.slug,
+          startDate: event.startDate,
+          summary: event.description,
+        })}
+      />
+      <JsonLd
+        data={buildBreadcrumbStructuredData([
+          { name: "Home", path: "/" },
+          { name: "PUBG", path: "/pubg" },
+          { name: "Events", path: "/pubg/events" },
+          { name: event.name, path: `/pubg/events/${event.slug}` },
+        ])}
+      />
+      <PubgEventDetailPage dataset={dataset} event={event} searchParams={resolvedSearchParams} />
+    </>
+  );
 }

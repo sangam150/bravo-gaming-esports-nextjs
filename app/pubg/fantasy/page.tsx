@@ -1,10 +1,14 @@
 import { PubgFantasyPage } from "@/components/pubg/PubgPublicPages";
-import { getPubgHubDataset } from "@/lib/pubg-hub";
+import { buildContentMetadata } from "@/lib/metadata";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "PUBG Fantasy",
-  description: "Bravo PUBG fantasy preview with event pools, five-player squad builder planning, and leaderboard context.",
+  ...buildContentMetadata({
+    title: "PUBG Fantasy | Bravo Gaming Esports",
+    description: "Review the current Bravo PUBG fantasy feature status.",
+    path: "/pubg/fantasy",
+    type: "website",
+  }),
   robots: {
     index: false,
     follow: false,
@@ -13,7 +17,6 @@ export const metadata: Metadata = {
 
 export const revalidate = 300;
 
-export default async function PubgFantasyIndexPage() {
-  const dataset = await getPubgHubDataset();
-  return <PubgFantasyPage dataset={dataset} />;
+export default function PubgFantasyIndexPage() {
+  return <PubgFantasyPage />;
 }

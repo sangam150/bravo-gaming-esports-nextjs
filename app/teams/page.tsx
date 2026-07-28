@@ -1,11 +1,14 @@
-import { CompetitionTeamsPage } from "@/components/public/CompetitionReferencePages";
+import { CompetitionTeamsPage } from "@/components/public/competition/CompetitionTeamsPage";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Teams",
-  description: "Browse Bravo Gaming Esports team profiles, current flagship rosters, and platform-ready public team data.",
-};
+export const metadata: Metadata = buildContentMetadata({
+  title: "Teams | Bravo Gaming Esports",
+  description: "Browse published Bravo Gaming Esports team profiles, active rosters, results, and PUBG PC competition statistics.",
+  path: "/teams",
+  type: "website",
+});
 
 export const revalidate = 300;
 

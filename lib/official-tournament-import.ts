@@ -5,6 +5,7 @@ import vm from "node:vm";
 import { Client } from "pg";
 import { compareBravoTeamSlotOrder } from "./bravo-teams";
 import { COLLECTIONS } from "./document-store-collections";
+import { slugify } from "./slug-utils";
 import { normalizeMapName, toTeamMatchResults } from "./tournament-standings";
 import type { Player, SourceImportAuditRecord, Team, Tournament, TournamentMatch, TournamentStanding } from "./types";
 
@@ -162,14 +163,6 @@ type FirstOfficialTournamentImportResult = {
     normalizedJsonPath: string;
   };
 };
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 function normalizeKey(value?: string | null) {
   return (

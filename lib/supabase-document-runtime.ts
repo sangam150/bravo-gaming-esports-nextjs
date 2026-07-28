@@ -27,6 +27,13 @@ export type DocumentWriteOperation =
       docId: string;
     };
 
+export class DocumentWriteConflictError extends Error {
+  constructor(message = "The document changed before the update could be saved.") {
+    super(message);
+    this.name = "DocumentWriteConflictError";
+  }
+}
+
 function sanitizeDocumentData(data: Record<string, unknown>) {
   const payload = { ...data };
   delete payload.id;
@@ -200,6 +207,61 @@ export async function saveDocument(collectionName: string, docId: string, data: 
   }
 
   return { id: docId, collection: collectionName };
+}
+
+function comparableDocumentFieldMatches(actual: unknown, expected: boolean | number | string | null | undefined) {
+  if (expected === undefined || expected === null) {
+    return actual === undefined || actual === null;
+  }
+  return actual === expected;
+}
+
+export async function saveDocumentIfFieldsMatch<T = Record<string, unknown>>(
+  collectionName: string,
+  docId: string,
+  data: Record<string, unknown>,
+  expectedFields: Record<string, boolean | number | string | null | undefined>,
+) {
+  await requireSupabaseDocumentStore();
+
+  const client = getSupabaseServiceRoleClient();
+  const existingRows = await getSupabaseDocumentRows(collectionName, [docId]);
+  const existingRow = existingRows[0];
+  const existingData = readJsonObject(existingRow?.data);
+  if (
+    !existingRow ||
+    !existingData ||
+    !Object.entries(expectedFields).every(([field, expected]) => comparableDocumentFieldMatches(existingData[field], expected))
+  ) {
+    throw new DocumentWriteConflictError();
+  }
+
+  const now = new Date().toISOString();
+  const payload = sanitizeDocumentData({
+    ...existingData,
+    ...data,
+    updatedAt: now,
+  });
+  const { data: updatedRow, error } = await client
+    .from(SUPABASE_DOCUMENT_STORE_TABLE)
+    .update({
+      data: payload,
+      updated_at: now,
+    })
+    .eq("collection_name", collectionName)
+    .eq("id", docId)
+    .eq("updated_at", existingRow.updated_at)
+    .select("collection_name,id,data,created_at,updated_at")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+  if (!updatedRow) {
+    throw new DocumentWriteConflictError();
+  }
+
+  return mapSupabaseDocumentStoreRow<T>(updatedRow as SupabaseDocumentStoreRow);
 }
 
 export async function createDocument(collectionName: string, data: Record<string, unknown>, docId?: string) {

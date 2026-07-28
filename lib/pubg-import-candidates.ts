@@ -1,10 +1,12 @@
 import "server-only";
 
-import { writeAuditLog, writeAuditLogFromRequest } from "./audit-logs";
+import { writeAuditLog } from "./audit-log-writer";
+import { writeAuditLogFromRequest } from "./audit-logs";
 import { getCompetitionMatchesForEvent } from "./competition-relational";
 import { getTournament } from "./data";
 import { COLLECTIONS, fetchDocumentCollection, getDocument, saveDocument } from "./document-store";
 import { importPubgMatchesRelational } from "./pubg-import-relational";
+import { slugify } from "./slug-utils";
 import type {
   PubgImportCandidate,
   PubgImportCandidateSignal,
@@ -35,14 +37,6 @@ type CandidateEventContext = {
   emptyDraftMatches: TournamentMatch[];
   registeredTeamIds: string[];
 };
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 function normalizeIdentity(value?: string | null) {
   return value?.trim().toLowerCase() ?? "";
@@ -194,7 +188,7 @@ async function loadCandidateEventContext(watcher: PubgImportWatcher, preview: Pu
   const tournamentId = watcher.tournamentId ?? preview.tournamentId;
   const scrimId = watcher.scrimId ?? preview.scrimId;
   const [tournament, scrim] = await Promise.all([
-    tournamentId ? getTournament(tournamentId) : Promise.resolve(null),
+    tournamentId ? getTournament(tournamentId, { includeInternal: true }) : Promise.resolve(null),
     scrimId ? getDocument<Scrim>(COLLECTIONS.scrims, scrimId) : Promise.resolve(null),
   ]);
   const existingMatches = tournament?.id

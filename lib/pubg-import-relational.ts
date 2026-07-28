@@ -6,6 +6,7 @@ import { readJsonObject, sanitizeJsonValue } from "./json-utils";
 import { previewPubgMatches } from "./pubg-sync";
 import { getRawPubgMatch } from "./pubg/raw-match-cache";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
+import { reconcilePlayerTeamLinksForAccounts } from "./player-team-linking";
 import type {
   MatchPlayerResult,
   PubgBulkImportResult,
@@ -769,6 +770,13 @@ export async function resetImportedPubgMatch(matchId: string, options?: { confir
   }
 
   const before = await getCompetitionMatch(existingRow.id);
+  const { data: playerRows, error: playerRowsError } = await client
+    .from("match_player_results")
+    .select("pubg_account_id")
+    .eq("match_id", existingRow.id);
+  if (playerRowsError) {
+    throw playerRowsError;
+  }
 
   const { error: deleteTeamResultsError } = await client.from("match_team_results").delete().eq("match_id", existingRow.id);
   if (deleteTeamResultsError) {
@@ -798,6 +806,8 @@ export async function resetImportedPubgMatch(matchId: string, options?: { confir
     preview: cache?.preview,
     sourceMatchId: cache?.sourceMatchId,
   });
+
+  await reconcilePlayerTeamLinksForAccounts((playerRows ?? []).map((row) => row.pubg_account_id ?? "").filter(Boolean));
 
   return { id: existingRow.id, before };
 }

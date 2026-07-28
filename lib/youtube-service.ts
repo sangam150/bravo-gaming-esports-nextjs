@@ -1,5 +1,6 @@
 import { getVideos, saveVideo } from "./data";
 import { isDocumentStoreConfigured } from "./document-store";
+import { slugify } from "./slug-utils";
 import type { VideoItem } from "./types";
 
 const DEFAULT_YOUTUBE_CHANNEL_ID = "UCiQ0gllz6KLTRs-6ma4Fhjw";
@@ -55,14 +56,6 @@ interface YouTubeSyncResult {
   updatedCount: number;
   skippedCount: number;
   items: VideoItem[];
-}
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }
 
 function truncateDescription(value?: string | null, maxLength = 280) {

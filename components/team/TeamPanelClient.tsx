@@ -243,13 +243,10 @@ export default function TeamPanelClient() {
     router.refresh();
   }
 
-  async function uploadTeamFile(file: File, type: TeamUploadType, previousUrl?: string) {
+  async function uploadTeamFile(file: File, type: TeamUploadType) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("type", type);
-    if (previousUrl) {
-      formData.append("previousUrl", previousUrl);
-    }
 
     const token = await getAccessToken();
     const headers = new Headers();
@@ -280,17 +277,7 @@ export default function TeamPanelClient() {
     setNotice(null);
 
     try {
-      const upload = await uploadTeamFile(file, "team_logo", workspace.team.logoUrl ?? undefined);
-      await authorizedFetch("/api/team/requests", {
-        method: "POST",
-        body: JSON.stringify({
-          requestType: "logo_update",
-          payload: {
-            logoUrl: upload.url,
-            fileName: file.name,
-          },
-        }),
-      });
+      await uploadTeamFile(file, "team_logo");
       await loadWorkspace();
       setNotice("Logo update request submitted for admin approval.");
     } catch (error: unknown) {

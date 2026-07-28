@@ -30,7 +30,9 @@ export default function MvpRankingPageClient({
   const activeOverview = overview ?? initialOverview;
   const activePlayers = (
     activeOverview?.players?.length ? activeOverview.players : livePlayers.filter((player) => player.scope !== "tournament")
-  ).sort((firstPlayer, secondPlayer) => compareMvpRankingPlayers(firstPlayer, secondPlayer));
+  )
+    .filter((player) => player.matches > 0)
+    .sort((firstPlayer, secondPlayer) => compareMvpRankingPlayers(firstPlayer, secondPlayer));
 
   return (
     <main className="page-shell">
@@ -53,7 +55,7 @@ export default function MvpRankingPageClient({
         {activePlayers.length === 0 ? (
           <section className="esports-card mt-8 p-10 text-center">
             <p className="font-display text-lg font-bold uppercase text-white">Rankings pending</p>
-            <p className="mt-2 text-sm text-text-muted">MVP rankings will appear automatically after player statistics are imported.</p>
+            <p className="mt-2 text-sm text-text-muted">MVP rankings will appear after verified player statistics are published.</p>
           </section>
         ) : (
           <section className="esports-card mt-8 overflow-hidden !p-0">
@@ -86,7 +88,7 @@ export default function MvpRankingPageClient({
                       <td className="font-mono-stat">{player.mvpCount}</td>
                       <td className="font-mono-stat">{player.kills}</td>
                       <td className="font-mono-stat text-text-muted">{formatDisplayNumber(player.damage)}</td>
-                      <td className="font-mono-stat text-text-muted">{player.assists ?? 0}</td>
+                      <td className="font-mono-stat text-text-muted">{formatDisplayNumber(player.assists)}</td>
                       <td className="font-mono-stat text-text-muted">{player.matches}</td>
                     </tr>
                   ))}

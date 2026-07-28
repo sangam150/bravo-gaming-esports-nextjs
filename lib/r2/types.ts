@@ -14,15 +14,6 @@ export type BuildStoragePathResult = {
   visibility: StorageVisibility;
 };
 
-export type PresignedUploadResult = {
-  expiresAt: string;
-  headers: Record<string, string>;
-  method: "PUT";
-  path: string;
-  uploadUrl: string;
-  url: string;
-};
-
 export type ManagedUploadRecord = {
   contentType: string | null;
   fileName: string | null;

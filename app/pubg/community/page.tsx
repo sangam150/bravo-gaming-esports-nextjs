@@ -1,4 +1,5 @@
 import { PubgCommunityPage } from "@/components/pubg/PubgPublicPages";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 import type { Metadata } from "next";
@@ -7,10 +8,12 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export const metadata: Metadata = {
-  title: "PUBG Community",
-  description: "Browse Bravo PUBG community teams, players, announcements, and direct routes into the active competitive ecosystem.",
-};
+export const metadata: Metadata = buildContentMetadata({
+  title: "PUBG Community | Bravo Gaming Esports",
+  description: "Browse published Bravo PUBG team, player, and community information.",
+  path: "/pubg/community",
+  type: "website",
+});
 
 export const revalidate = 300;
 

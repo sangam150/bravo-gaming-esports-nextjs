@@ -542,6 +542,7 @@ export type Database = {
           demo_seed_tag: string | null;
           id: string;
           kills: number;
+          link_eligibility: string;
           knocks: number;
           match_id: string;
           placement: number;
@@ -563,6 +564,7 @@ export type Database = {
           demo_seed_tag?: string | null;
           id?: string;
           kills?: number;
+          link_eligibility?: string;
           knocks?: number;
           match_id: string;
           placement?: number;
@@ -584,6 +586,7 @@ export type Database = {
           demo_seed_tag?: string | null;
           id?: string;
           kills?: number;
+          link_eligibility?: string;
           knocks?: number;
           match_id?: string;
           placement?: number;
@@ -2892,6 +2895,46 @@ export type Database = {
         Returns: boolean;
       };
       parse_optional_timestamptz: { Args: { value: string }; Returns: string };
+      get_player_team_linking_admin_dashboard: {
+        Args: never;
+        Returns: Json;
+      };
+      recalculate_player_team_links: {
+        Args: { target_pubg_account_id?: string | null };
+        Returns: Json;
+      };
+      reconcile_player_team_link_for_account: {
+        Args: { target_pubg_account_id: string };
+        Returns: Json;
+      };
+      reconcile_player_team_links_for_match: {
+        Args: { target_match_id: string };
+        Returns: Json;
+      };
+      review_player_team_link: {
+        Args: {
+          actor_profile_id: string;
+          decision: string;
+          note?: string | null;
+          target_review_id: string;
+        };
+        Returns: Json;
+      };
+      unlink_player_team_membership: {
+        Args: {
+          actor_profile_id: string;
+          reason: string;
+          target_membership_id: string;
+        };
+        Returns: Json;
+      };
+      update_player_team_link_settings: {
+        Args: {
+          actor_profile_id: string;
+          settings: Json;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       day_status: "scheduled" | "active" | "completed" | "waiting_for_data" | "cancelled";

@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { nepalDateTimeLocalToUtcIso } from "./nepal-datetime";
 import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "./brand-links";
 import { ensureUniqueDocumentSlug, filterSoftDeleted, getDocumentByIdOrSlug, softDeleteDocumentEntity } from "./document-entities";
 import { COLLECTIONS, fetchDocumentCollection, getDocument, isDocumentStoreConfigured, saveDocument } from "./document-store";
@@ -9,6 +10,7 @@ import {
   resolveManagedNewsEffectiveState,
   type ManagedNewsStateValue,
 } from "./news-publishing";
+import { normalizePublicActionHref } from "./public-links";
 import { slugify } from "./slug-utils";
 
 type ManagedNewsState = ManagedNewsStateValue;
@@ -28,6 +30,20 @@ export interface HomepageHeroSlideRecord {
   secondaryHref?: string;
   tertiaryLabel?: string;
   tertiaryHref?: string;
+}
+
+export type HomepageEventFeatureMode = "auto" | "details" | "registration" | "stream";
+
+export interface HomepageFeaturedEventRecord {
+  eventSlug: string;
+  priority: number;
+  activeFrom?: string;
+  activeUntil?: string;
+  label?: string;
+  mode: HomepageEventFeatureMode;
+  ctaLabel?: string;
+  ctaHref?: string;
+  primary: boolean;
 }
 
 export interface FooterLinkRecord {
@@ -53,6 +69,7 @@ export interface HomepageContentRecord {
   breakingNewsSlug?: string;
   featuredNewsSlugs: string[];
   featuredEventSlugs: string[];
+  featuredEvents: HomepageFeaturedEventRecord[];
   featuredSponsorSlugs: string[];
   featuredMediaIds: string[];
   featuredTeamIds: string[];
@@ -119,7 +136,7 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
   heroSlides: [
     {
       id: "platform-home",
-      badge: "Nepal's Premier Esports Platform",
+      badge: "Nepal Esports Platform",
       title: "Published matches, rankings, news, and events in one home",
       description:
         "Bravo Gaming Esports brings together real match coverage, verified standings, news, and community updates for Nepal esports.",
@@ -134,8 +151,7 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
       id: "pubg-flagship",
       badge: "Flagship PUBG Coverage",
       title: "PUBG PC remains the flagship competitive hub",
-      description:
-        "Published seasons, events, teams, players, matches, and standings will appear here automatically as results are approved.",
+      description: "Browse published seasons, events, teams, players, matches, and standings from approved results.",
       primaryLabel: "Open PUBG",
       primaryHref: "/pubg",
       secondaryLabel: "Leaderboards",
@@ -159,16 +175,17 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
   ],
   featuredNewsSlugs: [],
   featuredEventSlugs: [],
+  featuredEvents: [],
   featuredSponsorSlugs: [],
   featuredMediaIds: [],
   featuredTeamIds: [],
   featuredPlayerIds: [],
   liveTitle: "Bravo Gaming Esports Live Feed",
-  liveSubtitle: "Published broadcasts and live coverage will appear here automatically once a stream is active.",
-  liveViewers: "Broadcast scheduled",
+  liveSubtitle: "Published broadcasts and live coverage will appear here when a verified stream is active.",
+  liveViewers: undefined,
   liveHref: "/live-stream",
   footerTitle: "Bravo Gaming Esports",
-  footerTagline: "Nepal's Premier Esports Platform",
+  footerTagline: "Nepal Esports Platform",
   footerDescription:
     "Bravo Gaming Esports is building a clean, trustworthy home for Nepal esports with published match data, verified standings, and community-first coverage.",
   footerPrimaryLabel: "Watch Live",
@@ -230,11 +247,11 @@ const DEFAULT_HOMEPAGE_CONTENT: HomepageContentRecord = {
     {
       id: "footer-highlight-community",
       label: "Community",
-      value: "Nepal First",
+      value: "Nepal Focused",
     },
   ],
   footerBottomPrimary: "Copyright 2026 Bravo Gaming Esports Nepal",
-  footerBottomSecondary: "Daily scrims, major events, rankings, media, sponsors, and community coverage for Nepal esports.",
+  footerBottomSecondary: "Published events, results, rankings, media, sponsors, and community coverage for Nepal esports.",
 };
 
 function normalizeHomepageHref(value?: string | null) {
@@ -243,7 +260,7 @@ function normalizeHomepageHref(value?: string | null) {
     return undefined;
   }
 
-  return LEGACY_HREF_MAP[normalizedValue] ?? normalizedValue;
+  return normalizePublicActionHref(LEGACY_HREF_MAP[normalizedValue] ?? normalizedValue);
 }
 
 function normalizeHomepageLabel(label: string, href: string) {
@@ -258,23 +275,29 @@ function cleanString(value?: string | null) {
   return normalizedValue ? normalizedValue : undefined;
 }
 
-function cleanUrlReference(value?: string | null) {
-  const normalizedValue = cleanString(value);
-  if (!normalizedValue) {
-    return undefined;
-  }
-
-  if (normalizedValue.startsWith("/")) {
-    return normalizedValue;
-  }
-
-  return /^https?:\/\//i.test(normalizedValue) ? normalizedValue : undefined;
-}
-
 function cleanStringArray(values?: string[] | string | null) {
   const normalizedValues = Array.isArray(values) ? values : typeof values === "string" ? values.split(/[\n,]+/g) : [];
 
   return Array.from(new Set(normalizedValues.map((value) => value.trim()).filter(Boolean)));
+}
+
+function normalizeFeaturedEvent(feature: Partial<HomepageFeaturedEventRecord>, index: number): HomepageFeaturedEventRecord | null {
+  const eventSlug = cleanString(feature.eventSlug);
+  if (!eventSlug) return null;
+  const mode: HomepageEventFeatureMode =
+    feature.mode === "details" || feature.mode === "registration" || feature.mode === "stream" ? feature.mode : "auto";
+
+  return {
+    eventSlug,
+    priority: Number.isFinite(feature.priority) ? Math.max(0, Math.trunc(feature.priority ?? index)) : index,
+    activeFrom: nepalDateTimeLocalToUtcIso(feature.activeFrom),
+    activeUntil: nepalDateTimeLocalToUtcIso(feature.activeUntil),
+    label: cleanString(feature.label),
+    mode,
+    ctaLabel: cleanString(feature.ctaLabel),
+    ctaHref: normalizePublicActionHref(feature.ctaHref),
+    primary: Boolean(feature.primary),
+  };
 }
 
 function normalizeBody(body: string[] | string | null | undefined) {
@@ -286,10 +309,8 @@ function normalizeHeroSlide(slide: Partial<HomepageHeroSlideRecord>, index: numb
   return {
     id: cleanString(slide.id) ?? `hero-slide-${index + 1}`,
     badge: cleanString(slide.badge) ?? "Bravo Gaming Esports",
-    title: cleanString(slide.title) ?? "Nepal's premier esports platform",
-    description:
-      cleanString(slide.description) ??
-      "Publish hero slides from admin to spotlight live events, flagship coverage, sponsors, or key campaigns.",
+    title: cleanString(slide.title) ?? "Bravo Gaming Esports",
+    description: cleanString(slide.description) ?? "",
     imageUrl: cleanString(slide.imageUrl),
     videoUrl: cleanString(slide.videoUrl),
     sponsorSlug: cleanString(slide.sponsorSlug),
@@ -349,13 +370,41 @@ function normalizeHomepageContent(data?: Partial<HomepageContentRecord> | null):
     Array.isArray(data?.footerHighlights) && data.footerHighlights.length > 0
       ? data.footerHighlights
       : DEFAULT_HOMEPAGE_CONTENT.footerHighlights;
+  const legacyFeaturedEventSlugs = cleanStringArray(data?.featuredEventSlugs);
+  const normalizedFeaturedEventRows =
+    Array.isArray(data?.featuredEvents) && data.featuredEvents.length > 0
+      ? data.featuredEvents
+          .map((feature, index) => normalizeFeaturedEvent(feature, index))
+          .filter((feature): feature is HomepageFeaturedEventRecord => feature !== null)
+      : legacyFeaturedEventSlugs.map((eventSlug, index) => ({
+          eventSlug,
+          priority: index,
+          mode: "auto" as const,
+          primary: index === 0,
+        }));
+  const seenFeaturedEventSlugs = new Set<string>();
+  const uniqueFeaturedEvents = normalizedFeaturedEventRows.filter((feature) => {
+    if (seenFeaturedEventSlugs.has(feature.eventSlug)) return false;
+    seenFeaturedEventSlugs.add(feature.eventSlug);
+    return true;
+  });
+  const primaryFeatureIndex = Math.max(
+    0,
+    uniqueFeaturedEvents.findIndex((feature) => feature.primary),
+  );
+  const normalizedFeaturedEvents = uniqueFeaturedEvents.map((feature, index) => ({
+    ...feature,
+    primary: index === primaryFeatureIndex,
+  }));
 
   return {
     id: "main",
     heroSlides: heroSlidesInput.slice(0, 3).map((slide, index) => normalizeHeroSlide(slide, index)),
     breakingNewsSlug: cleanString(data?.breakingNewsSlug),
     featuredNewsSlugs: cleanStringArray(data?.featuredNewsSlugs),
-    featuredEventSlugs: cleanStringArray(data?.featuredEventSlugs),
+    featuredEventSlugs:
+      normalizedFeaturedEvents.length > 0 ? normalizedFeaturedEvents.map((feature) => feature.eventSlug) : legacyFeaturedEventSlugs,
+    featuredEvents: normalizedFeaturedEvents,
     featuredSponsorSlugs: cleanStringArray(data?.featuredSponsorSlugs),
     featuredMediaIds: cleanStringArray(data?.featuredMediaIds),
     featuredTeamIds: cleanStringArray(data?.featuredTeamIds),
@@ -363,7 +412,7 @@ function normalizeHomepageContent(data?: Partial<HomepageContentRecord> | null):
     liveTitle: cleanString(data?.liveTitle),
     liveSubtitle: cleanString(data?.liveSubtitle),
     liveViewers: cleanString(data?.liveViewers),
-    liveHref: cleanString(data?.liveHref),
+    liveHref: normalizePublicActionHref(data?.liveHref),
     footerTitle: cleanString(data?.footerTitle) ?? DEFAULT_HOMEPAGE_CONTENT.footerTitle,
     footerTagline: cleanString(data?.footerTagline) ?? DEFAULT_HOMEPAGE_CONTENT.footerTagline,
     footerDescription: cleanString(data?.footerDescription) ?? DEFAULT_HOMEPAGE_CONTENT.footerDescription,
@@ -428,8 +477,8 @@ function normalizeManagedNewsArticle(
     imageUrl: cleanString(data.imageUrl),
     seoTitle: cleanString(data.seoTitle),
     seoDescription: cleanString(data.seoDescription),
-    ogImageUrl: cleanUrlReference(data.ogImageUrl),
-    canonicalUrl: cleanUrlReference(data.canonicalUrl),
+    ogImageUrl: normalizePublicActionHref(data.ogImageUrl),
+    canonicalUrl: normalizePublicActionHref(data.canonicalUrl),
     publishAt,
     publishedAt,
     deletedAt: cleanString(data.deletedAt),

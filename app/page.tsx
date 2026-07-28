@@ -2,9 +2,11 @@ import HomePage from "@/components/home/HomePage";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Bravo Gaming Esports | PUBG PC Scrims & Tournaments in Nepal",
+  title: {
+    absolute: "Bravo Gaming Esports | PUBG PC Events and Results in Nepal",
+  },
   description:
-    "Nepal's competitive PUBG PC esports platform featuring daily scrims, tournaments, live leaderboards, player statistics, team rankings, and community events.",
+    "Browse published Bravo Gaming Esports PUBG PC scrims, tournaments, results, leaderboards, player statistics, team rankings, and community updates.",
   keywords: [
     "PUBG PC Nepal",
     "Nepal Esports",
@@ -22,13 +24,20 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: "/",
-    title: "Bravo Gaming Esports - Nepal's PUBG PC Esports Platform",
-    description: "Join daily scrims, tournaments, and the competitive PUBG PC community in Nepal.",
+    title: "Bravo Gaming Esports | PUBG PC Events and Results in Nepal",
+    description: "Browse published PUBG PC events, results, teams, players, rankings, and community updates from Bravo Gaming Esports.",
+    images: [
+      {
+        url: "/images/bravo-logo.png",
+        alt: "Bravo Gaming Esports",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bravo Gaming Esports - Nepal's PUBG PC Esports Platform",
-    description: "Join daily scrims, tournaments, and the competitive PUBG PC community in Nepal.",
+    title: "Bravo Gaming Esports | PUBG PC Events and Results in Nepal",
+    description: "Browse published PUBG PC events, results, teams, players, rankings, and community updates from Bravo Gaming Esports.",
+    images: ["/images/bravo-logo.png"],
   },
 };
 

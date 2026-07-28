@@ -8,7 +8,6 @@ import {
   MetricCard,
   PageHero,
   PlayerIdentity,
-  RadarComparison,
   readSearchParam,
   RecentMatchCards,
   SectionHeader,
@@ -117,10 +116,14 @@ export function PubgTeamProfileShowcasePage({
             </>
           }
           stats={[
-            { label: "Matches", value: team.matches, tone: "blue" },
-            { label: "Wins", value: team.wins, tone: "green" },
-            { label: "Kills", value: team.kills, tone: "yellow" },
-            { label: "Points", value: team.totalPoints, tone: "red" },
+            { label: "Matches", value: team.statsTracked ? team.matches : "Not tracked", tone: "blue" },
+            { label: "Wins", value: team.statsTracked ? team.wins : "Not tracked", tone: "green" },
+            { label: "Kills", value: team.statsTracked ? team.kills : "Not tracked", tone: "yellow" },
+            {
+              label: "Damage",
+              value: team.statsTracked && team.damageTracked ? formatNumber(team.damage) : "Not tracked",
+              tone: "red",
+            },
           ]}
           aside={
             <div className="space-y-4">
@@ -129,7 +132,7 @@ export function PubgTeamProfileShowcasePage({
                   <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="lg" />
                   <div>
                     <p className="font-display text-2xl font-black uppercase text-white">{team.name}</p>
-                    <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{team.region ?? "Nepal"}</p>
+                    <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{team.region ?? "Region not published"}</p>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -148,8 +151,13 @@ export function PubgTeamProfileShowcasePage({
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <MetricCard label="Active Roster" value={team.currentRoster.length} compact tone="blue" />
-                <MetricCard label="Podium Events" value={podiumEvents} compact tone="green" />
-                <MetricCard label="Avg Recent Pts" value={formatDecimal(averageRecentPoints, 1)} compact tone="yellow" />
+                <MetricCard label="Podium Events" value={team.eventStats.length > 0 ? podiumEvents : "Not tracked"} compact tone="green" />
+                <MetricCard
+                  label="Avg Recent Pts"
+                  value={team.recentPoints.length > 0 ? formatDecimal(averageRecentPoints, 1) : "Not tracked"}
+                  compact
+                  tone="yellow"
+                />
                 <MetricCard label="Map Edge" value={bestMap?.map ?? "Pending"} compact tone="red" />
               </div>
             </div>
@@ -383,7 +391,7 @@ export function PubgTeamProfileShowcasePage({
               </div>
             </section>
 
-            <section className="grid gap-6 xl:grid-cols-2">
+            <section>
               <div className="esports-card p-6">
                 <SectionHeader
                   eyebrow="Trend Layer"
@@ -394,56 +402,19 @@ export function PubgTeamProfileShowcasePage({
                   <DualTrendChart firstValues={team.recentPoints} secondValues={team.recentKills} firstLabel="Points" secondLabel="Kills" />
                 </div>
               </div>
-              <div className="esports-card p-6">
-                <SectionHeader
-                  eyebrow="Scouting Read"
-                  title="Placement profile"
-                  description="Radar view compresses the broad team profile into something fast to scan."
-                />
-                <div className="mt-5">
-                  <RadarComparison
-                    title="Team shape"
-                    firstLabel={team.name}
-                    secondLabel="Benchmark"
-                    points={[
-                      {
-                        label: "Kills",
-                        firstValue: team.kills,
-                        secondValue: Math.max(1, team.kills * 0.8),
-                      },
-                      {
-                        label: "Wins",
-                        firstValue: team.wins,
-                        secondValue: Math.max(1, team.wins * 0.75),
-                      },
-                      {
-                        label: "Points",
-                        firstValue: team.totalPoints,
-                        secondValue: Math.max(1, team.totalPoints * 0.82),
-                      },
-                      {
-                        label: "Damage",
-                        firstValue: team.damage,
-                        secondValue: Math.max(1, team.damage * 0.78),
-                      },
-                      {
-                        label: "Matches",
-                        firstValue: team.matches,
-                        secondValue: Math.max(1, team.matches * 0.9),
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
             </section>
           </>
         ) : null}
 
         {tab === "achievements" ? (
           <section className="grid gap-6 xl:grid-cols-3">
-            <MetricCard label="Podium Events" value={podiumEvents} tone="blue" />
+            <MetricCard label="Podium Events" value={team.eventStats.length > 0 ? podiumEvents : "Not tracked"} tone="blue" />
             <MetricCard label="Best Map" value={bestMap?.map ?? "Pending"} tone="green" />
-            <MetricCard label="Average Placement" value={formatDecimal(team.avgPlacement, 2)} tone="yellow" />
+            <MetricCard
+              label="Average Placement"
+              value={team.statsTracked ? formatDecimal(team.avgPlacement, 2) : "Not tracked"}
+              tone="yellow"
+            />
           </section>
         ) : null}
       </div>
@@ -465,6 +436,9 @@ export function PubgPlayerProfileShowcasePage({
   const filteredMatches = eventId === "all" ? player.recentMatches : player.recentMatches.filter((match) => match.eventId === eventId);
   const filteredEventStats = eventId === "all" ? player.eventStats : player.eventStats.filter((item) => item.eventId === eventId);
   const currentTeam = player.currentTeamId ? (findPublicPubgTeam(dataset, player.currentTeamId) ?? null) : null;
+  const representedTeams = new Set(
+    [player.currentTeamName, ...player.previousTeams].filter((teamName): teamName is string => Boolean(teamName)),
+  );
 
   return (
     <main className="page-shell pb-12 pt-6">
@@ -496,14 +470,14 @@ export function PubgPlayerProfileShowcasePage({
             </>
           }
           stats={[
-            { label: "Kills", value: player.kills, tone: "blue" },
-            { label: "Damage", value: player.damage, tone: "green" },
+            { label: "Kills", value: player.statsTracked ? player.kills : "Not tracked", tone: "blue" },
+            { label: "Damage", value: player.statsTracked ? player.damage : "Not tracked", tone: "green" },
             {
               label: "Avg Kills",
-              value: formatDecimal(player.avgKills, 2),
+              value: player.statsTracked ? formatDecimal(player.avgKills, 2) : "Not tracked",
               tone: "yellow",
             },
-            { label: "MVP Count", value: player.mvpCount, tone: "red" },
+            { label: "MVP Count", value: player.statsTracked ? player.mvpCount : "Not tracked", tone: "red" },
           ]}
           aside={
             <div className="space-y-4">
@@ -590,9 +564,9 @@ export function PubgPlayerProfileShowcasePage({
                   </h3>
                   <div className="mt-4 grid gap-3 sm:grid-cols-4">
                     <MetricCard label="Kills" value={player.bestMatch.kills} compact tone="blue" />
-                    <MetricCard label="Assists" value={player.bestMatch.assists ?? 0} compact tone="yellow" />
-                    <MetricCard label="Knocks" value={player.bestMatch.knocks ?? 0} compact tone="green" />
-                    <MetricCard label="Damage" value={player.bestMatch.damage ?? 0} compact tone="red" />
+                    <MetricCard label="Assists" value={player.bestMatch.assists ?? "Not tracked"} compact tone="yellow" />
+                    <MetricCard label="Knocks" value={player.bestMatch.knocks ?? "Not tracked"} compact tone="green" />
+                    <MetricCard label="Damage" value={player.bestMatch.damage ?? "Not tracked"} compact tone="red" />
                   </div>
                 </div>
               ) : (
@@ -609,10 +583,20 @@ export function PubgPlayerProfileShowcasePage({
                 description="A compact read of form, damage, and win share keeps the profile useful at a glance."
               />
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <MetricCard label="Matches" value={player.matches} compact />
-                <MetricCard label="Wins" value={player.wins} compact tone="green" />
-                <MetricCard label="Avg Damage" value={formatDecimal(player.avgDamage, 2)} compact tone="blue" />
-                <MetricCard label="Form Score" value={formatDecimal(player.formScore, 2)} compact tone="yellow" />
+                <MetricCard label="Matches" value={player.statsTracked ? player.matches : "Not tracked"} compact />
+                <MetricCard label="Wins" value={player.statsTracked ? player.wins : "Not tracked"} compact tone="green" />
+                <MetricCard
+                  label="Avg Damage"
+                  value={player.statsTracked ? formatDecimal(player.avgDamage, 2) : "Not tracked"}
+                  compact
+                  tone="blue"
+                />
+                <MetricCard
+                  label="Form Score"
+                  value={player.statsTracked ? formatDecimal(player.formScore, 2) : "Not tracked"}
+                  compact
+                  tone="yellow"
+                />
               </div>
               <div className="mt-5">
                 <DualTrendChart
@@ -735,10 +719,10 @@ export function PubgPlayerProfileShowcasePage({
 
         {tab === "achievements" ? (
           <section className="grid gap-6 xl:grid-cols-4">
-            <MetricCard label="MVP Awards" value={player.mvpCount} tone="blue" />
-            <MetricCard label="Wins" value={player.wins} tone="green" />
-            <MetricCard label="Best Match Kills" value={player.bestMatch?.kills ?? 0} tone="yellow" />
-            <MetricCard label="Teams Represented" value={1 + player.previousTeams.length} tone="red" />
+            <MetricCard label="MVP Awards" value={player.statsTracked ? player.mvpCount : "Not tracked"} tone="blue" />
+            <MetricCard label="Wins" value={player.statsTracked ? player.wins : "Not tracked"} tone="green" />
+            <MetricCard label="Best Match Kills" value={player.bestMatch?.kills ?? "Pending"} tone="yellow" />
+            <MetricCard label="Teams Represented" value={representedTeams.size > 0 ? representedTeams.size : "Pending"} tone="red" />
           </section>
         ) : null}
       </div>

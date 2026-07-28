@@ -1,56 +1,82 @@
-import { requireAdmin } from "@/lib/admin-auth";
-import { writeAuditLogFromRequest } from "@/lib/audit-logs";
-import { deleteTeam, getPlayers, getTeam, saveTeam } from "@/lib/data";
-import { revalidateTeamPaths } from "@/lib/revalidate-public";
+import { requirePlatformAdmin } from "@/lib/admin-auth";
+import { writeRequiredAuditLogFromRequest } from "@/lib/audit-logs";
+import {
+  archiveCanonicalAdminTeam,
+  CanonicalTeamError,
+  getCanonicalAdminTeam,
+  parseCanonicalTeamWriteInput,
+  updateCanonicalAdminTeam,
+} from "@/lib/canonical-teams";
+import { getPlayers, getTeams } from "@/lib/data";
+import { revalidateTeamAssetPaths } from "@/lib/revalidate-public";
+import { requireSameOrigin } from "@/lib/request-origin";
+import { logServerError } from "@/lib/server-monitoring";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: RouteParams) {
   const { id } = await params;
-  const team = await getTeam(id);
+  const teams = await getTeams();
+  const team = teams.find((candidate) => candidate.id === id || candidate.slug === id);
   if (!team) return Response.json({ error: "Team not found" }, { status: 404 });
   const allPlayers = await getPlayers();
-  const roster = allPlayers.filter((p) => p.teamId === id);
+  const roster = allPlayers.filter((player) => player.teamId === team.id);
   return Response.json({ success: true, data: { ...team, roster } });
 }
 
 export async function PUT(request: Request, { params }: RouteParams) {
-  const unauthorized = await requireAdmin(request);
-  if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
+  const auth = await requirePlatformAdmin(request);
+  if (auth.response) return auth.response;
   const { id } = await params;
   try {
-    const body = await request.json();
-    const existing = await getTeam(id);
+    const existing = await getCanonicalAdminTeam(id);
     if (!existing) return Response.json({ error: "Team not found" }, { status: 404 });
-    const result = await saveTeam({ ...existing, ...body }, id);
-    await writeAuditLogFromRequest(request, {
-      action: "update",
+    const updates = parseCanonicalTeamWriteInput(await request.json());
+    await writeRequiredAuditLogFromRequest(request, {
+      action: "update_requested",
       entityType: "team",
-      entityId: result.id,
+      entityId: existing.id,
       oldValue: existing,
-      newValue: result,
+      newValue: updates,
     });
-    revalidateTeamPaths(result.slug ?? result.id);
+    const result = await updateCanonicalAdminTeam(existing.id, updates);
+    revalidateTeamAssetPaths(result.id, result.slug);
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    await logServerError("teams.update", error, request);
+    if (error instanceof CanonicalTeamError) {
+      return Response.json({ error: error.message, code: error.code }, { status: error.status });
+    }
+    return Response.json({ error: "The official team could not be updated right now." }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request, { params }: RouteParams) {
-  const unauthorized = await requireAdmin(request);
-  if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
+  const auth = await requirePlatformAdmin(request);
+  if (auth.response) return auth.response;
   const { id } = await params;
-  const existing = await getTeam(id);
-  await deleteTeam(id);
-  await writeAuditLogFromRequest(request, {
-    action: "soft_delete",
-    entityType: "team",
-    entityId: id,
-    oldValue: existing,
-    newValue: existing ? { ...existing, deletedAt: new Date().toISOString() } : null,
-  });
-  revalidateTeamPaths(existing?.slug ?? id);
-  return Response.json({ success: true, data: { id, deleted: true } });
+  try {
+    const existing = await getCanonicalAdminTeam(id);
+    if (!existing) return Response.json({ error: "Team not found" }, { status: 404 });
+    await writeRequiredAuditLogFromRequest(request, {
+      action: "archive_requested",
+      entityType: "team",
+      entityId: existing.id,
+      oldValue: existing,
+      newValue: { status: "archived" },
+    });
+    const result = await archiveCanonicalAdminTeam(existing.id);
+    revalidateTeamAssetPaths(result.id, result.slug);
+    return Response.json({ success: true, data: result });
+  } catch (error) {
+    await logServerError("teams.archive", error, request);
+    if (error instanceof CanonicalTeamError) {
+      return Response.json({ error: error.message, code: error.code }, { status: error.status });
+    }
+    return Response.json({ error: "The official team could not be archived right now." }, { status: 500 });
+  }
 }

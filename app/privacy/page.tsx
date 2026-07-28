@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+
 const sections = [
   {
     title: "Information We Store",
@@ -22,6 +25,13 @@ const sections = [
       "If you need a correction to a public profile, upload, or event record, use the public contact route or the appropriate team/admin workflow so the Bravo staff can review it.",
   },
 ];
+
+export const metadata: Metadata = buildContentMetadata({
+  title: "Privacy Policy | Bravo Gaming Esports",
+  description: "Read how Bravo Gaming Esports handles account, contact, upload, and published competition data.",
+  path: "/privacy",
+  type: "website",
+});
 
 export default function PrivacyPage() {
   return (

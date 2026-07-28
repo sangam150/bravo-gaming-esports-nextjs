@@ -2,7 +2,9 @@
 
 import { adminFetch } from "@/lib/admin-api";
 import { scheduleEffectTask } from "@/lib/effect-task";
+import { formatNepalDateTimeInput, nepalDateTimeLocalToUtcIso } from "@/lib/nepal-datetime";
 import type { ManagedPlatformEventRecord, ManagedPlatformGameRecord } from "@/lib/platform-cms";
+import { normalizeSponsorExternalUrl, resolveSponsorDestination } from "@/lib/sponsor-links";
 import type { SponsorItem, VideoItem } from "@/lib/types";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import { useCallback, useDeferredValue, useEffect, useState } from "react";
@@ -26,10 +28,10 @@ function joinDelimitedValues(values?: string[] | null) {
   return values?.join(", ") ?? "";
 }
 
-function isValidOptionalLink(value?: string | null) {
+function isValidOptionalSponsorLink(value?: string | null) {
   const normalizedValue = value?.trim();
   if (!normalizedValue) return true;
-  return normalizedValue.startsWith("/") || /^https?:\/\//i.test(normalizedValue);
+  return Boolean(normalizeSponsorExternalUrl(normalizedValue));
 }
 
 type SponsorEventOption = {
@@ -384,6 +386,9 @@ const defaultEventForm: Partial<ManagedPlatformEventRecord> = {
   summary: "",
   analyticsHref: "",
   streamHref: "",
+  registrationOpen: false,
+  registrationStartDate: "",
+  registrationEndDate: "",
   topTeamName: "",
   topPlayerName: "",
   sponsorName: "",
@@ -549,6 +554,8 @@ export function AdminPlatformEventsManager() {
               <option value="upcoming">Upcoming</option>
               <option value="completed">Completed</option>
               <option value="planned">Planned</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="archived">Archived</option>
             </select>
             <select
               className={inputClass}
@@ -606,15 +613,15 @@ export function AdminPlatformEventsManager() {
               className={inputClass}
               aria-label="Event start date and time"
               type="datetime-local"
-              value={(form.startDate ?? "").slice(0, 16)}
-              onChange={(event) => setForm({ ...form, startDate: event.target.value })}
+              value={formatNepalDateTimeInput(form.startDate)}
+              onChange={(event) => setForm({ ...form, startDate: nepalDateTimeLocalToUtcIso(event.target.value) })}
             />
             <input
               className={inputClass}
               aria-label="Event end date and time"
               type="datetime-local"
-              value={(form.endDate ?? "").slice(0, 16)}
-              onChange={(event) => setForm({ ...form, endDate: event.target.value })}
+              value={formatNepalDateTimeInput(form.endDate)}
+              onChange={(event) => setForm({ ...form, endDate: nepalDateTimeLocalToUtcIso(event.target.value) })}
             />
             <textarea
               className={`${inputClass} sm:col-span-2`}
@@ -634,9 +641,33 @@ export function AdminPlatformEventsManager() {
             <input
               className={inputClass}
               aria-label="Stream href"
-              placeholder="Stream href"
+              placeholder="Verified HTTPS stream URL"
               value={form.streamHref ?? ""}
               onChange={(event) => setForm({ ...form, streamHref: event.target.value })}
+            />
+            <input
+              className={inputClass}
+              aria-label="Registration opens"
+              type="datetime-local"
+              value={formatNepalDateTimeInput(form.registrationStartDate)}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  registrationStartDate: nepalDateTimeLocalToUtcIso(event.target.value),
+                })
+              }
+            />
+            <input
+              className={inputClass}
+              aria-label="Registration closes"
+              type="datetime-local"
+              value={formatNepalDateTimeInput(form.registrationEndDate)}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  registrationEndDate: nepalDateTimeLocalToUtcIso(event.target.value),
+                })
+              }
             />
             <input
               className={inputClass}
@@ -706,6 +737,14 @@ export function AdminPlatformEventsManager() {
             <label className="inline-flex items-center gap-2">
               <input
                 type="checkbox"
+                checked={Boolean(form.registrationOpen)}
+                onChange={(event) => setForm({ ...form, registrationOpen: event.target.checked })}
+              />
+              Registration open
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
                 checked={form.published !== false}
                 onChange={(event) => setForm({ ...form, published: event.target.checked })}
               />
@@ -768,7 +807,10 @@ const defaultSponsorForm: Partial<SponsorItem> = {
   kind: "partner",
   tier: "Partner",
   websiteUrl: "",
+  campaignUrl: "",
   socialUrl: "",
+  homepageClickDestination: "auto",
+  openInNewTab: true,
   logoUrl: "",
   bannerUrl: "",
   designAssetUrl: "",
@@ -895,13 +937,18 @@ export function AdminSponsorsManager() {
     event.preventDefault();
     if (!form.name) return;
 
-    if (!isValidOptionalLink(form.websiteUrl ?? form.url)) {
-      setError("Website URL must start with https://, http://, or /.");
+    if (!isValidOptionalSponsorLink(form.websiteUrl ?? form.url)) {
+      setError("Website URL must be a complete HTTPS URL.");
       return;
     }
 
-    if (!isValidOptionalLink(form.socialUrl)) {
-      setError("Social URL must start with https://, http://, or /.");
+    if (!isValidOptionalSponsorLink(form.campaignUrl)) {
+      setError("Campaign URL must be a complete HTTPS URL.");
+      return;
+    }
+
+    if (!isValidOptionalSponsorLink(form.socialUrl)) {
+      setError("Social URL must be a complete HTTPS URL.");
       return;
     }
 
@@ -958,6 +1005,7 @@ export function AdminSponsorsManager() {
   }
 
   const uploadEntityId = editingId ?? form.slug ?? "sponsor-draft";
+  const sponsorDestinationPreview = resolveSponsorDestination(form);
 
   return (
     <SectionShell
@@ -1049,11 +1097,44 @@ export function AdminSponsorsManager() {
             />
             <input
               className={inputClass}
+              aria-label="Campaign URL (https://...)"
+              placeholder="Campaign URL (https://...)"
+              value={form.campaignUrl ?? ""}
+              onChange={(event) => setForm({ ...form, campaignUrl: event.target.value })}
+            />
+            <input
+              className={inputClass}
               aria-label="Social URL (https://...)"
               placeholder="Social URL (https://...)"
               value={form.socialUrl ?? ""}
               onChange={(event) => setForm({ ...form, socialUrl: event.target.value })}
             />
+            <select
+              className={inputClass}
+              aria-label="Homepage click destination"
+              value={form.homepageClickDestination ?? "auto"}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  homepageClickDestination: event.target.value as NonNullable<SponsorItem["homepageClickDestination"]>,
+                })
+              }
+            >
+              <option value="auto">Automatic: website, campaign, social</option>
+              <option value="website">Website URL</option>
+              <option value="campaign">Campaign URL</option>
+              <option value="social">Social URL</option>
+              <option value="none">No public destination</option>
+            </select>
+            <p className="sm:col-span-2 text-xs leading-5 text-text-muted">
+              Public logo destination: {sponsorDestinationPreview ?? "No public link"}. Valid external destinations always open in a new
+              tab. Automatic priority is website, campaign, then social.
+            </p>
+            {!sponsorDestinationPreview && form.homepageClickDestination !== "none" ? (
+              <p className="sm:col-span-2 text-xs font-semibold text-amber-300">
+                Add a valid destination or choose no public destination. Public sponsor logos will not be clickable without one.
+              </p>
+            ) : null}
             <textarea
               className={`${inputClass} sm:col-span-2`}
               rows={4}
@@ -1196,6 +1277,10 @@ export function AdminSponsorsManager() {
                 onChange={(event) => setForm({ ...form, published: event.target.checked })}
               />
               Published
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked disabled readOnly />
+              Open external destination in new tab
             </label>
           </div>
           <div className="grid gap-3 rounded-card border border-white/10 bg-bg-primary p-4 sm:grid-cols-2">

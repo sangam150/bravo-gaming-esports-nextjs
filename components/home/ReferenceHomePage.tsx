@@ -22,6 +22,8 @@ import {
   type PubgHubPlayer,
   type PubgHubTeam,
 } from "@/lib/pubg-hub";
+import { resolveHomepageEventAction } from "@/lib/homepage-events";
+import { getCanonicalPublicEventHref } from "@/lib/public-links";
 import { BarChart3, CalendarDays, ChevronRight, Crosshair, Newspaper, Play, Swords, Trophy, UserRound, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,11 +50,15 @@ function uniqueById<T extends { id: string }>(items: T[]) {
 }
 
 function resolveHomepageEvents(hub: PlatformHubData) {
-  const candidates = uniqueById([...hub.home.featuredEvents, ...hub.home.upcomingEvents, ...hub.events]).filter(
+  const featuredEvents = uniqueById(hub.home.featuredEvents).filter(
     (event) => event.state === "published" && (event.status === "live" || event.status === "upcoming"),
   );
+  const featuredIds = new Set(featuredEvents.map((event) => event.id));
+  const candidates = uniqueById([...hub.home.upcomingEvents, ...hub.events]).filter(
+    (event) => !featuredIds.has(event.id) && event.state === "published" && (event.status === "live" || event.status === "upcoming"),
+  );
 
-  return candidates.sort((firstEvent, secondEvent) => {
+  const fallbackEvents = candidates.sort((firstEvent, secondEvent) => {
     const statusDelta = Number(secondEvent.status === "live") - Number(firstEvent.status === "live");
     if (statusDelta !== 0) return statusDelta;
 
@@ -60,6 +66,14 @@ function resolveHomepageEvents(hub: PlatformHubData) {
     const secondDate = Date.parse(secondEvent.startDate);
     if (Number.isFinite(firstDate) && Number.isFinite(secondDate)) return firstDate - secondDate;
     return firstEvent.name.localeCompare(secondEvent.name);
+  });
+
+  return [...featuredEvents, ...fallbackEvents];
+}
+
+function getHomepageEventAction(event: PlatformEvent) {
+  return resolveHomepageEventAction(event, event.homepageFeature, {
+    detailHref: getCanonicalPublicEventHref(event),
   });
 }
 
@@ -123,10 +137,6 @@ function getEventStatus(event: PlatformEvent) {
   return { label: "Upcoming event", tone: "green" as const };
 }
 
-function getEventDetailHref(event: PlatformEvent) {
-  return `/events/${event.slug}`;
-}
-
 function HeroEventPanel({ event }: { event: PlatformEvent | null }) {
   if (!event) {
     return (
@@ -147,10 +157,13 @@ function HeroEventPanel({ event }: { event: PlatformEvent | null }) {
   }
 
   const status = getEventStatus(event);
+  const action = getHomepageEventAction(event);
 
   return (
     <section aria-labelledby="featured-event-heading" className="public-panel bg-[#03101d]/90 p-5 sm:p-6">
-      <p className="public-kicker">{event.status === "live" ? "Current Featured Event" : "Next Featured Event"}</p>
+      <p className="public-kicker">
+        {event.homepageFeature?.label ?? (event.status === "live" ? "Current Featured Event" : "Next Featured Event")}
+      </p>
       <h2 id="featured-event-heading" className="mt-3 font-display text-2xl font-bold uppercase leading-tight text-white">
         {event.name}
       </h2>
@@ -183,8 +196,8 @@ function HeroEventPanel({ event }: { event: PlatformEvent | null }) {
           {status.label}
         </PublicStatusBadge>
       </div>
-      <PublicActionLink href={getEventDetailHref(event)} className="mt-5 w-full justify-center">
-        View Details
+      <PublicActionLink href={action.href} className="mt-5 w-full justify-center">
+        {action.label}
       </PublicActionLink>
     </section>
   );
@@ -257,26 +270,25 @@ function HomepageHero({ featuredEvent, heroImageUrl }: { featuredEvent: Platform
 function CompetitionPulse({ pubg, teamCount, playerCount }: { pubg: PubgHubDataset; teamCount: number; playerCount: number }) {
   const publishedMatches = pubg.matches.filter((match) => isPublicPubgMatchStatus(match.status));
   const totalKills = publishedMatches.reduce((sum, match) => sum + match.totalKills, 0);
-  const hasPublishedSource = pubg.source !== "empty";
   const metrics = [
     {
       label: "Published Matches",
-      value: hasPublishedSource ? formatPublicNumber(publishedMatches.length) : "—",
+      value: publishedMatches.length > 0 ? formatPublicNumber(publishedMatches.length) : "—",
       icon: <CalendarDays className="h-5 w-5" aria-hidden="true" />,
     },
     {
       label: "Registered Teams",
-      value: hasPublishedSource ? formatPublicNumber(teamCount) : "—",
+      value: teamCount > 0 ? formatPublicNumber(teamCount) : "—",
       icon: <Users className="h-5 w-5" aria-hidden="true" />,
     },
     {
       label: "Active Players",
-      value: hasPublishedSource ? formatPublicNumber(playerCount) : "—",
+      value: playerCount > 0 ? formatPublicNumber(playerCount) : "—",
       icon: <UserRound className="h-5 w-5" aria-hidden="true" />,
     },
     {
       label: "Total Kills",
-      value: hasPublishedSource ? formatPublicNumber(totalKills) : "—",
+      value: publishedMatches.length > 0 ? formatPublicNumber(totalKills) : "—",
       icon: <Crosshair className="h-5 w-5" aria-hidden="true" />,
     },
   ];
@@ -529,7 +541,7 @@ function EventCard({ event }: { event: PlatformEvent }) {
             </PublicActionLink>
           ) : null}
           <PublicActionLink
-            href={getEventDetailHref(event)}
+            href={getCanonicalPublicEventHref(event)}
             variant={event.status === "live" && event.streamHref ? "secondary" : "primary"}
             className="flex-1 justify-center"
           >
@@ -706,8 +718,7 @@ function LatestUpdates({ updates }: { updates: HomepageUpdate[] }) {
 
 export default function ReferenceHomePage({ hub, pubg }: { hub: PlatformHubData; pubg: PubgHubDataset }) {
   const homepageEvents = resolveHomepageEvents(hub);
-  const curatedFeaturedEventIds = new Set(hub.home.featuredEvents.map((event) => event.id));
-  const featuredEvent = homepageEvents.find((event) => curatedFeaturedEventIds.has(event.id)) ?? homepageEvents[0] ?? null;
+  const featuredEvent = homepageEvents[0] ?? null;
   const homepageSponsors: PlatformSponsorProfile[] = resolveHomepageSponsors(hub);
   const publicTeams = getPublicPubgTeams(pubg);
   const publicPlayers = getPublicPubgPlayers(pubg, publicTeams);
@@ -720,7 +731,10 @@ export default function ReferenceHomePage({ hub, pubg }: { hub: PlatformHubData;
       <div className="public-container public-stack">
         <PublicPartnerStrip sponsors={homepageSponsors} />
         <CompetitionPulse pubg={pubg} teamCount={publicTeams.length} playerCount={publicPlayers.length} />
-        <RankingsSection teams={publicTeams} players={publicPlayers} />
+        <RankingsSection
+          teams={publicTeams.filter((team) => team.statsTracked)}
+          players={publicPlayers.filter((player) => player.statsTracked)}
+        />
         <UpcomingEvents events={homepageEvents} />
         <HowItWorks />
         <LatestUpdates updates={updates} />

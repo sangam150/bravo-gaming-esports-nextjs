@@ -1,6 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "entry": ["qa/**/*.{js,mjs,ts}", "scripts/**/*.{js,mjs,ts}"],
-  "ignore": ["types/database.types.ts"],
-  "ignoreDependencies": ["sharp"]
+  "entry": ["qa/**/*.{js,mjs,ts}"],
+  "ignoreIssues": {
+    "types/database.types.ts": ["exports", "types"]
+  }
 }

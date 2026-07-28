@@ -31,12 +31,17 @@ import Link from "next/link";
 type TeamDirectoryRow = {
   team: PubgHubTeam;
   rank: number;
-  matches: number;
-  wins: number;
-  kills: number;
-  totalPoints: number;
+  statsTracked: boolean;
+  matches: number | null;
+  wins: number | null;
+  kills: number | null;
+  totalPoints: number | null;
   recentPlacements: number[];
 };
+
+function sortableStat(value: number | null) {
+  return value ?? Number.NEGATIVE_INFINITY;
+}
 
 function classifyRegion(region?: string | null) {
   const normalized = region?.trim().toLowerCase();
@@ -77,7 +82,7 @@ function TeamMobileCard({ row }: { row: TeamDirectoryRow }) {
     <article className="public-card p-4">
       <div className="flex items-start gap-3">
         <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-full border border-accent-blue/35 bg-accent-blue/10 font-mono text-xs text-white">
-          {row.rank}
+          {row.statsTracked ? row.rank : "—"}
         </span>
         <TeamAvatar name={row.team.name} imageUrl={row.team.logoUrl ?? undefined} size="md" />
         <div className="min-w-0 flex-1">
@@ -94,7 +99,9 @@ function TeamMobileCard({ row }: { row: TeamDirectoryRow }) {
         ].map(([label, value]) => (
           <div key={String(label)} className="rounded-[4px] border border-white/10 bg-black/20 p-3">
             <dt className="text-text-muted">{label}</dt>
-            <dd className="mt-1 font-mono font-semibold tabular-nums text-white">{formatPublicNumber(Number(value))}</dd>
+            <dd className="mt-1 font-mono font-semibold tabular-nums text-white">
+              {formatPublicNumber(typeof value === "number" ? value : null)}
+            </dd>
           </div>
         ))}
       </dl>
@@ -147,13 +154,15 @@ export function CompetitionTeamsPage({ dataset, searchParams, basePath }: Compet
     .map((team) => {
       const boardRow = eventBoardLookup.get(team.id);
       const eventStat = selectedEvent ? team.eventStats.find((stat) => stat.eventSlug === selectedEvent.slug) : null;
+      const statsTracked = selectedEvent ? Boolean((boardRow?.matches ?? eventStat?.matches ?? 0) > 0) : team.statsTracked;
       return {
         team,
         rank: eventRankLookup.get(team.id) ?? officialRanks.get(team.id) ?? 0,
-        matches: boardRow?.matches ?? eventStat?.matches ?? team.matches,
-        wins: boardRow?.wins ?? eventStat?.wins ?? team.wins,
-        kills: boardRow?.kills ?? eventStat?.kills ?? team.kills,
-        totalPoints: boardRow?.totalPoints ?? eventStat?.totalPoints ?? team.totalPoints,
+        statsTracked,
+        matches: statsTracked ? (boardRow?.matches ?? eventStat?.matches ?? team.matches) : null,
+        wins: statsTracked ? (boardRow?.wins ?? eventStat?.wins ?? team.wins) : null,
+        kills: statsTracked ? (boardRow?.kills ?? eventStat?.kills ?? team.kills) : null,
+        totalPoints: statsTracked ? (boardRow?.totalPoints ?? eventStat?.totalPoints ?? team.totalPoints) : null,
         recentPlacements: selectedEvent ? getRecentTeamPlacements(eventMatches, team.id) : team.recentPlacements.slice(-5),
       };
     });
@@ -176,11 +185,14 @@ export function CompetitionTeamsPage({ dataset, searchParams, basePath }: Compet
   });
 
   const sortedRows = [...filteredRows].sort((first, second) => {
-    if (sort === "kills") return second.kills - first.kills || second.totalPoints - first.totalPoints;
-    if (sort === "wins") return second.wins - first.wins || second.totalPoints - first.totalPoints;
-    if (sort === "matches") return second.matches - first.matches || second.totalPoints - first.totalPoints;
+    if (sort === "kills")
+      return sortableStat(second.kills) - sortableStat(first.kills) || sortableStat(second.totalPoints) - sortableStat(first.totalPoints);
+    if (sort === "wins")
+      return sortableStat(second.wins) - sortableStat(first.wins) || sortableStat(second.totalPoints) - sortableStat(first.totalPoints);
+    if (sort === "matches")
+      return sortableStat(second.matches) - sortableStat(first.matches) || sortableStat(second.totalPoints) - sortableStat(first.totalPoints);
     if (sort === "rank") return first.rank - second.rank;
-    return second.totalPoints - first.totalPoints || second.kills - first.kills;
+    return sortableStat(second.totalPoints) - sortableStat(first.totalPoints) || sortableStat(second.kills) - sortableStat(first.kills);
   });
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / DIRECTORY_PAGE_SIZE));
@@ -188,7 +200,8 @@ export function CompetitionTeamsPage({ dataset, searchParams, basePath }: Compet
   const visibleRows = sortedRows.slice((page - 1) * DIRECTORY_PAGE_SIZE, page * DIRECTORY_PAGE_SIZE);
   const featuredTeam = teams[0] ?? null;
   const activeRosterPlayers = players.filter((player) => player.active && player.currentTeamId).length;
-  const totalKills = teams.reduce((sum, team) => sum + team.kills, 0);
+  const trackedTeams = teams.filter((team) => team.statsTracked);
+  const totalKills = trackedTeams.length > 0 ? trackedTeams.reduce((sum, team) => sum + team.kills, 0) : null;
 
   return (
     <main className="public-page">
@@ -257,12 +270,19 @@ export function CompetitionTeamsPage({ dataset, searchParams, basePath }: Compet
             <p className="public-kicker mb-3">Featured Team</p>
             <div className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.85fr)_minmax(0,0.9fr)]">
               <div className="grid gap-4 sm:grid-cols-[12rem_minmax(0,1fr)] lg:grid-cols-1 xl:grid-cols-[12rem_minmax(0,1fr)]">
-                <LargeIdentityArtwork name={featuredTeam.name} imageUrl={featuredTeam.logoUrl} label="#1 rank" imageFit="contain" />
+                <LargeIdentityArtwork
+                  name={featuredTeam.name}
+                  imageUrl={featuredTeam.logoUrl}
+                  label={featuredTeam.statsTracked ? "#1 rank" : "Rank pending"}
+                  imageFit="contain"
+                />
                 <div className="self-center">
                   <h2 className="font-display text-3xl font-bold text-white">{featuredTeam.name}</h2>
                   <p className="mt-2 text-sm text-text-secondary">{featuredTeam.region ?? "Region not published"}</p>
                   <p className="mt-4 text-sm leading-6 text-text-muted">
-                    Published roster and match output from Bravo’s official PUBG results.
+                    {featuredTeam.statsTracked
+                      ? "Published roster and match output from Bravo’s official PUBG results."
+                      : "Published team profile. Match statistics are not tracked yet."}
                   </p>
                   <div className="mt-5 flex flex-wrap gap-2">
                     <PublicActionLink href={`/pubg/teams/${featuredTeam.slug}`}>Team Profile</PublicActionLink>
@@ -276,10 +296,10 @@ export function CompetitionTeamsPage({ dataset, searchParams, basePath }: Compet
               <div className="border-y border-white/10 py-4 lg:border-x lg:border-y-0 lg:px-5 lg:py-0">
                 <p className="font-display text-[11px] font-semibold uppercase tracking-[0.05em] text-text-secondary">Season Stats</p>
                 <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[5px] border border-[rgba(112,145,180,0.2)] bg-[rgba(112,145,180,0.2)]">
-                  <PublicMetric label="Total Points" value={formatPublicNumber(featuredTeam.totalPoints)} />
-                  <PublicMetric label="Total Kills" value={formatPublicNumber(featuredTeam.kills)} />
-                  <PublicMetric label="WWCD" value={formatPublicNumber(featuredTeam.wins)} />
-                  <PublicMetric label="Matches" value={formatPublicNumber(featuredTeam.matches)} />
+                  <PublicMetric label="Total Points" value={formatPublicNumber(featuredTeam.statsTracked ? featuredTeam.totalPoints : null)} />
+                  <PublicMetric label="Total Kills" value={formatPublicNumber(featuredTeam.statsTracked ? featuredTeam.kills : null)} />
+                  <PublicMetric label="WWCD" value={formatPublicNumber(featuredTeam.statsTracked ? featuredTeam.wins : null)} />
+                  <PublicMetric label="Matches" value={formatPublicNumber(featuredTeam.statsTracked ? featuredTeam.matches : null)} />
                 </div>
               </div>
 
@@ -364,7 +384,7 @@ export function CompetitionTeamsPage({ dataset, searchParams, basePath }: Compet
                       {visibleRows.map((row) => (
                         <tr key={row.team.id}>
                           <td>
-                            <span className="font-mono font-semibold text-white">#{row.rank}</span>
+                            <span className="font-mono font-semibold text-white">{row.statsTracked ? `#${row.rank}` : "—"}</span>
                           </td>
                           <td>
                             <Link

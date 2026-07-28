@@ -1,5 +1,6 @@
 import { getRequestSession, permissionDeniedResponse } from "@/lib/admin-auth";
-import { writeAuditLog } from "@/lib/audit-logs";
+import { writeAuditLog } from "@/lib/audit-log-writer";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import type { TablesInsert } from "@/types/database.types";
 
@@ -17,6 +18,12 @@ async function requireSuperAdmin(request: Request) {
     return {
       session: null,
       response: permissionDeniedResponse("Only the owner can manage Discord role mappings."),
+    };
+  }
+  if (!session.profileId) {
+    return {
+      session: null,
+      response: permissionDeniedResponse("This owner account is missing its protected profile link."),
     };
   }
   return { session, response: null };
@@ -47,6 +54,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
   const auth = await requireSuperAdmin(request);
   if (auth.response || !auth.session) return auth.response;
   const client = getSupabaseServiceRoleClient();
@@ -148,7 +157,7 @@ export async function POST(request: Request) {
       }
     }
     await writeAuditLog({
-      actorId: auth.session.uid,
+      actorId: auth.session.profileId,
       action: "discord_role_catalog_synchronized",
       entityType: "discord_role_mapping",
       entityId: guildId,
@@ -210,7 +219,7 @@ export async function POST(request: Request) {
     .single();
   if (error) return Response.json({ error: error.message }, { status: 500 });
   await writeAuditLog({
-    actorId: auth.session.uid,
+    actorId: auth.session.profileId,
     action: "discord_role_mapping_updated",
     entityType: "discord_role_mapping",
     entityId: roleId,

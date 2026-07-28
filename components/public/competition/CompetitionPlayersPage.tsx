@@ -24,6 +24,10 @@ import { getPublicPubgPlayers, getPublicPubgTeams, type PubgHubPlayer } from "@/
 import { Crosshair, Search, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 
+function formatPlayerStat(player: PubgHubPlayer, value: number) {
+  return formatPublicNumber(player.statsTracked ? value : null);
+}
+
 function PlayerTeamLink({ player }: { player: PubgHubPlayer }) {
   return player.currentTeamId && player.currentTeamName ? (
     <Link href={`/pubg/teams/${player.currentTeamId}`} className="transition hover:text-accent-blue-light">
@@ -39,7 +43,7 @@ function PlayerMobileCard({ player, rank }: { player: PubgHubPlayer; rank: numbe
     <article className="public-card p-4">
       <div className="flex items-start gap-3">
         <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-full border border-accent-blue/35 bg-accent-blue/10 font-mono text-xs text-white">
-          {rank}
+          {player.statsTracked ? rank : "—"}
         </span>
         <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="md" />
         <div className="min-w-0 flex-1">
@@ -58,7 +62,9 @@ function PlayerMobileCard({ player, rank }: { player: PubgHubPlayer; rank: numbe
         ].map(([label, value]) => (
           <div key={String(label)} className="rounded-[4px] border border-white/10 bg-black/20 p-3">
             <dt className="text-text-muted">{label}</dt>
-            <dd className="mt-1 font-mono font-semibold tabular-nums text-white">{formatPublicNumber(Number(value))}</dd>
+            <dd className="mt-1 font-mono font-semibold tabular-nums text-white">
+              {formatPlayerStat(player, Number(value))}
+            </dd>
           </div>
         ))}
       </dl>
@@ -88,6 +94,7 @@ export function CompetitionPlayersPage({ dataset, searchParams, basePath }: Comp
   });
 
   const sortedPlayers = [...filteredPlayers].sort((first, second) => {
+    if (first.statsTracked !== second.statsTracked) return first.statsTracked ? -1 : 1;
     if (sort === "damage") return second.damage - first.damage || second.kills - first.kills;
     if (sort === "assists") return second.assists - first.assists || second.kills - first.kills;
     if (sort === "knocks") return second.knocks - first.knocks || second.kills - first.kills;
@@ -102,7 +109,8 @@ export function CompetitionPlayersPage({ dataset, searchParams, basePath }: Comp
   const featuredVodUrl = featuredPlayer?.recentMatches.find((match) => Boolean(match.vodUrl))?.vodUrl ?? null;
   const activePlayers = players.filter((player) => player.active).length;
   const representedTeams = new Set(players.map((player) => player.currentTeamId).filter(Boolean)).size;
-  const totals = players.reduce(
+  const playersWithTrackedStats = players.filter((player) => player.statsTracked);
+  const totals = playersWithTrackedStats.reduce(
     (summary, player) => ({
       kills: summary.kills + player.kills,
       damage: summary.damage + player.damage,
@@ -180,22 +188,22 @@ export function CompetitionPlayersPage({ dataset, searchParams, basePath }: Comp
                     <p className="mt-2 text-sm text-text-secondary">
                       <PlayerTeamLink player={featuredPlayer} />
                     </p>
-                    <PublicStatusBadge tone="blue" className="mt-3">
-                      Published results
+                    <PublicStatusBadge tone={featuredPlayer.statsTracked ? "blue" : "neutral"} className="mt-3">
+                      {featuredPlayer.statsTracked ? "Published results" : "Statistics pending"}
                     </PublicStatusBadge>
                   </div>
                   <div className="min-w-32 rounded-[5px] border border-accent-blue/25 bg-accent-blue/10 p-4 text-right">
                     <p className="font-display text-[10px] uppercase tracking-[0.08em] text-text-secondary">Official rank</p>
-                    <p className="mt-1 font-display text-4xl font-bold text-white">#1</p>
+                    <p className="mt-1 font-display text-4xl font-bold text-white">{featuredPlayer.statsTracked ? "#1" : "—"}</p>
                     <p className="mt-2 text-[10px] text-text-secondary">Overall rating not tracked</p>
                   </div>
                 </div>
 
                 <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-[5px] border border-[rgba(112,145,180,0.2)] bg-[rgba(112,145,180,0.2)] sm:grid-cols-4">
-                  <PublicMetric label="Kills" value={formatPublicNumber(featuredPlayer.kills)} />
-                  <PublicMetric label="Damage" value={formatPublicNumber(featuredPlayer.damage)} />
-                  <PublicMetric label="Assists" value={formatPublicNumber(featuredPlayer.assists)} />
-                  <PublicMetric label="Knocks" value={formatPublicNumber(featuredPlayer.knocks)} />
+                  <PublicMetric label="Kills" value={formatPlayerStat(featuredPlayer, featuredPlayer.kills)} />
+                  <PublicMetric label="Damage" value={formatPlayerStat(featuredPlayer, featuredPlayer.damage)} />
+                  <PublicMetric label="Assists" value={formatPlayerStat(featuredPlayer, featuredPlayer.assists)} />
+                  <PublicMetric label="Knocks" value={formatPlayerStat(featuredPlayer, featuredPlayer.knocks)} />
                 </div>
 
                 <div className="mt-5 border-t border-white/10 pt-5">
@@ -223,10 +231,14 @@ export function CompetitionPlayersPage({ dataset, searchParams, basePath }: Comp
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <PublicMetric label="Active roster players" value={formatPublicNumber(activePlayers)} icon={<Users className="h-5 w-5" />} />
             <PublicMetric label="Teams" value={formatPublicNumber(representedTeams)} icon={<Trophy className="h-5 w-5" />} />
-            <PublicMetric label="Total kills" value={formatPublicNumber(totals.kills)} icon={<Crosshair className="h-5 w-5" />} />
-            <PublicMetric label="Total damage" value={formatPublicNumber(totals.damage)} />
-            <PublicMetric label="Total assists" value={formatPublicNumber(totals.assists)} />
-            <PublicMetric label="Total knocks" value={formatPublicNumber(totals.knocks)} />
+            <PublicMetric
+              label="Total kills"
+              value={formatPublicNumber(playersWithTrackedStats.length > 0 ? totals.kills : null)}
+              icon={<Crosshair className="h-5 w-5" />}
+            />
+            <PublicMetric label="Total damage" value={formatPublicNumber(playersWithTrackedStats.length > 0 ? totals.damage : null)} />
+            <PublicMetric label="Total assists" value={formatPublicNumber(playersWithTrackedStats.length > 0 ? totals.assists : null)} />
+            <PublicMetric label="Total knocks" value={formatPublicNumber(playersWithTrackedStats.length > 0 ? totals.knocks : null)} />
           </div>
         </section>
 
@@ -276,7 +288,9 @@ export function CompetitionPlayersPage({ dataset, searchParams, basePath }: Comp
                       {visiblePlayers.map((player) => (
                         <tr key={player.id}>
                           <td>
-                            <span className="font-mono font-semibold text-white">#{officialRanks.get(player.id) ?? "—"}</span>
+                            <span className="font-mono font-semibold text-white">
+                              {player.statsTracked ? `#${officialRanks.get(player.id) ?? "—"}` : "—"}
+                            </span>
                           </td>
                           <td>
                             <Link
@@ -290,11 +304,11 @@ export function CompetitionPlayersPage({ dataset, searchParams, basePath }: Comp
                           <td>
                             <PlayerTeamLink player={player} />
                           </td>
-                          <td className="text-right font-mono tabular-nums">{formatPublicNumber(player.matches)}</td>
-                          <td className="text-right font-mono tabular-nums text-white">{formatPublicNumber(player.kills)}</td>
-                          <td className="text-right font-mono tabular-nums">{formatPublicNumber(player.damage)}</td>
-                          <td className="text-right font-mono tabular-nums">{formatPublicNumber(player.assists)}</td>
-                          <td className="text-right font-mono tabular-nums">{formatPublicNumber(player.knocks)}</td>
+                          <td className="text-right font-mono tabular-nums">{formatPlayerStat(player, player.matches)}</td>
+                          <td className="text-right font-mono tabular-nums text-white">{formatPlayerStat(player, player.kills)}</td>
+                          <td className="text-right font-mono tabular-nums">{formatPlayerStat(player, player.damage)}</td>
+                          <td className="text-right font-mono tabular-nums">{formatPlayerStat(player, player.assists)}</td>
+                          <td className="text-right font-mono tabular-nums">{formatPlayerStat(player, player.knocks)}</td>
                           <td>
                             <PublicActionLink
                               href={`/pubg/players/${player.slug}`}

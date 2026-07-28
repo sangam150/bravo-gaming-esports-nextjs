@@ -10,15 +10,9 @@ import {
 import { getBravoCanonicalTeamIds, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
 import { savePlayer, saveTeam, saveTournament, saveTournamentMatch } from "./data";
 import { COLLECTIONS, deleteDocument, isDocumentStoreConfigured, queryDocumentCollection, saveDocument } from "./document-store";
+import { slugify } from "./slug-utils";
 import { buildTournamentStandings, normalizeMapName, toTeamMatchResults } from "./tournament-standings";
 import type { Player, Team, TournamentMatch, TournamentStanding } from "./types";
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 function parseNumericSuffix(value: string) {
   const match = value.match(/(\d+)/);

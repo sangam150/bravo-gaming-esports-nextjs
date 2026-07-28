@@ -1,13 +1,8 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { COLLECTIONS, deleteDocument, fetchDocumentCollection, saveDocument } from "@/lib/document-store";
+import { requireSameOrigin } from "@/lib/request-origin";
+import { slugify } from "@/lib/slug-utils";
 import type { PubgImportWatcher } from "@/lib/types";
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 function buildWatcherId(watcher: Partial<PubgImportWatcher> & { playerName: string }) {
   return [
@@ -27,6 +22,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
@@ -67,6 +64,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 
@@ -89,6 +88,8 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
 

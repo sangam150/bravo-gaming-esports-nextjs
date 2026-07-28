@@ -1,5 +1,6 @@
 import { getRequestSession, permissionDeniedResponse } from "@/lib/admin-auth";
-import { writeAuditLog } from "@/lib/audit-logs";
+import { writeAuditLog } from "@/lib/audit-log-writer";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import { deterministicTeamId, normalizeCanonicalTeamIdentity } from "@/lib/team-reconciliation";
 
@@ -14,6 +15,12 @@ async function requireOwner(request: Request) {
     return {
       session: null,
       response: permissionDeniedResponse("Only the permanent owner may reconcile official teams."),
+    };
+  }
+  if (!session.profileId) {
+    return {
+      session: null,
+      response: permissionDeniedResponse("This owner account is missing its protected profile link."),
     };
   }
   return { session, response: null };
@@ -59,13 +66,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
   const auth = await requireOwner(request);
   if (auth.response || !auth.session) return auth.response;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const candidateId = typeof body.candidateId === "string" ? body.candidateId : "";
   const action = typeof body.action === "string" ? body.action : "";
   const client = getSupabaseServiceRoleClient();
-  const { data: actorProfile } = await client.from("profiles").select("id").eq("auth_user_id", auth.session.uid).maybeSingle();
   const { data: candidate, error: candidateError } = await client
     .from("team_reconciliation_candidates")
     .select("*")
@@ -83,7 +91,7 @@ export async function POST(request: Request) {
         proposed_action: action === "reject" ? "historical_only" : "unresolved",
         review_status: reviewStatus,
         owner_note: typeof body.ownerNote === "string" ? body.ownerNote.trim() : null,
-        reviewed_by: actorProfile?.id ?? null,
+        reviewed_by: auth.session.profileId,
         reviewed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -116,14 +124,14 @@ export async function POST(request: Request) {
         proposed_action: "ignore_non_team_role",
         review_status: "resolved",
         owner_note: typeof body.ownerNote === "string" ? body.ownerNote.trim() : null,
-        reviewed_by: actorProfile?.id ?? null,
+        reviewed_by: auth.session.profileId,
         reviewed_at: now,
         updated_at: now,
       })
       .eq("id", candidate.id);
     if (candidateUpdateError) return Response.json({ error: candidateUpdateError.message }, { status: 500 });
     await client.from("team_registry_audit").insert({
-      actor_profile_id: actorProfile?.id ?? null,
+      actor_profile_id: auth.session.profileId,
       action,
       candidate_id: candidate.id,
       previous_value: candidate,
@@ -196,7 +204,7 @@ export async function POST(request: Request) {
       historical_tag: candidate.team_tag,
       historical_slug: candidate.slug,
       metadata: candidate.evidence,
-      linked_by: actorProfile?.id ?? null,
+      linked_by: auth.session.profileId,
       linked_at: now,
     },
     { onConflict: "source_type,source_identifier" },
@@ -255,7 +263,7 @@ export async function POST(request: Request) {
                 : "link_existing",
       review_status: "resolved",
       owner_note: typeof body.ownerNote === "string" ? body.ownerNote.trim() : null,
-      reviewed_by: actorProfile?.id ?? null,
+      reviewed_by: auth.session.profileId,
       reviewed_at: now,
       updated_at: now,
     })
@@ -263,7 +271,7 @@ export async function POST(request: Request) {
   if (reviewError) return Response.json({ error: reviewError.message }, { status: 500 });
 
   await client.from("team_registry_audit").insert({
-    actor_profile_id: actorProfile?.id ?? null,
+    actor_profile_id: auth.session.profileId,
     action,
     team_id: teamId,
     candidate_id: candidate.id,
@@ -271,7 +279,7 @@ export async function POST(request: Request) {
     new_value: { teamId, ownerApproved: true, sourcePreserved: true },
   });
   await writeAuditLog({
-    actorId: auth.session.uid,
+    actorId: auth.session.profileId,
     action: `team_reconciliation_${action}`,
     entityType: "team",
     entityId: teamId,

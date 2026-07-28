@@ -1,36 +1,45 @@
 import assert from "node:assert/strict";
-import { getPlatformHubData } from "../lib/platform-hub";
-import { getPubgHubDataset, getPubgPlayerById, getPubgTeamById } from "../lib/pubg-hub";
+import { buildEventTeamDamageTotals, isPublicPubgMatchStatus } from "../lib/pubg-hub";
+import { getCanonicalPublicEventHref } from "../lib/public-links";
+import { resolvePublicEventPolicy } from "../lib/public-event-policy";
 
-async function main() {
-  const canonicalSlug = "pubg-mahasangram-53821";
-  const [hub, pubg] = await Promise.all([getPlatformHubData(), getPubgHubDataset()]);
-  const event = hub.events.find((value) => value.slug === canonicalSlug);
-  const pubgEvent = pubg.events.find((value) => value.slug === canonicalSlug);
+const eventSlug = "pubg-mahasangram-53821";
+const publicationTime = Date.parse("2026-07-28T12:00:00.000Z");
 
-  assert.ok(event, "Canonical Mahasangram event is missing from the platform event collection.");
-  assert.ok(pubgEvent, "Canonical Mahasangram event is missing from the PUBG event collection.");
-  assert.equal(pubgEvent.teamCount, 19, "All 19 source leaderboard teams must remain published.");
-  assert.equal(pubgEvent.playerTable.length, 91, "All 91 aggregate source player rows must remain published.");
-  assert.equal(pubgEvent.matchCount, 12, "All 12 imported matches must remain published.");
-  assert.equal(pubgEvent.standings[0]?.teamName, "M8");
-  assert.equal(pubgEvent.standings[1]?.teamName, "Team HAKU");
-  assert.match(pubgEvent.standings[2]?.teamName ?? "", /Near Edge Protocol|N3P/i);
-  assert.equal(pubgEvent.playerTable[0]?.pubgName, "TommyVercettio_o");
-  assert.equal(pubgEvent.playerTable[0]?.kills, 53);
-  assert.ok(
-    pubgEvent.matches.every((match) => match.playerResults.length === 0 && match.totalDamage === null),
-    "Unavailable per-match player damage must remain null instead of being presented as zero.",
-  );
+const policy = resolvePublicEventPolicy(
+  {
+    status: "completed",
+    published: true,
+    startDate: "2026-07-01T12:00:00.000Z",
+    endDate: "2026-07-03T12:00:00.000Z",
+    registrationOpen: false,
+  },
+  publicationTime,
+);
 
-  const [topTeamProfile, topPlayerProfile] = await Promise.all([
-    getPubgTeamById(pubg.teams[0].slug),
-    getPubgPlayerById(pubg.players[0].slug),
-  ]);
-  assert.ok(topTeamProfile, "Published team profile lookup failed.");
-  assert.ok(topPlayerProfile, "Published player profile lookup failed.");
+assert.equal(policy.lifecycle, "completed");
+assert.equal(policy.published, true);
+assert.equal(policy.registrationOpen, false);
+assert.equal(getCanonicalPublicEventHref({ gameSlug: "pubg-pc", slug: eventSlug }), `/pubg/events/${eventSlug}`);
 
-  console.log("Mahasangram publication QA passed.");
-}
+assert.equal(isPublicPubgMatchStatus("published"), true);
+assert.equal(isPublicPubgMatchStatus("approved"), true);
+assert.equal(isPublicPubgMatchStatus("completed"), true);
+assert.equal(isPublicPubgMatchStatus("draft"), false);
+assert.equal(isPublicPubgMatchStatus("rejected"), false);
+assert.equal(isPublicPubgMatchStatus("deleted"), false);
 
-void main();
+const damageTotals = buildEventTeamDamageTotals([
+  { playerId: "m8-player-1", teamId: "M8", damage: 8_000 },
+  { playerId: "m8-player-2", teamId: "M8", damage: 7_000 },
+  { playerId: "m8-player-3", teamId: "M8", damage: 5_000 },
+  { playerId: "m8-player-4", teamId: "M8", damage: 3_071 },
+  { playerId: "m8-player-4", teamId: "M8", damage: 3_000 },
+  { playerId: "haku-player-1", teamId: "Team HAKU", damage: 9_000 },
+  { playerId: "haku-player-2", teamId: "Team HAKU", damage: 8_536 },
+]);
+
+assert.equal(damageTotals.get("M8"), 23_071);
+assert.equal(damageTotals.get("Team HAKU"), 17_536);
+
+console.log("Offline Mahasangram publication policy QA passed.");

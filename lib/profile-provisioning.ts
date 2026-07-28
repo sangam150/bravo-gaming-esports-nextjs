@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import "server-only";
-import { writeAuditLog } from "./audit-logs";
+import { writeAuditLog } from "./audit-log-writer";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 
 function readDisplayName(user: User) {

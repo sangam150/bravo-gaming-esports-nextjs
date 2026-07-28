@@ -1,5 +1,7 @@
-import { requireAdmin } from "@/lib/admin-auth";
-import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { requireAdmin, requirePlatformAdmin } from "@/lib/admin-auth";
+import { writeRequiredAuditLogFromRequest } from "@/lib/audit-logs";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import type { Tables } from "@/types/database.types";
@@ -62,8 +64,16 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const unauthorized = await requireAdmin(request);
-  if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
+  const auth = await requirePlatformAdmin(request);
+  if (auth.response) return auth.response;
+  const limited = await enforceRateLimit(request, {
+    key: "admin-discord-profile-links",
+    maxRequests: 30,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
 
   try {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
@@ -72,6 +82,9 @@ export async function PATCH(request: Request) {
 
     if (!profileId) {
       return Response.json({ success: false, error: "profileId is required" }, { status: 400 });
+    }
+    if (discordUserId && !/^\d{15,22}$/.test(discordUserId)) {
+      return Response.json({ success: false, error: "Enter a valid numeric Discord user ID." }, { status: 400 });
     }
 
     const client = getSupabaseServiceRoleClient();
@@ -101,6 +114,21 @@ export async function PATCH(request: Request) {
 
     const nextDiscordUserId = discordUserId || null;
     const now = new Date().toISOString();
+    await writeRequiredAuditLogFromRequest(request, {
+      action: nextDiscordUserId
+        ? existingProfile.discord_user_id
+          ? "update_discord_link_requested"
+          : "link_discord_requested"
+        : "unlink_discord_requested",
+      entityType: "profile",
+      entityId: existingProfile.id,
+      oldValue: {
+        discordUserId: existingProfile.discord_user_id,
+      },
+      newValue: {
+        discordUserId: nextDiscordUserId,
+      },
+    });
     const { data: updatedProfile, error: updateError } = await client
       .from("profiles")
       .update({
@@ -132,18 +160,6 @@ export async function PATCH(request: Request) {
         teamNameById.set(team.id, team.name);
       }
     }
-
-    await writeAuditLogFromRequest(request, {
-      action: nextDiscordUserId ? (existingProfile.discord_user_id ? "update_discord_link" : "link_discord") : "unlink_discord",
-      entityType: "profile",
-      entityId: existingProfile.id,
-      oldValue: {
-        discordUserId: existingProfile.discord_user_id,
-      },
-      newValue: {
-        discordUserId: nextDiscordUserId,
-      },
-    });
 
     return Response.json({
       success: true,

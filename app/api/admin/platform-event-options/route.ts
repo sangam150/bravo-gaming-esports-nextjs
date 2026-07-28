@@ -13,9 +13,14 @@ export async function GET(request: Request) {
       id: string;
       slug: string;
       name: string;
+      gameSlug: string;
       gameName: string;
       status: string;
       state?: string;
+      startDate?: string;
+      endDate?: string;
+      registrationOpen?: boolean;
+      streamHref?: string | null;
     }
   >();
 
@@ -24,9 +29,14 @@ export async function GET(request: Request) {
       id: event.id,
       slug: event.slug,
       name: event.name,
+      gameSlug: event.gameSlug,
       gameName: event.gameName,
       status: event.status,
       state: event.state,
+      startDate: event.startDate,
+      endDate: event.endDate ?? undefined,
+      registrationOpen: event.registrationOpen,
+      streamHref: event.streamHref,
     });
   }
 
@@ -35,9 +45,14 @@ export async function GET(request: Request) {
       id: event.id,
       slug: event.slug,
       name: event.name,
+      gameSlug: event.gameSlug,
       gameName: event.gameName,
       status: event.status,
       state: event.state,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      registrationOpen: event.registrationOpen,
+      streamHref: event.streamHref,
     });
   }
 
@@ -50,9 +65,14 @@ export async function GET(request: Request) {
       id: event.id,
       slug: event.slug,
       name: event.name,
+      gameSlug: event.gameSlug,
       gameName: event.gameName,
       status: event.status,
       state: event.state,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      registrationOpen: event.registrationOpen,
+      streamHref: event.streamHref,
     }));
 
   return Response.json({ success: true, data });

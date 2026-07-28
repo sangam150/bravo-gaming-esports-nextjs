@@ -85,7 +85,7 @@ export default async function SponsorKitPage() {
     },
     {
       title: "Tournament Partner",
-      detail: "Built for event-level collaboration with public pages, rules links, and admin-backed operations.",
+      detail: "Built for event-level collaboration across competition pages, rules, broadcasts, and community coverage.",
       deliverables: [
         "Logo placement on event pages and event graphics",
         "Discord and public event promotion support",
@@ -159,22 +159,24 @@ export default async function SponsorKitPage() {
   const audienceCards = [
     {
       label: "Community Reach",
-      value: stats.communityMembers > 0 ? formatNumberValue(stats.communityMembers) : "Shared Directly",
+      value:
+        stats.communityMembers !== null && stats.communityMembers > 0 ? formatNumberValue(stats.communityMembers) : "Available on request",
       detail: "Public community scale pulled from Bravo site stats when available.",
     },
     {
       label: "Teams Registered",
-      value: stats.teamsRegistered > 0 ? formatNumberValue(stats.teamsRegistered) : "Shared Directly",
+      value:
+        stats.teamsRegistered !== null && stats.teamsRegistered > 0 ? formatNumberValue(stats.teamsRegistered) : "Available on request",
       detail: "Registered team count shown only when the site stats record has live numbers.",
     },
     {
       label: "Matches Hosted",
-      value: stats.matchesHosted > 0 ? formatNumberValue(stats.matchesHosted) : "Shared Directly",
+      value: stats.matchesHosted !== null && stats.matchesHosted > 0 ? formatNumberValue(stats.matchesHosted) : "Available on request",
       detail: "Live operational total across published Bravo competition coverage.",
     },
     {
       label: "YouTube / Stream Reach",
-      value: hasMeaningfulText(stats.youtubeViews) ? stats.youtubeViews : "Shared Directly",
+      value: hasMeaningfulText(stats.youtubeViews) ? stats.youtubeViews : "Available on request",
       detail: "Broadcast and content reach can be supplied directly when a campaign needs exact figures.",
     },
   ] as const;
@@ -228,8 +230,7 @@ export default async function SponsorKitPage() {
                 )}
               </div>
               <p className="mt-5 text-sm leading-7 text-text-muted">
-                Average live stream viewers and combined social reach are not hard-coded here when the public stat set is incomplete.
-                Detailed audience stats are available upon request.
+                Verified audience and campaign figures are available directly from the Bravo partnership team.
               </p>
             </div>
           </div>
@@ -271,8 +272,8 @@ export default async function SponsorKitPage() {
 
         <section className="space-y-4">
           <div>
-            <p className="section-title">Proof Blocks</p>
-            <h2 className="mt-3 font-display text-3xl font-black uppercase text-white">Published event proof, not placeholder claims</h2>
+            <p className="section-title">Published Events</p>
+            <h2 className="mt-3 font-display text-3xl font-black uppercase text-white">Event records available to partners</h2>
           </div>
           <div className="grid gap-4 xl:grid-cols-3">
             {proofCards.length > 0 ? (
@@ -282,7 +283,7 @@ export default async function SponsorKitPage() {
                   <h3 className="mt-3 font-display text-2xl font-black uppercase text-white">{card.name}</h3>
                   <div className="mt-5 grid gap-3">
                     <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Teams Participated</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Teams Listed</p>
                       <p className="mt-2 text-white">{card.teams}</p>
                     </div>
                     <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
@@ -297,17 +298,13 @@ export default async function SponsorKitPage() {
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Public Sponsor Context</p>
                       <p className="mt-2 text-white">{card.sponsors}</p>
                     </div>
-                    <div className="rounded-card border border-white/[0.08] bg-bg-primary p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Viewership / Social Reach</p>
-                      <p className="mt-2 text-white">Shared directly with sponsors during planning.</p>
-                    </div>
                   </div>
                 </div>
               ))
             ) : (
               <div className="xl:col-span-3">
                 <div className="esports-card p-6 text-sm text-text-muted">
-                  Public event proof blocks will expand here as more completed events and sponsor profiles are published.
+                  No completed event record with sponsor information is currently published.
                 </div>
               </div>
             )}

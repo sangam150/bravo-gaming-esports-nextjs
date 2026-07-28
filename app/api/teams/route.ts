@@ -1,7 +1,9 @@
-import { requireAdmin } from "@/lib/admin-auth";
-import { writeAuditLogFromRequest } from "@/lib/audit-logs";
-import { getTeams, saveTeam } from "@/lib/data";
-import { revalidateTeamPaths } from "@/lib/revalidate-public";
+import { requirePlatformAdmin } from "@/lib/admin-auth";
+import { writeRequiredAuditLogFromRequest } from "@/lib/audit-logs";
+import { CanonicalTeamError, createCanonicalAdminTeam, parseCanonicalTeamWriteInput } from "@/lib/canonical-teams";
+import { getTeams } from "@/lib/data";
+import { revalidateTeamAssetPaths } from "@/lib/revalidate-public";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
 export async function GET() {
@@ -10,23 +12,27 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const unauthorized = await requireAdmin(request);
-  if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
+  const auth = await requirePlatformAdmin(request);
+  if (auth.response) return auth.response;
   try {
-    const body = await request.json();
-    if (!body.name) {
+    const input = parseCanonicalTeamWriteInput(await request.json());
+    if (!input.name) {
       return Response.json({ error: "Please provide a team name before saving." }, { status: 400 });
     }
-    const result = await saveTeam(body, body.id);
-    await writeAuditLogFromRequest(request, {
-      action: "create",
+    await writeRequiredAuditLogFromRequest(request, {
+      action: "create_requested",
       entityType: "team",
-      entityId: result.id,
-      newValue: result,
+      newValue: input,
     });
-    revalidateTeamPaths(result.slug ?? result.id);
+    const result = await createCanonicalAdminTeam({ ...input, name: input.name });
+    revalidateTeamAssetPaths(result.id, result.slug);
     return Response.json({ success: true, data: result });
   } catch (error: unknown) {
+    if (error instanceof CanonicalTeamError) {
+      return Response.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     return jsonErrorResponse(error, {
       status: 500,
       fallback: USER_FACING_ERROR_MESSAGES.admin,

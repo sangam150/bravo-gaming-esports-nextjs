@@ -1,7 +1,9 @@
+import JsonLd from "@/components/JsonLd";
 import { PlatformEventDetailPage } from "@/components/platform/PlatformPages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformEventBySlug, getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
+import { buildBreadcrumbStructuredData, buildPublicEventStructuredData } from "@/lib/structured-data";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
@@ -19,9 +21,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return buildContentMetadata({
     title: event.name,
-    description: event.summary,
+    description: event.summary || `View published event details for ${event.name}.`,
     path: `/events/${event.slug}`,
     imageUrl: event.bannerUrl,
+    canonicalUrl: event.gameSlug === "pubg-pc" ? `/pubg/events/${event.slug}` : undefined,
+    type: "website",
   });
 }
 
@@ -44,5 +48,32 @@ export default async function EventDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  return <PlatformEventDetailPage hub={hub} event={event} pubg={event.gameSlug === "pubg-pc" ? pubg : null} />;
+  const canonicalPath = event.gameSlug === "pubg-pc" ? `/pubg/events/${event.slug}` : `/events/${event.slug}`;
+
+  return (
+    <>
+      <JsonLd
+        data={buildPublicEventStructuredData({
+          bannerUrl: event.bannerUrl,
+          endDate: event.endDate,
+          lifecycle: event.lifecycle,
+          name: event.name,
+          organizerName: event.organizerName,
+          path: canonicalPath,
+          region: event.region,
+          slug: event.slug,
+          startDate: event.startDate,
+          summary: event.summary,
+        })}
+      />
+      <JsonLd
+        data={buildBreadcrumbStructuredData([
+          { name: "Home", path: "/" },
+          { name: "Events", path: "/events" },
+          { name: event.name, path: canonicalPath },
+        ])}
+      />
+      <PlatformEventDetailPage hub={hub} event={event} pubg={event.gameSlug === "pubg-pc" ? pubg : null} />
+    </>
+  );
 }

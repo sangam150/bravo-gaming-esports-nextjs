@@ -11,8 +11,9 @@ import {
 } from "@/components/public/PublicDesignSystem";
 import ManagedImage from "@/components/ui/ManagedImage";
 import type { PlatformHubData, PlatformSponsorProfile } from "@/lib/platform-hub";
-import { Eye, Gamepad2, Globe2, MessageCircle, ShieldCheck, Trophy, Users } from "lucide-react";
-import { isCompatibilityFallback, UNAVAILABLE } from "./ContentPageShared";
+import { resolveSponsorDestination } from "@/lib/sponsor-links";
+import { Gamepad2, MessageCircle, ShieldCheck, Trophy, Users } from "lucide-react";
+import { isCompatibilityFallback } from "./ContentPageShared";
 
 function sponsorVisual(sponsor: PlatformSponsorProfile) {
   return sponsor.bannerUrl ?? sponsor.designAssetUrl ?? sponsor.logoUrl ?? null;
@@ -53,6 +54,8 @@ function SponsorAsset({
 }
 
 function FeaturedSponsor({ sponsor }: { sponsor: PlatformSponsorProfile }) {
+  const destination = resolveSponsorDestination(sponsor);
+
   return (
     <section className="public-panel overflow-hidden">
       <div className="grid lg:grid-cols-[0.75fr_1.25fr]">
@@ -74,9 +77,13 @@ function FeaturedSponsor({ sponsor }: { sponsor: PlatformSponsorProfile }) {
             <PublicActionLink href={`/sponsors/${sponsor.slug}`} variant="secondary">
               View Partner Profile
             </PublicActionLink>
-            {sponsor.websiteUrl ? (
-              <PublicActionLink href={sponsor.websiteUrl} externalLabel=" opens in a new tab">
-                Visit Website
+            {destination ? (
+              <PublicActionLink
+                href={destination}
+                openInNewTab={sponsor.openInNewTab}
+                externalLabel={sponsor.openInNewTab ? " opens in a new tab" : undefined}
+              >
+                Visit Partner
               </PublicActionLink>
             ) : null}
           </div>
@@ -149,6 +156,7 @@ export function SponsorsReferencePage({ hub }: { hub: PlatformHubData }) {
   return (
     <main className="public-page">
       <PublicPageHero
+        breadcrumbCurrent="Sponsors"
         eyebrow="Bravo Gaming Esports"
         title="Sponsors"
         description="Partner with Bravo Gaming Esports through transparent event, broadcast, and community opportunities built around published competition coverage."
@@ -161,21 +169,10 @@ export function SponsorsReferencePage({ hub }: { hub: PlatformHubData }) {
             </PublicActionLink>
           </>
         }
-        aside={
-          featuredSponsor ? (
-            <SponsorAsset sponsor={featuredSponsor} priority className="public-card h-52 w-full" />
-          ) : (
-            <PublicEmptyState
-              compact
-              title="Partner profiles pending"
-              description="Only real approved sponsor profiles are displayed here."
-            />
-          )
-        }
       />
 
       <div className="public-container space-y-7 py-6">
-        <PublicPartnerStrip sponsors={sponsors} />
+        {sponsors.length > 1 ? <PublicPartnerStrip sponsors={sponsors} /> : null}
 
         {featuredSponsor ? (
           <FeaturedSponsor sponsor={featuredSponsor} />
@@ -239,32 +236,33 @@ export function SponsorsReferencePage({ hub }: { hub: PlatformHubData }) {
         <section className="space-y-4">
           <PublicSectionHeader eyebrow="Verified Platform Context" title="Why Partner With Bravo" />
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <PublicMetric
-              label="Tracked players"
-              value={verifiedPlayers ? formatPublicNumber(verifiedPlayers) : UNAVAILABLE}
-              icon={<Users className="h-5 w-5" />}
-            />
-            <PublicMetric
-              label="Tracked teams"
-              value={verifiedTeams ? formatPublicNumber(verifiedTeams) : UNAVAILABLE}
-              icon={<ShieldCheck className="h-5 w-5" />}
-            />
+            {verifiedPlayers ? (
+              <PublicMetric
+                label="Tracked players"
+                value={formatPublicNumber(verifiedPlayers)}
+                icon={<Users className="h-5 w-5" />}
+              />
+            ) : null}
+            {verifiedTeams ? (
+              <PublicMetric
+                label="Tracked teams"
+                value={formatPublicNumber(verifiedTeams)}
+                icon={<ShieldCheck className="h-5 w-5" />}
+              />
+            ) : null}
             <PublicMetric
               label="Published events"
               value={formatPublicNumber(publishedEvents.length)}
               icon={<Trophy className="h-5 w-5" />}
             />
-            <PublicMetric
-              label="Tracked matches"
-              value={verifiedMatches ? formatPublicNumber(verifiedMatches) : UNAVAILABLE}
-              icon={<Gamepad2 className="h-5 w-5" />}
-            />
-            <PublicMetric label="Social reach" value={UNAVAILABLE} icon={<Globe2 className="h-5 w-5" />} />
-            <PublicMetric label="Engagement" value={UNAVAILABLE} icon={<Eye className="h-5 w-5" />} />
+            {verifiedMatches ? (
+              <PublicMetric
+                label="Tracked matches"
+                value={formatPublicNumber(verifiedMatches)}
+                icon={<Gamepad2 className="h-5 w-5" />}
+              />
+            ) : null}
           </div>
-          <p className="text-xs leading-5 text-text-muted">
-            Unavailable metrics are intentionally shown as an em dash until a verified public value is configured.
-          </p>
         </section>
 
         <section className="public-cta">

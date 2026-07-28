@@ -1,22 +1,27 @@
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { getCurrentSeasonOverview } from "@/lib/data";
 import { formatDisplayNumber } from "@/lib/display-format";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPubgDashboardData } from "@/lib/pubg-hub";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "PUBG Hall of Fame",
-  description: "Bravo Gaming Esports PUBG Hall of Fame with current season leaders, top teams, and top players built from published data.",
-};
+export const metadata: Metadata = buildContentMetadata({
+  title: "PUBG Hall of Fame | Bravo Gaming Esports",
+  description: "View Bravo PUBG season leaders, teams, and players calculated from published competition data.",
+  path: "/pubg/hall-of-fame",
+  type: "website",
+});
 
 export const revalidate = 300;
 
 export default async function PubgHallOfFamePage() {
   const [overview, dashboard] = await Promise.all([getCurrentSeasonOverview(), getPubgDashboardData()]);
   const seasonLeaders = overview?.leaderboard.slice(0, 3) ?? [];
-  const allTimeTeams = dashboard.teams.slice(0, 10);
-  const allTimePlayers = dashboard.players.slice(0, 10);
+  const trackedTeams = dashboard.teams.filter((team) => team.statsTracked);
+  const trackedPlayers = dashboard.players.filter((player) => player.statsTracked);
+  const allTimeTeams = trackedTeams.slice(0, 10);
+  const allTimePlayers = trackedPlayers.slice(0, 10);
 
   return (
     <main className="page-shell">
@@ -58,7 +63,7 @@ export default async function PubgHallOfFamePage() {
                       <div className="min-w-0">
                         <p className="truncate font-semibold uppercase text-white">{team.team}</p>
                         <p className="text-xs uppercase tracking-[0.16em] text-text-muted">
-                          {team.matches} matches | {team.chickenDinners ?? 0} WWCD
+                          {team.matches} matches | {formatDisplayNumber(team.chickenDinners)} WWCD
                         </p>
                       </div>
                     </div>
@@ -77,15 +82,15 @@ export default async function PubgHallOfFamePage() {
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
               <div className="rounded-card border border-white/10 bg-bg-primary p-4">
                 <p className="text-label uppercase text-text-muted">Teams Tracked</p>
-                <p className="mt-2 font-mono-stat text-3xl text-white">{dashboard.teams.length}</p>
+                <p className="mt-2 font-mono-stat text-3xl text-white">{trackedTeams.length || "—"}</p>
               </div>
               <div className="rounded-card border border-white/10 bg-bg-primary p-4">
                 <p className="text-label uppercase text-text-muted">Players Tracked</p>
-                <p className="mt-2 font-mono-stat text-3xl text-white">{dashboard.players.length}</p>
+                <p className="mt-2 font-mono-stat text-3xl text-white">{trackedPlayers.length || "—"}</p>
               </div>
               <div className="rounded-card border border-white/10 bg-bg-primary p-4">
                 <p className="text-label uppercase text-text-muted">Matches Published</p>
-                <p className="mt-2 font-mono-stat text-3xl text-white">{dashboard.matches.length}</p>
+                <p className="mt-2 font-mono-stat text-3xl text-white">{dashboard.matches.length || "—"}</p>
               </div>
             </div>
           </div>

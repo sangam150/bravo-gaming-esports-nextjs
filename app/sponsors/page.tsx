@@ -1,4 +1,4 @@
-import { SponsorsReferencePage } from "@/components/public/ContentReferencePages";
+import { SponsorsReferencePage } from "@/components/public/content/SponsorsReferencePage";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import type { Metadata } from "next";

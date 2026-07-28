@@ -1,4 +1,5 @@
 import { PlatformGameDetailPage } from "@/components/platform/PlatformPages";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformGameBySlug, getPlatformHubData } from "@/lib/platform-hub";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 import type { Metadata } from "next";
@@ -16,10 +17,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Game Hub Not Found" };
   }
 
-  return {
-    title: `${game.name} Hub`,
-    description: game.summary,
-  };
+  return buildContentMetadata({
+    title: `${game.name} | Bravo Gaming Esports`,
+    description: game.summary || `View the published Bravo Gaming Esports hub for ${game.name}.`,
+    path: `/games/${game.slug}`,
+    type: "website",
+  });
 }
 
 export const revalidate = 300;

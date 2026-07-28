@@ -94,11 +94,7 @@ function hasManagedTeamProfile(team: Team) {
     (team.playerIds?.length ?? 0) > 0 ||
     team.logoUrl?.trim() ||
     team.logo?.trim() ||
-    team.country?.trim() ||
-    team.captainName?.trim() ||
-    team.captainDiscord?.trim() ||
-    team.captainEmail?.trim() ||
-    team.captainPhone?.trim(),
+    team.country?.trim(),
   );
 }
 

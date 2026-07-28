@@ -1,5 +1,8 @@
+import JsonLd from "@/components/JsonLd";
 import { PubgPlayerProfileShowcasePage } from "@/components/pubg/PubgShowcasePages";
+import { buildContentMetadata } from "@/lib/metadata";
 import { findPublicPubgPlayer, getPubgHubDataset, getPubgPlayerById } from "@/lib/pubg-hub";
+import { buildBreadcrumbStructuredData } from "@/lib/structured-data";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
@@ -34,10 +37,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "PUBG Player Not Found" };
   }
 
-  return {
-    title: `${player.pubgName} Player Profile`,
+  return buildContentMetadata({
+    title: `${player.pubgName} Player Profile | Bravo Gaming Esports`,
     description: `Track ${player.pubgName} on Bravo with event stats, kills, assists, knocks, damage, best match context, and recent form.`,
-  };
+    path: `/pubg/players/${player.slug}`,
+    imageUrl: player.avatarUrl,
+    type: "website",
+  });
 }
 
 export const revalidate = 300;
@@ -54,5 +60,17 @@ export default async function PubgPlayerDetailRoute({ params, searchParams }: Pa
     redirect(`/pubg/players/${player.slug}`);
   }
 
-  return <PubgPlayerProfileShowcasePage player={player} dataset={dataset} searchParams={resolvedSearchParams} />;
+  return (
+    <>
+      <JsonLd
+        data={buildBreadcrumbStructuredData([
+          { name: "Home", path: "/" },
+          { name: "PUBG", path: "/pubg" },
+          { name: "Players", path: "/pubg/players" },
+          { name: player.pubgName, path: `/pubg/players/${player.slug}` },
+        ])}
+      />
+      <PubgPlayerProfileShowcasePage player={player} dataset={dataset} searchParams={resolvedSearchParams} />
+    </>
+  );
 }

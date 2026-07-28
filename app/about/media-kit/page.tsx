@@ -1,5 +1,21 @@
 ﻿import Link from "next/link";
 
+import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  ...buildContentMetadata({
+    title: "Media Kit | Bravo Gaming Esports",
+    description: "Review the media and brand asset information currently published by Bravo Gaming Esports.",
+    path: "/about/media-kit",
+    type: "website",
+  }),
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
+
 export default function MediaKitPage() {
   return (
     <main className="mx-auto max-w-7xl px-6 py-10 sm:px-8 lg:py-14">

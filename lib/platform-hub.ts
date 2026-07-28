@@ -1,10 +1,15 @@
 import { cache } from "react";
 import { getAnnouncements, getLiveStreamFeed, getSponsors, getVideos } from "./data";
 import { getManagedPlatformEvents, getManagedPlatformGames } from "./platform-cms";
+import { selectHomepageEvents, type HomepageEventFeature } from "./homepage-events";
 import { getHomepageContent, getPublishedManagedNewsArticles, type HomepageHeroSlideRecord } from "./platform-content";
 import { getPubgHubDataset, isPublicPubgMatchStatus } from "./pubg-hub";
+import { resolvePublicEventPolicy, type PublicEventLifecycle } from "./public-event-policy";
 import { hasPublicDemoMarker, isInternalOnlyCategory, sanitizePublicAssetUrl, sanitizePublicCopy } from "./public-content";
-import type { SponsorKind } from "./types";
+import { getCanonicalPublicEventHref, normalizePublicActionHref } from "./public-links";
+import { slugify } from "./slug-utils";
+import { normalizeSponsorExternalUrl, resolveCanonicalSponsorSlug } from "./sponsor-links";
+import type { SponsorClickDestination, SponsorKind } from "./types";
 
 type PlatformGameStatus = "flagship" | "active" | "building" | "planned";
 type PlatformEventStatus = "live" | "upcoming" | "completed" | "planned";
@@ -62,6 +67,7 @@ export interface PlatformEvent {
   gameSlug: string;
   gameName: string;
   type: string;
+  lifecycle: PublicEventLifecycle;
   status: PlatformEventStatus;
   state: PlatformContentState;
   featured: boolean;
@@ -76,6 +82,10 @@ export interface PlatformEvent {
   summary: string;
   analyticsHref?: string;
   streamHref?: string | null;
+  registrationOpen: boolean;
+  registrationStartDate?: string | null;
+  registrationEndDate?: string | null;
+  homepageFeature?: HomepageEventFeature;
   topTeamName?: string | null;
   topPlayerName?: string | null;
   sponsorName?: string | null;
@@ -146,7 +156,10 @@ export interface PlatformSponsorProfile {
   designAssetUrl?: string | null;
   description: string;
   websiteUrl?: string;
+  campaignUrl?: string;
   socialUrl?: string;
+  homepageClickDestination: SponsorClickDestination;
+  openInNewTab: boolean;
   supportedEvents: string[];
   eventSlugs: string[];
   partnershipHistory: string[];
@@ -203,12 +216,6 @@ export interface PlatformHubData {
     upcomingMatches: PlatformMatch[];
     recentMatches: PlatformMatch[];
     featuredGames: PlatformGame[];
-    liveFeature: {
-      title: string;
-      subtitle: string;
-      viewers: string;
-      href: string;
-    };
   };
 }
 
@@ -225,97 +232,13 @@ const GAME_BLUEPRINTS = [
     primaryHref: "/pubg",
     analyticsHref: "/pubg",
     sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Compare", "Media"],
-    completionLabel: "Full analytics coverage live",
-  },
-  {
-    slug: "valorant",
-    name: "Valorant",
-    shortName: "VAL",
-    tagline: "Tournament-ready tactical FPS hub",
-    summary: "Planned as the next full game hub with event listings, team profiles, match center, rankings, media, and organizer support.",
-    status: "building",
-    flagship: false,
-    heroLabel: "Coming Soon",
-    primaryHref: "/games/valorant",
-    sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
-    completionLabel: "Coverage opening soon",
-  },
-  {
-    slug: "cs2",
-    name: "CS2",
-    shortName: "CS2",
-    tagline: "LAN and league ecosystem support",
-    summary: "Prepared for Nepal CS2 circuits, LAN brackets, roster tracking, rankings, and match center coverage.",
-    status: "building",
-    flagship: false,
-    heroLabel: "Coming Soon",
-    primaryHref: "/games/cs2",
-    sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
-    completionLabel: "Coverage opening soon",
-  },
-  {
-    slug: "dota-2",
-    name: "Dota 2",
-    shortName: "Dota",
-    tagline: "MOBA ecosystem and event directory",
-    summary: "Ready for seasonal competition coverage, roster history, organizer profiles, and match archives once live data is added.",
-    status: "planned",
-    flagship: false,
-    heroLabel: "Coming Soon",
-    primaryHref: "/games/dota-2",
-    sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
-    completionLabel: "Coverage opening soon",
-  },
-  {
-    slug: "mobile-legends",
-    name: "Mobile Legends",
-    shortName: "MLBB",
-    tagline: "Mobile circuit growth lane",
-    summary: "Prepared for mobile competition calendars, team directories, match center views, and sponsor-facing event packages.",
-    status: "planned",
-    flagship: false,
-    heroLabel: "Coming Soon",
-    primaryHref: "/games/mobile-legends",
-    sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
-    completionLabel: "Coverage opening soon",
-  },
-  {
-    slug: "free-fire",
-    name: "Free Fire",
-    shortName: "FF",
-    tagline: "Future mobile battle royale lane",
-    summary:
-      "The Bravo games hub is already structured so Free Fire can slot into the same public event, team, match, and media experience when coverage expands.",
-    status: "planned",
-    flagship: false,
-    heroLabel: "Coming Soon",
-    primaryHref: "/games/free-fire",
-    sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
-    completionLabel: "Coverage opening soon",
+    completionLabel: "Published competition data",
   },
 ] as const satisfies ReadonlyArray<
   Omit<PlatformGame, "activeEvents" | "trackedMatches" | "trackedTeams" | "trackedPlayers" | "featuredNewsCount">
 >;
 
-const PLANNED_EVENTS: PlatformEvent[] = [];
-
-const PLANNED_MATCHES: PlatformMatch[] = [];
-
-const ARTICLE_SEEDS: PlatformArticle[] = [];
-
-const ORGANIZATION_SEEDS: PlatformOrganization[] = [];
-
-const MEDIA_SEEDS: PlatformMediaItem[] = [];
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
-const DEFAULT_PARTNER_DESCRIPTION = "Partner details will be updated soon.";
+const DEFAULT_PARTNER_DESCRIPTION = "";
 
 function normalizeSponsorKind(value?: string | null, tier?: string | null): SponsorKind {
   if (value === "sponsor" || value === "partner" || value === "design") {
@@ -434,20 +357,6 @@ function dedupeArticlesBySlug(articles: PlatformArticle[]) {
   return Array.from(articleBySlug.values());
 }
 
-function getEventEndTimestamp(event: PlatformEvent) {
-  const value = event.endDate ?? event.startDate;
-  if (!value) return Number.NaN;
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return Number.NaN;
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? timestamp + 86_399_999 : timestamp;
-}
-
-function normalizePublicEventStatus(event: PlatformEvent): PlatformEventStatus {
-  if (event.status !== "upcoming" && event.status !== "live") return event.status;
-  const endTimestamp = getEventEndTimestamp(event);
-  return Number.isFinite(endTimestamp) && endTimestamp < Date.now() ? "completed" : event.status;
-}
-
 function sanitizeArticleForPublicDisplay(article: PlatformArticle): PlatformArticle | null {
   if (
     isInternalOnlyCategory(article.category) ||
@@ -466,18 +375,21 @@ function sanitizeArticleForPublicDisplay(article: PlatformArticle): PlatformArti
     return null;
   }
 
-  const summary =
-    sanitizePublicCopy(article.summary) ??
-    sanitizePublicCopy(article.excerpt) ??
-    "Official Bravo coverage will appear here once the story is published.";
-  const excerpt = sanitizePublicCopy(article.excerpt ?? article.summary, summary) ?? summary;
+  const summary = sanitizePublicCopy(article.summary) ?? sanitizePublicCopy(article.excerpt);
   const body = article.body
     .map((paragraph) => sanitizePublicCopy(paragraph))
     .filter((paragraph): paragraph is string => Boolean(paragraph));
+  const resolvedSummary = summary ?? body[0];
+
+  if (!resolvedSummary) {
+    return null;
+  }
+
+  const excerpt = sanitizePublicCopy(article.excerpt ?? article.summary, resolvedSummary) ?? resolvedSummary;
 
   return {
     ...article,
-    summary,
+    summary: resolvedSummary,
     excerpt,
     imageUrl: sanitizePublicAssetUrl(article.imageUrl) ?? undefined,
     ogImageUrl: sanitizePublicAssetUrl(article.ogImageUrl) ?? undefined,
@@ -490,23 +402,38 @@ function sanitizeEventForPublicDisplay(event: PlatformEvent): PlatformEvent | nu
     return null;
   }
 
-  const status = normalizePublicEventStatus(event);
+  const policy = resolvePublicEventPolicy({
+    status: event.lifecycle,
+    state: event.state,
+    startDate: event.startDate,
+    endDate: event.endDate,
+    registrationOpen: event.registrationOpen,
+    registrationStartDate: event.registrationStartDate,
+    registrationEndDate: event.registrationEndDate,
+    streamHref: event.streamHref,
+  });
+  if (!policy.published || policy.lifecycle === "draft" || policy.lifecycle === "cancelled" || policy.lifecycle === "archived") {
+    return null;
+  }
+
+  const status = policy.status;
+  const sanitizedSummary = sanitizePublicCopy(event.summary) ?? "";
+  const summary = status !== "upcoming" && /\bupcoming\b/i.test(sanitizedSummary) ? "" : sanitizedSummary;
 
   return {
     ...event,
+    analyticsHref: normalizePublicActionHref(event.analyticsHref),
+    lifecycle: policy.lifecycle,
     status,
+    registrationOpen: policy.registrationOpen,
+    streamHref: policy.streamHref,
     bannerUrl: sanitizePublicAssetUrl(event.bannerUrl ?? undefined) ?? null,
-    summary:
-      sanitizePublicCopy(
-        event.summary,
-        status === "completed"
-          ? "Official event results and standings will appear here after publication."
-          : "Official event details will appear here after publication.",
-      ) ??
-      (status === "completed"
-        ? "Official event results and standings will appear here after publication."
-        : "Official event details will appear here after publication."),
+    summary,
   };
+}
+
+function isHomepageEventLifecycle(event: PlatformEvent) {
+  return event.lifecycle === "registration_open" || event.lifecycle === "upcoming" || event.lifecycle === "ongoing";
 }
 
 function sanitizeSponsorProfileForPublicDisplay(sponsor: PlatformSponsorProfile): PlatformSponsorProfile | null {
@@ -527,10 +454,13 @@ function sanitizeSponsorProfileForPublicDisplay(sponsor: PlatformSponsorProfile)
 
   return {
     ...sponsor,
-    description: sanitizePublicCopy(sponsor.description, DEFAULT_PARTNER_DESCRIPTION) ?? DEFAULT_PARTNER_DESCRIPTION,
+    description: sanitizePublicCopy(sponsor.description) ?? DEFAULT_PARTNER_DESCRIPTION,
     logoUrl: sanitizePublicAssetUrl(sponsor.logoUrl ?? undefined) ?? null,
     bannerUrl: sanitizePublicAssetUrl(sponsor.bannerUrl ?? undefined) ?? null,
     designAssetUrl: sanitizePublicAssetUrl(sponsor.designAssetUrl ?? undefined) ?? null,
+    websiteUrl: normalizeSponsorExternalUrl(sponsor.websiteUrl),
+    campaignUrl: normalizeSponsorExternalUrl(sponsor.campaignUrl),
+    socialUrl: normalizeSponsorExternalUrl(sponsor.socialUrl),
     supportedEvents: sponsor.supportedEvents.filter((eventName) => !hasPublicDemoMarker(eventName)),
     partnershipHistory: sponsor.partnershipHistory.filter((item) => !hasPublicDemoMarker(item)),
   };
@@ -543,10 +473,9 @@ function sanitizeMediaItemForPublicDisplay(item: PlatformMediaItem): PlatformMed
 
   return {
     ...item,
-    summary:
-      sanitizePublicCopy(item.summary, "Published Bravo media coverage will appear here soon.") ??
-      "Published Bravo media coverage will appear here soon.",
+    summary: sanitizePublicCopy(item.summary) ?? "",
     imageUrl: sanitizePublicAssetUrl(item.imageUrl) ?? undefined,
+    url: normalizePublicActionHref(item.url),
   };
 }
 
@@ -562,7 +491,10 @@ function buildSponsorProfiles(sponsorRows: Awaited<ReturnType<typeof getSponsors
     tier: row.tier,
     description: row.description ?? DEFAULT_PARTNER_DESCRIPTION,
     websiteUrl: row.websiteUrl ?? row.url,
+    campaignUrl: row.campaignUrl,
     socialUrl: row.socialUrl,
+    homepageClickDestination: row.homepageClickDestination ?? "auto",
+    openInNewTab: true,
     logoUrl: row.logoUrl ?? null,
     bannerUrl: row.bannerUrl ?? null,
     designAssetUrl: row.designAssetUrl ?? null,
@@ -671,29 +603,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     };
   });
 
-  const seededArticles: PlatformArticle[] = ARTICLE_SEEDS.map((item) => ({
-    id: item.id,
-    slug: slugify(item.title),
-    title: item.title,
-    summary: item.summary,
-    excerpt: item.excerpt ?? item.summary,
-    date: item.date,
-    category: item.category,
-    tags: [...item.tags],
-    authorName: item.authorName,
-    gameSlug: item.gameSlug,
-    featured: item.featured,
-    breaking: item.breaking,
-    imageUrl: undefined,
-    seoTitle: undefined,
-    seoDescription: undefined,
-    body: [...item.body],
-    relatedSlugs: [],
-    publishedAt: item.publishedAt,
-    updatedAt: item.date,
-  }));
-
-  const news = dedupeArticlesBySlug([...managedNews, ...newsFromAnnouncements, ...seededArticles])
+  const news = dedupeArticlesBySlug([...managedNews, ...newsFromAnnouncements])
     .map((article) => sanitizeArticleForPublicDisplay(article))
     .filter((article): article is PlatformArticle => article !== null)
     .sort(compareByDateDesc)
@@ -715,9 +625,10 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     gameSlug: "pubg-pc",
     gameName: "PUBG PC",
     type: event.type,
+    lifecycle: event.lifecycle ?? (event.status === "ongoing" ? "ongoing" : event.status === "finished" ? "completed" : "upcoming"),
     status: event.status === "ongoing" ? "live" : event.status === "finished" ? "completed" : "upcoming",
     state: event.state === "draft" ? "planned" : "published",
-    featured: event.status !== "finished" || event.slug === "pubg-mahasangram-2026",
+    featured: false,
     region: event.region,
     organizerName: "Bravo Gaming Esports",
     prizePool: event.prizePool,
@@ -726,15 +637,16 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     startDate: event.startDate,
     endDate: event.endDate,
     bannerUrl: event.bannerUrl ?? null,
-    summary:
-      event.description ??
-      "Bravo PUBG event coverage with standings, player stats, match activity, sponsor context, and deeper analytics from the flagship game hub.",
+    summary: event.description ?? "",
     analyticsHref: `/pubg/events/${event.slug}`,
-    streamHref: event.streamUrl ?? "/live-stream",
+    streamHref: event.streamUrl,
+    registrationOpen: event.registrationOpen,
+    registrationStartDate: event.registrationStartDate,
+    registrationEndDate: event.registrationEndDate,
     topTeamName: event.standings[0]?.teamName ?? null,
     topPlayerName: event.playerTable[0]?.pubgName ?? null,
     sponsorName: null,
-    pointSystemName: "Bravo PUBG",
+    pointSystemName: null,
     tabs: ["Overview", "Standings", "Teams", "Players", "Matches", "Schedule", "Statistics", "Media", "Sponsors", "Rules"],
     updatedAt: event.startDate,
   }));
@@ -746,7 +658,19 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     gameSlug: event.gameSlug,
     gameName: event.gameName,
     type: event.type,
-    status: event.status,
+    lifecycle:
+      event.status === "live"
+        ? "ongoing"
+        : event.status === "completed"
+          ? "completed"
+          : event.status === "cancelled"
+            ? "cancelled"
+            : event.status === "archived"
+              ? "archived"
+              : event.status === "planned"
+                ? "draft"
+                : "upcoming",
+    status: event.status === "cancelled" || event.status === "archived" ? "completed" : event.status,
     state: event.state,
     featured: event.featured,
     region: event.region,
@@ -760,6 +684,9 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     summary: event.summary,
     analyticsHref: event.analyticsHref,
     streamHref: event.streamHref,
+    registrationOpen: event.registrationOpen,
+    registrationStartDate: event.registrationStartDate,
+    registrationEndDate: event.registrationEndDate,
     topTeamName: event.topTeamName,
     topPlayerName: event.topPlayerName,
     sponsorName: event.sponsorName,
@@ -768,7 +695,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     updatedAt: event.updatedAt ?? event.startDate,
   }));
 
-  const baseEvents = [...pubgEvents, ...(managedEvents.length > 0 ? managedEvents : PLANNED_EVENTS)]
+  const baseEvents = [...pubgEvents, ...managedEvents]
     .map((event) => sanitizeEventForPublicDisplay(event))
     .filter((event): event is PlatformEvent => event !== null);
   const events = baseEvents.sort(compareEventsForPublicDisplay);
@@ -794,7 +721,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       status: isPublished ? (match.eventStatus === "ongoing" ? "live" : "completed") : "upcoming",
       scheduledAt: match.startTime,
       stageLabel: `Match ${match.matchNumber}`,
-      format: "Squad TPP",
+      format: "Not tracked",
       mapLabel: match.mapName,
       teamA: orderedTeams[0]?.teamName ?? "Winner Pending",
       teamB: orderedTeams[1]?.teamName ?? "Second Pending",
@@ -803,8 +730,8 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       winnerName: match.winnerTeamName ?? null,
       mvpName: topFragger?.pubgName ?? null,
       analyticsHref: `/pubg/events/${match.eventSlug}?tab=matches`,
-      vodHref: match.vodUrl ?? null,
-      viewerCount: liveStream.isLive && match.eventStatus === "ongoing" ? (liveStream.viewers ?? "Live") : null,
+      vodHref: normalizePublicActionHref(match.vodUrl) ?? null,
+      viewerCount: liveStream.isLive && match.eventStatus === "ongoing" ? (liveStream.viewers ?? null) : null,
       summary: isPublished
         ? `Published ${match.mapName} result from ${match.eventName} with ${match.totalKills} total kills tracked.`
         : `Result waiting on approval for ${match.eventName} match ${match.matchNumber}.`,
@@ -812,7 +739,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     };
   });
 
-  const matches = [...pubgMatches, ...PLANNED_MATCHES].sort(compareByDateDesc);
+  const matches = pubgMatches.sort(compareByDateDesc);
 
   const gameBlueprints =
     managedGames.length > 0
@@ -888,7 +815,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       type: "Event",
       status: event.status,
       gameSlug: event.gameSlug,
-      href: event.gameSlug === "pubg-pc" ? `/pubg/events/${event.slug}` : `/events/${event.slug}`,
+      href: getCanonicalPublicEventHref(event),
     })),
     ...matches.map((match) => ({
       id: `match-${match.id}`,
@@ -915,7 +842,7 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     category: video.category,
     gameSlug: video.gameSlug ?? "pubg-pc",
     duration: video.duration,
-    summary: video.summary ?? "Published Bravo media content ready for event, sponsor, and community distribution.",
+    summary: video.summary ?? "",
     imageUrl: video.imageUrl,
     url: video.url,
     featured: video.featured ?? index < 2,
@@ -923,12 +850,12 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
     updatedAt: video.updatedAt ?? video.publishedAt ?? video.createdAt,
   }));
 
-  const media: PlatformMediaItem[] = (managedMedia.length > 0 ? managedMedia : MEDIA_SEEDS)
+  const media: PlatformMediaItem[] = managedMedia
     .map((item) => sanitizeMediaItemForPublicDisplay(item))
     .filter((item): item is PlatformMediaItem => item !== null);
 
   const curatedFeaturedNews = selectOrderedItems(news, homepageContent.featuredNewsSlugs, (article) => article.slug) ?? [];
-  const curatedFeaturedEvents = selectOrderedItems(events, homepageContent.featuredEventSlugs, (event) => event.slug);
+  const curatedFeaturedEvents = selectHomepageEvents(events, homepageContent.featuredEvents, { limit: 4 });
   const homepageSponsorProfiles = sponsorProfiles.filter((sponsor) => sponsor.showOnHomepage);
   const curatedFeaturedSponsors = selectOrderedItems(
     homepageSponsorProfiles,
@@ -943,16 +870,15 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
   return {
     brand: {
       name: "Bravo Gaming Esports",
-      tagline: "Nepal's Premier Esports Platform",
-      mission:
-        "Build the central hub of Nepal esports where players, teams, organizers, sponsors, casters, communities, and fans can access everything from one platform.",
+      tagline: "Nepal Esports Platform",
+      mission: "Publish Bravo events, teams, players, results, media, sponsor information, and community updates in one place.",
     },
     games,
     news,
     events,
     matches,
     calendar,
-    organizations: ORGANIZATION_SEEDS,
+    organizations: [],
     sponsors: sponsorProfiles,
     media,
     home: {
@@ -961,8 +887,10 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       featuredNews:
         curatedFeaturedNews.length > 0 ? curatedFeaturedNews.slice(0, 4) : news.filter((article) => article.featured).slice(0, 4),
       featuredEvents:
-        curatedFeaturedEvents.length > 0 ? curatedFeaturedEvents.slice(0, 4) : events.filter((event) => event.featured).slice(0, 4),
-      upcomingEvents: events.filter((event) => event.status === "upcoming" || event.status === "planned").slice(0, 5),
+        curatedFeaturedEvents.length > 0
+          ? curatedFeaturedEvents
+          : events.filter((event) => event.featured && isHomepageEventLifecycle(event)).slice(0, 4),
+      upcomingEvents: events.filter(isHomepageEventLifecycle).slice(0, 5),
       featuredSponsors:
         curatedFeaturedSponsors.length > 0
           ? curatedFeaturedSponsors.slice(0, 4)
@@ -976,12 +904,6 @@ export const getPlatformHubData = cache(async (): Promise<PlatformHubData> => {
       upcomingMatches: matches.filter((match) => match.status === "upcoming" || match.status === "planned").slice(0, 4),
       recentMatches: matches.filter((match) => match.status === "completed").slice(0, 4),
       featuredGames: games.slice(0, 6),
-      liveFeature: {
-        title: homepageContent.liveTitle || liveStream.title || "Bravo Gaming Broadcast",
-        subtitle: homepageContent.liveSubtitle || liveStream.description || "Current live coverage and event broadcast window.",
-        viewers: homepageContent.liveViewers || liveStream.viewers || (liveStream.isLive ? "Live now" : "Broadcast scheduled"),
-        href: homepageContent.liveHref || liveStream.channelUrl || "/live-stream",
-      },
     },
   };
 });
@@ -1008,7 +930,8 @@ export async function getPlatformOrganizationBySlug(slug: string) {
 
 export async function getPlatformSponsorBySlug(slug: string) {
   const hub = await getPlatformHubData();
-  return hub.sponsors.find((sponsor) => sponsor.slug === slug) ?? null;
+  const canonicalSlug = resolveCanonicalSponsorSlug(slug);
+  return hub.sponsors.find((sponsor) => sponsor.slug === canonicalSlug) ?? null;
 }
 
 export async function getPlatformMediaBySlug(slug: string) {

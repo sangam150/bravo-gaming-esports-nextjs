@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
+
 const sections = [
   {
     title: "Platform Use",
@@ -22,6 +25,13 @@ const sections = [
       "Uploaded logos, banners, posters, screenshots, and media are expected to belong to the submitting organization or be used with permission. Bravo may remove infringing or abusive content.",
   },
 ];
+
+export const metadata: Metadata = buildContentMetadata({
+  title: "Terms of Use | Bravo Gaming Esports",
+  description: "Read the Bravo Gaming Esports terms for platform use, competition data, account access, and submitted media.",
+  path: "/terms",
+  type: "website",
+});
 
 export default function TermsPage() {
   return (

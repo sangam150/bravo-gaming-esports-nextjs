@@ -19,7 +19,7 @@ type DiscordLinksPayload = {
   profiles: DiscordLinkProfile[];
 };
 
-export default function AdminDiscordLinkManager() {
+export default function AdminDiscordLinkManager({ readOnly = false }: { readOnly?: boolean }) {
   const [profiles, setProfiles] = useState<DiscordLinkProfile[]>([]);
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -95,8 +95,8 @@ export default function AdminDiscordLinkManager() {
       <div>
         <h2 className="text-2xl font-black text-white">Discord Team Links</h2>
         <p className="mt-1 text-sm text-text-muted">
-          Link Discord provider user IDs to Bravo team-access profiles. Unlinked Discord sign-ins stay denied until an admin adds the ID
-          here.
+          Link verified Discord user IDs to Bravo team-access profiles. Basic Discord OAuth remains independent, and relational team
+          authorization stays disabled until its controlled rollout.
         </p>
       </div>
 
@@ -159,31 +159,37 @@ export default function AdminDiscordLinkManager() {
                   </span>
                 </div>
 
-                <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
-                  <input
-                    className="input-esports"
-                    value={draftValue}
-                    onChange={(event) =>
-                      setDraftValues((currentValues) => ({
-                        ...currentValues,
-                        [profile.id]: event.target.value,
-                      }))
-                    }
-                    aria-label="Discord provider user ID"
-                    placeholder="Discord provider user ID"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void saveLink(profile, draftValue)}
-                    disabled={isSaving}
-                    className="btn-primary disabled:opacity-60"
-                  >
-                    {isSaving ? "Saving..." : "Save Link"}
-                  </button>
-                  <button type="button" onClick={() => void saveLink(profile, "")} disabled={isSaving} className="btn-secondary">
-                    Clear
-                  </button>
-                </div>
+                {readOnly ? (
+                  <p className="mt-4 text-xs text-text-muted">Discord identity links can be changed only by a super-admin or admin.</p>
+                ) : (
+                  <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
+                    <input
+                      className="input-esports"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={draftValue}
+                      onChange={(event) =>
+                        setDraftValues((currentValues) => ({
+                          ...currentValues,
+                          [profile.id]: event.target.value,
+                        }))
+                      }
+                      aria-label="Discord provider user ID"
+                      placeholder="Discord provider user ID"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void saveLink(profile, draftValue)}
+                      disabled={isSaving}
+                      className="btn-primary disabled:opacity-60"
+                    >
+                      {isSaving ? "Saving..." : "Save Link"}
+                    </button>
+                    <button type="button" onClick={() => void saveLink(profile, "")} disabled={isSaving} className="btn-secondary">
+                      Clear
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

@@ -1,9 +1,4 @@
-import {
-  resolveApprovedDiscordRole,
-  resolveDiscordMemberRoles,
-  resolveDiscordRoleIds,
-  type DiscordRoleMapping,
-} from "../lib/discord-role-mapping";
+import { resolveApprovedDiscordRole, resolveDiscordMemberRoles, type DiscordRoleMapping } from "../lib/discord-role-mapping";
 
 const mappings = [
   { roleId: "10", appRole: "admin" },
@@ -15,8 +10,14 @@ const mappings = [
   { roleId: "70", appRole: "player" },
 ] as const;
 
+const accessMappings: DiscordRoleMapping[] = mappings.map((mapping) => ({
+  ...mapping,
+  mappingType: "access",
+  enabled: true,
+}));
+
 function expectPrimary(roleIds: string[], expected: string) {
-  const result = resolveDiscordRoleIds(roleIds, [...mappings]);
+  const result = resolveDiscordMemberRoles(roleIds, accessMappings);
   if (result.primaryRole !== expected) throw new Error(`Expected ${expected}, received ${result.primaryRole}.`);
 }
 

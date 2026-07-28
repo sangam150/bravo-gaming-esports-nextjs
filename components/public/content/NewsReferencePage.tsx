@@ -13,7 +13,7 @@ import {
 import ManagedImage from "@/components/ui/ManagedImage";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PlatformArticle, PlatformHubData } from "@/lib/platform-hub";
-import { ArrowRight, CalendarDays, Clock3, Mail, Search, ShieldCheck } from "lucide-react";
+import { ArrowRight, CalendarDays, Clock3, Search, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import {
   ChannelLinks,
@@ -152,42 +152,23 @@ function NewsCard({ article }: { article: PlatformArticle }) {
 }
 
 function LatestAnnouncements({ articles }: { articles: PlatformArticle[] }) {
+  if (articles.length === 0) return null;
+
   return (
     <section className="public-panel p-4">
       <h2 className="font-display text-xl font-bold uppercase text-white">Latest Announcements</h2>
-      {articles.length > 0 ? (
-        <div className="mt-4 divide-y divide-white/10">
-          {articles.slice(0, 4).map((article) => (
-            <Link key={article.id} href={`/news/${article.slug}`} className="block py-4 first:pt-0 last:pb-0">
-              <p className="line-clamp-2 text-sm font-semibold leading-5 text-white transition hover:text-accent-blue-light">
-                {article.title}
-              </p>
-              <p className="mt-2 text-[11px] text-text-muted">
-                {formatPublicDate(article.publishedAt ?? article.date)}
-              </p>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-4 text-sm leading-6 text-text-muted">
-          No announcement-category stories have been published.
-        </p>
-      )}
-    </section>
-  );
-}
-
-function NewsletterUnavailable() {
-  return (
-    <section className="public-panel border-accent-blue/35 p-4">
-      <Mail className="h-6 w-6 text-accent-blue-light" aria-hidden="true" />
-      <h2 className="mt-3 font-display text-xl font-bold uppercase text-white">Email Updates</h2>
-      <p className="mt-2 text-sm leading-6 text-text-muted">
-        Newsletter signup is not available yet. Follow Bravo’s official channels for published updates.
-      </p>
-      <button type="button" disabled className="btn-secondary mt-4 w-full cursor-not-allowed justify-center opacity-50">
-        Subscription unavailable
-      </button>
+      <div className="mt-4 divide-y divide-white/10">
+        {articles.slice(0, 4).map((article) => (
+          <Link key={article.id} href={`/news/${article.slug}`} className="block py-4 first:pt-0 last:pb-0">
+            <p className="line-clamp-2 text-sm font-semibold leading-5 text-white transition hover:text-accent-blue-light">
+              {article.title}
+            </p>
+            <p className="mt-2 text-[11px] text-text-muted">
+              {formatPublicDate(article.publishedAt ?? article.date)}
+            </p>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }
@@ -237,23 +218,29 @@ export function NewsReferencePage({
   return (
     <main className="public-page">
       <PublicPageHero
-        eyebrow="Home / News"
+        breadcrumbCurrent="News"
         title="News"
         description="Read official Bravo Gaming Esports announcements, tournament coverage, platform updates, and published results."
         aside={
           featuredArticle ? (
             <FeaturedArticle article={featuredArticle} />
-          ) : (
-            <PublicEmptyState
-              compact
-              title="No featured story yet"
-              description="A featured article will appear here after the newsroom publishes approved coverage."
-            />
-          )
+          ) : null
         }
       />
 
       <div className="public-container space-y-6 py-6">
+        {publishedNews.length === 0 ? (
+          <PublicEmptyState
+            title="No published news yet"
+            description="Official Bravo stories will appear here after editorial review and publication."
+            action={
+              <PublicActionLink href={BRAVO_DISCORD_URL} variant="discord">
+                Follow Updates
+              </PublicActionLink>
+            }
+          />
+        ) : (
+          <>
         <section className="public-panel p-3 sm:p-4">
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-center">
             <FilterTabs
@@ -340,10 +327,11 @@ export function NewsReferencePage({
 
           <aside className="space-y-4">
             <LatestAnnouncements articles={announcements} />
-            <NewsletterUnavailable />
             <FollowBravo />
           </aside>
         </div>
+          </>
+        )}
 
         <PublicCommunityCta />
       </div>

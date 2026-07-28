@@ -7,8 +7,25 @@ type PageProps = {
 };
 
 const SECTION_BY_ROUTE = {
+  homepage: "homepage",
+  news: "news",
+  games: "games",
+  announcements: "announcements",
   teams: "teams",
+  "registered-teams": "registeredTeams",
   players: "players",
+  "player-team-linking": "playerTeamLinking",
+  "events-hub": "platformEvents",
+  tournaments: "tournaments",
+  seasons: "seasons",
+  scrims: "scrims",
+  "match-manager": "matchManager",
+  "pubg-import": "pubg",
+  "pending-imports": "pendingImports",
+  "import-history": "approvedImports",
+  statistics: "matches",
+  leaderboards: "leaderboard",
+  registrations: "registrations",
   sponsors: "sponsors",
   media: "media",
   "hero-slides": "homepage",
@@ -17,7 +34,6 @@ const SECTION_BY_ROUTE = {
   messages: "inbox",
   "team-requests": "teamRequests",
   "discord-role-mappings": "discordRoles",
-  "registered-teams": "registeredTeams",
 } as const satisfies Record<string, AdminSection>;
 
 export default async function AdminNamedSectionPage({ params }: PageProps) {

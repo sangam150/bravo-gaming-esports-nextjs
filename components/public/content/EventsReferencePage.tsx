@@ -14,6 +14,7 @@ import {
 import ManagedImage from "@/components/ui/ManagedImage";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PlatformEvent, PlatformHubData } from "@/lib/platform-hub";
+import { getCanonicalPublicEventHref } from "@/lib/public-links";
 import { CalendarDays, CirclePlay, Search, ShieldCheck, Trophy, Users } from "lucide-react";
 import {
   dateValue,
@@ -171,7 +172,7 @@ function FeaturedEvent({ event }: { event: PlatformEvent }) {
             </div>
           </dl>
           <div className="flex flex-wrap gap-3 lg:col-span-2">
-            <PublicActionLink href={`/events/${event.slug}`}>View Details</PublicActionLink>
+            <PublicActionLink href={getCanonicalPublicEventHref(event)}>View Details</PublicActionLink>
             {event.analyticsHref ? (
               <PublicActionLink href={event.analyticsHref} variant="secondary">
                 View Published Results
@@ -215,7 +216,7 @@ function EventCard({ event }: { event: PlatformEvent }) {
           </div>
         </dl>
         <div className="mt-auto flex gap-2 pt-5">
-          <PublicActionLink href={`/events/${event.slug}`} variant="secondary" className="flex-1 justify-center">
+          <PublicActionLink href={getCanonicalPublicEventHref(event)} variant="secondary" className="flex-1 justify-center">
             View Details
           </PublicActionLink>
           {event.analyticsHref ? (
@@ -251,7 +252,7 @@ function ArchivedEventCard({ event }: { event: PlatformEvent }) {
         <dd className="truncate text-right font-semibold text-white">{meaningfulText(event.topTeamName)}</dd>
       </dl>
       <div className="mt-4">
-        <PublicActionLink href={`/events/${event.slug}`} variant="secondary" className="w-full justify-center">
+        <PublicActionLink href={getCanonicalPublicEventHref(event)} variant="secondary" className="w-full justify-center">
           View Recap
         </PublicActionLink>
       </div>
@@ -302,6 +303,7 @@ export function EventsReferencePage({
   return (
     <main className="public-page">
       <PublicPageHero
+        breadcrumbCurrent="Events"
         eyebrow="Compete. Connect. Conquer."
         title="Events"
         description="Explore published Bravo Gaming Esports tournaments, schedules, event details, and verified competition results."

@@ -13,6 +13,8 @@ type AuthResult = { response: Response; session: null } | { response: null; sess
 
 type TeamAuthResult = { response: Response; session: null } | { response: null; session: VerifiedSession & { teamId: string } };
 
+type PlatformAdminAuthResult = { response: Response; session: null } | { response: null; session: VerifiedSession & { profileId: string } };
+
 function readSessionCookie(request: Request) {
   return request.headers.get("cookie")?.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`))?.[1] ?? null;
 }
@@ -70,6 +72,32 @@ export async function requireAuthenticatedUser(request: Request): Promise<AuthRe
   }
 
   return { response: null, session };
+}
+
+export async function requirePlatformAdmin(request: Request): Promise<PlatformAdminAuthResult> {
+  const auth = await requireAuthenticatedUser(request);
+  if (auth.response || !auth.session) {
+    return auth;
+  }
+
+  if (auth.session.role !== "super_admin" && auth.session.role !== "admin") {
+    return {
+      response: permissionDeniedResponse("Access denied. Super-admin or admin role required."),
+      session: null,
+    };
+  }
+
+  if (!auth.session.profileId) {
+    return {
+      response: permissionDeniedResponse("This admin account is missing its protected profile link."),
+      session: null,
+    };
+  }
+
+  return {
+    response: null,
+    session: { ...auth.session, profileId: auth.session.profileId },
+  };
 }
 
 export async function requireTeamWorkspaceUser(request: Request): Promise<TeamAuthResult> {

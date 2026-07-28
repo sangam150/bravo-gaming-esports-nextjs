@@ -33,10 +33,10 @@ Public PUBG hub:
 
 PUBG API routes:
 
-- `/api/pubg/players?name=PLAYER_NAME`
-- `/api/pubg/matches/MATCH_ID`
-- `/api/pubg/telemetry?matchId=MATCH_ID`
-- `/api/pubg/sync-player?name=PLAYER_NAME`
+- `/api/pubg/players?name=PLAYER_NAME` returns a rate-limited public player-name projection.
+- `/api/pubg/matches/MATCH_ID` returns a rate-limited public match summary without raw provider data.
+- `/api/pubg/telemetry?matchId=MATCH_ID` is a same-origin platform-admin diagnostic endpoint.
+- `/api/pubg/sync-player?name=PLAYER_NAME` is a same-origin platform-admin synchronization endpoint.
 
 Admin helper routes:
 

@@ -25,7 +25,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
     const body = await request.json();
-    const existing = await getTournament(id);
+    const existing = await getTournament(id, { includeInternal: true });
     if (!existing) {
       return Response.json(
         {

@@ -55,14 +55,16 @@ export default function StatisticsPageClient({
   );
 
   const activeOverview = liveCompetition.overview ?? initialOverview;
-  const activeLeaderboard = activeOverview?.leaderboard?.length
-    ? activeOverview.leaderboard
-    : liveCompetition.leaderboardRows.length > 0
-      ? liveCompetition.leaderboardRows
-      : initialLeaderboard;
-  const playerPool = activeOverview?.players?.length
-    ? activeOverview.players
-    : liveCompetition.players.filter((player) => player.scope !== "tournament");
+  const activeLeaderboard = (
+    activeOverview?.leaderboard?.length
+      ? activeOverview.leaderboard
+      : liveCompetition.leaderboardRows.length > 0
+        ? liveCompetition.leaderboardRows
+        : initialLeaderboard
+  ).filter((row) => row.matches > 0);
+  const playerPool = (
+    activeOverview?.players?.length ? activeOverview.players : liveCompetition.players.filter((player) => player.scope !== "tournament")
+  ).filter((player) => player.matches > 0);
   const playerStandings = [...playerPool].sort((firstPlayer, secondPlayer) =>
     comparePlayerLeaderboardPerformance(firstPlayer, secondPlayer),
   );
@@ -78,7 +80,7 @@ export default function StatisticsPageClient({
               <p className="section-title">Statistics</p>
               <h1 className="hero-h1 mt-2 !text-4xl">Performance Dashboards</h1>
               <p className="mt-4 max-w-3xl text-sm text-text-muted sm:text-base">
-                Team standings, player standings, top fraggers, and MVP rankings update automatically from imported match data.
+                Review team standings, player standings, top fraggers, and MVP rankings from published match results.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -95,7 +97,7 @@ export default function StatisticsPageClient({
         {activeLeaderboard.length === 0 && playerPool.length === 0 ? (
           <section className="esports-card p-10 text-center">
             <p className="font-display text-lg font-bold uppercase text-white">Statistics pending</p>
-            <p className="mt-2 text-sm text-text-muted">Statistics will populate automatically after team and player data is imported.</p>
+            <p className="mt-2 text-sm text-text-muted">Verified team and player statistics will appear after results are published.</p>
           </section>
         ) : (
           <div className="grid gap-6">
@@ -137,7 +139,7 @@ export default function StatisticsPageClient({
                     <td className="text-text-muted">{player.teamName ?? "-"}</td>
                     <td>{player.kills}</td>
                     <td>{formatDisplayNumber(player.damage)}</td>
-                    <td>{player.assists ?? 0}</td>
+                    <td>{formatDisplayNumber(player.assists)}</td>
                     <td>{player.matches}</td>
                   </tr>
                 ))}
@@ -159,7 +161,7 @@ export default function StatisticsPageClient({
                     <td className="text-text-muted">{player.teamName ?? "-"}</td>
                     <td>{player.kills}</td>
                     <td>{formatDisplayNumber(player.damage)}</td>
-                    <td>{player.assists ?? 0}</td>
+                    <td>{formatDisplayNumber(player.assists)}</td>
                   </tr>
                 ))}
               />
@@ -182,7 +184,7 @@ export default function StatisticsPageClient({
                   <td>{player.mvpCount}</td>
                   <td>{player.kills}</td>
                   <td>{formatDisplayNumber(player.damage)}</td>
-                  <td>{player.assists ?? 0}</td>
+                  <td>{formatDisplayNumber(player.assists)}</td>
                   <td>{player.matches}</td>
                 </tr>
               ))}

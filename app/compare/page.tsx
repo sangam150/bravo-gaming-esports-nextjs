@@ -1,4 +1,5 @@
 import ComparePageLoader from "@/components/pubg/ComparePageLoader";
+import { buildContentMetadata } from "@/lib/metadata";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 import type { Metadata } from "next";
 
@@ -11,10 +12,12 @@ function pickParam(searchParams: Record<string, string | string[] | undefined>, 
   return Array.isArray(value) ? value[0] : value;
 }
 
-export const metadata: Metadata = {
-  title: "Compare",
-  description: "Compare Bravo PUBG teams and players side-by-side with radar, trends, map edge, and recent form.",
-};
+export const metadata: Metadata = buildContentMetadata({
+  title: "Compare PUBG Teams and Players | Bravo Gaming Esports",
+  description: "Compare published Bravo PUBG team and player statistics, map performance, and recent match form.",
+  path: "/compare",
+  type: "website",
+});
 
 export const revalidate = 300;
 

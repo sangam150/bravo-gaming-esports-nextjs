@@ -10,6 +10,8 @@ import {
   comparePlayerLeaderboardPerformance,
   compareTeamLeaderboardPerformance,
 } from "./ranking-sort";
+import { reconcilePlayerTeamLinksForAccounts } from "./player-team-linking";
+import { slugify } from "./slug-utils";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import type {
   LeaderboardRow,
@@ -58,14 +60,6 @@ function toFiniteNumber(value: unknown, fallback = 0) {
 function toOptionalNumber(value: unknown) {
   const numericValue = typeof value === "number" ? value : Number(value);
   return Number.isFinite(numericValue) ? numericValue : undefined;
-}
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }
 
 function looksLikeUuid(value?: string | null) {
@@ -175,6 +169,7 @@ function normalizeInputPlayerResults(playerResults?: MatchPlayerResult[] | null)
       survivalTime: toFiniteNumber(playerResult.survivalTime),
       placementPoints: toFiniteNumber(playerResult.placementPoints),
       totalPoints: toFiniteNumber(playerResult.totalPoints),
+      linkEligibility: playerResult.linkEligibility ?? "eligible",
     }));
 }
 
@@ -247,6 +242,8 @@ function mapEventRow(row: Tables<"events">, registeredTeamIds: string[]): Tourna
   return {
     id: row.id,
     title: row.name ?? row.title,
+    state: row.published ? "published" : "draft",
+    published: row.published,
     tier: (row as Tables<"events"> & { tier?: string | null }).tier ?? "OPEN",
     status: toTournamentStatus(row),
     prizePool: row.prize_pool ?? "TBD",
@@ -254,6 +251,9 @@ function mapEventRow(row: Tables<"events">, registeredTeamIds: string[]): Tourna
     maxTeams: Math.max(1, (row as Tables<"events"> & { max_teams?: number }).max_teams ?? 32),
     startDate: row.start_date ?? new Date().toISOString(),
     endDate: row.end_date ?? undefined,
+    registrationStatus: row.registration_status === "open" ? "open" : "closed",
+    registrationStartDate: row.registration_start ?? undefined,
+    registrationEndDate: row.registration_end ?? undefined,
     format: row.mode ?? "Squad",
     mode: row.game,
     server: (row as Tables<"events"> & { server?: string | null }).server ?? row.region ?? "Global",
@@ -278,7 +278,12 @@ function mapEventRow(row: Tables<"events">, registeredTeamIds: string[]): Tourna
 }
 
 function mapTeamRow(row: Tables<"teams">, standing?: Views<"team_leaderboard"> | null, playerIds?: string[]): Team {
-  const normalizedStatus = row.status === "pending" || row.status === "inactive" ? row.status : "active";
+  const normalizedStatus =
+    row.is_active && row.status.trim().toLowerCase() === "active" && !row.archived_at && !row.merged_into_team_id && !row.deleted_at
+      ? "active"
+      : row.status.trim().toLowerCase() === "pending"
+        ? "pending"
+        : "inactive";
 
   return {
     id: row.id,
@@ -530,9 +535,17 @@ export async function deleteCompetitionSeason(id: string) {
   return { id, deleted: true };
 }
 
-export async function listCompetitionEvents(status?: Tournament["status"]) {
+type CompetitionEventReadOptions = {
+  includeUnpublished?: boolean;
+};
+
+export async function listCompetitionEvents(status?: Tournament["status"], options: CompetitionEventReadOptions = {}) {
   const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client.from("events").select("*").is("deleted_at", null).order("start_date", { ascending: false });
+  let query = client.from("events").select("*").is("deleted_at", null);
+  if (!options.includeUnpublished) {
+    query = query.eq("published", true);
+  }
+  const { data, error } = await query.order("start_date", { ascending: false });
 
   if (error) {
     throw error;
@@ -545,21 +558,29 @@ export async function listCompetitionEvents(status?: Tournament["status"]) {
   return status ? tournaments.filter((tournament) => tournament.status === status) : tournaments;
 }
 
-export async function getCompetitionEvent(idOrSlug: string) {
+export async function getCompetitionEvent(idOrSlug: string, options: CompetitionEventReadOptions = {}) {
   const client = getSupabaseServiceRoleClient();
   const value = idOrSlug.trim();
-  const byId = looksLikeUuid(value)
-    ? await client.from("events").select("*").eq("id", value).is("deleted_at", null).maybeSingle()
-    : { data: null, error: null };
+  let byIdQuery = client.from("events").select("*").eq("id", value).is("deleted_at", null);
+  if (!options.includeUnpublished) {
+    byIdQuery = byIdQuery.eq("published", true);
+  }
+  const byId = looksLikeUuid(value) ? await byIdQuery.maybeSingle() : { data: null, error: null };
 
   if (byId.error) {
     throw byId.error;
   }
 
-  const row = byId.data
-    ? (byId.data as Tables<"events">)
-    : ((await client.from("events").select("*").eq("slug", value.toLowerCase()).is("deleted_at", null).maybeSingle())
-        .data as Tables<"events"> | null);
+  let bySlugQuery = client.from("events").select("*").eq("slug", value.toLowerCase()).is("deleted_at", null);
+  if (!options.includeUnpublished) {
+    bySlugQuery = bySlugQuery.eq("published", true);
+  }
+  const bySlug = byId.data ? { data: null, error: null } : await bySlugQuery.maybeSingle();
+  if (bySlug.error) {
+    throw bySlug.error;
+  }
+
+  const row = (byId.data ?? bySlug.data) as Tables<"events"> | null;
 
   if (!row) {
     return null;
@@ -781,67 +802,13 @@ async function findOrCreateTeam(
   return team;
 }
 
-async function findOrCreatePlayer(
-  playerResult: MatchPlayerResult,
-  resolvedTeamId: string | null,
-  createIfMissing: boolean,
-  playerLookup: Awaited<ReturnType<typeof getCompetitionPlayerLookup>>,
-) {
+function findExistingPlayer(playerResult: MatchPlayerResult, playerLookup: Awaited<ReturnType<typeof getCompetitionPlayerLookup>>) {
   const normalizedPubgAccountId = cleanString(playerResult.pubgPlayerId)?.toLowerCase();
   const existingPlayerById = looksLikeUuid(playerResult.playerId) ? playerLookup.byId.get(playerResult.playerId) : undefined;
   const existingPlayerByPubgAccountId = normalizedPubgAccountId ? playerLookup.byPubgAccountId.get(normalizedPubgAccountId) : undefined;
-  const existingPlayer =
-    existingPlayerById ?? existingPlayerByPubgAccountId ?? playerLookup.byName.get(playerResult.playerName.trim().toLowerCase()) ?? null;
-
-  if (existingPlayer) {
-    const client = getSupabaseServiceRoleClient();
-    if (resolvedTeamId && existingPlayer.current_team_id !== resolvedTeamId) {
-      await client
-        .from("players")
-        .update({
-          current_team_id: resolvedTeamId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existingPlayer.id);
-    }
-
-    return existingPlayer;
-  }
-
-  if (!createIfMissing) {
-    return null;
-  }
-
-  const client = getSupabaseServiceRoleClient();
-  const payload: TablesInsert<"players"> = {
-    id: randomUUID(),
-    pubg_account_id: cleanString(playerResult.pubgPlayerId) ?? null,
-    pubg_name: playerResult.playerName,
-    display_name: playerResult.playerName,
-    current_team_id: resolvedTeamId,
-    avatar_url: null,
-    is_active: true,
-    slug: slugify(playerResult.playerName),
-  };
-
-  const { data, error } = await client.from("players").insert(payload).select("*").single();
-  if (error) {
-    const fallbackLookup = await getCompetitionPlayerLookup();
-    const fallbackPlayerByPubgAccountId = normalizedPubgAccountId ? fallbackLookup.byPubgAccountId.get(normalizedPubgAccountId) : undefined;
-    return fallbackPlayerByPubgAccountId ?? fallbackLookup.byName.get(playerResult.playerName.trim().toLowerCase()) ?? null;
-  }
-
-  const player = data as Tables<"players">;
-  playerLookup.byId.set(player.id, player);
-  if (player.pubg_account_id) {
-    playerLookup.byPubgAccountId.set(player.pubg_account_id.trim().toLowerCase(), player);
-  }
-  playerLookup.byName.set(player.pubg_name.trim().toLowerCase(), player);
-  if (player.display_name) {
-    playerLookup.byName.set(player.display_name.trim().toLowerCase(), player);
-  }
-
-  return player;
+  return normalizedPubgAccountId
+    ? (existingPlayerByPubgAccountId ?? null)
+    : (existingPlayerById ?? playerLookup.byName.get(playerResult.playerName.trim().toLowerCase()) ?? null);
 }
 
 async function getMatchRows(matchIds: string[]) {
@@ -944,6 +911,12 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
       survivalTime: playerResult.survival_time,
       placementPoints: playerResult.placement_points,
       totalPoints: playerResult.total_points,
+      linkEligibility:
+        playerResult.link_eligibility === "substitute" ||
+        playerResult.link_eligibility === "rejected" ||
+        playerResult.link_eligibility === "ambiguous"
+          ? playerResult.link_eligibility
+          : "eligible",
     });
     playerResultsByMatchId.set(playerResult.match_id, currentValue);
   }
@@ -1034,7 +1007,7 @@ export async function getCompetitionMatchesForEvent(eventId: string, options: { 
   const client = getSupabaseServiceRoleClient();
   let query = client.from("matches").select("*").eq("event_id", eventId).is("deleted_at", null).order("match_number", { ascending: true });
   if (!options.includeDrafts) {
-    query = query.in("status", ["approved", "published"]);
+    query = query.eq("status", "published");
   }
 
   const { data, error } = await query;
@@ -1165,6 +1138,16 @@ async function replaceMatchResults(
   const teamRows: TablesInsert<"match_team_results">[] = [];
   const playerRows: TablesInsert<"match_player_results">[] = [];
   const publishedTeamIds: string[] = [];
+  const { data: existingPlayerRows, error: existingPlayerRowsError } = await client
+    .from("match_player_results")
+    .select("pubg_account_id")
+    .eq("match_id", matchId);
+  if (existingPlayerRowsError) {
+    throw existingPlayerRowsError;
+  }
+  const affectedPubgAccountIds = (existingPlayerRows ?? [])
+    .map((row) => cleanString(row.pubg_account_id))
+    .filter((value): value is string => Boolean(value));
 
   for (const teamResult of preview.teamResults ?? []) {
     const resolvedTeam = await findOrCreateTeam(teamResult, createMissingEntities, teamLookup, {
@@ -1196,13 +1179,17 @@ async function replaceMatchResults(
         (teamRow.slot_number && playerResult.slotNumber && teamRow.slot_number === playerResult.slotNumber) ||
         (teamRow.team_name && teamRow.team_name.trim().toLowerCase() === playerResult.teamName.trim().toLowerCase()),
     );
-    const resolvedPlayer = await findOrCreatePlayer(playerResult, teamMatch?.team_id ?? null, createMissingEntities, playerLookup);
+    const resolvedPlayer = findExistingPlayer(playerResult, playerLookup);
+    const pubgAccountId = cleanString(playerResult.pubgPlayerId) ?? null;
+    if (pubgAccountId) {
+      affectedPubgAccountIds.push(pubgAccountId);
+    }
 
     playerRows.push({
       match_id: matchId,
-      player_id: resolvedPlayer?.id ?? (looksLikeUuid(playerResult.playerId) ? playerResult.playerId : null),
+      player_id: resolvedPlayer?.id ?? (!pubgAccountId && looksLikeUuid(playerResult.playerId) ? playerResult.playerId : null),
       player_name: playerResult.playerName,
-      pubg_account_id: cleanString(playerResult.pubgPlayerId) ?? null,
+      pubg_account_id: pubgAccountId,
       team_id: teamMatch?.team_id ?? null,
       team_name: playerResult.teamName,
       slot_number: playerResult.slotNumber ?? null,
@@ -1241,6 +1228,25 @@ async function replaceMatchResults(
     }
   }
 
+  for (const playerResult of preview.playerResults ?? []) {
+    const pubgAccountId = cleanString(playerResult.pubgPlayerId);
+    const linkEligibility = playerResult.linkEligibility ?? "eligible";
+    if (!pubgAccountId || linkEligibility === "eligible") {
+      continue;
+    }
+
+    const { error } = await client
+      .from("match_player_results")
+      .update({
+        link_eligibility: linkEligibility,
+      })
+      .eq("match_id", matchId)
+      .eq("pubg_account_id", pubgAccountId);
+    if (error && error.code !== "42703" && error.code !== "PGRST204") {
+      throw error;
+    }
+  }
+
   if (options.publish && publishedTeamIds.length > 0) {
     const uniqueTeamIds = Array.from(new Set(publishedTeamIds));
     const eventTeams: TablesInsert<"event_teams">[] = uniqueTeamIds.map((teamId) => ({
@@ -1253,13 +1259,15 @@ async function replaceMatchResults(
       throw error;
     }
   }
+
+  return Array.from(new Set(affectedPubgAccountIds.map((value) => value.trim().toLowerCase()).filter(Boolean)));
 }
 
 export async function saveCompetitionMatch(input: Partial<TournamentMatch>, options: SaveCompetitionMatchOptions = {}) {
   const client = getSupabaseServiceRoleClient();
   const preview = await previewCompetitionMatch(input);
   const normalizedInput = normalizeMatchInput(input);
-  const event = await getCompetitionEvent(preview.tournamentId ?? "");
+  const event = await getCompetitionEvent(preview.tournamentId ?? "", { includeUnpublished: true });
 
   if (!event?.seasonId) {
     throw new Error("The selected event must be linked to a season before saving match results.");
@@ -1304,7 +1312,7 @@ export async function saveCompetitionMatch(input: Partial<TournamentMatch>, opti
     throw error;
   }
 
-  await replaceMatchResults(matchId, preview, {
+  const affectedPubgAccountIds = await replaceMatchResults(matchId, preview, {
     publish,
     region: event.server,
     eventId: event.id,
@@ -1322,6 +1330,8 @@ export async function saveCompetitionMatch(input: Partial<TournamentMatch>, opti
       updated_at: now,
     })
     .eq("id", event.id);
+
+  await reconcilePlayerTeamLinksForAccounts(affectedPubgAccountIds);
 
   return savedMatch;
 }
@@ -1350,6 +1360,13 @@ export async function setCompetitionMatchPublishedState(id: string, published: b
   }
 
   const now = new Date().toISOString();
+  const { data: playerRows, error: playerRowsError } = await client
+    .from("match_player_results")
+    .select("pubg_account_id")
+    .eq("match_id", id);
+  if (playerRowsError) {
+    throw playerRowsError;
+  }
   const { error } = await client
     .from("matches")
     .update({
@@ -1377,6 +1394,8 @@ export async function setCompetitionMatchPublishedState(id: string, published: b
   if (!updatedMatch) {
     throw new Error("Match state changed but the record could not be reloaded.");
   }
+
+  await reconcilePlayerTeamLinksForAccounts((playerRows ?? []).map((row) => row.pubg_account_id ?? "").filter(Boolean));
 
   return updatedMatch;
 }
@@ -1408,6 +1427,13 @@ export async function deleteCompetitionMatch(id: string) {
   }
 
   const now = new Date().toISOString();
+  const { data: playerRows, error: playerRowsError } = await client
+    .from("match_player_results")
+    .select("pubg_account_id")
+    .eq("match_id", id);
+  if (playerRowsError) {
+    throw playerRowsError;
+  }
   const { error } = await client
     .from("matches")
     .update({
@@ -1431,6 +1457,8 @@ export async function deleteCompetitionMatch(id: string) {
       })
       .eq("id", match.tournamentId);
   }
+
+  await reconcilePlayerTeamLinksForAccounts((playerRows ?? []).map((row) => row.pubg_account_id ?? "").filter(Boolean));
 
   return { id, deleted: true };
 }
@@ -1494,6 +1522,10 @@ export async function getCompetitionSeasonTeams(seasonId: string): Promise<Team[
     .from("teams")
     .select("*")
     .in("id", Array.from(seasonTeamIds))
+    .eq("is_active", true)
+    .eq("status", "active")
+    .is("archived_at", null)
+    .is("merged_into_team_id", null)
     .is("deleted_at", null);
   if (teamsError) {
     throw teamsError;
@@ -1571,7 +1603,15 @@ export async function listCompetitionTeams(): Promise<Team[]> {
   }
 
   const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client.from("teams").select("*").is("deleted_at", null).order("name", { ascending: true });
+  const { data, error } = await client
+    .from("teams")
+    .select("*")
+    .eq("is_active", true)
+    .eq("status", "active")
+    .is("archived_at", null)
+    .is("merged_into_team_id", null)
+    .is("deleted_at", null)
+    .order("name", { ascending: true });
   if (error) {
     throw error;
   }

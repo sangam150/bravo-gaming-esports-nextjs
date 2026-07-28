@@ -39,6 +39,7 @@ function buildScrimPayload(body: Record<string, unknown>): Partial<Scrim> {
     seasonTitle: typeof body.seasonTitle === "string" ? body.seasonTitle : undefined,
     seasonDayNumber: typeof body.seasonDayNumber === "number" && Number.isFinite(body.seasonDayNumber) ? body.seasonDayNumber : undefined,
     tournamentId: typeof body.tournamentId === "string" ? body.tournamentId : undefined,
+    published: body.published === true,
   };
 }
 

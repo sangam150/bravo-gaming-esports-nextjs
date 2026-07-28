@@ -36,15 +36,32 @@ export async function adminFetch(url: string, options: RequestInit = {}) {
 
 type UploadProgressCallback = (progress: number) => void;
 
-type AdminUploadResponse = {
+export type AdminUploadResponse = {
   success: true;
   id: string;
   path: string;
   url: string;
 };
 
-async function sendUploadRequest(url: string, formData: FormData, headers: Headers, onProgress?: UploadProgressCallback) {
-  return new Promise<AdminUploadResponse>((resolve, reject) => {
+export type AdminTeamLogoUploadResponse = AdminUploadResponse & {
+  cleanupPending: boolean;
+  key: string;
+  team: {
+    id: string;
+    logoUrl: string | null;
+    name: string;
+    slug: string | null;
+    updatedAt: string;
+  };
+};
+
+async function sendUploadRequest<TResponse extends AdminUploadResponse>(
+  url: string,
+  formData: FormData,
+  headers: Headers,
+  onProgress?: UploadProgressCallback,
+) {
+  return new Promise<TResponse>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);
     xhr.withCredentials = true;
@@ -68,7 +85,7 @@ async function sendUploadRequest(url: string, formData: FormData, headers: Heade
 
       if (xhr.status >= 200 && xhr.status < 300 && data.url && data.id && data.path) {
         onProgress?.(100);
-        resolve(data as AdminUploadResponse);
+        resolve(data as TResponse);
         return;
       }
 
@@ -108,5 +125,25 @@ export async function adminUpload(
   const token = await getIdToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  return sendUploadRequest("/api/admin/uploads/r2", formData, headers, options.onProgress);
+  return sendUploadRequest<AdminUploadResponse>("/api/admin/uploads/r2", formData, headers, options.onProgress);
+}
+
+export async function adminUploadTeamLogo(
+  file: File,
+  teamId: string,
+  options: {
+    onProgress?: UploadProgressCallback;
+  } = {},
+) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const headers = new Headers();
+  const token = await getIdToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return sendUploadRequest<AdminTeamLogoUploadResponse>(
+    `/api/admin/teams/${encodeURIComponent(teamId)}/logo`,
+    formData,
+    headers,
+    options.onProgress,
+  );
 }

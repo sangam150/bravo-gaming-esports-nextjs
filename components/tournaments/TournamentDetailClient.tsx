@@ -164,7 +164,7 @@ export default function TournamentDetailClient({
                   <div className="esports-card p-6">
                     <h2 className="section-heading !text-base">Live Standings Snapshot</h2>
                     {topStandings.length === 0 ? (
-                      <p className="mt-4 text-sm text-text-muted">Day results will appear here after admin approval.</p>
+                      <p className="mt-4 text-sm text-text-muted">Verified day results have not been published.</p>
                     ) : (
                       <div className="table-scroll mt-4" tabIndex={0}>
                         <table className="data-table min-w-full">
@@ -197,7 +197,7 @@ export default function TournamentDetailClient({
               {tab === "Standings" && (
                 <div className="esports-card overflow-hidden !p-0 lg:col-span-3">
                   {activeStandings.length === 0 ? (
-                    <p className="p-6 text-sm text-text-muted">Day standings will appear here after admin approval.</p>
+                    <p className="p-6 text-sm text-text-muted">Verified day standings have not been published.</p>
                   ) : (
                     <div className="table-scroll" tabIndex={0}>
                       <table className="data-table min-w-full">
@@ -235,7 +235,7 @@ export default function TournamentDetailClient({
               {tab === "Schedule" && (
                 <div className="space-y-4 lg:col-span-3">
                   {activeMatches.length === 0 ? (
-                    <div className="esports-card p-6 text-sm text-text-muted">Match cards will appear here after admin approval.</div>
+                    <div className="esports-card p-6 text-sm text-text-muted">Verified match results have not been published.</div>
                   ) : (
                     activeMatches.map((match) => (
                       <div key={match.id} className="esports-card overflow-hidden !p-0">

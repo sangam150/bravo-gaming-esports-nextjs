@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { scheduleEffectTask } from "./effect-task";
+import { useMemo } from "react";
 import {
   buildCurrentSeasonOverviewFromCollections,
   buildFallbackLeaderboardRows,
@@ -11,9 +10,6 @@ import {
 import { buildFallbackTeamNameFromSlot, canonicalizeBravoTeamName, parseBravoSlotNumber, resolveBravoTeamIdentity } from "./bravo-teams";
 import { COLLECTIONS } from "./document-store-collections";
 import { compareMatchSequenceOrder, comparePlayerLeaderboardPerformance } from "./ranking-sort";
-import { getSupabaseBrowserClient } from "./supabase/client";
-import { SUPABASE_DOCUMENT_STORE_TABLE, mapSupabaseDocumentStoreRow } from "./supabase/document-store";
-import { isSupabaseConfigured } from "./supabase/env";
 import type {
   LeaderboardRow,
   MatchPlayerResult,
@@ -116,221 +112,23 @@ function normalizeRealtimeMatch(match: TournamentMatch): TournamentMatch {
   };
 }
 
-function canUseSupabaseRealtime() {
-  return isSupabaseConfigured();
-}
-
-function getRealtimeErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "object" && error && "message" in error && typeof error.message === "string") {
-    return error.message;
-  }
-
-  return String(error);
-}
-
-async function fetchSupabaseCollectionSnapshot<T extends DocumentRecord>(collectionName: string, limit = 1000) {
-  const { data, error } = await getSupabaseBrowserClient()
-    .from(SUPABASE_DOCUMENT_STORE_TABLE)
-    .select("collection_name,id,data,created_at,updated_at")
-    .eq("collection_name", collectionName)
-    .order("updated_at", { ascending: false })
-    .limit(limit);
-
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? []).map((row) => mapSupabaseDocumentStoreRow<T>(row));
-}
-
-async function fetchSupabaseDocumentSnapshot<T extends DocumentRecord>(collectionName: string, id: string) {
-  const { data, error } = await getSupabaseBrowserClient()
-    .from(SUPABASE_DOCUMENT_STORE_TABLE)
-    .select("collection_name,id,data,created_at,updated_at")
-    .eq("collection_name", collectionName)
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return data ? mapSupabaseDocumentStoreRow<T>(data) : null;
-}
-
-function matchesSupabaseFieldValue(record: Record<string, unknown>, field: string, value: string) {
-  return record[field] === value;
-}
-
-async function fetchSupabaseWhereSnapshot<T extends DocumentRecord>(collectionName: string, field: string, value: string, limit = 1000) {
-  const records = await fetchSupabaseCollectionSnapshot<T>(collectionName, limit);
-  return records.filter((record) => matchesSupabaseFieldValue(record as Record<string, unknown>, field, value));
-}
-
 function useCollectionSnapshot<T extends DocumentRecord>(collectionName: string, initialData: T[], enabled = true) {
-  const [data, setData] = useState<T[]>(initialData);
-  const [loading, setLoading] = useState(enabled && canUseSupabaseRealtime());
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!enabled || !canUseSupabaseRealtime()) {
-      return scheduleEffectTask(() => setLoading(false));
-    }
-
-    let active = true;
-    const client = getSupabaseBrowserClient();
-    const channel = client.channel(`app-documents:${collectionName}`);
-
-    const load = async () => {
-      try {
-        const rows = await fetchSupabaseCollectionSnapshot<T>(collectionName, 2000);
-        if (!active) return;
-        setData(rows);
-        setLoading(false);
-        setError(null);
-      } catch (snapshotError: unknown) {
-        if (!active) return;
-        setLoading(false);
-        setError(getRealtimeErrorMessage(snapshotError));
-      }
-    };
-
-    void load();
-
-    channel
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: SUPABASE_DOCUMENT_STORE_TABLE,
-          filter: `collection_name=eq.${collectionName}`,
-        },
-        () => {
-          void load();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      active = false;
-      void client.removeChannel(channel);
-    };
-  }, [collectionName, enabled]);
-
-  return { data, loading, error };
+  void collectionName;
+  void enabled;
+  return { data: initialData, loading: false, error: null as string | null };
 }
 
 function useWhereSnapshot<T extends DocumentRecord>(collectionName: string, field: string, value: string | undefined, initialData: T[]) {
-  const [data, setData] = useState<T[]>(initialData);
-  const [loading, setLoading] = useState(Boolean(value) && canUseSupabaseRealtime());
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!value || !canUseSupabaseRealtime()) {
-      return scheduleEffectTask(() => setLoading(false));
-    }
-
-    let active = true;
-    const client = getSupabaseBrowserClient();
-    const channel = client.channel(`app-documents:${collectionName}:${field}:${value}`);
-
-    const load = async () => {
-      try {
-        const rows = await fetchSupabaseWhereSnapshot<T>(collectionName, field, value, 2500);
-        if (!active) return;
-        setData(rows);
-        setLoading(false);
-        setError(null);
-      } catch (snapshotError: unknown) {
-        if (!active) return;
-        setLoading(false);
-        setError(getRealtimeErrorMessage(snapshotError));
-      }
-    };
-
-    void load();
-
-    channel
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: SUPABASE_DOCUMENT_STORE_TABLE,
-          filter: `collection_name=eq.${collectionName}`,
-        },
-        () => {
-          void load();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      active = false;
-      void client.removeChannel(channel);
-    };
-  }, [collectionName, field, value]);
-
-  return { data, loading, error };
+  void collectionName;
+  void field;
+  void value;
+  return { data: initialData, loading: false, error: null as string | null };
 }
 
 function useDocumentSnapshot<T extends DocumentRecord>(collectionName: string, id: string | undefined, initialData: T | null) {
-  const [data, setData] = useState<T | null>(initialData);
-  const [loading, setLoading] = useState(Boolean(id) && canUseSupabaseRealtime());
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!id || !canUseSupabaseRealtime()) {
-      return scheduleEffectTask(() => setLoading(false));
-    }
-
-    let active = true;
-    const client = getSupabaseBrowserClient();
-    const channel = client.channel(`app-documents:${collectionName}:${id}`);
-
-    const load = async () => {
-      try {
-        const document = await fetchSupabaseDocumentSnapshot<T>(collectionName, id);
-        if (!active) return;
-        setData(document);
-        setLoading(false);
-        setError(null);
-      } catch (snapshotError: unknown) {
-        if (!active) return;
-        setLoading(false);
-        setError(getRealtimeErrorMessage(snapshotError));
-      }
-    };
-
-    void load();
-
-    channel
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: SUPABASE_DOCUMENT_STORE_TABLE,
-          filter: `collection_name=eq.${collectionName}`,
-        },
-        () => {
-          void load();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      active = false;
-      void client.removeChannel(channel);
-    };
-  }, [collectionName, id]);
-
-  return { data, loading, error };
+  void collectionName;
+  void id;
+  return { data: initialData, loading: false, error: null as string | null };
 }
 
 export function useBravoRealtimeData(
@@ -420,7 +218,7 @@ export function useBravoRealtimeData(
   );
 
   return {
-    configured: canUseSupabaseRealtime(),
+    configured: false,
     seasons: seasonsState.data,
     tournaments: tournamentsState.data,
     standings: normalizedStandings,

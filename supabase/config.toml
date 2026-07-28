@@ -25,9 +25,11 @@ schema_paths = [
   "./migrations/017_complete_authentication_hardening.sql",
   "./migrations/018_discord_role_sync.sql",
   "./migrations/019_discord_team_role_mappings.sql",
-  "./migrations/020_relational_team_registry_reconciliation.sql",
-  "./migrations/021_relational_team_membership_authorization.sql",
-]
+    "./migrations/020_relational_team_registry_reconciliation.sql",
+    "./migrations/021_relational_team_membership_authorization.sql",
+    "./migrations/022_player_team_match_history_linking.sql",
+    "./migrations/023_private_document_and_publication_boundary.sql",
+  ]
 
 [db.seed]
 enabled = false

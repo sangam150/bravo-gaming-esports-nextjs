@@ -1,5 +1,6 @@
 import CurrentSeasonPageClient from "@/components/current-season/CurrentSeasonPageClient";
 import { getCurrentSeasonOverview, getSeasonOverviewBySlug } from "@/lib/data";
+import { buildContentMetadata } from "@/lib/metadata";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
@@ -23,10 +24,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Season Not Found" };
   }
 
-  return {
-    title: overview.season.seriesTitle,
+  return buildContentMetadata({
+    title: `${overview.season.seriesTitle} | Bravo Gaming Esports`,
     description: `Follow ${overview.season.seriesTitle} with standings, day flow, registered teams, match totals, and published season history.`,
-  };
+    path: `/pubg/seasons/${overview.season.slug}`,
+    type: "website",
+  });
 }
 
 export const revalidate = 300;

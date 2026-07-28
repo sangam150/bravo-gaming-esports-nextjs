@@ -1,6 +1,7 @@
 import { getSeasons } from "./data";
 import { getPlatformHubData } from "./platform-hub";
 import { getPubgHubDataset } from "./pubg-hub";
+import { getCanonicalPublicEventHref } from "./public-links";
 
 type SearchResultKind = "team" | "player" | "event" | "match" | "season" | "news" | "sponsor" | "media";
 
@@ -127,7 +128,7 @@ export async function searchPlatformContent(rawQuery: string): Promise<SearchRes
     ...hub.events.map((event) => ({
       kind: "event" as const,
       title: event.name,
-      href: event.gameSlug === "pubg-pc" ? `/pubg/events/${event.slug}` : `/events/${event.slug}`,
+      href: getCanonicalPublicEventHref(event),
       description: `${event.teamsCount} teams · ${event.matchesCount} matches · ${event.prizePool}`,
       subtitle: `${event.gameName} · ${event.type} · ${event.status}`,
       badge: "Event",

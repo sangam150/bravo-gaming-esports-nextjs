@@ -186,7 +186,7 @@ export function MediaReferencePage({
   return (
     <main className="public-page">
       <PublicPageHero
-        eyebrow="Home / Media Center"
+        breadcrumbCurrent="Media"
         title="Media Center"
         description="Watch published Bravo broadcasts, highlights, interviews, and clips from official competition coverage."
         actions={
@@ -202,21 +202,17 @@ export function MediaReferencePage({
                 Visit Broadcast Channel
               </PublicActionLink>
             )}
-            <PublicActionLink href="#media-library" variant="secondary">
-              Browse All Content
-            </PublicActionLink>
+            {publishedMedia.length > 0 ? (
+              <PublicActionLink href="#media-library" variant="secondary">
+                Browse All Content
+              </PublicActionLink>
+            ) : null}
           </>
         }
         aside={
           featuredMedia ? (
             <FeaturedMedia item={featuredMedia} />
-          ) : (
-            <PublicEmptyState
-              compact
-              title="No published media yet"
-              description="A featured media item appears only after Bravo publishes approved coverage."
-            />
-          )
+          ) : null
         }
       >
         <div className="flex flex-wrap items-center gap-4">
@@ -226,6 +222,18 @@ export function MediaReferencePage({
       </PublicPageHero>
 
       <div className="public-container space-y-7 py-6">
+        {publishedMedia.length === 0 ? (
+          <PublicEmptyState
+            title="No published media yet"
+            description="Official broadcasts, highlights, interviews, and clips will appear here when coverage is published."
+            action={
+              <PublicActionLink href={BRAVO_YOUTUBE_URL} variant="secondary">
+                Official YouTube Channel
+              </PublicActionLink>
+            }
+          />
+        ) : (
+          <>
         <section id="media-library" className="scroll-mt-24 space-y-5">
           <div className="public-panel p-3 sm:p-4">
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 xl:grid-cols-[minmax(0,1fr)_12rem] xl:items-center">
@@ -336,10 +344,12 @@ export function MediaReferencePage({
             <PublicEmptyState
               compact
               title="Recent uploads will appear here"
-              description="This row remains empty until real media records are published."
+              description="Recent uploads will appear when new media is published."
             />
           )}
         </section>
+          </>
+        )}
 
         <PublicCommunityCta
           title="Follow Nepal’s PUBG PC esports coverage"

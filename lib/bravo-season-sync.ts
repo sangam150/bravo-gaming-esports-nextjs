@@ -25,6 +25,7 @@ import {
 import { buildPlayerAppearanceMapFromMatches, choosePreferredPlayerTeam } from "./player-team-history";
 import { compareMvpRankingPlayers, comparePlayerLeaderboardPerformance } from "./ranking-sort";
 import { buildSeasonLeaderboard } from "./season-standings";
+import { slugify } from "./slug-utils";
 import type { Player, Scrim, SiteStats, Team, Tournament, TournamentMatch, TournamentStanding } from "./types";
 
 const BRAVO_SEASON_SERIES_TITLE = "BRAVO GAMING ESPORTS DAILY PUBG PC SCRIMS";
@@ -34,13 +35,6 @@ const BRAVO_SEASON_SLUG = "bravo-gaming-esports-daily-pubg-pc-scrims-season-1";
 const DEFAULT_SEASON_LENGTH = 15;
 const DEFAULT_CURRENT_DAY = 6;
 const BRAVO_REFERENCE_IMPORT_MAX_DAY = 3;
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 function toDateKey(value: Date) {
   return value.toISOString().slice(0, 10);

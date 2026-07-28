@@ -621,7 +621,7 @@ export function MapStatsTable({ stats, title, description }: { stats: PubgHubMap
                   <td className="text-right">{formatNumber(row.kills)}</td>
                   <td className="text-right">{formatNumber(row.wins)}</td>
                   <td className="text-right">{formatDecimal(row.avgPlacement, 2)}</td>
-                  <td className="text-right">{formatNumber(row.damage)}</td>
+                  <td className="text-right">{row.damage === null ? "Not tracked" : formatNumber(row.damage)}</td>
                   <td className="points-cell text-right">{formatNumber(row.points)}</td>
                 </tr>
               ))}

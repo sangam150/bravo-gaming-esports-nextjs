@@ -1,4 +1,4 @@
-import { NewsReferencePage } from "@/components/public/ContentReferencePages";
+import { NewsReferencePage } from "@/components/public/content/NewsReferencePage";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import type { Metadata } from "next";

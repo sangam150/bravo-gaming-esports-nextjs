@@ -1,73 +1,76 @@
 "use client";
 
-import { adminFetch, adminUpload } from "@/lib/admin-api";
+import { adminFetch, adminUploadTeamLogo } from "@/lib/admin-api";
+import { matchTeamLogoFile, type TeamLogoMatchTeam } from "@/lib/team-logo-matching";
 import type { Team } from "@/lib/types";
 import { formatUploadSize, getUploadMaxBytes, IMAGE_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
 import { validateImageUpload } from "@/lib/upload-validation";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type UploadStatus = "queued" | "uploading" | "uploaded" | "unmatched" | "error";
+type UploadStatus = "error" | "ignored" | "queued" | "unmatched" | "uploaded" | "uploading";
+
+type TeamWithAliases = Team & {
+  aliases?: Array<string | { alias: string }>;
+  slug?: string;
+};
 
 type UploadResult = {
-  id: string;
+  alternatives: string[];
+  confidence: number;
+  file: File;
   fileName: string;
+  id: string;
+  manualSelection: boolean;
+  message: string;
+  normalizedFileName: string;
   previewUrl: string;
   progress: number;
   status: UploadStatus;
+  suggestedTeamName?: string;
   teamId?: string;
   teamName?: string;
-  message?: string;
+  validationPassed: boolean;
 };
 
-type PreparedUpload = {
-  file: File;
-  team: Team;
-  resultId: string;
-};
-
-function normalizeValue(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+function aliasesForTeam(team: TeamWithAliases) {
+  return (team.aliases ?? [])
+    .map((alias) => (typeof alias === "string" ? alias : alias.alias))
+    .map((alias) => alias.trim())
+    .filter(Boolean);
 }
 
-function fileBaseName(fileName: string) {
-  return fileName.replace(/\.[^.]+$/, "");
+function toMatchTeam(team: TeamWithAliases): TeamLogoMatchTeam {
+  return {
+    aliases: aliasesForTeam(team),
+    id: team.id,
+    name: team.name,
+    slug: team.slug,
+    tag: team.tag,
+  };
 }
 
-function matchTeam(fileName: string, teams: Team[]) {
-  const normalizedFileName = normalizeValue(fileBaseName(fileName));
-  if (!normalizedFileName) return null;
-
-  const exactMatches = teams.filter((team) => {
-    const candidates = [team.id, team.name, team.tag].filter((value): value is string => Boolean(value));
-    return candidates.some((value) => normalizeValue(value) === normalizedFileName);
-  });
-
-  if (exactMatches.length === 1) return exactMatches[0];
-
-  const fuzzyMatches = teams.filter((team) => {
-    const candidates = [team.id, team.name, team.tag].filter((value): value is string => Boolean(value));
-    return candidates.some((value) => {
-      const normalizedCandidate = normalizeValue(value);
-      return (
-        normalizedCandidate.length > 0 &&
-        (normalizedFileName.includes(normalizedCandidate) || normalizedCandidate.includes(normalizedFileName))
-      );
-    });
-  });
-
-  return fuzzyMatches.length === 1 ? fuzzyMatches[0] : null;
+async function runWithConcurrency<T>(items: readonly T[], concurrency: number, worker: (item: T) => Promise<void>) {
+  let cursor = 0;
+  const next = async (): Promise<void> => {
+    const currentIndex = cursor;
+    cursor += 1;
+    if (currentIndex >= items.length) return;
+    await worker(items[currentIndex]);
+    await next();
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => next()));
 }
 
-export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[]; onComplete: () => Promise<void> | void }) {
+export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: TeamWithAliases[]; onComplete: () => Promise<void> | void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const previewUrlsRef = useRef<string[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [aliasSavingId, setAliasSavingId] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [results, setResults] = useState<UploadResult[]>([]);
-  const [activeUploadCount, setActiveUploadCount] = useState(0);
-  const [totalUploadCount, setTotalUploadCount] = useState(0);
-
+  const [uploading, setUploading] = useState(false);
+  const matchTeams = useMemo(() => teams.map(toMatchTeam), [teams]);
+  const teamById = useMemo(() => new Map(teams.map((team) => [team.id, team] as const)), [teams]);
   const teamsWithLogos = useMemo(() => teams.filter((team) => team.logoUrl || team.logo).length, [teams]);
 
   useEffect(() => {
@@ -82,138 +85,179 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
     previewUrlsRef.current = [];
   }
 
-  function trackPreviewUrl(previewUrl: string) {
-    previewUrlsRef.current.push(previewUrl);
-    return previewUrl;
-  }
-
   function updateResult(resultId: string, updates: Partial<UploadResult>) {
     setResults((currentResults) => currentResults.map((result) => (result.id === resultId ? { ...result, ...updates } : result)));
   }
 
-  async function handleBulkUpload(files: FileList) {
-    if (uploading) return;
-
-    const selectedFiles = Array.from(files);
-    if (selectedFiles.length === 0) return;
-
+  function prepareFiles(files: FileList) {
+    if (uploading || files.length === 0) return;
     releasePreviewUrls();
-
-    const preparedUploads: PreparedUpload[] = [];
-    const nextResults: UploadResult[] = selectedFiles.map((file) => {
-      const resultId = crypto.randomUUID();
-      const previewUrl = trackPreviewUrl(URL.createObjectURL(file));
+    const nextResults = Array.from(files).map((file): UploadResult => {
+      const id = crypto.randomUUID();
+      const previewUrl = URL.createObjectURL(file);
+      previewUrlsRef.current.push(previewUrl);
       const validationError = validateImageUpload({
         type: "team_logo",
         fileName: file.name,
         contentType: file.type,
         size: file.size,
       });
-
+      const match = matchTeamLogoFile(file.name, matchTeams);
+      const suggested = match.autoMatch ?? match.candidates[0] ?? null;
       if (validationError) {
         return {
-          id: resultId,
+          alternatives: [],
+          confidence: 0,
+          file,
           fileName: file.name,
+          id,
+          manualSelection: false,
+          message: validationError,
+          normalizedFileName: match.normalizedLabel,
           previewUrl,
           progress: 0,
           status: "error",
-          message: validationError,
+          validationPassed: false,
         };
       }
-
-      const matchedTeam = matchTeam(file.name, teams);
-      if (!matchedTeam) {
+      if (!match.autoMatch) {
         return {
-          id: resultId,
+          alternatives: match.alternatives.map((candidate) => candidate.team.name),
+          confidence: suggested?.confidence ?? 0,
+          file,
           fileName: file.name,
+          id,
+          manualSelection: false,
+          message: "Select the correct official team or ignore this file.",
+          normalizedFileName: match.normalizedLabel,
           previewUrl,
           progress: 0,
           status: "unmatched",
-          message: "No unique team match found from filename",
+          suggestedTeamName: suggested?.team.name,
+          validationPassed: true,
         };
       }
-
-      preparedUploads.push({ file, team: matchedTeam, resultId });
-
       return {
-        id: resultId,
+        alternatives: match.alternatives.map((candidate) => candidate.team.name),
+        confidence: match.autoMatch.confidence,
+        file,
         fileName: file.name,
+        id,
+        manualSelection: false,
+        message: "Ready to upload.",
+        normalizedFileName: match.normalizedLabel,
         previewUrl,
         progress: 0,
         status: "queued",
-        teamId: matchedTeam.id,
-        teamName: matchedTeam.name,
-        message: "Ready to upload",
+        suggestedTeamName: match.autoMatch.team.name,
+        teamId: match.autoMatch.team.id,
+        teamName: match.autoMatch.team.name,
+        validationPassed: true,
       };
     });
-
     setResults(nextResults);
-    setActiveUploadCount(0);
-    setTotalUploadCount(preparedUploads.length);
+    if (inputRef.current) inputRef.current.value = "";
+  }
 
-    if (preparedUploads.length === 0) {
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
-      return;
-    }
+  function selectTeam(resultId: string, teamId: string) {
+    const currentResult = results.find((result) => result.id === resultId);
+    if (!currentResult?.validationPassed) return;
+    const team = teamById.get(teamId);
+    updateResult(resultId, {
+      manualSelection: Boolean(team),
+      message: team ? "Manual match confirmed. Ready to upload." : "Select the correct official team or ignore this file.",
+      status: team ? "queued" : "unmatched",
+      teamId: team?.id,
+      teamName: team?.name,
+    });
+  }
 
-    setUploading(true);
-
-    for (let index = 0; index < preparedUploads.length; index += 1) {
-      const preparedUpload = preparedUploads[index];
-      setActiveUploadCount(index + 1);
-      updateResult(preparedUpload.resultId, {
-        status: "uploading",
-        message: "Uploading to Cloudflare R2...",
+  async function saveAlias(result: UploadResult) {
+    if (!result.teamId || !result.normalizedFileName) return;
+    setAliasSavingId(result.id);
+    try {
+      await adminFetch(`/api/admin/teams/${encodeURIComponent(result.teamId)}/aliases`, {
+        method: "POST",
+        body: JSON.stringify({ alias: result.normalizedFileName }),
       });
-
-      try {
-        const uploadResponse = await adminUpload(preparedUpload.file, "team_logo", preparedUpload.team.id, {
-          onProgress: (progress) => {
-            updateResult(preparedUpload.resultId, {
-              progress,
-              status: "uploading",
-              message: `Uploading ${progress}%`,
-            });
-          },
-          previousUrl: preparedUpload.team.logoUrl ?? preparedUpload.team.logo,
-        });
-
-        await adminFetch(`/api/teams/${preparedUpload.team.id}`, {
-          method: "PUT",
-          body: JSON.stringify({
-            logo: uploadResponse.url,
-            logoUrl: uploadResponse.url,
-          }),
-        });
-
-        updateResult(preparedUpload.resultId, {
-          progress: 100,
-          status: "uploaded",
-          message: "Uploaded successfully",
-        });
-      } catch (error: unknown) {
-        updateResult(preparedUpload.resultId, {
-          status: "error",
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    setUploading(false);
-    setActiveUploadCount(0);
-    setTotalUploadCount(0);
-    await onComplete();
-
-    if (inputRef.current) {
-      inputRef.current.value = "";
+      updateResult(result.id, { message: "Alias saved. This file is ready to upload." });
+    } catch (error) {
+      updateResult(result.id, {
+        message: error instanceof Error ? error.message : "The alias could not be saved.",
+        status: "error",
+      });
+    } finally {
+      setAliasSavingId(null);
     }
   }
 
-  function openFilePicker() {
+  async function uploadResult(result: UploadResult) {
+    if (!result.teamId) return;
+    updateResult(result.id, {
+      message: "Uploading and updating the official team...",
+      progress: 0,
+      status: "uploading",
+    });
+    try {
+      const response = await adminUploadTeamLogo(result.file, result.teamId, {
+        onProgress: (progress) => {
+          updateResult(result.id, {
+            message: `Uploading ${progress}%`,
+            progress,
+            status: "uploading",
+          });
+        },
+      });
+      updateResult(result.id, {
+        message: response.cleanupPending ? "Logo updated. Previous asset cleanup is pending." : "Logo updated on the official team.",
+        progress: 100,
+        status: "uploaded",
+        teamName: response.team.name,
+      });
+    } catch (error) {
+      updateResult(result.id, {
+        message: error instanceof Error ? error.message : "The logo could not be uploaded.",
+        progress: 0,
+        status: "error",
+      });
+    }
+  }
+
+  async function uploadReady() {
     if (uploading) return;
-    inputRef.current?.click();
+    const ready = results.filter((result) => result.status === "queued" && result.teamId);
+    const seenTeamIds = new Set<string>();
+    const uniqueReady = ready.filter((result) => {
+      if (!result.teamId || seenTeamIds.has(result.teamId)) {
+        updateResult(result.id, {
+          message: "Another queued file already targets this team. Keep one file and retry.",
+          status: "error",
+        });
+        return false;
+      }
+      seenTeamIds.add(result.teamId);
+      return true;
+    });
+    if (uniqueReady.length === 0) return;
+
+    setUploading(true);
+    try {
+      await runWithConcurrency(uniqueReady, 3, uploadResult);
+      await onComplete();
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function retry(result: UploadResult) {
+    if (uploading || !result.teamId) return;
+    setUploading(true);
+    try {
+      await uploadResult(result);
+      await onComplete();
+    } finally {
+      setUploading(false);
+    }
   }
 
   const uploadedCount = results.filter((result) => result.status === "uploaded").length;
@@ -228,10 +272,9 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
         <div>
           <h3 className="text-lg font-semibold text-white">Bulk Upload Team Logos</h3>
           <p className="mt-2 text-sm text-text-muted">
-            Drop multiple logo files at once. Filenames should match the team `id`, team name, or tag.
+            Review automatic matches before uploading. Uncertain files require an official team selection.
           </p>
           <p className="mt-2 text-xs text-text-muted">Supported files: JPG, PNG, WEBP up to {teamLogoMaxUploadSize}</p>
-          <p className="mt-1 text-xs text-text-muted">Example: `dead-eyes.png`, `DeadEyes Guys.png`, or `DE.png`</p>
         </div>
         <div className="rounded-card border border-white/10 bg-bg-primary px-4 py-3 text-sm text-text-muted">
           {teamsWithLogos}/{teams.length} teams currently have logos
@@ -246,19 +289,14 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
         multiple
         className="hidden"
         onChange={(event) => {
-          const files = event.target.files;
-          if (files) {
-            void handleBulkUpload(files);
-          }
+          if (event.target.files) prepareFiles(event.target.files);
         }}
       />
 
       <div
         onDragOver={(event) => {
           event.preventDefault();
-          if (!uploading) {
-            setDragActive(true);
-          }
+          if (!uploading) setDragActive(true);
         }}
         onDragLeave={(event) => {
           event.preventDefault();
@@ -267,73 +305,65 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
         onDrop={(event) => {
           event.preventDefault();
           setDragActive(false);
-          if (uploading) return;
-
-          const files = event.dataTransfer.files;
-          if (files?.length) {
-            void handleBulkUpload(files);
-          }
+          if (!uploading && event.dataTransfer.files.length) prepareFiles(event.dataTransfer.files);
         }}
         className={`mt-5 rounded-card border-2 border-dashed p-5 transition ${
           dragActive ? "border-accent-blue bg-accent-blue/10" : "border-white/10 bg-bg-primary hover:border-white/20"
         } ${uploading ? "cursor-wait opacity-90" : "cursor-pointer"}`}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-white">
-              {uploading ? "Uploading directly to Cloudflare R2" : "Drag and drop logo files here"}
-            </p>
-            <p className="text-xs text-text-muted">
-              {uploading
-                ? `Processing ${activeUploadCount} of ${totalUploadCount} matched uploads`
-                : "Use the button to browse files instead."}
-            </p>
+          <div>
+            <p className="text-sm font-semibold text-white">Drag and drop logo files here</p>
+            <p className="mt-2 text-xs text-text-muted">Uploads run three at a time after you confirm the matches.</p>
           </div>
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              openFilePicker();
+              if (!uploading) inputRef.current?.click();
             }}
             disabled={uploading}
             className="btn-primary disabled:opacity-60"
           >
-            {uploading ? "Uploading Logos..." : "Choose Logo Files"}
+            Choose Logo Files
           </button>
         </div>
       </div>
 
-      {results.length > 0 && (
+      {results.length > 0 ? (
         <div className="mt-5 space-y-4">
-          <p role="status" aria-live="polite" className="sr-only">
-            {uploading
-              ? `Processing upload ${activeUploadCount} of ${totalUploadCount}.`
-              : `${uploadedCount} uploaded, ${queuedCount} queued, ${unmatchedCount} unmatched, and ${errorCount} failed.`}
-          </p>
           <div className="grid gap-3 sm:grid-cols-4">
             <div className="rounded-card border border-accent-green/20 bg-accent-green/10 px-4 py-3 text-sm text-accent-green">
               Uploaded: {uploadedCount}
             </div>
             <div className="rounded-card border border-accent-blue/20 bg-accent-blue/10 px-4 py-3 text-sm text-accent-blue">
-              In Queue: {queuedCount}
+              Ready: {queuedCount}
             </div>
             <div className="rounded-card border border-accent-yellow/20 bg-accent-yellow/10 px-4 py-3 text-sm text-accent-yellow">
-              Unmatched: {unmatchedCount}
+              Needs Review: {unmatchedCount}
             </div>
             <div className="rounded-card border border-bravoRed/20 bg-bravoRed/10 px-4 py-3 text-sm text-red-300">Errors: {errorCount}</div>
           </div>
 
-          <div className="max-h-96 overflow-auto rounded-card border border-white/10">
-            <table className="data-table min-w-full">
-              <caption className="sr-only">Bulk team logo upload progress and results</caption>
+          <div className="flex flex-wrap justify-end gap-3">
+            <button type="button" onClick={() => void uploadReady()} disabled={uploading || queuedCount === 0} className="btn-primary">
+              {uploading ? "Uploading..." : `Upload ${queuedCount} Ready Logo${queuedCount === 1 ? "" : "s"}`}
+            </button>
+          </div>
+
+          <div className="max-h-[34rem] overflow-auto rounded-card border border-white/10">
+            <table className="data-table min-w-[980px]">
+              <caption className="sr-only">Bulk team logo matching, upload progress, and results</caption>
               <thead>
                 <tr>
                   <th scope="col">Preview</th>
                   <th scope="col">File</th>
-                  <th scope="col">Matched Team</th>
+                  <th scope="col">Normalized</th>
+                  <th scope="col">Official Team</th>
+                  <th scope="col">Confidence</th>
                   <th scope="col">Progress</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Message</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -342,58 +372,106 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: Team[
                     <td>
                       <Image
                         src={result.previewUrl}
-                        alt={result.fileName}
+                        alt=""
                         width={48}
                         height={48}
                         unoptimized
-                        className="h-12 w-12 rounded-lg border border-white/10 object-cover"
+                        className="h-12 w-12 rounded-lg border border-white/10 object-contain"
                       />
                     </td>
-                    <td className="font-mono text-xs">{result.fileName}</td>
-                    <td>{result.teamName ?? "-"}</td>
-                    <td className="min-w-32">
-                      <div className="space-y-1">
-                        <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                          <div
-                            role="progressbar"
-                            aria-label={`${result.fileName} upload progress`}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-valuenow={result.progress}
-                            className={`h-full rounded-full transition-all ${
-                              result.status === "uploaded"
-                                ? "bg-accent-green"
-                                : result.status === "error" || result.status === "unmatched"
-                                  ? "bg-bravoRed"
-                                  : "bg-accent-blue"
-                            }`}
-                            style={{ width: `${result.progress}%` }}
-                          />
-                        </div>
-                        <p className="text-[11px] text-text-muted">{result.progress}%</p>
+                    <td>
+                      <p className="font-mono text-xs">{result.fileName}</p>
+                      <p className="mt-1 max-w-52 text-[11px] text-text-muted">{result.message}</p>
+                    </td>
+                    <td className="text-xs">{result.normalizedFileName || "—"}</td>
+                    <td>
+                      <select
+                        aria-label={`Official team for ${result.fileName}`}
+                        className="input-esports min-w-52"
+                        value={result.teamId ?? ""}
+                        disabled={!result.validationPassed || uploading || result.status === "uploaded" || result.status === "ignored"}
+                        onChange={(event) => selectTeam(result.id, event.target.value)}
+                      >
+                        <option value="">Select official team</option>
+                        {teams.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.name}
+                            {team.tag ? ` [${team.tag}]` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {!result.teamId && result.suggestedTeamName ? (
+                        <p className="mt-1 text-[11px] text-accent-yellow">Suggested: {result.suggestedTeamName}</p>
+                      ) : null}
+                      {result.alternatives.length ? (
+                        <p className="mt-1 max-w-56 text-[11px] text-text-muted">Alternatives: {result.alternatives.join(", ")}</p>
+                      ) : null}
+                    </td>
+                    <td>{result.confidence ? `${Math.round(result.confidence * 100)}%` : "—"}</td>
+                    <td className="min-w-28">
+                      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          role="progressbar"
+                          aria-label={`${result.fileName} upload progress`}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={result.progress}
+                          className={`h-full rounded-full ${
+                            result.status === "uploaded" ? "bg-accent-green" : result.status === "error" ? "bg-bravoRed" : "bg-accent-blue"
+                          }`}
+                          style={{ width: `${result.progress}%` }}
+                        />
                       </div>
                     </td>
-                    <td
-                      className={
-                        result.status === "uploaded"
-                          ? "text-accent-green"
-                          : result.status === "unmatched"
-                            ? "text-accent-yellow"
-                            : result.status === "error"
-                              ? "text-red-300"
-                              : "text-accent-blue"
-                      }
-                    >
-                      {result.status}
+                    <td className="text-xs uppercase">{result.status.replace("_", " ")}</td>
+                    <td>
+                      <div className="flex min-w-40 flex-wrap gap-2">
+                        {result.manualSelection && result.teamId && result.status !== "uploaded" ? (
+                          <button
+                            type="button"
+                            disabled={uploading || aliasSavingId === result.id}
+                            onClick={() => void saveAlias(result)}
+                            className="text-xs text-accent-blue hover:underline disabled:opacity-50"
+                          >
+                            {aliasSavingId === result.id ? "Saving..." : "Save Alias"}
+                          </button>
+                        ) : null}
+                        {result.status === "error" && result.teamId ? (
+                          <button
+                            type="button"
+                            disabled={uploading}
+                            onClick={() => void retry(result)}
+                            className="text-xs text-accent-green hover:underline disabled:opacity-50"
+                          >
+                            Retry
+                          </button>
+                        ) : null}
+                        {result.status !== "uploaded" && result.status !== "uploading" ? (
+                          <button
+                            type="button"
+                            disabled={uploading}
+                            onClick={() =>
+                              updateResult(result.id, {
+                                message: "Ignored by admin.",
+                                status: "ignored",
+                                teamId: undefined,
+                                teamName: undefined,
+                              })
+                            }
+                            className="text-xs text-text-muted hover:text-white disabled:opacity-50"
+                          >
+                            Ignore
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
-                    <td className="text-xs text-text-muted">{result.message}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,9 @@
 import { EmptyState, formatDateRange, formatNumber } from "@/components/pubg/PubgHubUI";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PlatformEvent, PlatformHubData, PlatformSponsorProfile } from "@/lib/platform-hub";
+import { canRegisterForPublicEvent } from "@/lib/public-event-policy";
+import { getCanonicalPublicEventHref } from "@/lib/public-links";
+import { resolveSponsorDestination, sponsorOpensInNewTab } from "@/lib/sponsor-links";
 import { ArrowRight, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -57,14 +60,14 @@ function eventStatusLabel(status: PlatformEvent["status"]) {
   }
 
   if (status === "planned") {
-    return "Registration Opening Soon";
+    return "Planned";
   }
 
   return "Upcoming";
 }
 
 function canRegisterForEvent(event: PlatformEvent) {
-  return event.state === "published" && event.status === "upcoming";
+  return canRegisterForPublicEvent(event);
 }
 
 function findSpotlightEvent(events: PlatformEvent[]) {
@@ -86,7 +89,7 @@ function eventSummaryText(event: PlatformEvent) {
     return event.summary.trim();
   }
 
-  return "Official Bravo Gaming Esports event board with registration guidance, schedule status, and policy links.";
+  return "Event details pending publication.";
 }
 
 function sponsorWordmark(name: string) {
@@ -223,7 +226,7 @@ function PubgLaunchSections({
     <>
       <section className="grid gap-4 xl:grid-cols-[1.14fr,0.86fr]">
         <div className="rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(10,18,34,0.96),rgba(7,11,21,0.98))] p-6 shadow-[0_20px_70px_rgba(0,0,0,0.28)]">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Launch Status</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Competition Data</p>
           <h2 className="mt-4 font-display text-3xl font-black uppercase text-white">{title}</h2>
           <p className="mt-4 max-w-3xl text-sm leading-8 text-text-secondary">{description}</p>
           <div className="mt-6">
@@ -265,7 +268,7 @@ function PubgLaunchSections({
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Link href={`/events/${spotlightEvent.slug}`} className="btn-secondary flex-1 justify-center">
+                <Link href={getCanonicalPublicEventHref(spotlightEvent)} className="btn-secondary flex-1 justify-center">
                   View Event
                 </Link>
                 {canRegisterForEvent(spotlightEvent) ? (
@@ -336,13 +339,12 @@ export function PubgHubLaunchPage({
 }) {
   const spotlightEvent = findSpotlightEvent(hub.events);
   const registrationOpen = Boolean(spotlightEvent && canRegisterForEvent(spotlightEvent));
-  const publishedEventCount = hub.events.filter((event) => event.state === "published").length;
 
   return (
     <main className="page-shell pb-14 pt-6">
       <div className="page-stack gap-5">
         <LaunchSurface
-          eyebrow="#1 PUBG PC Esports Platform In Nepal"
+          eyebrow="Bravo Gaming Esports"
           title="PUBG"
           description="Bravo's public PUBG hub is live for event access, policy links, and sponsor visibility. Official standings, teams, players, and match results will appear here once published data goes live."
           primaryAction={
@@ -383,11 +385,13 @@ export function PubgHubLaunchPage({
                   </div>
                   <div className="rounded-[18px] border border-white/[0.08] bg-black/20 p-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Teams</p>
-                    <p className="mt-2 text-sm text-white">{spotlightEvent.teamsCount > 0 ? `${formatNumber(spotlightEvent.teamsCount)} Teams` : "To be announced"}</p>
+                    <p className="mt-2 text-sm text-white">
+                      {spotlightEvent.teamsCount > 0 ? `${formatNumber(spotlightEvent.teamsCount)} Teams` : "Not tracked"}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-3">
-                  <Link href={`/events/${spotlightEvent.slug}`} className="btn-secondary flex-1 justify-center">
+                  <Link href={getCanonicalPublicEventHref(spotlightEvent)} className="btn-secondary flex-1 justify-center">
                     View Details
                   </Link>
                   {canRegisterForEvent(spotlightEvent) ? (
@@ -414,41 +418,34 @@ export function PubgHubLaunchPage({
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Official Partners</p>
             </div>
             <div className={joinClasses("mt-5 grid gap-4", partners.length === 1 ? "xl:grid-cols-1" : "md:grid-cols-2 xl:grid-cols-3")}>
-              {partners.map((partner) => (
-                <Link key={partner.id} href={`/sponsors/${partner.slug}`} className="transition hover:opacity-90">
-                  <SponsorWordmark sponsor={partner} compact />
-                </Link>
-              ))}
+              {partners.map((partner) => {
+                const destination = resolveSponsorDestination(partner);
+                const openInNewTab = sponsorOpensInNewTab(partner);
+                const wordmark = <SponsorWordmark sponsor={partner} compact />;
+                return destination ? (
+                  <a
+                    key={partner.id}
+                    href={destination}
+                    target={openInNewTab ? "_blank" : undefined}
+                    rel={openInNewTab ? "noopener noreferrer" : undefined}
+                    aria-label={`Visit ${partner.name} website${openInNewTab ? " (opens in a new tab)" : ""}`}
+                    className="transition hover:opacity-90"
+                  >
+                    {wordmark}
+                  </a>
+                ) : (
+                  <div key={partner.id}>{wordmark}</div>
+                );
+              })}
             </div>
           </section>
         ) : null}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(7,11,21,0.98))] p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Public Event Pages</p>
-            <p className="mt-3 font-display text-3xl font-black uppercase text-white">{formatNumber(publishedEventCount)}</p>
-          </div>
-          <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(7,11,21,0.98))] p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Official Partners</p>
-            <p className="mt-3 font-display text-3xl font-black uppercase text-white">{formatNumber(partners.length)}</p>
-          </div>
-          <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(7,11,21,0.98))] p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Registration Window</p>
-            <p className="mt-3 font-display text-2xl font-black uppercase text-white">
-              {registrationOpen ? "Open" : "No Open Event"}
-            </p>
-          </div>
-          <div className="rounded-[22px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(12,18,34,0.96),rgba(7,11,21,0.98))] p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Policy Links</p>
-            <p className="mt-3 font-display text-2xl font-black uppercase text-white">Ready</p>
-          </div>
-        </section>
-
         <PubgLaunchSections
-          title="Official PUBG standings and analytics are not published yet"
-          description="Instead of filling this page with repeated zero panels, Bravo keeps the public hub focused on registration, public event boards, sponsor visibility, and policy access until verified results are available."
-          featureTitle="No published PUBG result set yet"
-          featureDescription="Leaderboards, teams, players, and detailed match analytics will unlock automatically once the first verified public results are published."
+          title="Published PUBG results are pending"
+          description="Event information and registration links remain available while Bravo prepares the next verified results set."
+          featureTitle="No PUBG results are published"
+          featureDescription="Standings, teams, players, and match statistics will appear after verified results are published."
           spotlightEvent={spotlightEvent}
           quickLinks={[
             { href: "/rules", title: "Rules", description: "Review the public competition rules before the next registration window closes." },

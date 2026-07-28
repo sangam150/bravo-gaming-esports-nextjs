@@ -1,15 +1,15 @@
-import { DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectsCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { loadEnvConfig } from "@next/env";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 
 loadEnvConfig(process.cwd());
 
-export const DEMO_SEED_TAG = "bravo_demo_seed_2026";
-export const DEMO_SOURCE = "demo_seed";
-export const DEMO_R2_PREFIX = `demo/${DEMO_SEED_TAG}`;
-export const DEMO_MANIFEST_PATH = path.resolve(process.cwd(), "qa-artifacts", "demo-seed-records.json");
+const DEMO_SEED_TAG = "bravo_demo_seed_2026";
+const DEMO_SOURCE = "demo_seed";
+const DEMO_R2_PREFIX = `demo/${DEMO_SEED_TAG}`;
+const DEMO_MANIFEST_PATH = path.resolve(process.cwd(), "qa-artifacts", "demo-seed-records.json");
 
 const SINGLETON_DOCUMENTS = [
   { collectionName: "homepageContent", id: "main" },
@@ -62,12 +62,10 @@ type AppDocumentBackup = {
 
 type R2Config = {
   client: S3Client;
-  publicBaseUrl: string;
   publicBucketName: string;
-  publicDeliveryMode: "direct" | "proxy";
 };
 
-export type DemoManifest = {
+type DemoManifest = {
   createdAt: string;
   demoSeedTag: string;
   singletonBackups: {
@@ -77,7 +75,7 @@ export type DemoManifest = {
   uploadedObjectKeys: string[];
 };
 
-export type DemoCleanupSummary = {
+type DemoCleanupSummary = {
   appDocuments: number;
   days: number;
   eventTeams: number;
@@ -93,14 +91,6 @@ export type DemoCleanupSummary = {
   uploads: number;
 };
 
-export type DemoUploadedAsset = {
-  contentType: string;
-  fileName: string;
-  key: string;
-  sizeBytes: number;
-  url: string;
-};
-
 function getRequiredEnvironmentValue(name: string) {
   const value = process.env[name]?.trim();
   if (!value) {
@@ -110,38 +100,12 @@ function getRequiredEnvironmentValue(name: string) {
   return value;
 }
 
-function trimSlashes(value: string) {
-  return value.replace(/^\/+|\/+$/g, "");
-}
-
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/g, "");
 }
 
 function isObject(value: unknown): value is JsonObject {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-export function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
-export function formatDateOnly(value: Date) {
-  return value.toISOString().slice(0, 10);
-}
-
-export function addDays(value: Date, amount: number) {
-  const nextValue = new Date(value);
-  nextValue.setUTCDate(nextValue.getUTCDate() + amount);
-  return nextValue;
-}
-
-export function buildUuid(prefix: string, index: number) {
-  return `${prefix}-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
 }
 
 export function getSupabaseAdminClient() {
@@ -157,14 +121,13 @@ export function getSupabaseAdminClient() {
   );
 }
 
-export function getOptionalR2Config(): R2Config | null {
+function getOptionalR2Config(): R2Config | null {
   const accountId = process.env.R2_ACCOUNT_ID?.trim();
   const accessKeyId = process.env.R2_ACCESS_KEY_ID?.trim();
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY?.trim();
   const publicBucketName = process.env.R2_BUCKET_NAME?.trim();
-  const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL?.trim();
 
-  if (!accountId || !accessKeyId || !secretAccessKey || !publicBucketName || !publicBaseUrl) {
+  if (!accountId || !accessKeyId || !secretAccessKey || !publicBucketName) {
     return null;
   }
 
@@ -174,19 +137,8 @@ export function getOptionalR2Config(): R2Config | null {
       endpoint: trimTrailingSlash(process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`),
       region: "auto",
     }),
-    publicBaseUrl: trimTrailingSlash(publicBaseUrl),
     publicBucketName,
-    publicDeliveryMode: process.env.R2_PUBLIC_DELIVERY_MODE?.trim().toLowerCase() === "proxy" ? "proxy" : "direct",
   };
-}
-
-export function buildPublicAssetUrl(r2: R2Config, objectKey: string) {
-  const normalizedObjectKey = trimSlashes(objectKey);
-  if (r2.publicDeliveryMode === "proxy") {
-    return `/api/uploads/r2?key=${encodeURIComponent(normalizedObjectKey)}`;
-  }
-
-  return `${r2.publicBaseUrl}/${normalizedObjectKey}`;
 }
 
 function isDemoDocumentPayload(payload: unknown) {
@@ -197,21 +149,7 @@ function isDemoDocumentPayload(payload: unknown) {
   return payload.demo_seed_tag === DEMO_SEED_TAG || payload.source === DEMO_SOURCE || payload.is_demo === true;
 }
 
-function mapDocumentBackup(row: AppDocumentRow | null): AppDocumentBackup | null {
-  if (!row || !isObject(row.data) || isDemoDocumentPayload(row.data)) {
-    return null;
-  }
-
-  return {
-    collectionName: row.collection_name,
-    id: row.id,
-    data: row.data,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-export async function readDemoManifest(): Promise<DemoManifest | null> {
+async function readDemoManifest(): Promise<DemoManifest | null> {
   try {
     const rawValue = await readFile(DEMO_MANIFEST_PATH, "utf8");
     return JSON.parse(rawValue) as DemoManifest;
@@ -220,44 +158,11 @@ export async function readDemoManifest(): Promise<DemoManifest | null> {
   }
 }
 
-export async function writeDemoManifest(manifest: DemoManifest) {
-  await mkdir(path.dirname(DEMO_MANIFEST_PATH), { recursive: true });
-  await writeFile(DEMO_MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-}
-
-export async function deleteDemoManifest() {
+async function deleteDemoManifest() {
   await rm(DEMO_MANIFEST_PATH, { force: true });
 }
 
-export async function captureSingletonBackups(client: SupabaseAdminClient) {
-  const backups: DemoManifest["singletonBackups"] = {
-    homepageContent: null,
-    siteStats: null,
-  };
-
-  for (const documentRef of SINGLETON_DOCUMENTS) {
-    const { data, error } = await client
-      .from("app_documents")
-      .select("collection_name,id,data,created_at,updated_at")
-      .eq("collection_name", documentRef.collectionName)
-      .eq("id", documentRef.id)
-      .maybeSingle<AppDocumentRow>();
-
-    if (error) {
-      throw error;
-    }
-
-    if (documentRef.collectionName === "homepageContent") {
-      backups.homepageContent = mapDocumentBackup(data ?? null);
-    } else if (documentRef.collectionName === "siteStats") {
-      backups.siteStats = mapDocumentBackup(data ?? null);
-    }
-  }
-
-  return backups;
-}
-
-export async function upsertRowsInChunks(
+async function upsertRowsInChunks(
   client: SupabaseAdminClient,
   table: string,
   rows: JsonObject[],
@@ -279,7 +184,7 @@ export async function upsertRowsInChunks(
   }
 }
 
-export async function upsertAppDocuments(
+async function upsertAppDocuments(
   client: SupabaseAdminClient,
   rows: Array<{
     collectionName: string;
@@ -407,60 +312,6 @@ async function listR2ObjectKeysByPrefix(r2: R2Config | null, prefix: string) {
   } while (continuationToken);
 
   return objectKeys;
-}
-
-export async function uploadDemoSvgAsset(
-  r2: R2Config | null,
-  input: {
-    fileName: string;
-    folder: string;
-    label: string;
-    accentColor: string;
-    backgroundColor: string;
-    detailColor?: string;
-  },
-): Promise<DemoUploadedAsset | null> {
-  if (!r2) {
-    return null;
-  }
-
-  const normalizedFileName = `${slugify(input.fileName)}.svg`;
-  const objectKey = `${DEMO_R2_PREFIX}/${trimSlashes(input.folder)}/${normalizedFileName}`;
-  const svgMarkup = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="${input.backgroundColor}" />
-      <stop offset="100%" stop-color="${input.detailColor ?? "#08101f"}" />
-    </linearGradient>
-  </defs>
-  <rect width="1280" height="720" rx="48" fill="url(#bg)" />
-  <circle cx="214" cy="188" r="128" fill="${input.accentColor}" fill-opacity="0.18" />
-  <circle cx="1090" cy="584" r="148" fill="${input.accentColor}" fill-opacity="0.22" />
-  <rect x="96" y="98" width="1088" height="524" rx="36" fill="none" stroke="${input.accentColor}" stroke-opacity="0.5" stroke-width="8" />
-  <text x="96" y="210" fill="#f8fafc" font-family="Arial, sans-serif" font-size="56" font-weight="700">${input.label}</text>
-  <text x="96" y="286" fill="${input.accentColor}" font-family="Arial, sans-serif" font-size="26" font-weight="700" letter-spacing="4">BRAVO DEMO SEED</text>
-  <text x="96" y="344" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="24">Launch preview placeholder uploaded to R2</text>
-</svg>`;
-  const body = Buffer.from(svgMarkup, "utf8");
-
-  await r2.client.send(
-    new PutObjectCommand({
-      Body: body,
-      Bucket: r2.publicBucketName,
-      CacheControl: "public, max-age=31536000, immutable",
-      ContentType: "image/svg+xml",
-      Key: objectKey,
-    }),
-  );
-
-  return {
-    contentType: "image/svg+xml",
-    fileName: normalizedFileName,
-    key: objectKey,
-    sizeBytes: body.byteLength,
-    url: buildPublicAssetUrl(r2, objectKey),
-  };
 }
 
 export async function clearDemoData(client: SupabaseAdminClient, options: { log?: (message: string) => void } = {}) {

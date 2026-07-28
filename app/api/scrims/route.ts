@@ -1,10 +1,10 @@
 import { getScrimDayResults, getScrims } from "@/lib/data";
-import { toPublicScrim, toPublicScrimDayResult } from "@/lib/public-scrims";
+import { selectPublicScrimDays, selectPublicScrims, toPublicScrim } from "@/lib/public-scrims";
 
 export async function GET() {
   const [scrims, scrimDays] = await Promise.all([getScrims(), getScrimDayResults()]);
-  const data = scrims.map(toPublicScrim);
-  const days = scrimDays.map(toPublicScrimDayResult);
+  const data = selectPublicScrims(scrims).map(toPublicScrim);
+  const days = selectPublicScrimDays(scrimDays);
 
   return Response.json({
     success: true,

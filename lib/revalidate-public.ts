@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
 
+export const HOMEPAGE_REVALIDATION_PATHS = ["/", "/events", "/news", "/media", "/sponsors", "/pubg"] as const;
+
 function revalidateMany(paths: Array<string | null | undefined>) {
   for (const path of new Set(paths.filter((value): value is string => Boolean(value)))) {
     revalidatePath(path);
@@ -17,9 +19,22 @@ export function revalidateGamePaths(slug?: string | null) {
   revalidateLayouts(["/games"]);
 }
 
+export function revalidateHomepagePaths() {
+  revalidateMany([...HOMEPAGE_REVALIDATION_PATHS]);
+  revalidateLayouts(["/"]);
+}
+
 export function revalidatePlatformEventPaths(slug?: string | null) {
-  revalidateMany(["/", "/events", "/calendar", "/matches", slug ? `/events/${slug}` : null]);
-  revalidateLayouts(["/events", "/calendar", "/matches"]);
+  revalidateMany([
+    "/",
+    "/events",
+    "/pubg/events",
+    "/calendar",
+    "/matches",
+    slug ? `/events/${slug}` : null,
+    slug ? `/pubg/events/${slug}` : null,
+  ]);
+  revalidateLayouts(["/events", "/pubg/events", "/calendar", "/matches"]);
 }
 
 export function revalidatePlatformMediaPaths(slug?: string | null) {
@@ -93,6 +108,16 @@ export function revalidateCompetitionPaths(matchId?: string | null) {
 export function revalidateTeamPaths(teamId?: string | null) {
   revalidateMany(["/", "/teams", "/pubg/teams", teamId ? `/teams/${teamId}` : null, teamId ? `/pubg/teams/${teamId}` : null]);
   revalidateLayouts(["/teams", "/pubg"]);
+}
+
+export function revalidateTeamAssetPaths(teamId?: string | null, teamSlug?: string | null) {
+  revalidateTeamPaths(teamId);
+  if (teamSlug && teamSlug !== teamId) {
+    revalidateTeamPaths(teamSlug);
+  }
+  revalidateCompetitionPaths();
+  revalidateMany(["/events", "/pubg/events", "/pubg/leaderboards", "/leaderboard", "/rankings"]);
+  revalidateLayouts(["/events", "/pubg/events", "/pubg/leaderboards", "/leaderboard", "/rankings"]);
 }
 
 export function revalidatePlayerPaths(playerId?: string | null) {

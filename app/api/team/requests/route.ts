@@ -1,10 +1,13 @@
 import { requireTeamWorkspaceUser } from "@/lib/admin-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
 import { createTeamRosterRequest } from "@/lib/team-workspace";
 import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 
 export async function POST(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
   const limited = await enforceRateLimit(request, {
     key: "team-roster-request",
     maxRequests: 12,

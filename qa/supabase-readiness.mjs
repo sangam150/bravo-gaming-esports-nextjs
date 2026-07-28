@@ -64,8 +64,11 @@ const LAUNCH_COMPATIBILITY_TABLES = [
   "media",
   "homepage_content",
   "contact_messages",
+  "news_articles",
   "site_settings",
 ];
+
+const PROTECTED_RAW_RESOURCES = new Set(["app_documents", "homepage_content", "contact_messages", "news_articles"]);
 
 const DOCUMENT_STORE_COLLECTIONS = [
   "seasons",
@@ -186,14 +189,39 @@ async function safeJsonRequest(url, apiKey, label) {
   }
 }
 
+function createSkippedTableCheck(tableName) {
+  const expectsPublicDenial = PROTECTED_RAW_RESOURCES.has(tableName);
+
+  return {
+    table: tableName,
+    status: "SKIPPED",
+    ok: false,
+    present: false,
+    secured: expectsPublicDenial ? false : null,
+    expectsPublicDenial,
+    publicAccess: "not-checked",
+    missingFromSchemaCache: false,
+  };
+}
+
 async function checkTable(baseUrl, apiKey, tableName) {
-  const result = await safeJsonRequest(`${baseUrl}/rest/v1/${tableName}?select=*&limit=1`, apiKey, `table:${tableName}`);
+  const expectsPublicDenial = PROTECTED_RAW_RESOURCES.has(tableName);
+  const result = await safeJsonRequest(`${baseUrl}/rest/v1/${tableName}?select=id&limit=0`, apiKey, `table:${tableName}`);
+  const accessDenied = result.status === 401 || result.status === 403;
+  const missingFromSchemaCache =
+    typeof result.bodyPreview === "string" && result.bodyPreview.includes("Could not find the table");
+  const present = !missingFromSchemaCache && (result.ok || accessDenied);
+  const secured = expectsPublicDenial ? accessDenied : null;
 
   return {
     table: tableName,
     status: result.status,
-    ok: result.ok,
-    missingFromSchemaCache: typeof result.bodyPreview === "string" && result.bodyPreview.includes("Could not find the table"),
+    ok: expectsPublicDenial ? secured : result.ok,
+    present,
+    secured,
+    expectsPublicDenial,
+    publicAccess: result.ok ? "allowed" : accessDenied ? "denied" : "unavailable",
+    missingFromSchemaCache,
   };
 }
 
@@ -233,24 +261,14 @@ async function main() {
       APP_CRITICAL_TABLES.map((tableName) =>
         supabaseUrl && restPublicKey
           ? checkTable(supabaseUrl, restPublicKey, tableName)
-          : Promise.resolve({
-              table: tableName,
-              status: "SKIPPED",
-              ok: false,
-              missingFromSchemaCache: false,
-            }),
+          : Promise.resolve(createSkippedTableCheck(tableName)),
       ),
     ),
     Promise.all(
       LAUNCH_COMPATIBILITY_TABLES.map((tableName) =>
         supabaseUrl && restPublicKey
           ? checkTable(supabaseUrl, restPublicKey, tableName)
-          : Promise.resolve({
-              table: tableName,
-              status: "SKIPPED",
-              ok: false,
-              missingFromSchemaCache: false,
-            }),
+          : Promise.resolve(createSkippedTableCheck(tableName)),
       ),
     ),
   ]);
@@ -258,6 +276,8 @@ async function main() {
   const requiredBucketGroups = evaluateBucketGroups(existingBuckets, REQUIRED_BUCKET_GROUPS);
   const recommendedBucketGroups = evaluateBucketGroups(existingBuckets, RECOMMENDED_LAUNCH_BUCKET_GROUPS);
   const serviceRoleKeyShape = getJwtShape(serviceRoleKey);
+  const tableChecks = [...criticalTables, ...launchCompatibilityTables];
+  const protectedRawResources = tableChecks.filter((table) => table.expectsPublicDenial);
 
   const summary = {
     generatedAt: new Date().toISOString(),
@@ -295,13 +315,17 @@ async function main() {
     },
     schema: {
       criticalTables,
-      missingCriticalTables: criticalTables.filter((table) => !table.ok).map((table) => table.table),
+      missingCriticalTables: criticalTables.filter((table) => !table.present).map((table) => table.table),
+      unreadyCriticalTables: criticalTables.filter((table) => !table.ok).map((table) => table.table),
       launchCompatibilityTables,
-      missingLaunchCompatibilityTables: launchCompatibilityTables.filter((table) => !table.ok).map((table) => table.table),
+      missingLaunchCompatibilityTables: launchCompatibilityTables.filter((table) => !table.present).map((table) => table.table),
+      unreadyLaunchCompatibilityTables: launchCompatibilityTables.filter((table) => !table.ok).map((table) => table.table),
+      protectedRawResources,
+      unsecuredRawResources: protectedRawResources.filter((table) => !table.secured).map((table) => table.table),
       documentStoreCollections: DOCUMENT_STORE_COLLECTIONS,
       documentStoreTableReady: criticalTables.some((table) => table.table === "app_documents" && table.ok),
       documentStoreNote:
-        "Homepage content, news articles, contact messages, media records, platform pages, and several admin-managed entities live inside app_documents collections rather than dedicated SQL tables.",
+        "Document-store collections are intentionally unavailable through public REST. Server/service access and RLS-authorized admin access remain available.",
     },
   };
 

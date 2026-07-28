@@ -1,5 +1,14 @@
 import { getAnnouncements } from "@/lib/data";
+import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = buildContentMetadata({
+  title: "Community Announcements | Bravo Gaming Esports",
+  description: "Read published Bravo Gaming Esports community notices, event updates, and tournament announcements.",
+  path: "/community/announcements",
+  type: "website",
+});
 
 export default async function CommunityAnnouncementsPage() {
   const announcements = await getAnnouncements();
@@ -25,7 +34,7 @@ export default async function CommunityAnnouncementsPage() {
 
         {announcements.length === 0 ? (
           <div className="mt-10 rounded-[28px] border border-dashed border-white/10 bg-slate-950/80 p-8 text-center text-sm text-text-muted">
-            Community announcements will appear here after they are published from admin.
+            Official community announcements will appear here when they are ready.
           </div>
         ) : (
           <div className="mt-10 space-y-6">

@@ -1,4 +1,5 @@
 import Footer from "@/components/Footer";
+import JsonLd from "@/components/JsonLd";
 import SiteHeader from "@/components/SiteHeader";
 import { MotionObserver, RouteTransition } from "@/components/ui/MotionSystem";
 import { getSiteUrl } from "@/lib/site";
@@ -52,17 +53,15 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: "Bravo Gaming Esports",
   title: {
-    default: "Bravo Gaming Esports | Nepal's Premier Esports Platform",
+    default: "Bravo Gaming Esports | Nepal Esports Events and Results",
     template: "%s | Bravo Gaming Esports",
   },
   description:
-    "Bravo Gaming Esports is Nepal's premier esports platform for games, events, matches, teams, players, rankings, media, sponsors, and community coverage.",
+    "Follow published Bravo Gaming Esports events, match results, teams, players, rankings, media, sponsors, and community updates from Nepal.",
   keywords: [
     "Bravo Gaming Esports",
     "Nepal esports",
     "PUBG PC Nepal",
-    "Valorant Nepal",
-    "CS2 Nepal",
     "esports tournaments Nepal",
     "Nepal esports rankings",
     "Bravo Gaming live stream",
@@ -75,9 +74,9 @@ export const metadata: Metadata = {
     type: "website",
     url: siteUrl,
     siteName: "Bravo Gaming Esports",
-    title: "Bravo Gaming Esports | Nepal's Premier Esports Platform",
+    title: "Bravo Gaming Esports | Nepal Esports Events and Results",
     description:
-      "Follow games, events, matches, teams, players, rankings, media, sponsors, and community coverage from Nepal's premier esports platform.",
+      "Follow published Bravo esports events, results, teams, players, rankings, media, sponsors, and community updates from Nepal.",
     images: [
       {
         url: "/images/bravo-logo.png",
@@ -89,9 +88,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bravo Gaming Esports | Nepal's Premier Esports Platform",
+    title: "Bravo Gaming Esports | Nepal Esports Events and Results",
     description:
-      "Follow games, events, matches, teams, players, rankings, media, sponsors, and community coverage from Nepal's premier esports platform.",
+      "Follow published Bravo esports events, results, teams, players, rankings, media, sponsors, and community updates from Nepal.",
     images: ["/images/bravo-logo.png"],
   },
   robots: {
@@ -113,7 +112,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} flex min-h-screen flex-col overflow-x-hidden bg-bg-primary font-body text-white antialiased`}
       >
-        <script type="application/ld+json" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+        <JsonLd data={structuredData} />
         <a
           href="#main-content"
           className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-white px-4 py-2 font-semibold text-bg-primary shadow-lg transition-transform focus:translate-y-0 focus:outline-none focus:ring-2 focus:ring-accent-cyan focus:ring-offset-2 focus:ring-offset-bg-primary"

@@ -1,6 +1,6 @@
 import { requireAuthenticatedUser } from "@/lib/admin-auth";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
-import { getManagedUploadRecord, getPrivateObject, isR2ObjectMissingError, toReadableStream } from "@/lib/r2/storage";
+import { getManagedUploadRecord, getPrivateObject, isR2ObjectMissingError, readObjectBodyAsBuffer } from "@/lib/r2/storage";
 import { logServerError } from "@/lib/server-monitoring";
 import { getUploadVisibility, normalizeUploadType } from "@/lib/upload-config";
 import { jsonErrorResponse } from "@/lib/user-facing-errors";
@@ -45,9 +45,9 @@ export async function GET(request: Request, { params }: RouteContext) {
     }
 
     const object = await getPrivateObject(uploadRecord.filePath);
-    const stream = toReadableStream(object.Body);
+    const body = await readObjectBodyAsBuffer(object.Body);
 
-    if (!stream) {
+    if (!body) {
       return Response.json({ error: "Upload not found." }, { status: 404 });
     }
 
@@ -55,15 +55,13 @@ export async function GET(request: Request, { params }: RouteContext) {
     headers.set("Cache-Control", "private, no-store");
     headers.set("Content-Type", object.ContentType ?? uploadRecord.contentType ?? "application/octet-stream");
 
-    if (typeof object.ContentLength === "number") {
-      headers.set("Content-Length", String(object.ContentLength));
-    }
+    headers.set("Content-Length", String(body.byteLength));
 
     if (uploadRecord.fileName) {
       headers.set("Content-Disposition", `inline; filename="${sanitizeFileName(uploadRecord.fileName)}"`);
     }
 
-    return new Response(stream as unknown as BodyInit, { headers });
+    return new Response(new Uint8Array(body), { headers });
   } catch (error: unknown) {
     if (isR2ObjectMissingError(error)) {
       return Response.json({ error: "Upload not found." }, { status: 404 });

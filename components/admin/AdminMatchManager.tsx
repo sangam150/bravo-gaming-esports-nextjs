@@ -3,6 +3,7 @@
 import { adminFetch } from "@/lib/admin-api";
 import { scheduleEffectTask } from "@/lib/effect-task";
 import { compareMatchPlayerResults, compareMatchSequenceOrder, compareMatchTeamResults } from "@/lib/ranking-sort";
+import { slugify } from "@/lib/slug-utils";
 import type { MatchPlayerResult, Scrim, TeamMatchResult, Tournament, TournamentMatch } from "@/lib/types";
 import {
   getUserFacingPlayerLabel,
@@ -105,14 +106,6 @@ const defaultBulkForm: BulkMatchFormState = {
   vodUrl: "",
   sourceUrl: "",
 };
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 function toFiniteNumber(value: string | number | undefined, fallback = 0) {
   const numericValue = typeof value === "number" ? value : Number(value);

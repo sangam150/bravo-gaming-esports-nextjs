@@ -476,8 +476,10 @@ export default function ComparePageClient({
   initialSideB,
   initialWindow = "30",
 }: ComparePageClientProps) {
-  const defaultTeams = dataset.teams.slice(0, 2);
-  const defaultPlayers = dataset.players.slice(0, 2);
+  const comparableTeams = dataset.teams.filter((team) => team.statsTracked);
+  const comparablePlayers = dataset.players.filter((player) => player.statsTracked);
+  const defaultTeams = comparableTeams.slice(0, 2);
+  const defaultPlayers = comparablePlayers.slice(0, 2);
 
   const [mode, setMode] = useState<CompareMode>(initialMode);
   const [windowMode, setWindowMode] = useState<WindowMode>(initialWindow);
@@ -499,10 +501,10 @@ export default function ComparePageClient({
     firstValue.localeCompare(secondValue),
   );
 
-  const firstTeam = mode === "teams" ? (dataset.teams.find((team) => team.id === teamSideA) ?? null) : null;
-  const secondTeam = mode === "teams" ? (dataset.teams.find((team) => team.id === teamSideB) ?? null) : null;
-  const firstPlayer = mode === "players" ? (dataset.players.find((player) => player.id === playerSideA) ?? null) : null;
-  const secondPlayer = mode === "players" ? (dataset.players.find((player) => player.id === playerSideB) ?? null) : null;
+  const firstTeam = mode === "teams" ? (comparableTeams.find((team) => team.id === teamSideA) ?? null) : null;
+  const secondTeam = mode === "teams" ? (comparableTeams.find((team) => team.id === teamSideB) ?? null) : null;
+  const firstPlayer = mode === "players" ? (comparablePlayers.find((player) => player.id === playerSideA) ?? null) : null;
+  const secondPlayer = mode === "players" ? (comparablePlayers.find((player) => player.id === playerSideB) ?? null) : null;
 
   const firstTeamSummary = firstTeam ? buildTeamSummary(filteredMatches, firstTeam) : null;
   const secondTeamSummary = secondTeam ? buildTeamSummary(filteredMatches, secondTeam) : null;
@@ -715,7 +717,7 @@ export default function ComparePageClient({
                   onChange={(event) => setTeamSideA(event.target.value)}
                   className="input-esports h-11"
                 >
-                  {dataset.teams.map((team) => (
+                  {comparableTeams.map((team) => (
                     <option key={team.id} value={team.id}>
                       {team.name}
                     </option>
@@ -727,7 +729,7 @@ export default function ComparePageClient({
                   onChange={(event) => setTeamSideB(event.target.value)}
                   className="input-esports h-11"
                 >
-                  {dataset.teams.map((team) => (
+                  {comparableTeams.map((team) => (
                     <option key={team.id} value={team.id}>
                       {team.name}
                     </option>
@@ -742,7 +744,7 @@ export default function ComparePageClient({
                   onChange={(event) => setPlayerSideA(event.target.value)}
                   className="input-esports h-11"
                 >
-                  {dataset.players.map((player) => (
+                  {comparablePlayers.map((player) => (
                     <option key={player.id} value={player.id}>
                       {player.pubgName}
                     </option>
@@ -754,7 +756,7 @@ export default function ComparePageClient({
                   onChange={(event) => setPlayerSideB(event.target.value)}
                   className="input-esports h-11"
                 >
-                  {dataset.players.map((player) => (
+                  {comparablePlayers.map((player) => (
                     <option key={player.id} value={player.id}>
                       {player.pubgName}
                     </option>

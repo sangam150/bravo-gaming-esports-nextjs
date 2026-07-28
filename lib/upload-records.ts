@@ -80,3 +80,87 @@ export async function getRecentUploadRecords(limit = 10) {
 
   return (data ?? []).map((row) => toUploadRecord(row as UploadRow));
 }
+
+export async function claimUploadRecordForEntity(input: {
+  id: string;
+  relatedType: string;
+  relatedId: string;
+  filePath: string;
+  fileUrl: string;
+}) {
+  const relatedId = toNullableUuid(input.relatedId);
+  if (!relatedId) {
+    throw new Error("A valid entity ID is required to claim an upload.");
+  }
+
+  const client = getSupabaseServiceRoleClient();
+  const { data, error } = await client
+    .from("uploads")
+    .update({ related_id: relatedId })
+    .eq("id", input.id)
+    .eq("related_type", input.relatedType)
+    .eq("file_path", input.filePath)
+    .eq("file_url", input.fileUrl)
+    .is("related_id", null)
+    .select("id,file_url,file_path,file_type,related_type,related_id,uploaded_by,file_name,content_type,size_bytes,created_at")
+    .maybeSingle<UploadRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? toUploadRecord(data) : null;
+}
+
+export async function releaseUploadRecordEntityClaim(input: { id: string; relatedType: string; relatedId: string }) {
+  const relatedId = toNullableUuid(input.relatedId);
+  if (!relatedId) {
+    return false;
+  }
+
+  const client = getSupabaseServiceRoleClient();
+  const { data, error } = await client
+    .from("uploads")
+    .update({ related_id: null })
+    .eq("id", input.id)
+    .eq("related_type", input.relatedType)
+    .eq("related_id", relatedId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return Boolean(data);
+}
+
+export async function listPendingRegistrationLogoUploadRecords(registrationId: string) {
+  const relatedId = toNullableUuid(registrationId);
+  if (!relatedId) {
+    return [];
+  }
+
+  const client = getSupabaseServiceRoleClient();
+  const { data, error } = await client
+    .from("uploads")
+    .select("id,file_url,file_path,file_type,related_type,related_id,uploaded_by,file_name,content_type,size_bytes,created_at")
+    .eq("related_type", "team_registration")
+    .eq("related_id", relatedId)
+    .eq("file_type", "team_logo_pending")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map((row) => toUploadRecord(row as UploadRow));
+}
+
+export async function deleteUploadRecord(id: string) {
+  const client = getSupabaseServiceRoleClient();
+  const { error } = await client.from("uploads").delete().eq("id", id);
+  if (error) {
+    throw error;
+  }
+}

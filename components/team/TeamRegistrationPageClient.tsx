@@ -307,8 +307,7 @@ export default function TeamRegistrationPageClient({
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-sm text-slate-300">
-              Choose an open Bravo event by name below, or keep the form on the general Bravo review queue if you need manual placement
-              during launch prep.
+              Choose an open Bravo event below, or submit a general registration for Bravo to review.
             </div>
           )}
 
@@ -497,12 +496,11 @@ export default function TeamRegistrationPageClient({
               Join Discord
             </a>
             <Link href="/contact" className="btn-secondary w-full justify-center sm:w-auto">
-              Contact Admin
+              Contact Bravo
             </Link>
           </div>
           <p className="text-xs text-slate-500">
-            Registration fallback: if no public event is open or you need manual help, submit here first and Bravo will continue the
-            conversation through Discord or your contact details.
+            If no public event is open, a general registration lets Bravo contact you about a suitable future event.
           </p>
         </form>
       </div>

@@ -5,6 +5,7 @@ import { scheduleEffectTask } from "@/lib/effect-task";
 import { buildFallbackTeamNameFromSlot, parseBravoSlotNumber, resolveBravoTeamIdentity } from "@/lib/bravo-teams";
 import { formatDisplayDateTime } from "@/lib/display-format";
 import { compareMatchPlayerResults, compareMatchTeamResults } from "@/lib/ranking-sort";
+import { slugify } from "@/lib/slug-utils";
 import type {
   MatchPlayerResult,
   PubgBulkImportResult,
@@ -109,13 +110,6 @@ function normalizeMapRotation(value?: string) {
     .split(/[\n,]+/g)
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }
 
 function buildSeasonDraft(seasonNumber: number): SeasonDraft {

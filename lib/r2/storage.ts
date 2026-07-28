@@ -9,19 +9,33 @@ import {
   STORAGE_TARGET_BY_TYPE,
   type UploadType,
 } from "@/lib/upload-config";
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, type GetObjectCommandOutput } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  type GetObjectCommandOutput,
+} from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import { Readable } from "stream";
 import { getR2Client, getR2PrivateBucketName, getR2PublicBaseUrl, getR2PublicBucketName, getR2PublicDeliveryMode } from "./client";
-import type { BuildStoragePathResult, ManagedUploadRecord, PresignedUploadResult, StorageVisibility } from "./types";
+import type { BuildStoragePathResult, ManagedUploadRecord, StorageVisibility } from "./types";
 
 function trimSlashes(value: string) {
   return value.replace(/^\/+|\/+$/g, "");
 }
 
 function normalizeObjectKey(objectKey: string) {
-  return trimSlashes(objectKey);
+  const normalized = trimSlashes(objectKey);
+  if (
+    !normalized ||
+    normalized.includes("\\") ||
+    /[\u0000-\u001f\u007f]/.test(normalized) ||
+    normalized.split("/").some((segment) => segment === "." || segment === "..")
+  ) {
+    throw new Error("Invalid managed storage object key.");
+  }
+  return normalized;
 }
 
 function getBucketName(visibility: StorageVisibility) {
@@ -35,6 +49,10 @@ function getObjectCacheControl(visibility: StorageVisibility) {
 function parseSupabasePublicUrl(url: string) {
   try {
     const parsedUrl = new URL(url);
+    const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    if (!configuredSupabaseUrl || parsedUrl.origin !== new URL(configuredSupabaseUrl).origin) {
+      return null;
+    }
     const marker = "/storage/v1/object/public/";
     const markerIndex = parsedUrl.pathname.indexOf(marker);
 
@@ -60,7 +78,10 @@ function parseSupabasePublicUrl(url: string) {
 
 function parseManagedPrivateUploadId(url: string) {
   try {
-    const parsedUrl = new URL(url, "http://localhost");
+    if (!url.startsWith("/") || url.startsWith("//")) {
+      return null;
+    }
+    const parsedUrl = new URL(url, "http://internal.invalid");
     const match = parsedUrl.pathname.match(/^\/api\/uploads\/private\/([^/]+)$/);
     return match?.[1] ? decodeURIComponent(match[1]) : null;
   } catch {
@@ -71,7 +92,7 @@ function parseManagedPrivateUploadId(url: string) {
 function parseManagedPublicObjectKey(url: string) {
   try {
     const baseUrl = new URL(getR2PublicBaseUrl());
-    const parsedUrl = new URL(url, baseUrl);
+    const parsedUrl = new URL(url);
     if (parsedUrl.origin !== baseUrl.origin) {
       return null;
     }
@@ -92,6 +113,23 @@ function parseManagedPublicObjectKey(url: string) {
     }
 
     return targetPath.slice(basePath.length + 1) || null;
+  } catch {
+    return null;
+  }
+}
+
+function parseManagedPublicProxyObjectKey(url: string) {
+  try {
+    if (!url.startsWith("/") || url.startsWith("//")) {
+      return null;
+    }
+    const parsedUrl = new URL(url, "http://internal.invalid");
+    if (parsedUrl.pathname !== "/api/uploads/r2") {
+      return null;
+    }
+
+    const objectKey = parsedUrl.searchParams.get("key");
+    return objectKey ? normalizeObjectKey(objectKey) : null;
   } catch {
     return null;
   }
@@ -144,7 +182,7 @@ async function deleteLegacySupabaseObject(bucketName: string, filePath: string) 
   }
 }
 
-function buildPublicFileUrl(objectKey: string) {
+export function buildPublicFileUrl(objectKey: string) {
   const normalizedObjectKey = normalizeObjectKey(objectKey);
 
   if (getR2PublicDeliveryMode() === "proxy") {
@@ -192,31 +230,32 @@ async function uploadObjectToR2(input: {
   );
 }
 
-export async function uploadPublicFile(
-  type: UploadType,
-  entityId: string,
-  filename: string,
-  body: Buffer,
-  contentType: string,
-): Promise<BuildStoragePathResult & { url: string; visibility: "public" }> {
-  const storagePath = buildStoragePath(type, entityId, filename);
-
-  if (storagePath.visibility !== "public") {
-    throw new Error(`Upload type ${type} is not configured for the public R2 bucket.`);
-  }
-
+export async function uploadPublicObjectAtKey(objectKey: string, body: Buffer, contentType: string) {
+  const normalizedObjectKey = normalizeObjectKey(objectKey);
   await uploadObjectToR2({
     body,
-    bucket: storagePath.bucket,
+    bucket: getR2PublicBucketName(),
     contentType,
-    objectKey: storagePath.path,
-    visibility: storagePath.visibility,
-  });
-
-  return {
-    ...storagePath,
+    objectKey: normalizedObjectKey,
     visibility: "public",
-    url: buildPublicFileUrl(storagePath.path),
+  });
+  return {
+    path: normalizedObjectKey,
+    url: buildPublicFileUrl(normalizedObjectKey),
+  };
+}
+
+export async function uploadPrivateObjectAtKey(objectKey: string, body: Buffer, contentType: string) {
+  const normalizedObjectKey = normalizeObjectKey(objectKey);
+  await uploadObjectToR2({
+    body,
+    bucket: getR2PrivateBucketName(),
+    contentType,
+    objectKey: normalizedObjectKey,
+    visibility: "private",
+  });
+  return {
+    path: normalizedObjectKey,
   };
 }
 
@@ -256,6 +295,155 @@ async function deleteObjectFromR2(visibility: StorageVisibility, objectKey: stri
   );
 }
 
+export async function deletePublicObjectByKey(objectKey: string) {
+  await deleteObjectFromR2("public", normalizeObjectKey(objectKey));
+}
+
+export async function deletePrivateObjectByKey(objectKey: string) {
+  await deleteObjectFromR2("private", normalizeObjectKey(objectKey));
+}
+
+async function verifyObject(
+  visibility: StorageVisibility,
+  objectKey: string,
+  expected: {
+    contentType?: string;
+    sizeBytes?: number;
+  } = {},
+) {
+  const response = await getR2Client().send(
+    new HeadObjectCommand({
+      Bucket: getBucketName(visibility),
+      Key: normalizeObjectKey(objectKey),
+    }),
+  );
+  if (typeof expected.sizeBytes === "number" && response.ContentLength !== expected.sizeBytes) {
+    throw new Error("The uploaded file size could not be verified.");
+  }
+  if (expected.contentType && normalizedContentType(response.ContentType) !== normalizedContentType(expected.contentType)) {
+    throw new Error("The uploaded file content type could not be verified.");
+  }
+  return response;
+}
+
+async function verifyPublicObject(
+  objectKey: string,
+  expected: {
+    contentType?: string;
+    sizeBytes?: number;
+  } = {},
+) {
+  return verifyObject("public", objectKey, expected);
+}
+
+export async function verifyPrivateObject(
+  objectKey: string,
+  expected: {
+    contentType?: string;
+    sizeBytes?: number;
+  } = {},
+) {
+  return verifyObject("private", objectKey, expected);
+}
+
+function normalizedContentType(value: string | null | undefined) {
+  return value?.split(";", 1)[0]?.trim().toLowerCase() ?? null;
+}
+
+export function assertPublicObjectDelivery(
+  delivered: {
+    contentType?: string | null;
+    sizeBytes: number;
+  },
+  expected: {
+    contentType?: string;
+    sizeBytes?: number;
+  } = {},
+) {
+  if (typeof expected.sizeBytes === "number" && delivered.sizeBytes !== expected.sizeBytes) {
+    throw new Error("The delivered image size could not be verified.");
+  }
+  if (expected.contentType && normalizedContentType(delivered.contentType) !== normalizedContentType(expected.contentType)) {
+    throw new Error("The delivered image content type could not be verified.");
+  }
+}
+
+async function fetchDeliveredPublicObject(objectKey: string) {
+  const response = await fetch(buildPublicFileUrl(objectKey), {
+    cache: "no-store",
+    headers: {
+      Accept: "image/avif,image/webp,image/png,image/jpeg,*/*",
+    },
+    redirect: "error",
+  });
+  if (!response.ok) {
+    throw new Error("The uploaded image is not available from the configured public delivery URL.");
+  }
+  return {
+    body: Buffer.from(await response.arrayBuffer()),
+    contentType: response.headers.get("content-type"),
+  };
+}
+
+/**
+ * Verifies both the stored R2 object and the path users will actually load.
+ * Proxy delivery uses the same GetObject adapter as `/api/uploads/r2`; direct
+ * delivery performs a real request against the configured public base URL.
+ */
+export async function verifyPublicObjectDelivery(
+  objectKey: string,
+  expected: {
+    contentType?: string;
+    sizeBytes?: number;
+  } = {},
+) {
+  const normalizedObjectKey = normalizeObjectKey(objectKey);
+  await verifyPublicObject(normalizedObjectKey, expected);
+
+  if (getR2PublicDeliveryMode() === "proxy") {
+    const object = await getPublicObject(normalizedObjectKey);
+    const body = await readObjectBodyAsBuffer(object.Body);
+    if (!body) {
+      throw new Error("The uploaded image is not available through the public proxy.");
+    }
+    assertPublicObjectDelivery(
+      {
+        contentType: object.ContentType,
+        sizeBytes: body.byteLength,
+      },
+      expected,
+    );
+    return;
+  }
+
+  let lastError: unknown;
+  for (const retryDelayMs of [0, 150, 400]) {
+    if (retryDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    }
+    try {
+      const delivered = await fetchDeliveredPublicObject(normalizedObjectKey);
+      assertPublicObjectDelivery(
+        {
+          contentType: delivered.contentType,
+          sizeBytes: delivered.body.byteLength,
+        },
+        expected,
+      );
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("The uploaded image could not be verified for public delivery.");
+}
+
+export function getManagedPublicObjectKeyFromUrl(url: string | null | undefined) {
+  if (!url) return null;
+  return parseManagedPublicProxyObjectKey(url) ?? parseManagedPublicObjectKey(url);
+}
+
 export async function deleteFromStorageByUrl(url: string | null | undefined) {
   if (!url) return false;
 
@@ -275,7 +463,7 @@ export async function deleteFromStorageByUrl(url: string | null | undefined) {
     return true;
   }
 
-  const managedPublicObjectKey = parseManagedPublicObjectKey(url);
+  const managedPublicObjectKey = getManagedPublicObjectKeyFromUrl(url);
   if (managedPublicObjectKey) {
     await deleteObjectFromR2("public", managedPublicObjectKey);
     return true;
@@ -288,41 +476,6 @@ export async function deleteFromStorageByUrl(url: string | null | undefined) {
   }
 
   return false;
-}
-
-export async function createPresignedPublicUpload(
-  type: UploadType,
-  entityId: string,
-  fileName: string,
-  contentType: string,
-): Promise<PresignedUploadResult> {
-  const storagePath = buildStoragePath(type, entityId, fileName);
-
-  if (storagePath.visibility !== "public") {
-    throw new Error(`Upload type ${type} is not configured for presigned public uploads.`);
-  }
-
-  const uploadUrl = await getSignedUrl(
-    getR2Client(),
-    new PutObjectCommand({
-      Bucket: storagePath.bucket,
-      CacheControl: getObjectCacheControl(storagePath.visibility),
-      ContentType: contentType,
-      Key: storagePath.path,
-    }),
-    { expiresIn: 300 },
-  );
-
-  return {
-    expiresAt: new Date(Date.now() + 300_000).toISOString(),
-    headers: {
-      "Content-Type": contentType,
-    },
-    method: "PUT",
-    path: storagePath.path,
-    uploadUrl,
-    url: buildPublicFileUrl(storagePath.path),
-  };
 }
 
 export async function getManagedUploadRecord(uploadId: string) {
@@ -422,16 +575,4 @@ export async function readObjectBodyAsBuffer(body: GetObjectCommandOutput["Body"
     stream.once("end", () => resolve(Buffer.concat(chunks)));
     stream.once("error", reject);
   });
-}
-
-export function toReadableStream(body: GetObjectCommandOutput["Body"]) {
-  if (!body) {
-    return null;
-  }
-
-  if (typeof body.transformToWebStream === "function") {
-    return body.transformToWebStream();
-  }
-
-  return Readable.toWeb(body as Readable);
 }

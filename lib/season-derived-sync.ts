@@ -13,14 +13,8 @@ import { COLLECTIONS, deleteDocument, isDocumentStoreConfigured, queryDocumentCo
 import { buildPlayerAppearanceMapFromMatches, choosePreferredPlayerTeam } from "./player-team-history";
 import { compareMvpRankingPlayers, comparePlayerLeaderboardPerformance } from "./ranking-sort";
 import { buildSeasonLeaderboard } from "./season-standings";
+import { slugify } from "./slug-utils";
 import type { Player, Team, TournamentMatch, TournamentStanding } from "./types";
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 function buildSeasonTeamId(seasonId: string, teamName: string) {
   return resolveBravoTeamIdentity(teamName)?.id ?? `${seasonId}--${slugify(teamName)}`;

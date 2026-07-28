@@ -48,7 +48,7 @@ export default function AboutPage() {
               </h1>
               <p className="mt-5 max-w-3xl text-sm leading-7 text-text-muted sm:text-base">
                 Bravo Gaming Esports is a competitive esports organization based in Nepal, focused on building and supporting the PUBG PC
-                esports ecosystem through daily scrims, tournaments, community events, and competitive rankings.
+                esports ecosystem through scrims, tournaments, community events, and competitive rankings.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href="/pubg" className="btn-primary">

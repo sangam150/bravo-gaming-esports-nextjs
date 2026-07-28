@@ -1,51 +1,12 @@
-import type { Json, Tables } from "@/types/database.types";
+import type { Tables } from "@/types/database.types";
 import { getRequestSession } from "./admin-auth";
-import { sanitizeJsonValue } from "./json-utils";
+import { writeAuditLog, type AuditPayload } from "./audit-log-writer";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 
 export type AuditLogRecord = Tables<"audit_logs"> & {
   actorName?: string | null;
   actorEmail?: string | null;
 };
-
-type AuditPayload = {
-  action: string;
-  entityType: string;
-  entityId?: string | null;
-  oldValue?: unknown;
-  newValue?: unknown;
-  actorId?: string | null;
-};
-
-function normalizeAuditJson(value: unknown) {
-  if (value === undefined) {
-    return null;
-  }
-
-  return (sanitizeJsonValue(value) as Json | undefined) ?? null;
-}
-
-export async function writeAuditLog(payload: AuditPayload) {
-  const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client
-    .from("audit_logs")
-    .insert({
-      actor_id: payload.actorId ?? null,
-      action: payload.action,
-      entity_type: payload.entityType,
-      entity_id: payload.entityId ?? null,
-      old_data: normalizeAuditJson(payload.oldValue),
-      new_data: normalizeAuditJson(payload.newValue),
-    })
-    .select("*")
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
-}
 
 export async function writeAuditLogFromRequest(request: Request, payload: Omit<AuditPayload, "actorId">) {
   try {
@@ -79,6 +40,39 @@ export async function writeAuditLogFromRequest(request: Request, payload: Omit<A
   } catch {
     return null;
   }
+}
+
+export async function writeRequiredAuditLogFromRequest(request: Request, payload: Omit<AuditPayload, "actorId">) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip")?.trim() ?? null;
+  const userAgent = request.headers.get("user-agent") ?? null;
+  const metadata = {
+    timestamp: new Date().toISOString(),
+    ip,
+    userAgent,
+  };
+  const session = await getRequestSession(request);
+  const actorId = session?.profileId?.trim();
+  if (!actorId) {
+    throw new Error("A verified profile is required for this audited action.");
+  }
+  return writeAuditLog({
+    ...payload,
+    oldValue:
+      payload.oldValue === undefined
+        ? undefined
+        : {
+            value: payload.oldValue,
+            request: metadata,
+          },
+    newValue:
+      payload.newValue === undefined
+        ? undefined
+        : {
+            value: payload.newValue,
+            request: metadata,
+          },
+    actorId,
+  });
 }
 
 export async function listRecentAuditLogs(limit = 20): Promise<AuditLogRecord[]> {

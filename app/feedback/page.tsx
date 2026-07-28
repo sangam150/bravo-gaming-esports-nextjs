@@ -1,5 +1,20 @@
 import ContactFormClient from "@/components/forms/ContactFormClient";
+import { buildContentMetadata } from "@/lib/metadata";
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  ...buildContentMetadata({
+    title: "Feedback | Bravo Gaming Esports",
+    description: "Send event, rules, scheduling, or broadcast feedback to Bravo Gaming Esports.",
+    path: "/feedback",
+    type: "website",
+  }),
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 export default function FeedbackPage() {
   return (
@@ -10,8 +25,7 @@ export default function FeedbackPage() {
             <p className="section-title">Community</p>
             <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] text-white sm:text-5xl">Feedback</h1>
             <p className="mt-5 max-w-3xl text-slate-300">
-              Share your thoughts on Bravo tournaments, stream production, and community events to help us build the best esports
-              experience.
+              Share your thoughts on Bravo tournaments, stream production, and community events to help improve the event experience.
             </p>
           </div>
           <Link
