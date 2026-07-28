@@ -31,6 +31,7 @@
     "qa:auth:production": "node --env-file=.env.local ./qa/auth-production-e2e.mjs",
     "qa:connectivity": "node --env-file=.env.local ./qa/environment-connectivity.mjs",
     "qa:public": "playwright test qa/live-qa.spec.js --workers=1",
+    "qa:ui": "playwright test qa/reference-ui.spec.js --workers=1",
     "qa:discord-roles": "node --import tsx ./qa/discord-role-mapping-check.ts",
     "qa:team-onboarding": "node --import tsx ./qa/team-onboarding-check.ts",
     "qa:team-reconciliation": "node --import tsx ./qa/team-reconciliation-check.ts"

@@ -1,7 +1,5 @@
-import { PubgTeamsPage } from "@/components/pubg/PubgPublicPages";
-import { PubgTeamsLaunchPage } from "@/components/public/PublicLandingPages";
-import { getPlatformHubData } from "@/lib/platform-hub";
-import { getPubgHubDataset, getPublicPubgTeams } from "@/lib/pubg-hub";
+import { CompetitionTeamsPage } from "@/components/public/CompetitionReferencePages";
+import { getPubgHubDataset } from "@/lib/pubg-hub";
 import type { Metadata } from "next";
 
 type PageProps = {
@@ -16,11 +14,6 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function PubgTeamsIndexPage({ searchParams }: PageProps) {
-  const [dataset, hub, resolvedSearchParams] = await Promise.all([getPubgHubDataset(), getPlatformHubData(), searchParams]);
-
-  if (getPublicPubgTeams(dataset).length === 0) {
-    return <PubgTeamsLaunchPage hub={hub} />;
-  }
-
-  return <PubgTeamsPage dataset={dataset} searchParams={resolvedSearchParams} />;
+  const [dataset, resolvedSearchParams] = await Promise.all([getPubgHubDataset(), searchParams]);
+  return <CompetitionTeamsPage dataset={dataset} searchParams={resolvedSearchParams} basePath="/pubg/teams" />;
 }

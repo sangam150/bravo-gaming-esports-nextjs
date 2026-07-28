@@ -1,4 +1,5 @@
 import type { Database } from "@/types/database.types";
+import { cache } from "react";
 import { COLLECTIONS, fetchDocumentCollection, isDocumentStoreConfigured } from "./document-store";
 import {
   buildPubgPlayerBoardRows,
@@ -2342,7 +2343,7 @@ function sanitizePubgDatasetForPublicDisplay(dataset: PubgHubDataset): PubgHubDa
   };
 }
 
-export async function getPubgHubDataset() {
+export const getPubgHubDataset = cache(async () => {
   const liveDataset = await buildSupabaseBaseDataset();
   const documentStoreDataset = await buildDocumentStoreBaseDataset();
   const mergedDataset = mergeBaseDatasets(liveDataset, documentStoreDataset);
@@ -2360,7 +2361,7 @@ export async function getPubgHubDataset() {
   }
 
   return sanitizePubgDatasetForPublicDisplay(buildDataset(buildEmptyBaseDataset()));
-}
+});
 
 export async function getPubgDashboardData() {
   const dataset = await getPubgHubDataset();

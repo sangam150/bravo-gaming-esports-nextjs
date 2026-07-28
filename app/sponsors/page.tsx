@@ -1,4 +1,4 @@
-import { SponsorsLandingPage } from "@/components/public/PublicLandingPages";
+import { SponsorsReferencePage } from "@/components/public/ContentReferencePages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";
 import type { Metadata } from "next";
@@ -14,5 +14,5 @@ export const revalidate = 300;
 
 export default async function SponsorsPage() {
   const hub = await getPlatformHubData();
-  return <SponsorsLandingPage hub={hub} />;
+  return <SponsorsReferencePage hub={hub} />;
 }

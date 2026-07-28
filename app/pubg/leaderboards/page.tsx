@@ -1,4 +1,4 @@
-import { PubgLeaderboardsRoute } from "@/components/pubg/PubgLeaderboardsRoute";
+import { CompetitionLeaderboardsPage } from "@/components/public/CompetitionReferencePages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPubgHubDataset } from "@/lib/pubg-hub";
 import type { Metadata } from "next";
@@ -19,5 +19,5 @@ export const revalidate = 300;
 export default async function PubgLeaderboardsIndexPage({ searchParams }: PageProps) {
   const [dataset, resolvedSearchParams] = await Promise.all([getPubgHubDataset(), searchParams]);
 
-  return <PubgLeaderboardsRoute dataset={dataset} searchParams={resolvedSearchParams} />;
+  return <CompetitionLeaderboardsPage dataset={dataset} searchParams={resolvedSearchParams} basePath="/pubg/leaderboards" />;
 }

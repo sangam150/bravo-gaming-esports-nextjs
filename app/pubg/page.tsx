@@ -1,5 +1,5 @@
 import { PubgDashboardPage } from "@/components/pubg/PubgPublicPages";
-import { PubgHubLaunchPage } from "@/components/public/PublicLandingPages";
+import { PubgHubLaunchPage } from "@/components/public/PubgLaunchPages";
 import { getCurrentSeasonOverview } from "@/lib/data";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData } from "@/lib/platform-hub";

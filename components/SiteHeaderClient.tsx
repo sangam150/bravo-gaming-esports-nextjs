@@ -5,7 +5,7 @@ import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { scheduleEffectTask } from "@/lib/effect-task";
 import { clearBravoSession } from "@/lib/login-client";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { ChevronDown, ChevronRight, LogOut, Menu, X } from "lucide-react";
+import { ChevronDown, ChevronRight, LogOut, Menu, Play, UserRound, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,7 +14,6 @@ import { createPortal } from "react-dom";
 type NavItem = {
   label: string;
   href: string;
-  prefixes: string[];
 };
 
 type HeaderAccount = {
@@ -32,15 +31,14 @@ type SiteHeaderClientProps = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Home", href: "/", prefixes: ["/"] },
-  { label: "PUBG", href: "/pubg", prefixes: ["/pubg", "/leaderboard", "/rankings", "/results", "/matches"] },
-  { label: "Events", href: "/events", prefixes: ["/events", "/tournaments", "/calendar"] },
-  { label: "Media", href: "/media", prefixes: ["/media", "/news", "/highlights", "/videos", "/live-stream"] },
-  {
-    label: "About Us",
-    href: "/about",
-    prefixes: ["/about", "/contact", "/feedback", "/privacy", "/terms", "/rules", "/anti-cheat", "/sponsors"],
-  },
+  { label: "Home", href: "/" },
+  { label: "PUBG", href: "/pubg" },
+  { label: "Events", href: "/events" },
+  { label: "Leaderboards", href: "/pubg/leaderboards" },
+  { label: "News", href: "/news" },
+  { label: "Media", href: "/media" },
+  { label: "Sponsors", href: "/sponsors" },
+  { label: "About", href: "/about" },
 ];
 
 const ACCESS_LINKS = [
@@ -50,14 +48,43 @@ const ACCESS_LINKS = [
   { label: "Admin Portal", href: "/admin/login" },
 ] as const;
 
-function isActive(pathname: string, prefixes: string[]) {
-  return prefixes.some((prefix) => {
-    if (prefix === "/") {
-      return pathname === "/";
-    }
-
-    return pathname === prefix || pathname.startsWith(`${prefix}/`);
-  });
+function getActiveNavigationLabel(pathname: string) {
+  if (pathname === "/") return "Home";
+  if (pathname === "/leaderboard" || pathname.startsWith("/pubg/leaderboards")) return "Leaderboards";
+  if (pathname.startsWith("/events") || pathname.startsWith("/tournaments") || pathname.startsWith("/calendar")) return "Events";
+  if (pathname.startsWith("/news")) return "News";
+  if (
+    pathname.startsWith("/media") ||
+    pathname.startsWith("/highlights") ||
+    pathname.startsWith("/videos") ||
+    pathname.startsWith("/live-stream")
+  ) {
+    return "Media";
+  }
+  if (pathname.startsWith("/sponsors") || pathname.startsWith("/partners") || pathname.startsWith("/tournament-partners"))
+    return "Sponsors";
+  if (
+    pathname.startsWith("/about") ||
+    pathname.startsWith("/contact") ||
+    pathname.startsWith("/feedback") ||
+    pathname.startsWith("/privacy") ||
+    pathname.startsWith("/terms") ||
+    pathname.startsWith("/rules") ||
+    pathname.startsWith("/anti-cheat")
+  ) {
+    return "About";
+  }
+  if (
+    pathname.startsWith("/pubg") ||
+    pathname.startsWith("/players") ||
+    pathname.startsWith("/teams") ||
+    pathname.startsWith("/matches") ||
+    pathname.startsWith("/results") ||
+    pathname.startsWith("/rankings")
+  ) {
+    return "PUBG";
+  }
+  return "Bravo Gaming";
 }
 
 function isAccessLinkActive(pathname: string, href: string) {
@@ -74,10 +101,10 @@ function desktopNavClasses(active: boolean) {
 
 function utilityClasses(primary = false) {
   if (primary) {
-    return "btn-primary !h-11 rounded-[14px] px-3.5";
+    return "btn-primary !h-9 px-3";
   }
 
-  return "btn-secondary !h-11 rounded-[14px] px-3.5";
+  return "btn-secondary !h-9 px-3";
 }
 
 export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderClientProps) {
@@ -149,6 +176,10 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
   useEffect(() => {
     if (!desktopMenuOpen) return;
 
+    requestAnimationFrame(() => {
+      desktopMenuRef.current?.querySelector<HTMLElement>("a, button:not([disabled])")?.focus();
+    });
+
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (target instanceof Node && !desktopMenuRef.current?.contains(target) && !desktopMenuButtonRef.current?.contains(target)) {
@@ -176,10 +207,7 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
     return () => window.removeEventListener("scroll", updateScrollState);
   }, []);
 
-  const currentSection = useMemo(
-    () => NAV_ITEMS.find((item) => isActive(resolvedPathname, item.prefixes))?.label ?? "Bravo Gaming",
-    [resolvedPathname],
-  );
+  const currentSection = useMemo(() => getActiveNavigationLabel(resolvedPathname), [resolvedPathname]);
 
   function closeMobileMenu(restoreFocus = false) {
     setMobileOpen(false);
@@ -199,7 +227,7 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
 
   const accountControls = account ? (
     <>
-      <div className="rounded-[16px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+      <div className="rounded-[5px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
         <p className="truncate text-sm font-semibold text-white">{account.identity}</p>
         {account.email !== account.identity ? <p className="mt-1 truncate text-xs text-text-muted">{account.email}</p> : null}
         <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-accent-blue-light">
@@ -243,7 +271,7 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
           href={item.href}
           aria-current={active ? "page" : undefined}
           onClick={() => setMobileOpen(false)}
-          className={`flex min-h-12 items-center justify-between rounded-[16px] border px-4 py-3 text-sm font-semibold transition ${
+          className={`flex min-h-12 items-center justify-between rounded-[5px] border px-4 py-3 text-sm font-semibold transition ${
             active
               ? "border-accent-blue/30 bg-accent-blue/10 text-white"
               : "border-white/[0.08] bg-white/[0.03] text-text-muted hover:border-white/15 hover:text-white"
@@ -273,9 +301,9 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
               role="dialog"
               aria-modal="true"
               aria-labelledby="mobile-navigation-title"
-              className="mobile-drawer absolute inset-y-0 right-0 flex h-full w-full max-w-[28rem] flex-col overflow-y-auto border-l border-white/[0.08] bg-[linear-gradient(180deg,rgba(6,10,20,0.98),rgba(5,8,15,0.98))] px-4 py-4 shadow-[-24px_0_70px_rgba(0,0,0,0.38)]"
+              className="mobile-drawer absolute inset-y-0 right-0 flex h-full w-full max-w-[28rem] flex-col overflow-y-auto border-l border-white/[0.08] bg-[#020812] px-4 py-4 shadow-[-24px_0_70px_rgba(0,0,0,0.38)]"
             >
-              <div className="rounded-[26px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_28%),linear-gradient(180deg,rgba(12,18,34,0.95),rgba(8,13,26,0.95))] p-5">
+              <div className="rounded-[6px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(20,126,245,0.18),transparent_28%),#071321] p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-display text-[11px] font-black uppercase tracking-[0.18em] text-accent-blue">Bravo Navigation</p>
@@ -298,7 +326,7 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
               <div className="mt-4 grid gap-3">
                 <nav aria-label="Primary navigation" className="esports-card p-3">
                   {NAV_ITEMS.map((item) => {
-                    const active = isActive(resolvedPathname, item.prefixes);
+                    const active = currentSection === item.label;
 
                     return (
                       <Link
@@ -306,7 +334,7 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
                         href={item.href}
                         aria-current={active ? "page" : undefined}
                         onClick={() => setMobileOpen(false)}
-                        className={`mb-2 flex min-h-12 items-center justify-between rounded-[18px] border px-4 py-3 font-display text-[11px] font-black uppercase tracking-[0.14em] transition last:mb-0 ${
+                        className={`mb-2 flex min-h-12 items-center justify-between rounded-[5px] border px-4 py-3 font-display text-sm font-semibold transition last:mb-0 ${
                           active
                             ? "border-accent-blue/30 bg-accent-blue/10 text-white"
                             : "border-white/[0.06] bg-white/[0.03] text-text-muted hover:border-white/10 hover:text-white"
@@ -328,9 +356,11 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
                   </h2>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <Link href="/teams/register" onClick={() => setMobileOpen(false)} className="btn-primary justify-center">
+                      <UsersRound className="h-4 w-4" aria-hidden="true" />
                       Register Team
                     </Link>
                     <Link href={watchLiveHref} onClick={() => setMobileOpen(false)} className="btn-secondary justify-center">
+                      <Play className="h-4 w-4" aria-hidden="true" />
                       Watch Live
                     </Link>
                     <a
@@ -366,30 +396,30 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
       <header
         className={`sticky top-0 z-[80] border-b transition duration-200 ${
           isScrolled
-            ? "border-white/[0.08] bg-bg-secondary/92 shadow-[0_12px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl"
-            : "border-white/[0.06] bg-bg-secondary/78 backdrop-blur-xl"
+            ? "border-white/[0.1] bg-[#020711]/95 shadow-[0_8px_24px_rgba(0,0,0,0.28)] backdrop-blur-xl"
+            : "border-white/[0.08] bg-[#020711]/92 backdrop-blur-xl"
         }`}
       >
-        <div className="page-inner px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex h-[72px] items-center gap-3 rounded-[20px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(10,16,30,0.98),rgba(7,12,24,0.98))] px-3 py-2 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
+        <div className="page-inner px-4 sm:px-6 lg:px-8">
+          <div className="flex h-[70px] items-center gap-3">
             <Link href="/" aria-label="Bravo Gaming Esports home" className="flex min-w-0 items-center gap-3">
-              <BravoLogo size={44} />
-              <div className="hidden min-w-0 md:block">
-                <p className="truncate font-display text-[1rem] font-black uppercase tracking-[0.08em] text-white">Bravo Gaming</p>
-                <p className="truncate font-display text-[10px] uppercase tracking-[0.22em] text-text-muted">Esports Nepal</p>
+              <BravoLogo size={40} />
+              <div className="hidden min-w-0 sm:block">
+                <p className="truncate font-display text-lg font-bold uppercase leading-none tracking-[0.045em] text-white">Bravo Gaming</p>
+                <p className="mt-1 truncate font-display text-[9px] uppercase tracking-[0.26em] text-text-muted">Esports</p>
               </div>
             </Link>
 
             <nav aria-label="Primary navigation" className="hidden min-w-0 flex-1 items-center justify-center xl:flex">
               {NAV_ITEMS.map((item) => {
-                const active = isActive(resolvedPathname, item.prefixes);
+                const active = currentSection === item.label;
 
                 return (
                   <Link
                     key={item.label}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`relative px-2.5 py-2 font-display text-[11px] font-semibold tracking-[0.01em] transition 2xl:px-3 2xl:text-[12px] ${desktopNavClasses(
+                    className={`relative flex h-[70px] items-center px-2 py-2 font-body text-[11px] font-medium transition 2xl:px-2.5 2xl:text-[12px] ${desktopNavClasses(
                       active,
                     )}`}
                   >
@@ -400,20 +430,24 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
             </nav>
 
             <div className="relative ml-auto hidden items-center gap-2 xl:flex">
-              <Link href={watchLiveHref} className={utilityClasses(true)}>
+              <Link href="/teams/register" className={utilityClasses(true)}>
+                <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />
+                Register Team
+              </Link>
+              <Link href={watchLiveHref} className={utilityClasses(false)}>
+                <Play className="h-3.5 w-3.5" aria-hidden="true" />
                 Watch Live
               </Link>
-              <a href={BRAVO_DISCORD_URL} target="_blank" rel="noreferrer" className="btn-discord !h-11 rounded-[14px] px-3.5">
-                Join Discord
-              </a>
               <button
                 ref={desktopMenuButtonRef}
                 type="button"
+                aria-haspopup="true"
                 aria-expanded={desktopMenuOpen}
                 aria-controls="desktop-account-access-menu"
                 onClick={() => setDesktopMenuOpen((value) => !value)}
                 className={utilityClasses(false)}
               >
+                <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
                 {account ? "Account" : "Login"}
                 <ChevronDown className={`h-4 w-4 transition ${desktopMenuOpen ? "rotate-180" : ""}`} aria-hidden="true" />
               </button>
@@ -424,7 +458,7 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
                   ref={desktopMenuRef}
                   role="group"
                   aria-label={account ? "Your account" : "Bravo access links"}
-                  className="absolute right-0 top-[calc(100%+0.75rem)] z-[95] w-72 rounded-[20px] border border-white/[0.1] bg-[#080d18]/[0.98] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.5)] backdrop-blur-xl"
+                  className="absolute right-0 top-[calc(100%+0.6rem)] z-[95] w-72 rounded-[6px] border border-white/[0.1] bg-[#030a13]/[0.99] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.5)] backdrop-blur-xl"
                 >
                   <p className="px-2 pb-3 font-display text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">
                     {account ? "Your Account" : "Access Bravo"}
@@ -446,13 +480,6 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
               {mobileOpen ? <X className="h-4 w-4" aria-hidden="true" /> : <Menu className="h-4 w-4" aria-hidden="true" />}
               Menu
             </button>
-          </div>
-
-          <div className="mt-2 hidden items-center justify-between px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted sm:flex xl:hidden">
-            <span>Current section: {currentSection}</span>
-            <Link href="/teams/register" className="transition hover:text-white">
-              Register Team
-            </Link>
           </div>
         </div>
       </header>

@@ -42,6 +42,8 @@ const nextConfig = {
       { protocol: "https", hostname: "bravo-gaming-esports-nextjs.vercel.app" },
       { protocol: "https", hostname: "bravo-gaming-esports.vercel.app" },
       { protocol: "https", hostname: "assets.bravogamingesports.com" },
+      { protocol: "https", hostname: "hldppfhtkfgthainismr.supabase.co" },
+      { protocol: "https", hostname: "i.ytimg.com" },
       { protocol: "https", hostname: "**.r2.dev" },
     ],
   },

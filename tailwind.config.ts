@@ -6,24 +6,24 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          primary: "#05070B",
-          secondary: "#0A1020",
-          card: "#101827",
-          hover: "#121D33",
+          primary: "#020812",
+          secondary: "#030A13",
+          card: "#071321",
+          hover: "#091827",
         },
         accent: {
-          blue: "#1E7BFF",
-          "blue-light": "#0EA5FF",
-          "blue-dark": "#0A5CD8",
+          blue: "#0B6CFF",
+          "blue-light": "#2F8CFF",
+          "blue-dark": "#0755CE",
           green: "#22C55E",
           red: "#EF4444",
           yellow: "#F59E0B",
           discord: "#5865f2",
         },
         text: {
-          primary: "#FFFFFF",
-          secondary: "#A8B3CF",
-          muted: "#8792AA",
+          primary: "#F5F8FC",
+          secondary: "#AAB6C6",
+          muted: "#728196",
         },
         bravoBlue: "#1E7BFF",
         bravoGreen: "#22C55E",
@@ -41,13 +41,13 @@ const config: Config = {
         section: ["24px", { lineHeight: "1.3", letterSpacing: "0.02em", fontWeight: "600" }],
       },
       borderRadius: {
-        card: "18px",
-        btn: "12px",
+        card: "6px",
+        btn: "4px",
       },
       boxShadow: {
-        glow: "0 0 34px rgba(30,123,255,0.35)",
-        "glow-red": "0 0 24px rgba(239,68,68,0.24)",
-        card: "0 24px 80px rgba(0,0,0,0.35)",
+        glow: "0 0 20px rgba(11,108,255,0.22)",
+        "glow-red": "0 0 18px rgba(239,68,68,0.18)",
+        card: "0 12px 36px rgba(0,0,0,0.22)",
       },
       animation: {
         "pulse-live": "livePulse 1.5s ease-in-out infinite",

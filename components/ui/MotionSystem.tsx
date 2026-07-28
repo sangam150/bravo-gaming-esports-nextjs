@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 
 export function MotionObserver() {
   const pathname = usePathname();
@@ -45,45 +45,5 @@ export function RouteTransition({ children }: { children: React.ReactNode }) {
     <div key={pathname} className={protectedRoute ? "route-static" : "route-transition"}>
       {children}
     </div>
-  );
-}
-
-export function AnimatedCounter({ value, className = "" }: { value: number; className?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [display, setDisplay] = useState(value);
-
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const node = ref.current;
-    if (!node) return;
-    let frame = 0;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        const started = performance.now();
-        const duration = 800;
-        const tick = (now: number) => {
-          const progress = Math.min((now - started) / duration, 1);
-          const eased = 1 - Math.pow(1 - progress, 3);
-          setDisplay(Math.round(value * eased));
-          if (progress < 1) frame = requestAnimationFrame(tick);
-        };
-        setDisplay(0);
-        frame = requestAnimationFrame(tick);
-        observer.disconnect();
-      },
-      { threshold: 0.4 },
-    );
-    observer.observe(node);
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(frame);
-    };
-  }, [value]);
-
-  return (
-    <span ref={ref} className={className}>
-      {new Intl.NumberFormat().format(display)}
-    </span>
   );
 }

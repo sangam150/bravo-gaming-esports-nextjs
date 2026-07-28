@@ -3,12 +3,12 @@ import SiteHeader from "@/components/SiteHeader";
 import { MotionObserver, RouteTransition } from "@/components/ui/MotionSystem";
 import { getSiteUrl } from "@/lib/site";
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Poppins } from "next/font/google";
+import { Barlow_Condensed, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const displayFont = Poppins({
+const displayFont = Barlow_Condensed({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["500", "600", "700", "800"],
   variable: "--font-barlow",
 });
 

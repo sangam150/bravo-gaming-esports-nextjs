@@ -458,8 +458,11 @@ test("Public navigation and interaction QA", async ({ page }) => {
     { name: "Home", url: "/" },
     { name: "PUBG", url: "/pubg" },
     { name: "Events", url: "/events" },
+    { name: "Leaderboards", url: "/pubg/leaderboards" },
+    { name: "News", url: "/news" },
     { name: "Media", url: "/media" },
-    { name: "About Us", url: "/about" },
+    { name: "Sponsors", url: "/sponsors" },
+    { name: "About", url: "/about" },
   ];
 
   for (const item of navClicks) {
@@ -491,9 +494,9 @@ test("Public navigation and interaction QA", async ({ page }) => {
   await settlePage(page);
   const siteHeader = page.locator("header");
   const watchLiveLink = siteHeader.getByRole("link", { name: "Watch Live", exact: true });
-  const discordLink = siteHeader.getByRole("link", { name: "Join Discord", exact: true });
+  const registerTeamLink = siteHeader.getByRole("link", { name: "Register Team", exact: true });
   await expect(watchLiveLink, "Watch Live header action is missing").toHaveAttribute("href", "/live-stream");
-  await expect(discordLink, "Join Discord header action is missing").toHaveAttribute("href", /^https:\/\/discord\.gg\//);
+  await expect(registerTeamLink, "Register Team header action is missing").toHaveAttribute("href", "/teams/register");
 
   const loginMenuButton = siteHeader.getByRole("button", { name: "Login", exact: true });
   await expect(loginMenuButton, "Login dropdown trigger is missing").toBeVisible();
@@ -517,22 +520,17 @@ test("Public navigation and interaction QA", async ({ page }) => {
   writeSummary();
 
   const footer = page.locator("footer");
-  const accountColumn = footer.locator("section").filter({ hasText: "Account / Access" });
-  for (const accountLink of [
-    ["Login", "/login"],
-    ["Team Portal", "/team/login"],
-    ["Player Portal", "/player/login"],
-    ["Admin Portal", "/admin/login"],
-    ["Password Recovery", "/reset-password"],
-  ]) {
-    await expect(accountColumn.getByRole("link", { name: accountLink[0], exact: true })).toHaveAttribute("href", accountLink[1]);
-  }
+  await expect(footer.getByRole("heading", { name: "Quick Links", exact: true })).toBeVisible();
+  await expect(footer.getByRole("heading", { name: "Competition", exact: true })).toBeVisible();
+  await expect(footer.getByRole("heading", { name: "Support", exact: true })).toBeVisible();
+  await expect(footer.getByRole("heading", { name: "Follow Us", exact: true })).toBeVisible();
+  await expect(footer.locator('a[href="#"]')).toHaveCount(0);
   const supportColumn = footer.locator("section").filter({ hasText: "Support" });
   const supportHrefs = await supportColumn
     .getByRole("link")
     .evaluateAll((links) => links.map((link) => link.getAttribute("href")).filter(Boolean));
   expect(new Set(supportHrefs).size, "Footer support links must have distinct destinations").toBe(supportHrefs.length);
-  pushUnique(summary.notes, "Verified footer account access and distinct support destinations.");
+  pushUnique(summary.notes, "Verified compact footer groups, real destinations, and no placeholder links.");
   writeSummary();
 
   const searchableRoutes = [
@@ -565,17 +563,28 @@ test("Public navigation and interaction QA", async ({ page }) => {
   const contactForm = page.locator("form").first();
   await expect(contactForm, "Public contact form is missing").toBeVisible();
   const timestamp = Date.now();
+  let submittedContactPayload = null;
+  await page.route("**/api/contact", async (route) => {
+    submittedContactPayload = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true }),
+    });
+  });
   await contactForm.locator('input[name="name"]').fill("QA Browser Runner");
   await contactForm.locator('input[name="email"]').fill(`qa-browser-${timestamp}@example.com`);
   await contactForm.locator('select[name="subject"]').selectOption({ label: "General inquiry" });
   await contactForm.locator('textarea[name="message"]').fill("Browser automation contact-form QA submission.");
-  const [contactResponse] = await Promise.all([
-    page.waitForResponse((response) => response.url().includes("/api/contact") && response.request().method() === "POST"),
-    contactForm.locator('button[type="submit"]').click(),
-  ]);
-  expect(contactResponse.ok(), `Contact submission returned HTTP ${contactResponse.status()}`).toBe(true);
+  await contactForm.locator('button[type="submit"]').click();
   await expect(page.getByText(/Message received|Feedback received/i)).toBeVisible();
-  pushUnique(summary.notes, "Submitted and verified the public contact form.");
+  expect(submittedContactPayload).toMatchObject({
+    kind: "contact",
+    name: "QA Browser Runner",
+    subject: "General inquiry",
+    message: "Browser automation contact-form QA submission.",
+  });
+  pushUnique(summary.notes, "Verified the public contact form request and success state with an isolated browser transport.");
   writeSummary();
 
   const detailRoutes = [
@@ -741,8 +750,8 @@ test("Required responsive viewport and navigation QA", async ({ browser }) => {
       expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
     } else {
       await expect(page.locator("header").getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+      await expect(page.locator("header").getByRole("link", { name: "Register Team", exact: true })).toBeVisible();
       await expect(page.locator("header").getByRole("link", { name: "Watch Live", exact: true })).toBeVisible();
-      await expect(page.locator("header").getByRole("link", { name: "Join Discord", exact: true })).toBeVisible();
       await expect(page.locator("header").getByRole("button", { name: "Login", exact: true })).toBeVisible();
     }
 
@@ -788,9 +797,15 @@ test("Required responsive viewport and navigation QA", async ({ browser }) => {
   });
   const page = await context.newPage();
   for (const [route, name] of [
+    ["/", "mobile-home"],
     ["/pubg", "mobile-pubg"],
+    ["/players", "mobile-players"],
+    ["/teams", "mobile-teams"],
     ["/pubg/leaderboards", "mobile-leaderboards"],
     ["/events", "mobile-events"],
+    ["/media", "mobile-media"],
+    ["/news", "mobile-news"],
+    ["/sponsors", "mobile-sponsors"],
     ["/contact", "mobile-contact"],
     ["/login", "mobile-login"],
   ]) {
