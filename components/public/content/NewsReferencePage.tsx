@@ -272,7 +272,7 @@ export function NewsReferencePage({
             />
             <form action="/news" method="get" className="flex min-w-0 gap-2">
               {category !== "all" ? <input type="hidden" name="category" value={category} /> : null}
-              <label className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-[4px] border border-white/15 bg-black/25 px-3">
+              <label className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-[4px] border border-white/15 bg-black/25 px-3 transition focus-within:border-accent-blue focus-within:ring-2 focus-within:ring-accent-blue/20">
                 <Search className="h-4 w-4 text-text-muted" aria-hidden="true" />
                 <span className="sr-only">Search news</span>
                 <input
@@ -295,7 +295,11 @@ export function NewsReferencePage({
             <PublicSectionHeader
               eyebrow="Latest Stories"
               title="Published News"
-              action={<span className="text-xs text-text-muted">{filteredNews.length} story/stories</span>}
+              action={
+                <span className="text-xs text-text-muted">
+                  {filteredNews.length} {filteredNews.length === 1 ? "story" : "stories"}
+                </span>
+              }
             />
             {pageArticles.length > 0 ? (
               <>

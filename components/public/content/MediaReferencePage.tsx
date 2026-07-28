@@ -214,7 +214,7 @@ export function MediaReferencePage({
             <PublicEmptyState
               compact
               title="No published media yet"
-              description="A featured player appears only after Bravo publishes a real media item."
+              description="A featured media item appears only after Bravo publishes approved coverage."
             />
           )
         }
@@ -228,7 +228,7 @@ export function MediaReferencePage({
       <div className="public-container space-y-7 py-6">
         <section id="media-library" className="scroll-mt-24 space-y-5">
           <div className="public-panel p-3 sm:p-4">
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem] xl:items-center">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 xl:grid-cols-[minmax(0,1fr)_12rem] xl:items-center">
               <FilterTabs
                 pathname="/media"
                 searchParams={searchParams}
@@ -243,7 +243,7 @@ export function MediaReferencePage({
                   { label: "Clips", value: "clips" },
                 ]}
               />
-              <form action="/media" method="get" className="flex gap-2">
+              <form action="/media" method="get" className="flex min-w-0 gap-2">
                 {category !== "all" ? <input type="hidden" name="category" value={category} /> : null}
                 <label className="min-w-0 flex-1">
                   <span className="sr-only">Sort media</span>
@@ -263,7 +263,11 @@ export function MediaReferencePage({
           <PublicSectionHeader
             eyebrow="Published Media"
             title="Browse Content"
-            action={<span className="text-xs text-text-muted">{filteredMedia.length} item(s)</span>}
+            action={
+              <span className="text-xs text-text-muted">
+                {filteredMedia.length} {filteredMedia.length === 1 ? "item" : "items"}
+              </span>
+            }
           />
 
           {pageItems.length > 0 ? (

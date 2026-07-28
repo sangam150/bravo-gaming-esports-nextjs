@@ -38,6 +38,10 @@ const nextConfig = {
   },
   images: {
     formats: ["image/avif", "image/webp"],
+    // The managed public-upload route validates and normalizes its `key` query
+    // before reading storage. Next 16 requires local image query strings to be
+    // explicitly allowlisted, so keep this exception scoped to that route.
+    localPatterns: [{ pathname: "/images/**", search: "" }, { pathname: "/api/uploads/r2" }],
     remotePatterns: [
       { protocol: "https", hostname: "bravo-gaming-esports-nextjs.vercel.app" },
       { protocol: "https", hostname: "bravo-gaming-esports.vercel.app" },

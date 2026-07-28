@@ -404,9 +404,13 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
           <div className="flex h-[70px] items-center gap-3">
             <Link href="/" aria-label="Bravo Gaming Esports home" className="flex min-w-0 items-center gap-3">
               <BravoLogo size={40} />
-              <div className="hidden min-w-0 sm:block">
-                <p className="truncate font-display text-lg font-bold uppercase leading-none tracking-[0.045em] text-white">Bravo Gaming</p>
-                <p className="mt-1 truncate font-display text-[9px] uppercase tracking-[0.26em] text-text-muted">Esports</p>
+              <div className="min-w-0 max-w-[7.25rem] sm:max-w-none">
+                <p className="truncate font-display text-sm font-bold uppercase leading-none tracking-[0.035em] text-white sm:text-lg sm:tracking-[0.045em]">
+                  Bravo Gaming
+                </p>
+                <p className="mt-1 truncate font-display text-[7px] uppercase tracking-[0.22em] text-text-muted sm:text-[9px] sm:tracking-[0.26em]">
+                  Esports
+                </p>
               </div>
             </Link>
 

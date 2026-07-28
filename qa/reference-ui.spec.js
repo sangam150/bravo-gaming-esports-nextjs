@@ -24,6 +24,8 @@ const viewports = [
   { width: 1440, height: 900 },
   { width: 1920, height: 1080 },
 ];
+const checkedInternalDestinations = new Set();
+const checkedExternalDestinations = new Set();
 
 fs.mkdirSync(artifactRoot, { recursive: true });
 
@@ -33,6 +35,11 @@ function observePage(page) {
     if (message.type() === "error") issues.push(`console: ${message.text()}`);
   };
   const onPageError = (error) => issues.push(`page: ${error.message}`);
+  const onResponse = (response) => {
+    if (response.status() >= 400) {
+      issues.push(`response: ${response.status()} ${response.request().method()} ${response.url()}`);
+    }
+  };
   const onRequestFailed = (request) => {
     const message = request.failure()?.errorText ?? "request failed";
     if (!message.includes("ERR_ABORTED") && !request.url().includes("_rsc=")) {
@@ -42,6 +49,7 @@ function observePage(page) {
 
   page.on("console", onConsole);
   page.on("pageerror", onPageError);
+  page.on("response", onResponse);
   page.on("requestfailed", onRequestFailed);
 
   return {
@@ -49,6 +57,7 @@ function observePage(page) {
     dispose() {
       page.off("console", onConsole);
       page.off("pageerror", onPageError);
+      page.off("response", onResponse);
       page.off("requestfailed", onRequestFailed);
     },
   };
@@ -86,6 +95,53 @@ async function verifyPage(page, route, viewport) {
   );
   expect(missingFragmentTargets, `${route.path} contains links to missing page fragments`).toEqual([]);
 
+  if (viewport.width === 1440) {
+    const destinations = await page.locator("a[href]:visible").evaluateAll((links) =>
+      links
+        .map((link) => link.getAttribute("href")?.trim() ?? "")
+        .filter(Boolean)
+        .filter((href) => !href.startsWith("#")),
+    );
+
+    for (const href of new Set(destinations)) {
+      const destination = new URL(href, baseURL);
+
+      if (destination.origin !== new URL(baseURL).origin) {
+        expect(["https:", "mailto:", "tel:"], `${route.path} contains an unsafe external link protocol: ${destination.protocol}`).toContain(
+          destination.protocol,
+        );
+        if (destination.protocol === "https:" && !checkedExternalDestinations.has(destination.toString())) {
+          checkedExternalDestinations.add(destination.toString());
+          const destinationResponse = await page.request.get(destination.toString(), {
+            failOnStatusCode: false,
+            timeout: 30_000,
+          });
+          const destinationStatus = destinationResponse.status();
+          await destinationResponse.dispose();
+          expect(destinationStatus, `${route.path} links to an unavailable external destination`).toBeLessThan(500);
+          expect([404, 410], `${route.path} links to a missing external destination`).not.toContain(destinationStatus);
+        }
+        continue;
+      }
+
+      destination.hash = "";
+      const normalizedDestination = destination.toString();
+      if (checkedInternalDestinations.has(normalizedDestination)) continue;
+      checkedInternalDestinations.add(normalizedDestination);
+
+      const destinationResponse = await page.request.get(normalizedDestination, {
+        failOnStatusCode: false,
+        timeout: 30_000,
+      });
+      const destinationStatus = destinationResponse.status();
+      await destinationResponse.dispose();
+
+      expect(destinationStatus, `${route.path} links to ${destination.pathname}, which returned HTTP ${destinationStatus}`).toBeLessThan(
+        400,
+      );
+    }
+  }
+
   const unnamedControls = await page
     .locator("main button:visible, main input:visible, main select:visible, main textarea:visible")
     .evaluateAll((controls) =>
@@ -106,10 +162,36 @@ async function verifyPage(page, route, viewport) {
     );
   expect(unnamedControls, `${route.path} has unnamed visible controls at ${viewport.width}px`).toEqual([]);
 
+  await page.evaluate(async () => {
+    const pageHeight = document.documentElement.scrollHeight;
+    const step = Math.max(window.innerHeight, 480);
+    for (let offset = 0; offset < pageHeight; offset += step) {
+      window.scrollTo(0, offset);
+      await new Promise((resolve) => window.setTimeout(resolve, 20));
+    }
+    window.scrollTo(0, 0);
+  });
+  await page.locator("img:visible").evaluateAll(async (images) => {
+    await Promise.all(
+      images.map(
+        (image) =>
+          new Promise((resolve) => {
+            if (image.complete) {
+              resolve();
+              return;
+            }
+            const finish = () => resolve();
+            image.addEventListener("load", finish, { once: true });
+            image.addEventListener("error", finish, { once: true });
+            window.setTimeout(finish, 5_000);
+          }),
+      ),
+    );
+  });
   const brokenVisibleImages = await page
     .locator("img:visible")
     .evaluateAll((images) =>
-      images.filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.currentSrc || image.getAttribute("src")),
+      images.filter((image) => !image.complete || image.naturalWidth === 0).map((image) => image.currentSrc || image.getAttribute("src")),
     );
   expect(brokenVisibleImages, `${route.path} has broken visible images at ${viewport.width}px`).toEqual([]);
 }

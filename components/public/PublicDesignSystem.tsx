@@ -314,7 +314,12 @@ export function PublicPartnerStrip({ sponsors }: { sponsors: PlatformSponsorProf
         Official Partners
       </p>
       {visibleSponsors.length > 0 ? (
-        <div className="mt-3 grid grid-cols-2 items-center gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div
+          className={joinClasses(
+            "mt-3 grid items-center gap-3",
+            visibleSponsors.length === 1 ? "grid-cols-1" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6",
+          )}
+        >
           {visibleSponsors.slice(0, 6).map((sponsor) => {
             const visualUrl = sponsorVisualUrl(sponsor);
             return (
@@ -327,9 +332,12 @@ export function PublicPartnerStrip({ sponsors }: { sponsors: PlatformSponsorProf
                   <ManagedImage
                     src={visualUrl}
                     alt={sponsor.name}
-                    sizes="180px"
-                    wrapperClassName="h-10 w-full"
-                    className="object-contain grayscale opacity-80 transition hover:grayscale-0 hover:opacity-100"
+                    sizes={sponsor.slug === "hukut" ? "512px" : "180px"}
+                    wrapperClassName={sponsor.slug === "hukut" ? "h-10 w-60 max-w-full" : "h-10 w-full"}
+                    className={joinClasses(
+                      "object-contain grayscale opacity-80 transition hover:grayscale-0 hover:opacity-100",
+                      sponsor.slug === "hukut" && "translate-y-0.5 scale-[3.75]",
+                    )}
                   />
                 ) : (
                   <span className="truncate">{sponsor.name}</span>

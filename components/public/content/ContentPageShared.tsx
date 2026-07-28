@@ -33,7 +33,7 @@ export function dateValue(value?: string | null) {
 
 export function meaningfulText(value?: string | null) {
   const normalized = value?.trim();
-  if (!normalized || /^(tbd|pending|unknown|n\/a|not available)$/i.test(normalized)) {
+  if (!normalized || /^(tba|tbd|pending|unknown|n\/a|not available|to be announced)$/i.test(normalized)) {
     return UNAVAILABLE;
   }
   return normalized;

@@ -5,7 +5,6 @@ import {
   PublicPageHero,
   PublicSectionHeader,
   PublicStatusBadge,
-  formatPublicDate,
   formatPublicDateRange,
   formatPublicNumber,
   joinClasses,
@@ -15,7 +14,7 @@ import {
 import ManagedImage from "@/components/ui/ManagedImage";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PlatformEvent, PlatformHubData } from "@/lib/platform-hub";
-import { CalendarDays, CirclePlay, Gamepad2, Search, ShieldCheck, Trophy, Users } from "lucide-react";
+import { CalendarDays, CirclePlay, Search, ShieldCheck, Trophy, Users } from "lucide-react";
 import {
   dateValue,
   FilterTabs,
@@ -75,6 +74,22 @@ function selectFeaturedEvent(events: PlatformEvent[]) {
   );
 }
 
+function eventLeadLabel(event: PlatformEvent) {
+  if (event.featured) return "Featured Event";
+  if (event.status === "live") return "Ongoing Event";
+  if (event.status === "upcoming") return "Next Published Event";
+  if (event.status === "planned") return "Planned Event";
+  return "Latest Event Record";
+}
+
+function eventDurationLabel(event: PlatformEvent) {
+  const start = dateValue(event.startDate);
+  const end = dateValue(event.endDate);
+  if (!start || !end || end < start) return UNAVAILABLE;
+  const days = Math.floor((end - start) / 86_400_000) + 1;
+  return `${formatPublicNumber(days)} ${days === 1 ? "day" : "days"}`;
+}
+
 function EventVisual({
   event,
   className,
@@ -106,7 +121,10 @@ function EventVisual({
       role="img"
       aria-label={`${event.name} has no published event artwork`}
     >
-      <Trophy className="absolute bottom-5 right-5 h-16 w-16 text-accent-blue/20" aria-hidden="true" />
+      <Trophy className="absolute bottom-5 right-5 h-16 w-16 text-accent-blue/25" aria-hidden="true" />
+      <span className="absolute bottom-4 left-4 rounded-[3px] border border-white/15 bg-black/50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-secondary">
+        Artwork pending
+      </span>
     </div>
   );
 }
@@ -119,7 +137,7 @@ function FeaturedEvent({ event }: { event: PlatformEvent }) {
         <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_13rem]">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <PublicStatusBadge tone="blue">Featured Event</PublicStatusBadge>
+              <PublicStatusBadge tone="blue">{eventLeadLabel(event)}</PublicStatusBadge>
               <EventStatus status={event.status} />
             </div>
             <p className="public-kicker mt-5">{event.type || event.gameName}</p>
@@ -132,6 +150,10 @@ function FeaturedEvent({ event }: { event: PlatformEvent }) {
             <div className="border-b border-white/10 pb-3">
               <dt className="public-stat-label">Date</dt>
               <dd className="mt-1 text-white">{formatPublicDateRange(event.startDate, event.endDate)}</dd>
+            </div>
+            <div className="border-b border-white/10 pb-3">
+              <dt className="public-stat-label">Duration</dt>
+              <dd className="mt-1 text-white">{eventDurationLabel(event)}</dd>
             </div>
             <div className="border-b border-white/10 pb-3">
               <dt className="public-stat-label">Format</dt>
@@ -216,12 +238,18 @@ function ArchivedEventCard({ event }: { event: PlatformEvent }) {
     <article className="public-card min-w-0 p-4">
       <div className="flex items-start justify-between gap-3">
         <PublicStatusBadge>Completed</PublicStatusBadge>
-        <span className="text-xs text-text-muted">{formatPublicDate(event.startDate)}</span>
+        <span className="text-right text-xs text-text-muted">
+          {formatPublicDateRange(event.startDate, event.endDate)}
+        </span>
       </div>
       <h3 className="mt-4 line-clamp-2 font-display text-lg font-bold uppercase leading-tight text-white">
         {event.name}
       </h3>
       <p className="mt-3 line-clamp-2 text-sm leading-6 text-text-muted">{event.summary}</p>
+      <dl className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-3 text-xs">
+        <dt className="text-text-muted">Winner</dt>
+        <dd className="truncate text-right font-semibold text-white">{meaningfulText(event.topTeamName)}</dd>
+      </dl>
       <div className="mt-4">
         <PublicActionLink href={`/events/${event.slug}`} variant="secondary" className="w-full justify-center">
           View Recap
@@ -247,6 +275,7 @@ export function EventsReferencePage({
   const sort = ["latest", "oldest", "name", "status"].includes(sortValue) ? sortValue : "latest";
   const queryValue = readSearchParam(searchParams.q).trim();
   const query = queryValue.toLowerCase();
+  const defaultFeaturedEvent = selectFeaturedEvent(publicEvents);
   const filteredEvents = sortEvents(
     publicEvents.filter(
       (event) =>
@@ -255,10 +284,12 @@ export function EventsReferencePage({
     ),
     sort,
   );
-  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / EVENTS_PAGE_SIZE));
+  const filtersActive = status !== "all" || Boolean(query);
+  const featuredEvent = filtersActive ? selectFeaturedEvent(filteredEvents) : defaultFeaturedEvent;
+  const listingEvents = filteredEvents.filter((event) => event.id !== featuredEvent?.id);
+  const totalPages = Math.max(1, Math.ceil(listingEvents.length / EVENTS_PAGE_SIZE));
   const page = normalizePage(searchParams.page, totalPages);
-  const pageEvents = filteredEvents.slice((page - 1) * EVENTS_PAGE_SIZE, page * EVENTS_PAGE_SIZE);
-  const featuredEvent = selectFeaturedEvent(publicEvents);
+  const pageEvents = listingEvents.slice((page - 1) * EVENTS_PAGE_SIZE, page * EVENTS_PAGE_SIZE);
   const activePageEvents = pageEvents.filter((event) => event.status !== "completed");
   const archivedPageEvents = pageEvents.filter((event) => event.status === "completed");
   const upcomingCount = publicEvents.filter(
@@ -267,7 +298,6 @@ export function EventsReferencePage({
   const ongoingCount = publicEvents.filter((event) => event.status === "live").length;
   const completedCount = publicEvents.filter((event) => event.status === "completed").length;
   const teamEntries = publicEvents.reduce((total, event) => total + Math.max(0, event.teamsCount), 0);
-  const publishedMatches = publicEvents.reduce((total, event) => total + Math.max(0, event.matchesCount), 0);
 
   return (
     <main className="public-page">
@@ -275,7 +305,7 @@ export function EventsReferencePage({
         eyebrow="Compete. Connect. Conquer."
         title="Events"
         description="Explore published Bravo Gaming Esports tournaments, schedules, event details, and verified competition results."
-        imageUrl={featuredEvent?.bannerUrl}
+        imageUrl={defaultFeaturedEvent?.bannerUrl}
         actions={
           <>
             <PublicActionLink href="#event-board">Browse Events</PublicActionLink>
@@ -302,9 +332,59 @@ export function EventsReferencePage({
       />
 
       <div className="public-container space-y-6 py-6">
+        <section id="event-board" aria-label="Event controls" className="scroll-mt-24">
+          <div className="public-panel p-3 sm:p-4">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(24rem,0.72fr)] xl:items-center">
+              <FilterTabs
+                pathname="/events"
+                searchParams={searchParams}
+                paramName="status"
+                activeValue={status}
+                label="Filter events by status"
+                items={[
+                  { label: "All", value: "all" },
+                  { label: "Upcoming", value: "upcoming" },
+                  { label: "Ongoing", value: "ongoing" },
+                  { label: "Completed", value: "completed" },
+                ]}
+              />
+              <form
+                action="/events"
+                method="get"
+                className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_auto]"
+              >
+                {status !== "all" ? <input type="hidden" name="status" value={status} /> : null}
+                <label className="flex min-h-10 min-w-0 items-center gap-2 rounded-[4px] border border-white/15 bg-black/25 px-3 transition focus-within:border-accent-blue focus-within:ring-2 focus-within:ring-accent-blue/20">
+                  <Search className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                  <span className="sr-only">Search events</span>
+                  <input
+                    type="search"
+                    name="q"
+                    defaultValue={queryValue}
+                    placeholder={"Search events\u2026"}
+                    className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-text-muted"
+                  />
+                </label>
+                <label>
+                  <span className="sr-only">Sort events</span>
+                  <select name="sort" defaultValue={sort} className="public-filter-control min-h-10 w-full">
+                    <option value="latest">Latest date</option>
+                    <option value="oldest">Oldest date</option>
+                    <option value="name">Event name</option>
+                    <option value="status">Status</option>
+                  </select>
+                </label>
+                <button type="submit" className="btn-primary min-h-10 !px-4 !py-2">
+                  Apply
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+
         {featuredEvent ? (
           <FeaturedEvent event={featuredEvent} />
-        ) : (
+        ) : publicEvents.length === 0 ? (
           <PublicEmptyState
             title="No published events yet"
             description="Official event cards will appear here after schedules and public details are approved."
@@ -314,7 +394,7 @@ export function EventsReferencePage({
               </PublicActionLink>
             }
           />
-        )}
+        ) : null}
 
         <section aria-label="Event summary" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           <PublicMetric
@@ -343,69 +423,37 @@ export function EventsReferencePage({
             icon={<Users className="h-5 w-5" />}
           />
           <PublicMetric
-            label="Published matches"
-            value={publishedMatches > 0 ? formatPublicNumber(publishedMatches) : UNAVAILABLE}
-            icon={<Gamepad2 className="h-5 w-5" />}
+            label="Prize pool"
+            value={UNAVAILABLE}
+            icon={<Trophy className="h-5 w-5" />}
           />
         </section>
 
-        <section id="event-board" className="scroll-mt-24 space-y-5">
-          <div className="public-panel p-3 sm:p-4">
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(24rem,0.72fr)] xl:items-center">
-              <FilterTabs
-                pathname="/events"
-                searchParams={searchParams}
-                paramName="status"
-                activeValue={status}
-                label="Filter events by status"
-                items={[
-                  { label: "All", value: "all" },
-                  { label: "Upcoming", value: "upcoming" },
-                  { label: "Ongoing", value: "ongoing" },
-                  { label: "Completed", value: "completed" },
-                ]}
-              />
-              <form action="/events" method="get" className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_auto]">
-                {status !== "all" ? <input type="hidden" name="status" value={status} /> : null}
-                <label className="flex min-h-10 items-center gap-2 rounded-[4px] border border-white/15 bg-black/25 px-3">
-                  <Search className="h-4 w-4 text-text-muted" aria-hidden="true" />
-                  <span className="sr-only">Search events</span>
-                  <input
-                    type="search"
-                    name="q"
-                    defaultValue={queryValue}
-                    placeholder={"Search events\u2026"}
-                    className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-text-muted"
-                  />
-                </label>
-                <label>
-                  <span className="sr-only">Sort events</span>
-                  <select name="sort" defaultValue={sort} className="public-filter-control min-h-10 w-full">
-                    <option value="latest">Latest date</option>
-                    <option value="oldest">Oldest date</option>
-                    <option value="name">Event name</option>
-                    <option value="status">Status</option>
-                  </select>
-                </label>
-                <button type="submit" className="btn-primary min-h-10 !px-4 !py-2">
-                  Apply
-                </button>
-              </form>
-            </div>
-          </div>
-
+        <section className="space-y-5">
           <PublicSectionHeader
             eyebrow="Upcoming & Ongoing Events"
             title="Competition Board"
-            action={<span className="text-xs text-text-muted">{filteredEvents.length} published result(s)</span>}
+            action={
+              <span className="text-xs text-text-muted">
+                {listingEvents.length} additional published {listingEvents.length === 1 ? "result" : "results"}
+              </span>
+            }
           />
 
-          {filteredEvents.length === 0 ? (
+          {listingEvents.length === 0 ? (
             <PublicEmptyState
-              title={publicEvents.length === 0 ? "No public events are available" : "No events match these filters"}
+              title={
+                publicEvents.length === 0
+                  ? "No public events are available"
+                  : filteredEvents.length > 0
+                    ? "Featured event shown above"
+                    : "No events match these filters"
+              }
               description={
                 publicEvents.length === 0
                   ? "The next approved Bravo event will appear here after publication."
+                  : filteredEvents.length > 0
+                    ? "No additional published event records match the current filters."
                   : "Try another status, search phrase, or sort option."
               }
             />

@@ -74,6 +74,12 @@ function attachObservers(page) {
     issues.push(`page error: ${error.message}`);
   };
 
+  const onResponse = (response) => {
+    if (response.status() >= 400) {
+      issues.push(`HTTP ${response.status()} ${response.request().method()} ${response.url()}`);
+    }
+  };
+
   const onRequestFailed = (request) => {
     const failure = request.failure();
     const errorText = failure?.errorText ?? "request failed";
@@ -92,6 +98,7 @@ function attachObservers(page) {
 
   page.on("console", onConsole);
   page.on("pageerror", onPageError);
+  page.on("response", onResponse);
   page.on("requestfailed", onRequestFailed);
 
   return {
@@ -100,6 +107,7 @@ function attachObservers(page) {
     dispose() {
       page.off("console", onConsole);
       page.off("pageerror", onPageError);
+      page.off("response", onResponse);
       page.off("requestfailed", onRequestFailed);
     },
   };
@@ -293,12 +301,20 @@ async function gotoAndCheck(page, route, label) {
 }
 
 async function submitSearchAndFilters(page, routeLabel) {
-  const searchInput = page.locator('input[name="q"]').first();
-  if (await searchInput.count()) {
-    await searchInput.fill("bravo").catch(() => undefined);
+  const form = page.locator('main form:has(button[type="submit"])').first();
+  if (!(await form.count())) {
+    pushUnique(summary.notes, `${routeLabel} has no search/filter form to submit.`);
+    writeSummary();
+    return;
   }
 
-  const selects = page.locator("select");
+  await expect(form).toHaveAttribute("method", /^(get)?$/i);
+  const searchInput = form.locator('input[name="q"]').first();
+  if (await searchInput.count()) {
+    await searchInput.fill("bravo");
+  }
+
+  const selects = form.locator("select[name]:not([disabled])");
   const selectCount = await selects.count();
   for (let index = 0; index < selectCount; index += 1) {
     const select = selects.nth(index);
@@ -306,23 +322,36 @@ async function submitSearchAndFilters(page, routeLabel) {
     if (options > 1) {
       const secondValue = await select.locator("option").nth(1).getAttribute("value");
       if (secondValue !== null) {
-        await select.selectOption(secondValue).catch(() => undefined);
+        await select.selectOption(secondValue);
       }
     }
   }
 
-  const submitButton = page
+  const expectedParams = await form
+    .locator("input[name]:not([disabled]), select[name]:not([disabled])")
+    .evaluateAll((controls) =>
+      controls
+        .filter((control) => control.type !== "submit" && control.value)
+        .map((control) => [control.getAttribute("name"), control.value]),
+    );
+  const submitButton = form
     .locator('button[type="submit"]')
     .filter({ hasText: /apply|search|filter/i })
     .first()
-    .or(page.locator('button[type="submit"]').first());
+    .or(form.locator('button[type="submit"]').first());
 
-  if (await submitButton.count()) {
-    await submitButton.click().catch(() => undefined);
-    await settlePage(page);
-    pushUnique(summary.notes, `Submitted search/filter form on ${routeLabel}.`);
-    writeSummary();
+  await expect(submitButton, `${routeLabel} search/filter form has no submit action`).toBeVisible();
+  const beforeSubmit = page.url();
+  await submitButton.click();
+  await page.waitForURL((url) => url.toString() !== beforeSubmit, { timeout: 15_000 });
+  await settlePage(page);
+
+  const submittedUrl = new URL(page.url());
+  for (const [name, value] of expectedParams) {
+    expect(submittedUrl.searchParams.get(name), `${routeLabel} did not preserve the submitted ${name} filter`).toBe(value);
   }
+  pushUnique(summary.notes, `Submitted and verified search/filter state on ${routeLabel}.`);
+  writeSummary();
 }
 
 async function clickFirstDetailLink(page, prefix, label) {
@@ -706,8 +735,44 @@ test("OAuth provider visibility follows live authorization readiness", async ({ 
   await expect(page.locator('input[type="email"]')).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Continue with Discord", exact: true })).toHaveCount(expectedDiscordControls);
 
+  if (readiness.discord) {
+    await page.goto(`${baseURL}/login`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45000,
+    });
+    const authorizationRequestPromise = page.waitForRequest(
+      (request) =>
+        request.url().includes("hldppfhtkfgthainismr.supabase.co/auth/v1/authorize") &&
+        new URL(request.url()).searchParams.get("provider") === "discord",
+      { timeout: 30000 },
+    );
+    await page.getByRole("button", { name: "Continue with Discord", exact: true }).click();
+    const authorizationRequest = await authorizationRequestPromise;
+    await page.waitForURL((url) => url.hostname === "discord.com" || url.hostname === "www.discord.com", {
+      timeout: 30000,
+    });
+
+    const authorizationUrl = new URL(authorizationRequest.url());
+    const applicationCallback = new URL(authorizationUrl.searchParams.get("redirect_to") ?? "");
+    const discordUrl = new URL(page.url());
+
+    expect(authorizationUrl.hostname).toBe("hldppfhtkfgthainismr.supabase.co");
+    expect(authorizationUrl.searchParams.get("code_challenge")).toBeTruthy();
+    expect(authorizationUrl.searchParams.get("code_challenge_method")?.toLowerCase()).toBe("s256");
+    const qaOrigin = new URL(baseURL);
+    const allowedCallbackOrigins =
+      qaOrigin.hostname === "localhost" || qaOrigin.hostname === "127.0.0.1"
+        ? [qaOrigin.origin, "https://bravo-gaming-esports.vercel.app"]
+        : [qaOrigin.origin];
+    expect(allowedCallbackOrigins).toContain(applicationCallback.origin);
+    expect(applicationCallback.pathname).toBe("/auth/callback");
+    expect(discordUrl.searchParams.get("client_id")).toBe("1530095874594836581");
+    expect(discordUrl.searchParams.get("redirect_uri")).toBe("https://hldppfhtkfgthainismr.supabase.co/auth/v1/callback");
+    expect(discordUrl.searchParams.get("state")).toBeTruthy();
+  }
+
   summary.passed.push({
-    label: "OAuth controls match live provider readiness",
+    label: readiness.discord ? "OAuth controls and Discord PKCE initiation are ready" : "OAuth controls match live provider readiness",
     route: "/login, /admin/login",
   });
   writeSummary();
