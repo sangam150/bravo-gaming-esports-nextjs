@@ -234,6 +234,11 @@ async function gotoAndCheck(page, route, label) {
       routeIssues.push(`Missing document title on ${route}`);
     }
 
+    await page
+      .locator("h1")
+      .first()
+      .waitFor({ state: "visible", timeout: 5000 })
+      .catch(() => undefined);
     const visibleHeadingCount = await page.locator("h1:visible").count();
     if (visibleHeadingCount !== 1) {
       routeIssues.push(`Expected exactly one visible H1 on ${route}; found ${visibleHeadingCount}`);
