@@ -56,7 +56,6 @@ export default function BroadcastOverlay() {
     }));
     document.documentElement.style.background = "transparent";
     document.body.style.background = "transparent";
-    document.body.style.display = "block";
     previousDisplay.forEach(({ node }) => {
       if (node.id !== "main-content" && node.tagName !== "SCRIPT") node.style.display = "none";
     });
