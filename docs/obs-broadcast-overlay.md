@@ -31,3 +31,7 @@ The feed checks for updated published match data every five seconds. Publishing 
 - Headshots are shown only if a future import/data source supplies a per-player headshot count. The current shared `MatchPlayerResult` type does not store headshots, so the overlay displays a dash instead of inventing a value.
 - The PUBG API provides match/telemetry data for eligible PUBG matches, but it does not automatically provide the private custom-room results from every Bravo scrim. Continue importing or entering verified results through the existing admin process.
 - This overlay is a transparent graphics layer, not a full match observer feed: it does not draw live player positions, kill-feed events or a live minimap.
+
+## Broadcast control room
+
+Open `https://YOUR_DOMAIN/overlay/control` to select a published match, choose a graphic scene, preview the overlay, and copy its OBS Browser Source URL. The match list refreshes every 30 seconds. The control room is a setup/selection panel; it does not remotely switch scenes already added to OBS. Add each generated scene URL as its own OBS Browser Source if you want hotkey-based scene switching in OBS.
