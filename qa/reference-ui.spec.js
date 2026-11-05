@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
@@ -194,9 +195,29 @@ async function verifyPage(page, route, viewport) {
       images.filter((image) => !image.complete || image.naturalWidth === 0).map((image) => image.currentSrc || image.getAttribute("src")),
     );
   expect(brokenVisibleImages, `${route.path} has broken visible images at ${viewport.width}px`).toEqual([]);
+
+  const failedManagedImages = await page.locator('[data-managed-image][data-image-failed="true"]:visible').count();
+  expect(failedManagedImages, `${route.path} exposed managed-image fallbacks at ${viewport.width}px`).toBe(0);
+
+  if (viewport.width >= 1024) {
+    const scrollRegions = page.locator('.public-table-wrap[role="region"][tabindex="0"]:visible');
+    for (let index = 0; index < (await scrollRegions.count()); index += 1) {
+      const region = scrollRegions.nth(index);
+      await region.focus();
+      await expect(region, `${route.path} table scroll region ${index + 1} must accept keyboard focus`).toBeFocused();
+    }
+  }
+
+  if (viewport.width === 1440) {
+    const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const blockingViolations = accessibility.violations
+      .filter((violation) => violation.impact === "critical" || violation.impact === "serious")
+      .map((violation) => `${violation.id}: ${violation.help} (${violation.nodes.length} nodes)`);
+    expect(blockingViolations, `${route.path} has serious WCAG violations at ${viewport.width}px`).toEqual([]);
+  }
 }
 
-test.describe.configure({ mode: "serial" });
+test.describe.configure({ mode: "default" });
 
 for (const route of routes) {
   test(`${route.name}: approved responsive viewport matrix`, async ({ browser }) => {

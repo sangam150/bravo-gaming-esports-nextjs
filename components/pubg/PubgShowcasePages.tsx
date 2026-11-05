@@ -85,20 +85,21 @@ export function PubgTeamProfileShowcasePage({
   const averageRecentPoints =
     team.recentPoints.length > 0 ? team.recentPoints.reduce((sum, value) => sum + value, 0) / team.recentPoints.length : 0;
   const podiumEvents = team.eventStats.filter((eventStat) => (eventStat.rank ?? Number.POSITIVE_INFINITY) <= 3).length;
+  const recentPlacementFieldSize = Math.max(1, ...team.recentPlacements);
 
   return (
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="04. Team Page"
+          badge="PUBG Team"
           title={
             <>
               {team.name}
               <br />
-              team form and event profile
+              team profile
             </>
           }
-          description="Overview, roster, matches, statistics, and achievement context stay on one compact public team page backed by the Bravo PUBG dataset."
+          description="Browse the current roster, published match history, event statistics, and achievements for this team."
           actions={
             <>
               <Link href="/pubg/teams" className="btn-secondary">
@@ -193,15 +194,6 @@ export function PubgTeamProfileShowcasePage({
               </option>
             ))}
           </select>
-          <div className="rounded-[16px] border border-white/[0.06] bg-black/15 px-4 py-3 text-sm text-text-muted">
-            Event filters tighten recent matches and team stat tables without changing the underlying route.
-          </div>
-          <div className="rounded-[16px] border border-white/[0.06] bg-black/15 px-4 py-3 text-sm text-text-muted">
-            Current roster always reflects the latest public squad, while match history stays tied to the represented event.
-          </div>
-          <div className="rounded-[16px] border border-white/[0.06] bg-black/15 px-4 py-3 text-sm text-text-muted">
-            Roster history remains public-facing scouting context instead of buried admin-only data.
-          </div>
         </FilterBar>
 
         {tab === "overview" ? (
@@ -211,7 +203,7 @@ export function PubgTeamProfileShowcasePage({
                 <SectionHeader
                   eyebrow="Roster"
                   title="Current lineup"
-                  description="Every live roster slot keeps its player profile one click away."
+                  description="Approved active roster members and their player profiles."
                 />
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {team.currentRoster.map((member) => (
@@ -240,7 +232,7 @@ export function PubgTeamProfileShowcasePage({
                 <SectionHeader
                   eyebrow="Recent Trend"
                   title="Points and kills pressure"
-                  description="A compact trend read keeps form visible before users dive into full match history."
+                  description="Recent published points and placements."
                 />
                 <div className="mt-5 space-y-5">
                   <div className="rounded-[18px] border border-white/[0.06] bg-black/15 p-4">
@@ -252,7 +244,10 @@ export function PubgTeamProfileShowcasePage({
                   <div className="rounded-[18px] border border-white/[0.06] bg-black/15 p-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Recent placements</p>
                     <div className="mt-3">
-                      <TrendBars values={team.recentPlacements.map((placement) => Math.max(1, 18 - placement))} tone="green" />
+                      <TrendBars
+                        values={team.recentPlacements.map((placement) => Math.max(1, recentPlacementFieldSize + 1 - placement))}
+                        tone="green"
+                      />
                     </div>
                   </div>
                 </div>
@@ -264,7 +259,7 @@ export function PubgTeamProfileShowcasePage({
                 <SectionHeader
                   eyebrow="Recent Matches"
                   title="Latest team activity"
-                  description="Recent match rows stay on the profile so the standings never feel detached from the actual lobby output."
+                  description="Latest published matches for this team."
                 />
               </div>
               <div className="p-5">
@@ -300,8 +295,8 @@ export function PubgTeamProfileShowcasePage({
             <div className="esports-card p-6">
               <SectionHeader
                 eyebrow="Roster History"
-                title="Previous overlays and swaps"
-                description="Historical roster movement stays visible as scouting context."
+                title="Previous roster members"
+                description="Recorded roster history for this team."
               />
               <div className="mt-5 grid gap-3">
                 {team.rosterHistory.map((entry) => (
@@ -322,7 +317,7 @@ export function PubgTeamProfileShowcasePage({
                 ))}
                 {team.rosterHistory.length === 0 ? (
                   <div className="rounded-[18px] border border-dashed border-white/10 bg-black/15 px-4 py-5 text-sm text-text-muted">
-                    No previous roster overlays are recorded yet.
+                    No previous roster history is recorded.
                   </div>
                 ) : null}
               </div>
@@ -335,7 +330,7 @@ export function PubgTeamProfileShowcasePage({
             <SectionHeader
               eyebrow="Matches"
               title="Recent team match feed"
-              description="Recent matches stay available as cards so the page reads cleanly on mobile and desktop."
+              description="Published team match history for the selected event filter."
             />
             <div className="mt-5">
               <RecentMatchCards matches={filteredMatches as PubgHubRecentMatch[]} />
@@ -355,7 +350,7 @@ export function PubgTeamProfileShowcasePage({
                 <SectionHeader
                   eyebrow="Event Splits"
                   title="Event-specific output"
-                  description="Every tracked event contribution remains visible even after the homepage cycle moves on."
+                  description="Recorded team performance for each published event."
                 />
                 <div className="mt-5 table-scroll" tabIndex={0}>
                   <table className="data-table min-w-full">
@@ -394,9 +389,9 @@ export function PubgTeamProfileShowcasePage({
             <section>
               <div className="esports-card p-6">
                 <SectionHeader
-                  eyebrow="Trend Layer"
+                  eyebrow="Recent Form"
                   title="Points versus kills"
-                  description="A quick dual-read of how the squad is converting lobbies lately."
+                  description="Published points and kills from recent matches."
                 />
                 <div className="mt-5">
                   <DualTrendChart firstValues={team.recentPoints} secondValues={team.recentKills} firstLabel="Points" secondLabel="Kills" />
@@ -444,15 +439,15 @@ export function PubgPlayerProfileShowcasePage({
     <main className="page-shell pb-12 pt-6">
       <div className="page-stack">
         <PageHero
-          badge="05. Player Page"
+          badge="PUBG Player"
           title={
             <>
               {player.pubgName}
               <br />
-              player form and match output
+              player profile
             </>
           }
-          description="Overview, match history, statistics, and achievements stay on one Bravo player profile with recent form, best match context, and event-specific output."
+          description="Browse published match history, event statistics, team history, and achievements for this player."
           actions={
             <>
               <Link href="/pubg/players" className="btn-secondary">
@@ -485,7 +480,7 @@ export function PubgPlayerProfileShowcasePage({
                 <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="lg" />
                 <div>
                   <h2 className="font-display text-2xl font-black uppercase text-white">{player.pubgName}</h2>
-                  <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
+                  <p className="text-sm uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Unaffiliated"}</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -537,15 +532,6 @@ export function PubgPlayerProfileShowcasePage({
               </option>
             ))}
           </select>
-          <div className="rounded-[16px] border border-white/[0.06] bg-black/15 px-4 py-3 text-sm text-text-muted">
-            Event filters tighten both the match feed and event statistics below.
-          </div>
-          <div className="rounded-[16px] border border-white/[0.06] bg-black/15 px-4 py-3 text-sm text-text-muted">
-            Previous teams: {player.previousTeams.length > 0 ? player.previousTeams.join(" | ") : "No previous teams tracked"}
-          </div>
-          <div className="rounded-[16px] border border-white/[0.06] bg-black/15 px-4 py-3 text-sm text-text-muted">
-            Public player pages keep team context, damage trends, and best-match reads in one place.
-          </div>
         </FilterBar>
 
         {tab === "overview" ? (
@@ -553,8 +539,8 @@ export function PubgPlayerProfileShowcasePage({
             <div className="esports-card p-6">
               <SectionHeader
                 eyebrow="Best Match"
-                title="Peak output snapshot"
-                description="Best-match context stays visible near the top for quick scouting."
+                title="Best recorded match"
+                description="The player’s strongest published match by recorded output."
               />
               {player.bestMatch ? (
                 <div className="mt-5 rounded-[18px] border border-white/[0.06] bg-black/15 p-5">
@@ -675,16 +661,12 @@ export function PubgPlayerProfileShowcasePage({
         {tab === "statistics" ? (
           <>
             <section className="grid gap-6 xl:grid-cols-[1fr,1fr]">
-              <MapStatsTable
-                stats={player.mapStats}
-                title="Map profile"
-                description="Where this player finds the best fragging and damage edges."
-              />
+              <MapStatsTable stats={player.mapStats} title="Map profile" description="Recorded kills and damage by map." />
               <div className="esports-card p-6">
                 <SectionHeader
                   eyebrow="Recent Output"
                   title="Kills and damage trends"
-                  description="Recent output trends stay readable without opening another route."
+                  description="Kills and damage from recent published matches."
                 />
                 <div className="mt-5">
                   <DualTrendChart
@@ -698,11 +680,7 @@ export function PubgPlayerProfileShowcasePage({
             </section>
 
             <section className="esports-card p-6">
-              <SectionHeader
-                eyebrow="Identity"
-                title="Team context"
-                description="Current and previous team context remains visible alongside the pure stat read."
-              />
+              <SectionHeader eyebrow="Identity" title="Team context" description="Current and previously recorded team associations." />
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <PlayerIdentity player={player} />
                 {currentTeam ? <TeamIdentity team={currentTeam} href={`/pubg/teams/${currentTeam.slug}`} /> : null}

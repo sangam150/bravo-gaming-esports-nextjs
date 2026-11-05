@@ -33,6 +33,7 @@ const APP_CRITICAL_TABLES = [
   "teams",
   "players",
   "events",
+  "event_player_statistics",
   "matches",
   "match_players",
   "match_results",
@@ -68,7 +69,14 @@ const LAUNCH_COMPATIBILITY_TABLES = [
   "site_settings",
 ];
 
-const PROTECTED_RAW_RESOURCES = new Set(["app_documents", "homepage_content", "contact_messages", "news_articles"]);
+const PROTECTED_RAW_RESOURCES = new Set(["app_documents", "user_profiles", "homepage_content", "contact_messages", "news_articles"]);
+
+const TABLE_PROBE_COLUMNS = {
+  season_standings: "season_id",
+  standings: "season_id",
+  player_season_stats: "season_id",
+  alltime_standings: "team_id",
+};
 
 const DOCUMENT_STORE_COLLECTIONS = [
   "seasons",
@@ -206,10 +214,10 @@ function createSkippedTableCheck(tableName) {
 
 async function checkTable(baseUrl, apiKey, tableName) {
   const expectsPublicDenial = PROTECTED_RAW_RESOURCES.has(tableName);
-  const result = await safeJsonRequest(`${baseUrl}/rest/v1/${tableName}?select=id&limit=0`, apiKey, `table:${tableName}`);
+  const probeColumn = TABLE_PROBE_COLUMNS[tableName] ?? "id";
+  const result = await safeJsonRequest(`${baseUrl}/rest/v1/${tableName}?select=${probeColumn}&limit=0`, apiKey, `table:${tableName}`);
   const accessDenied = result.status === 401 || result.status === 403;
-  const missingFromSchemaCache =
-    typeof result.bodyPreview === "string" && result.bodyPreview.includes("Could not find the table");
+  const missingFromSchemaCache = typeof result.bodyPreview === "string" && result.bodyPreview.includes("Could not find the table");
   const present = !missingFromSchemaCache && (result.ok || accessDenied);
   const secured = expectsPublicDenial ? accessDenied : null;
 

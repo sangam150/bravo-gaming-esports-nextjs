@@ -1,5 +1,6 @@
 import { PubgFantasyPage } from "@/components/pubg/PubgPublicPages";
 import { buildContentMetadata } from "@/lib/metadata";
+import { getPubgHubDataset } from "@/lib/pubg-hub";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -17,6 +18,6 @@ export const metadata: Metadata = {
 
 export const revalidate = 300;
 
-export default function PubgFantasyIndexPage() {
-  return <PubgFantasyPage />;
+export default async function PubgFantasyIndexPage() {
+  return <PubgFantasyPage dataset={await getPubgHubDataset()} />;
 }

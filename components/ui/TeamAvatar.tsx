@@ -16,6 +16,7 @@ export default function TeamAvatar({ name, size = "md", imageUrl }: { name: stri
       <ManagedImage
         src={imageUrl}
         alt={name}
+        fallbackText={initials}
         sizes={size === "lg" ? "56px" : size === "md" ? "40px" : "36px"}
         wrapperClassName={`shrink-0 rounded-[18px] border border-white/10 bg-bg-primary shadow-[0_14px_28px_rgba(0,0,0,0.24)] ${sizes[size]}`}
         className="object-cover"

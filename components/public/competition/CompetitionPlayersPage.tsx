@@ -180,7 +180,11 @@ export function CompetitionPlayersPage({ dataset, searchParams, basePath }: Comp
           <section className="public-panel p-4 sm:p-5">
             <p className="public-kicker mb-3">Featured Player</p>
             <div className="grid gap-5 lg:grid-cols-[16rem_minmax(0,1fr)]">
-              <LargeIdentityArtwork name={featuredPlayer.pubgName} imageUrl={featuredPlayer.avatarUrl} label="#1 rank" />
+              <LargeIdentityArtwork
+                name={featuredPlayer.pubgName}
+                imageUrl={featuredPlayer.avatarUrl}
+                label={featuredPlayer.statsTracked ? "#1 rank" : "Statistics pending"}
+              />
               <div className="min-w-0 py-1">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
@@ -258,7 +262,7 @@ export function CompetitionPlayersPage({ dataset, searchParams, basePath }: Comp
           {visiblePlayers.length > 0 ? (
             <>
               <div className="hidden md:block">
-                <div className="public-table-wrap">
+                <div className="public-table-wrap" role="region" aria-label="Published player statistics table" tabIndex={0}>
                   <table className="public-table min-w-[980px]">
                     <caption className="sr-only">Published PUBG player statistics</caption>
                     <thead>

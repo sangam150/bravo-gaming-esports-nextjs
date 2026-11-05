@@ -63,7 +63,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const client = getSupabaseServiceRoleClient();
     const { data: profile, error: profileError } = await client
       .from("profiles")
-      .select("id,email,display_name,role,team_id,is_active")
+      .select("id,email,display_name,role,role_source,team_id,is_active")
       .eq("id", profileId)
       .maybeSingle();
     if (profileError) throw profileError;
@@ -90,10 +90,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       entityId: profile.id,
       oldValue: {
         role: profile.role,
+        roleSource: profile.role_source,
         teamId: profile.team_id,
       },
       newValue: {
         role: nextRole,
+        roleSource: "manual",
         teamId: team.id,
       },
     });
@@ -103,12 +105,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       .from("profiles")
       .update({
         role: nextRole as Tables<"profiles">["role"],
+        role_source: "manual",
         team_id: team.id,
         updated_at: now,
       })
       .eq("id", profile.id)
       .eq("is_active", true)
-      .eq("role", profile.role);
+      .eq("role", profile.role)
+      .eq("role_source", profile.role_source);
     profileUpdate = profile.team_id ? profileUpdate.eq("team_id", profile.team_id) : profileUpdate.is("team_id", null);
     const { data: updatedProfile, error: updateProfileError } = await profileUpdate
       .select("id,email,display_name,role,team_id,is_active")
@@ -127,11 +131,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         .from("profiles")
         .update({
           role: profile.role,
+          role_source: profile.role_source,
           team_id: profile.team_id,
           updated_at: new Date().toISOString(),
         })
         .eq("id", profile.id)
         .eq("role", nextRole)
+        .eq("role_source", "manual")
         .eq("team_id", team.id)
         .select("id")
         .maybeSingle();

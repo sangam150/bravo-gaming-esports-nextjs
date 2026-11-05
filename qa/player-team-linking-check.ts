@@ -157,7 +157,18 @@ assert.doesNotMatch(
 );
 
 const migrationSource = readFileSync("supabase/migrations/022_player_team_match_history_linking.sql", "utf8");
+const authorizationMigrationSource = readFileSync("supabase/migrations/024_public_data_and_authorization_hardening.sql", "utf8");
 const migrationWithoutComments = migrationSource.replace(/--.*$/gm, "");
+assert.match(
+  authorizationMigrationSource,
+  /alter column enabled set default false[\s\S]*insert into private\.player_team_link_settings\s*\(singleton, enabled\)[\s\S]*values\s*\(true, false\)[\s\S]*where singleton[\s\S]*and enabled[\s\S]*and updated_by is null/,
+  "the forward migration preserves fail-closed activation without rewriting historical migration 022",
+);
+assert.match(
+  authorizationMigrationSource,
+  /alter table private\.player_team_link_settings[\s\S]*alter column enabled set default false[\s\S]*insert into private\.player_team_link_settings \(singleton, enabled\)[\s\S]*values \(true, false\)[\s\S]*where singleton[\s\S]*and enabled[\s\S]*and updated_by is null/,
+  "the forward hardening migration must redundantly preserve fail-closed player/team linking on an interrupted or legacy migration sequence",
+);
 assert.match(
   migrationSource,
   /create table if not exists private\.canonical_team_identity_claims[\s\S]*normalized_identity text primary key[\s\S]*team_id uuid not null references public\.teams\(id\) on delete cascade/,
@@ -372,6 +383,28 @@ assert.match(
   unlinkFunction,
   /other_roster\.id is distinct from membership_record\.roster_history_id/,
   "manual unlink must preserve unrelated active roster ownership",
+);
+
+const authorizationHardeningSource = readFileSync("supabase/migrations/024_public_data_and_authorization_hardening.sql", "utf8");
+assert.match(
+  authorizationHardeningSource,
+  /profile\.role_source <> 'discord_sync'/,
+  "Discord-sourced roles must not authorize relational team access",
+);
+assert.match(
+  authorizationHardeningSource,
+  /revoke all on function public\.ensure_active_scrim_season\(\) from public, anon, authenticated[\s\S]*grant execute on function public\.ensure_active_scrim_season\(\) to service_role/,
+  "season mutation helpers must remain service-role only",
+);
+assert.match(
+  authorizationHardeningSource,
+  /where match_record\.status = 'published'[\s\S]*match_record\.published_at is not null/,
+  "public leaderboards must use only explicitly published matches",
+);
+assert.doesNotMatch(
+  authorizationHardeningSource.replace(/drop policy if exists "public read approved[^;]+;/g, ""),
+  /status\s+(?:=|in)[^\n;]*approved/,
+  "approved-only matches must never enter public match or leaderboard policies",
 );
 
 for (const routePath of [

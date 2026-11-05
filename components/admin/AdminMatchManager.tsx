@@ -1,10 +1,12 @@
 "use client";
+import { scoreMatchResults, type PointSystemRecord } from "@/lib/competition-scoring";
 
 import { adminFetch } from "@/lib/admin-api";
 import { scheduleEffectTask } from "@/lib/effect-task";
 import { compareMatchPlayerResults, compareMatchSequenceOrder, compareMatchTeamResults } from "@/lib/ranking-sort";
 import { slugify } from "@/lib/slug-utils";
-import type { MatchPlayerResult, Scrim, TeamMatchResult, Tournament, TournamentMatch } from "@/lib/types";
+import type { MatchPlayerResult, Player, Team, Scrim, TeamMatchResult, Tournament, TournamentMatch } from "@/lib/types";
+import MatchResultEntry from "./MatchResultEntry";
 import {
   getUserFacingPlayerLabel,
   getUserFacingTeamLabel,
@@ -23,13 +25,12 @@ const defaultPointSystemId = "00000000-0000-4000-8000-000000000001";
 
 const pubgMaps = ["Erangel", "Miramar", "Rondo", "Taego", "Deston", "Vikendi", "Sanhok", "Karakin", "Paramo"];
 
-type PointSystemOption = {
-  id: string;
-  name: string;
+type PointSystemOption = PointSystemRecord & {
   active?: boolean;
 };
 
 type MatchFormState = {
+  revision?: number;
   id: string;
   tournamentId: string;
   scrimId: string;
@@ -50,6 +51,8 @@ type MatchFormState = {
   screenshotUrls: string[];
   teamResultsText: string;
   playerResultsText: string;
+  teamResults: TeamMatchResult[];
+  playerResults: MatchPlayerResult[];
 };
 
 type BulkMatchFormState = {
@@ -78,8 +81,8 @@ const defaultMatchForm: MatchFormState = {
   map: "Erangel",
   eventName: "",
   eventSlug: "",
-  pointSystemId: defaultPointSystemId,
-  pointSystemName: "Bravo PUBG",
+  pointSystemId: "",
+  pointSystemName: "Event scoring",
   status: "draft",
   playedAt: "",
   vodUrl: "",
@@ -89,6 +92,8 @@ const defaultMatchForm: MatchFormState = {
   screenshotUrls: [],
   teamResultsText: "",
   playerResultsText: "",
+  teamResults: [],
+  playerResults: [],
 };
 
 const defaultBulkForm: BulkMatchFormState = {
@@ -257,6 +262,7 @@ function serializePlayerResults(playerResults?: MatchPlayerResult[]) {
 function buildMatchForm(match: TournamentMatch): MatchFormState {
   return {
     id: match.id,
+    revision: match.revision,
     tournamentId: match.tournamentId ?? "",
     scrimId: match.scrimId ?? "",
     pubgMatchId: match.pubgMatchId,
@@ -276,6 +282,8 @@ function buildMatchForm(match: TournamentMatch): MatchFormState {
     screenshotUrls: match.screenshotUrls ?? [],
     teamResultsText: serializeTeamResults(match.teamResults),
     playerResultsText: serializePlayerResults(match.playerResults),
+    teamResults: match.teamResults ?? [],
+    playerResults: match.playerResults ?? [],
   };
 }
 
@@ -299,14 +307,22 @@ export default function AdminMatchManager({
   tournaments,
   scrims,
   onChanged,
+  initialTournamentId = "",
+  onImportRequested,
+  knownTeams = [],
+  knownPlayers = [],
 }: {
   tournaments: Tournament[];
   scrims: Scrim[];
   onChanged?: () => void | Promise<void>;
+  initialTournamentId?: string;
+  onImportRequested?: (tournamentId: string, scrimId: string, reference: string) => void;
+  knownTeams?: Team[];
+  knownPlayers?: Player[];
 }) {
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [pointSystems, setPointSystems] = useState<PointSystemOption[]>([]);
-  const [form, setForm] = useState<MatchFormState>(defaultMatchForm);
+  const [form, setForm] = useState<MatchFormState>(() => ({ ...defaultMatchForm, tournamentId: initialTournamentId }));
   const [bulkForm, setBulkForm] = useState<BulkMatchFormState>(defaultBulkForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -318,6 +334,7 @@ export default function AdminMatchManager({
   const [serverPreview, setServerPreview] = useState<TournamentMatch | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previewSignature, setPreviewSignature] = useState("");
 
   async function loadMatches() {
     setLoading(true);
@@ -345,25 +362,28 @@ export default function AdminMatchManager({
     return scheduleEffectTask(loadMatches);
   }, []);
 
-  const previewTeamResults = useMemo(() => parseTeamResults(form.teamResultsText), [form.teamResultsText]);
+  const previewTeamResults = form.teamResults;
   const previewPlayerResults = useMemo(
-    () => parsePlayerResults(form.playerResultsText, previewTeamResults),
-    [form.playerResultsText, previewTeamResults],
+    () => form.playerResults.map(row => { const related = previewTeamResults.find(team => team.teamId && row.teamId ? team.teamId === row.teamId : team.teamName === row.teamName); return related ? { ...row, placement: related.placement, teamId: related.teamId } : row; }),
+    [form.playerResults, previewTeamResults],
   );
   const previewWinner = previewTeamResults.find((teamResult) => teamResult.placement === 1)?.teamName ?? "Winner Pending";
-  const activePreview = serverPreview ?? {
+  const scoringPointSystem = pointSystems.find((system) => system.id === form.pointSystemId);
+  let localScoring: ReturnType<typeof scoreMatchResults> | null = null;
+  try { localScoring = scoringPointSystem ? scoreMatchResults(previewTeamResults, previewPlayerResults, scoringPointSystem) : null; } catch { /* Incomplete drafts are validated by Preview. */ }
+  const activePreview = serverPreview && previewSignature === JSON.stringify(form) ? serverPreview : {
     id: form.id || "match-preview",
     pubgMatchId: form.pubgMatchId,
     matchNumber: form.matchNumber,
     map: form.map,
     eventName: form.eventName,
     status: form.status,
-    winner: previewWinner,
-    points: previewTeamResults[0]?.totalPoints ?? 0,
+    winner: localScoring?.winner ?? previewWinner,
+    points: localScoring?.totalPoints ?? 0,
     knockouts: previewTeamResults.reduce((sum, teamResult) => sum + teamResult.kills, 0),
     dataSource: "manual_correction" as const,
-    teamResults: previewTeamResults,
-    playerResults: previewPlayerResults,
+    teamResults: localScoring?.teamResults ?? [],
+    playerResults: localScoring?.playerResults ?? [],
     pointSystemId: form.pointSystemId,
     pointSystemName: form.pointSystemName,
   };
@@ -371,8 +391,9 @@ export default function AdminMatchManager({
 
   function resetForm() {
     setEditingId(null);
-    setForm(defaultMatchForm);
+    setForm({ ...defaultMatchForm, tournamentId: initialTournamentId });
     setServerPreview(null);
+    setPreviewSignature("");
   }
 
   async function refreshAfterMutation(successMessage: string) {
@@ -384,6 +405,7 @@ export default function AdminMatchManager({
   function buildPayload(status: MatchFormState["status"]) {
     return {
       id: form.id || undefined,
+      revision: form.revision,
       tournamentId: form.tournamentId || undefined,
       scrimId: form.scrimId || undefined,
       pubgMatchId: form.pubgMatchId.trim() || undefined,
@@ -410,7 +432,7 @@ export default function AdminMatchManager({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await persistMatch(form.status);
+    await persistMatch("draft");
   }
 
   async function handlePreview() {
@@ -430,13 +452,9 @@ export default function AdminMatchManager({
       });
       const preview = response.data as TournamentMatch;
       setServerPreview(preview);
-      setForm((currentForm) => ({
-        ...currentForm,
-        pointSystemId: preview.pointSystemId ?? currentForm.pointSystemId,
-        pointSystemName: preview.pointSystemName ?? currentForm.pointSystemName,
-        eventName: preview.eventName ?? currentForm.eventName,
-        eventSlug: preview.eventSlug ?? currentForm.eventSlug,
-      }));
+      const reviewedForm = { ...form, pointSystemId: preview.pointSystemId ?? form.pointSystemId, pointSystemName: preview.pointSystemName ?? form.pointSystemName, eventName: preview.eventName ?? form.eventName, eventSlug: preview.eventSlug ?? form.eventSlug };
+      setForm(currentForm => JSON.stringify(currentForm) === JSON.stringify(form) ? reviewedForm : currentForm);
+      setPreviewSignature(JSON.stringify(reviewedForm));
       setMessage("Preview refreshed with the active point system.");
     } catch (previewError: unknown) {
       setError(
@@ -450,6 +468,7 @@ export default function AdminMatchManager({
   }
 
   async function persistMatch(status: MatchFormState["status"]) {
+    if (status === "published" && previewSignature !== JSON.stringify(form)) { setError("Preview the current result entries before publishing."); return; }
     if (!form.tournamentId.trim() || !form.map.trim()) {
       setError("Event and map are required.");
       return;
@@ -480,7 +499,7 @@ export default function AdminMatchManager({
       await refreshAfterMutation(
         editingId
           ? status === "published"
-            ? "Match updated and published."
+            ? response.data?.status === "published" ? "Match updated and published." : "Correction saved as draft. Review it and publish explicitly."
             : "Match updated."
           : status === "published"
             ? "Match created and published."
@@ -571,6 +590,7 @@ export default function AdminMatchManager({
         body: JSON.stringify({
           id: match.id,
           action: match.status === "draft" ? "publish" : "unpublish",
+          revision: match.revision,
         }),
       });
       await refreshAfterMutation(match.status === "draft" ? "Match published." : "Match moved back to draft.");
@@ -591,7 +611,7 @@ export default function AdminMatchManager({
     }
 
     try {
-      await adminFetch(`/api/admin/matches?id=${encodeURIComponent(id)}`, {
+      await adminFetch(`/api/admin/matches?id=${encodeURIComponent(id)}&revision=${matches.find(match => match.id === id)?.revision ?? ""}`, {
         method: "DELETE",
       });
       if (editingId === id) {
@@ -615,7 +635,7 @@ export default function AdminMatchManager({
     try {
       await adminFetch("/api/admin/matches", {
         method: "PUT",
-        body: JSON.stringify({ id, action: "recalculate" }),
+        body: JSON.stringify({ id, revision: matches.find(match => match.id === id)?.revision, action: "recalculate" }),
       });
       await refreshAfterMutation("Match recalculated.");
     } catch (recalculateError: unknown) {
@@ -637,7 +657,7 @@ export default function AdminMatchManager({
     try {
       await adminFetch("/api/admin/matches", {
         method: "PUT",
-        body: JSON.stringify({ id, action: "rollback" }),
+        body: JSON.stringify({ id, revision: matches.find(match => match.id === id)?.revision, action: "rollback" }),
       });
       await refreshAfterMutation("Match rolled back to the latest audited snapshot.");
     } catch (rollbackError: unknown) {
@@ -655,6 +675,7 @@ export default function AdminMatchManager({
     setEditingId(match.id);
     setForm(buildMatchForm(match));
     setServerPreview(match);
+    setPreviewSignature("");
     setMessage(null);
     setError(null);
   }
@@ -677,7 +698,7 @@ export default function AdminMatchManager({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-black text-white">Match Manager</h2>
+        <h2 className="text-lg font-bold text-white">Review and publish results</h2>
         <p className="mt-1 text-sm text-text-muted">
           Create manual matches, score results with the active point system, preview before publishing, and manage recalculation or rollback
           from one place.
@@ -685,6 +706,21 @@ export default function AdminMatchManager({
       </div>
 
       <MessageLine message={message} error={error} />
+      <ol className="flex flex-wrap gap-3 text-sm text-text-muted" aria-label="Result workflow">
+        <li>1. Select competition and match</li>
+        <li>2. Import or enter results</li>
+        <li>3. Preview points and MVP</li>
+        <li>4. Publish</li>
+      </ol>
+      {onImportRequested ? (
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => onImportRequested(form.tournamentId, form.scrimId, form.pubgMatchId)}
+        >
+          Import PUBG data for this match
+        </button>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
         <form onSubmit={handleSubmit} className="esports-card space-y-4 p-6">
@@ -778,6 +814,7 @@ export default function AdminMatchManager({
               }}
             >
               <option value={defaultPointSystemId}>Default Bravo point system</option>
+              <option value="">Use approved stage / event scoring</option>
               {pointSystems.map((pointSystem) => (
                 <option key={pointSystem.id} value={pointSystem.id}>
                   {pointSystem.name}
@@ -839,7 +876,8 @@ export default function AdminMatchManager({
             {selectedPointSystem ? `Point system: ${selectedPointSystem.name}` : "Point system will be resolved on preview."}
           </div>
 
-          <div className="grid gap-4">
+          <MatchResultEntry teams={previewTeamResults} players={previewPlayerResults} knownTeams={knownTeams.filter(team => tournaments.find(event => event.id === form.tournamentId)?.registeredTeamIds?.includes(team.id) || previewTeamResults.some(row => row.teamId === team.id))} knownPlayers={knownPlayers} onTeams={teamResults => setForm({ ...form, teamResults, teamResultsText: serializeTeamResults(teamResults) })} onPlayers={playerResults => setForm({ ...form, playerResults, playerResultsText: serializePlayerResults(playerResults) })} />
+          <details><summary className="cursor-pointer text-sm">Advanced bulk result text</summary><p className="mt-3 text-xs text-text-muted">Optional pipe-delimited import. Calculated points are recomputed by the scoring service.</p><div className="mt-3 grid gap-4">
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Team results</p>
               <textarea
@@ -848,7 +886,7 @@ export default function AdminMatchManager({
                 aria-label="Team results"
                 placeholder="Team Name|Slot|Placement|Kills|Damage|PlacementPts|KillPts|TotalPts"
                 value={form.teamResultsText}
-                onChange={(event) => setForm({ ...form, teamResultsText: event.target.value })}
+                onChange={(event) => setForm({ ...form, teamResultsText: event.target.value, teamResults: parseTeamResults(event.target.value) })}
               />
             </div>
             <div>
@@ -859,12 +897,12 @@ export default function AdminMatchManager({
                 aria-label="Player results"
                 placeholder="Player Name|Team Name|Kills|Assists|Knocks|Damage|Placement|Player ID|PUBG Player ID|Survival Seconds"
                 value={form.playerResultsText}
-                onChange={(event) => setForm({ ...form, playerResultsText: event.target.value })}
+                onChange={(event) => setForm({ ...form, playerResultsText: event.target.value, playerResults: parsePlayerResults(event.target.value, previewTeamResults) })}
               />
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          </details><div className="grid gap-4 lg:grid-cols-2">
             <FileUpload
               type="scoreboard_image"
               entityId={uploadEntityId}
@@ -944,7 +982,7 @@ export default function AdminMatchManager({
             <button type="button" onClick={() => void handlePreview()} disabled={previewing} className="btn-secondary">
               {previewing ? "Previewing..." : "Preview"}
             </button>
-            <button type="button" onClick={() => void persistMatch("published")} disabled={publishing} className={btnPrimary}>
+            <button type="button" onClick={() => void persistMatch("published")} disabled={publishing || previewSignature !== JSON.stringify(form)} className={btnPrimary}>
               {publishing ? "Publishing..." : editingId ? "Update & Publish" : "Create & Publish"}
             </button>
             <button type="button" onClick={resetForm} className="btn-secondary">

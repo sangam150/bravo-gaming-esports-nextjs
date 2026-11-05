@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import pg from "pg";
+import { getVerifiedDatabaseConnection } from "./lib/verified-database-connection.mjs";
 
 const { Client } = pg;
 const outputDirectory = process.argv[2];
@@ -10,16 +11,18 @@ if (!outputDirectory) {
   throw new Error("Usage: node --env-file=.env.local scripts/backup-production-public.mjs <output-directory>");
 }
 
-const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
-if (!connectionString) {
+const configuredConnectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+if (!configuredConnectionString) {
   throw new Error("DIRECT_URL or DATABASE_URL is required");
 }
+
+const connection = getVerifiedDatabaseConnection(configuredConnectionString, "Database backup connection");
 
 await mkdir(outputDirectory, { recursive: true });
 
 const client = new Client({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
+  connectionString: connection.connectionString,
+  ssl: connection.ssl,
 });
 
 await client.connect();

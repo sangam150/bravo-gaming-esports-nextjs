@@ -95,6 +95,8 @@ function MediaVisual({
 }
 
 function FeaturedMedia({ item }: { item: PlatformMediaItem }) {
+  const mediaIsExternal = item.url?.startsWith("http") ?? false;
+
   return (
     <article className="public-card overflow-hidden">
       <MediaVisual item={item} priority className="h-48 w-full sm:h-56" />
@@ -110,7 +112,12 @@ function FeaturedMedia({ item }: { item: PlatformMediaItem }) {
         <div className="mt-4 flex flex-wrap gap-2">
           <PublicActionLink href={`/media/${item.slug}`}>View Details</PublicActionLink>
           {item.url ? (
-            <PublicActionLink href={item.url} variant="secondary" externalLabel=" opens in a new tab">
+            <PublicActionLink
+              href={item.url}
+              variant="secondary"
+              openInNewTab={mediaIsExternal}
+              externalLabel={mediaIsExternal ? " opens in a new tab" : undefined}
+            >
               Open Media
             </PublicActionLink>
           ) : null}
@@ -121,6 +128,8 @@ function FeaturedMedia({ item }: { item: PlatformMediaItem }) {
 }
 
 function MediaCard({ item }: { item: PlatformMediaItem }) {
+  const mediaIsExternal = item.url?.startsWith("http") ?? false;
+
   return (
     <article className="public-card flex min-w-0 flex-col overflow-hidden">
       <div className="relative">
@@ -148,7 +157,8 @@ function MediaCard({ item }: { item: PlatformMediaItem }) {
               href={item.url}
               variant="secondary"
               className="!px-3"
-              externalLabel=" opens in a new tab"
+              openInNewTab={mediaIsExternal}
+              externalLabel={mediaIsExternal ? " opens in a new tab" : undefined}
             >
               <span className="sr-only">Open {item.title}</span>
             </PublicActionLink>
@@ -177,11 +187,19 @@ export function MediaReferencePage({
     publishedMedia.filter((item) => mediaMatchesCategory(item, category)),
     sort,
   );
-  const totalPages = Math.max(1, Math.ceil(filteredMedia.length / MEDIA_PAGE_SIZE));
+  const featuredPool = category === "all" ? publishedMedia : filteredMedia;
+  const featuredMedia = featuredPool.find((item) => item.featured) ?? featuredPool[0] ?? null;
+  const listingMedia = filteredMedia.filter((item) => item.id !== featuredMedia?.id);
+  const totalPages = Math.max(1, Math.ceil(listingMedia.length / MEDIA_PAGE_SIZE));
   const page = normalizePage(searchParams.page, totalPages);
-  const pageItems = filteredMedia.slice((page - 1) * MEDIA_PAGE_SIZE, page * MEDIA_PAGE_SIZE);
-  const featuredMedia = publishedMedia.find((item) => item.featured) ?? publishedMedia[0] ?? null;
-  const recentMedia = sortMedia(publishedMedia, "recent").slice(0, 5);
+  const pageItems = listingMedia.slice((page - 1) * MEDIA_PAGE_SIZE, page * MEDIA_PAGE_SIZE);
+  const shownMediaIds = new Set(pageItems.map((item) => item.id));
+  if (featuredMedia) shownMediaIds.add(featuredMedia.id);
+  const recentMedia = sortMedia(publishedMedia, "recent")
+    .filter((item) => !shownMediaIds.has(item.id))
+    .slice(0, 5);
+  const featuredHref = featuredMedia?.url ?? (featuredMedia ? `/media/${featuredMedia.slug}` : null);
+  const featuredIsExternal = featuredHref?.startsWith("http") ?? false;
 
   return (
     <main className="public-page">
@@ -191,13 +209,17 @@ export function MediaReferencePage({
         description="Watch published Bravo broadcasts, highlights, interviews, and clips from official competition coverage."
         actions={
           <>
-            {featuredMedia ? (
-              <PublicActionLink href={featuredMedia.url ?? `/media/${featuredMedia.slug}`}>
+            {featuredMedia && featuredHref ? (
+              <PublicActionLink
+                href={featuredHref}
+                openInNewTab={featuredIsExternal}
+                externalLabel={featuredIsExternal ? " opens in a new tab" : undefined}
+              >
                 <CirclePlay className="h-4 w-4" aria-hidden="true" />
                 View Featured
               </PublicActionLink>
             ) : (
-              <PublicActionLink href={BRAVO_YOUTUBE_URL}>
+              <PublicActionLink href={BRAVO_YOUTUBE_URL} openInNewTab externalLabel=" opens in a new tab">
                 <CirclePlay className="h-4 w-4" aria-hidden="true" />
                 Visit Broadcast Channel
               </PublicActionLink>
@@ -227,7 +249,12 @@ export function MediaReferencePage({
             title="No published media yet"
             description="Official broadcasts, highlights, interviews, and clips will appear here when coverage is published."
             action={
-              <PublicActionLink href={BRAVO_YOUTUBE_URL} variant="secondary">
+              <PublicActionLink
+                href={BRAVO_YOUTUBE_URL}
+                variant="secondary"
+                openInNewTab
+                externalLabel=" opens in a new tab"
+              >
                 Official YouTube Channel
               </PublicActionLink>
             }
@@ -294,32 +321,38 @@ export function MediaReferencePage({
             </>
           ) : (
             <PublicEmptyState
-              title={publishedMedia.length === 0 ? "No published media yet" : "No media matches this category"}
+              title={
+                filteredMedia.length === 1 && featuredMedia
+                  ? "Featured media shown above"
+                  : "No media matches this category"
+              }
               description={
-                publishedMedia.length === 0
-                  ? "Approved broadcasts, highlights, interviews, and clips will appear here after publication."
+                filteredMedia.length === 1 && featuredMedia
+                  ? "There are no additional published items for this selection."
                   : "Choose another category or sorting option to browse the current media library."
               }
               action={
-                <PublicActionLink href={BRAVO_YOUTUBE_URL} variant="secondary">
-                  Official YouTube Channel
-                </PublicActionLink>
+                filteredMedia.length === 0 && category !== "all" ? (
+                  <PublicActionLink href="/media" variant="secondary">
+                    Clear Filter
+                  </PublicActionLink>
+                ) : null
               }
             />
           )}
         </section>
 
-        <section className="space-y-4">
-          <PublicSectionHeader
-            eyebrow="Recent Uploads"
-            title="Latest Published Content"
-            action={
-              publishedMedia.length > 5 ? (
-                <PublicInlineLink href="/media#media-library">View all media</PublicInlineLink>
-              ) : null
-            }
-          />
-          {recentMedia.length > 0 ? (
+        {recentMedia.length > 0 ? (
+          <section className="space-y-4">
+            <PublicSectionHeader
+              eyebrow="Recent Uploads"
+              title="Latest Published Content"
+              action={
+                publishedMedia.length > 5 ? (
+                  <PublicInlineLink href="/media#media-library">View all media</PublicInlineLink>
+                ) : null
+              }
+            />
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {recentMedia.map((item) => (
                 <Link
@@ -340,14 +373,8 @@ export function MediaReferencePage({
                 </Link>
               ))}
             </div>
-          ) : (
-            <PublicEmptyState
-              compact
-              title="Recent uploads will appear here"
-              description="Recent uploads will appear when new media is published."
-            />
-          )}
-        </section>
+          </section>
+        ) : null}
           </>
         )}
 

@@ -1,4 +1,4 @@
-import type { PubgHubMatch, PubgHubPlayer, PubgHubRecentMatch, PubgHubTeam } from "./pubg-hub";
+import type { PubgHubEvent, PubgHubMatch, PubgHubPlayer, PubgHubRecentMatch, PubgHubTeam } from "./pubg-hub";
 
 type TeamRankShape = {
   id: string;
@@ -48,6 +48,8 @@ export interface PubgPlayerBoardRow extends PlayerRankShape {
   trend: number[];
   bestMatch?: PubgHubRecentMatch | null;
 }
+
+type PubgPlayerIdentity = Pick<PubgHubPlayer, "avatarUrl" | "id" | "slug">;
 
 export function comparePubgTeams<T extends TeamRankShape>(firstValue: T, secondValue: T) {
   return (
@@ -356,6 +358,42 @@ export function buildPubgAggregatePlayerBoardRows(players: readonly PubgHubPlaye
         } satisfies PubgPlayerBoardRow;
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row)),
+  ).map((row, index) => ({
+    ...row,
+    rank: index + 1,
+  }));
+}
+
+export function buildPubgEventPlayerBoardRows(
+  rows: readonly PubgHubEvent["playerTable"][number][],
+  playerLookup: ReadonlyMap<string, PubgPlayerIdentity>,
+) {
+  return getRankedPlayers(
+    rows.map((row) => {
+      const player = playerLookup.get(row.playerId);
+
+      return {
+        id: row.playerId,
+        rank: 0,
+        playerId: row.playerId,
+        slug: player?.slug ?? row.playerId,
+        pubgName: row.pubgName,
+        avatarUrl: row.avatarUrl ?? player?.avatarUrl ?? null,
+        teamId: row.teamId ?? null,
+        teamName: row.teamName ?? null,
+        matches: row.matches,
+        wins: 0,
+        kills: row.kills,
+        assists: row.assists,
+        knocks: row.knocks,
+        damage: row.damage,
+        avgKills: row.avgKills,
+        avgDamage: row.avgDamage,
+        trend: row.trend,
+        bestMatch: null,
+        sourceRank: row.sourceRank ?? row.rank,
+      } satisfies PubgPlayerBoardRow;
+    }),
   ).map((row, index) => ({
     ...row,
     rank: index + 1,

@@ -23,8 +23,8 @@ assert.equal(policy.registrationOpen, false);
 assert.equal(getCanonicalPublicEventHref({ gameSlug: "pubg-pc", slug: eventSlug }), `/pubg/events/${eventSlug}`);
 
 assert.equal(isPublicPubgMatchStatus("published"), true);
-assert.equal(isPublicPubgMatchStatus("approved"), true);
-assert.equal(isPublicPubgMatchStatus("completed"), true);
+assert.equal(isPublicPubgMatchStatus("approved"), false);
+assert.equal(isPublicPubgMatchStatus("completed"), false);
 assert.equal(isPublicPubgMatchStatus("draft"), false);
 assert.equal(isPublicPubgMatchStatus("rejected"), false);
 assert.equal(isPublicPubgMatchStatus("deleted"), false);

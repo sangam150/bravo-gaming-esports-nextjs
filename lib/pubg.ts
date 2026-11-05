@@ -152,7 +152,7 @@ export function extractTelemetryUrl(matchData: PubgApiDocument): string | null {
   return asset?.attributes?.URL || null;
 }
 
-export function summarizeMatch(matchData: PubgApiDocument) {
+function summarizeMatch(matchData: PubgApiDocument) {
   const resource = Array.isArray(matchData.data) ? matchData.data[0] : matchData.data;
   const attrs = resource?.attributes;
   return {

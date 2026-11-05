@@ -53,6 +53,7 @@ async function createWorkspaceTeamLogoRequest(
     buffer,
     declaredContentType: input.file.type,
     fileName: input.file.name,
+    type: "team_logo_pending",
   });
   const uploadRecordId = randomUUID();
   const candidatePath = `teams/${team.id}/pending/logo-${preparedImage.metadata.version}.${preparedImage.decoded.extension}`;
@@ -91,7 +92,8 @@ async function createWorkspaceTeamLogoRequest(
       }),
     deleteCandidateObject: () => deletePrivateObjectByKey(candidatePath),
     deleteUploadRecord,
-    uploadCandidate: () => uploadPrivateObjectAtKey(candidatePath, buffer, preparedImage.decoded.contentType).then(() => undefined),
+    uploadCandidate: () =>
+      uploadPrivateObjectAtKey(candidatePath, preparedImage.buffer, preparedImage.decoded.contentType).then(() => undefined),
     verifyCandidate: () =>
       verifyPrivateObject(candidatePath, {
         contentType: preparedImage.decoded.contentType,
@@ -228,11 +230,17 @@ export async function POST(request: Request) {
       url,
     });
   } catch (error: unknown) {
-    if (pendingMossUploadRecordId) {
-      await deleteUploadRecord(pendingMossUploadRecordId).catch(() => undefined);
-    }
+    let objectDeleted = !pendingMossObjectPath;
     if (pendingMossObjectPath) {
-      await deletePrivateObjectByKey(pendingMossObjectPath).catch(() => undefined);
+      try {
+        await deletePrivateObjectByKey(pendingMossObjectPath);
+        objectDeleted = true;
+      } catch {
+        objectDeleted = false;
+      }
+    }
+    if (pendingMossUploadRecordId && objectDeleted) {
+      await deleteUploadRecord(pendingMossUploadRecordId).catch(() => undefined);
     }
     await logServerError("team.upload", error, request);
     if (error instanceof CanonicalTeamError) {

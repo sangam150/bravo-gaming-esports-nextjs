@@ -1,5 +1,6 @@
 import { compareBravoTeamSlotOrder } from "./bravo-teams";
 import type { MatchPlayerResult, Player, ScrimDayStanding, TeamMatchResult, TournamentMatch, TournamentStanding } from "./types";
+import type { TeamTieBreak } from "./scoring-rules";
 
 function compareOptionalNumberDesc(firstValue?: number | null, secondValue?: number | null) {
   const normalizedFirstValue = typeof firstValue === "number" && Number.isFinite(firstValue) ? firstValue : Number.NEGATIVE_INFINITY;
@@ -28,6 +29,10 @@ function getStablePlayerKey(value: { playerId?: string; pubgPlayerId?: string; i
 }
 
 type TeamPerformanceLike = {
+  disqualified?: boolean;
+  tieBreakers?: TeamTieBreak[];
+  latestPlacement?: number;
+  latestKills?: number;
   teamId?: string;
   id?: string;
   teamName?: string;
@@ -48,6 +53,17 @@ type TeamPerformanceLike = {
 };
 
 export function compareTeamLeaderboardPerformance<T extends TeamPerformanceLike>(firstValue: T, secondValue: T) {
+  const eligibility = Number(Boolean(firstValue.disqualified)) - Number(Boolean(secondValue.disqualified));
+  if (eligibility) return eligibility;
+  if (firstValue.tieBreakers?.length && JSON.stringify(firstValue.tieBreakers) === JSON.stringify(secondValue.tieBreakers)) {
+    const points = compareOptionalNumberDesc(firstValue.totalPoints, secondValue.totalPoints);
+    if (points) return points;
+    for (const key of firstValue.tieBreakers) {
+      const difference = key === "bestPlacement" || key === "latestPlacement" ? compareOptionalNumberAsc(firstValue[key], secondValue[key]) : compareOptionalNumberDesc(firstValue[key], secondValue[key]);
+      if (difference) return difference;
+    }
+    return getStableTeamKey(firstValue).localeCompare(getStableTeamKey(secondValue));
+  }
   return (
     compareOptionalNumberDesc(firstValue.totalPoints, secondValue.totalPoints) ||
     compareOptionalNumberDesc(firstValue.killPoints ?? firstValue.kills, secondValue.killPoints ?? secondValue.kills) ||
@@ -128,10 +144,18 @@ export function compareMatchTeamResults<T extends TeamMatchResult>(firstValue: T
 }
 
 export function compareMatchPlayerResults<T extends MatchPlayerResult>(firstValue: T, secondValue: T) {
+  const eligibility = Number(Boolean(firstValue.disqualified)) - Number(Boolean(secondValue.disqualified));
+  if (eligibility) return eligibility;
+  if (firstValue.awardCriteria?.length && JSON.stringify(firstValue.awardCriteria) === JSON.stringify(secondValue.awardCriteria)) {
+    for (const key of firstValue.awardCriteria) { const difference = compareOptionalNumberDesc(firstValue[key], secondValue[key]); if (difference) return difference; }
+    return getStablePlayerKey(firstValue).localeCompare(getStablePlayerKey(secondValue));
+  }
   return (
-    compareTopFraggerPerformance(firstValue, secondValue) ||
     compareOptionalNumberDesc(firstValue.totalPoints, secondValue.totalPoints) ||
-    compareOptionalNumberAsc(firstValue.placement, secondValue.placement) ||
+    compareOptionalNumberDesc(firstValue.kills, secondValue.kills) ||
+    compareOptionalNumberDesc(firstValue.damage, secondValue.damage) ||
+    compareOptionalNumberDesc(firstValue.assists, secondValue.assists) ||
+    firstValue.playerName.localeCompare(secondValue.playerName) ||
     getStablePlayerKey(firstValue).localeCompare(getStablePlayerKey(secondValue))
   );
 }

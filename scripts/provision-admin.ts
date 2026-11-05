@@ -14,7 +14,7 @@ const role = (args.get("role") ?? "").trim();
 const expectedProjectRef = (args.get("project-ref") ?? "").trim();
 const confirmed = args.get("confirm") === "PROVISION";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
+const serviceRoleKey = process.env.SUPABASE_SECRET_KEY?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
 const actualProjectRef = url ? new URL(url).hostname.split(".")[0] : "";
 
 if (!email || !email.includes("@")) throw new Error("A valid --email is required.");
@@ -40,6 +40,9 @@ async function main() {
   const authUser = (authUsers.users as User[]).find((candidate) => candidate.email?.trim().toLowerCase() === email);
   if (!authUser) {
     throw new Error("No matching Supabase Auth user exists. Invite or create the user first.");
+  }
+  if (!authUser.email_confirmed_at) {
+    throw new Error("The matching Supabase Auth user must confirm their email before administrative access can be provisioned.");
   }
 
   const now = new Date().toISOString();

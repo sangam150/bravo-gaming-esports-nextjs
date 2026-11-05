@@ -1,6 +1,8 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { previewCompetitionMatch } from "@/lib/competition-relational";
+import { parseScoringDecision } from "@/lib/scoring-rules";
+import { requireSameOrigin } from "@/lib/request-origin";
 import type { MatchPlayerResult, TeamMatchResult, TournamentMatch } from "@/lib/types";
 import { getUserFacingPlayerLabel, getUserFacingTeamLabel, USER_FACING_LABELS } from "@/lib/user-facing-errors";
 
@@ -12,6 +14,7 @@ function normalizeTeamResults(value: unknown) {
     .map(
       (item) =>
         ({
+          ...parseScoringDecision(item),
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
           teamName: getUserFacingTeamLabel(
             typeof item.teamName === "string" ? item.teamName : undefined,
@@ -83,7 +86,7 @@ function normalizeMatchInput(value: Record<string, unknown>) {
     eventSlug: typeof value.eventSlug === "string" ? value.eventSlug : undefined,
     pointSystemId: typeof value.pointSystemId === "string" ? value.pointSystemId : undefined,
     pointSystemName: typeof value.pointSystemName === "string" ? value.pointSystemName : undefined,
-    status: value.status === "draft" ? "draft" : "published",
+    status: "draft",
     playedAt: typeof value.playedAt === "string" ? value.playedAt : undefined,
     vodUrl: typeof value.vodUrl === "string" ? value.vodUrl : undefined,
     scoreboardImageUrl: typeof value.scoreboardImageUrl === "string" ? value.scoreboardImageUrl : undefined,
@@ -99,6 +102,8 @@ function normalizeMatchInput(value: Record<string, unknown>) {
 export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
@@ -119,6 +124,6 @@ export async function POST(request: Request) {
     return Response.json({ success: true, data });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ error: message }, { status: message.startsWith("Invalid match results:") ? 400 : 500 });
   }
 }

@@ -5,6 +5,7 @@ import { POST as teamLogoRoutePost } from "../app/api/admin/teams/[id]/logo/rout
 import { prepareCanonicalPublicImageUpload } from "../lib/canonical-image-upload";
 import { parseCanonicalTeamWriteInput } from "../lib/canonical-teams";
 import { decodeApprovedImage, ImageDecodeError } from "../lib/image-validation";
+import { resolvePublicAssetUrl } from "../lib/public-asset-url";
 import { assertPublicObjectDelivery, getManagedPublicObjectKeyFromUrl } from "../lib/r2/storage";
 import { validateSameOriginRequest } from "../lib/request-origin";
 import {
@@ -14,7 +15,7 @@ import {
   TeamLogoApprovalError,
 } from "../lib/team-logo-approval";
 import { matchTeamLogoFile, normalizeTeamLogoLabel } from "../lib/team-logo-matching";
-import { replaceTeamLogoAtomically } from "../lib/team-logo-service";
+import { ActiveAssetDeliveryError, replaceTeamLogoAtomically } from "../lib/team-logo-service";
 
 async function main() {
   const teams = [
@@ -81,6 +82,7 @@ async function main() {
   );
 
   const r2EnvironmentKeys = [
+    "NEXT_PUBLIC_R2_PUBLIC_BASE_URL",
     "R2_ACCOUNT_ID",
     "R2_ACCESS_KEY_ID",
     "R2_PRIVATE_BUCKET_NAME",
@@ -91,6 +93,7 @@ async function main() {
   ] as const;
   const previousR2Environment = Object.fromEntries(r2EnvironmentKeys.map((key) => [key, process.env[key]]));
   Object.assign(process.env, {
+    NEXT_PUBLIC_R2_PUBLIC_BASE_URL: "https://assets.example.test",
     R2_ACCOUNT_ID: "test-account",
     R2_ACCESS_KEY_ID: "test-access-key",
     R2_PRIVATE_BUCKET_NAME: "test-private",
@@ -109,7 +112,7 @@ async function main() {
     now: new Date("2026-07-28T00:00:00.000Z"),
     type: "team_logo",
   });
-  assert.match(preparedImage.objectKey, /^teams\/00000000-0000-4000-8000-000000000001\/logo-1785196800000-[0-9a-f]{12}\.png$/);
+  assert.match(preparedImage.objectKey, /^teams\/00000000-0000-4000-8000-000000000001\/logo-1785196800000-[0-9a-f]{12}\.webp$/);
   assert.equal(preparedImage.publicUrl, `https://assets.example.test/${preparedImage.objectKey}`);
   assert.deepEqual(
     {
@@ -123,8 +126,8 @@ async function main() {
     {
       altText: "NPL logo",
       height: 16,
-      mimeType: "image/png",
-      sizeBytes: png.byteLength,
+      mimeType: "image/webp",
+      sizeBytes: preparedImage.buffer.byteLength,
       status: "active",
       width: 16,
     },
@@ -138,8 +141,15 @@ async function main() {
     }
   }
 
+  const deliveryGuardDefaults = {
+    rollbackCanonicalTeam: async () => undefined,
+    verifyActivatedDelivery: async () => undefined,
+    writeDeliveryFailureAudit: async () => undefined,
+  };
+
   const successEvents: string[] = [];
   const success = await replaceTeamLogoAtomically({
+    ...deliveryGuardDefaults,
     createUploadRecord: async () => {
       successEvents.push("record");
       return { id: "upload-1" };
@@ -157,6 +167,9 @@ async function main() {
     revalidate: () => {
       successEvents.push("revalidate");
     },
+    rollbackCanonicalTeam: async () => {
+      successEvents.push("rollback");
+    },
     updateCanonicalTeam: async () => {
       successEvents.push("update");
       return { id: "team-1" };
@@ -167,17 +180,195 @@ async function main() {
     verifyNewObject: async () => {
       successEvents.push("verify");
     },
+    verifyActivatedDelivery: async () => {
+      successEvents.push("verify-active");
+    },
+    writeDeliveryFailureAudit: async () => {
+      successEvents.push("delivery-audit");
+    },
     writeRequiredAudit: async () => {
       successEvents.push("audit");
     },
   });
-  assert.deepEqual(successEvents, ["upload", "verify", "record", "audit", "update", "revalidate", "delete-old"]);
+  assert.deepEqual(successEvents, ["upload", "verify", "record", "audit", "update", "verify-active", "revalidate", "delete-old"]);
   assert.equal(success.cleanupPending, false);
   assert.equal(success.uploadRecordId, "upload-1");
+
+  const deliveryRollbackEvents: string[] = [];
+  let deliveryRollbackError: unknown;
+  try {
+    await replaceTeamLogoAtomically({
+      ...deliveryGuardDefaults,
+      createUploadRecord: async () => {
+        deliveryRollbackEvents.push("record");
+        return { id: "upload-delivery-rollback" };
+      },
+      deleteNewObject: async () => {
+        deliveryRollbackEvents.push("delete-new");
+      },
+      deletePreviousObject: async () => {
+        deliveryRollbackEvents.push("delete-old");
+        return true;
+      },
+      deleteUploadRecord: async () => {
+        deliveryRollbackEvents.push("delete-record");
+      },
+      revalidate: () => {
+        deliveryRollbackEvents.push("revalidate");
+      },
+      rollbackCanonicalTeam: async () => {
+        deliveryRollbackEvents.push("rollback");
+      },
+      updateCanonicalTeam: async () => {
+        deliveryRollbackEvents.push("update");
+        return { id: "team-1" };
+      },
+      uploadNewObject: async () => {
+        deliveryRollbackEvents.push("upload");
+      },
+      verifyActivatedDelivery: async () => {
+        deliveryRollbackEvents.push("verify-active");
+        throw new Error("delivery failed");
+      },
+      verifyNewObject: async () => {
+        deliveryRollbackEvents.push("verify");
+      },
+      writeDeliveryFailureAudit: async (failure) => {
+        deliveryRollbackEvents.push("delivery-audit");
+        assert.equal(failure.rollbackConfirmed, true);
+        assert.equal(failure.uploadRecordId, "upload-delivery-rollback");
+      },
+      writeRequiredAudit: async () => {
+        deliveryRollbackEvents.push("audit");
+      },
+    });
+  } catch (error) {
+    deliveryRollbackError = error;
+  }
+  assert.ok(deliveryRollbackError instanceof ActiveAssetDeliveryError);
+  assert.equal(deliveryRollbackError.rollbackConfirmed, true);
+  assert.equal(deliveryRollbackError.auditRecorded, true);
+  assert.deepEqual(deliveryRollbackEvents, [
+    "upload",
+    "verify",
+    "record",
+    "audit",
+    "update",
+    "verify-active",
+    "rollback",
+    "delivery-audit",
+    "revalidate",
+    "delete-new",
+    "delete-record",
+  ]);
+
+  const unconfirmedDeliveryRollbackEvents: string[] = [];
+  let unconfirmedDeliveryRollbackError: unknown;
+  try {
+    await replaceTeamLogoAtomically({
+      ...deliveryGuardDefaults,
+      createUploadRecord: async () => ({ id: "upload-delivery-unconfirmed" }),
+      deleteNewObject: async () => {
+        unconfirmedDeliveryRollbackEvents.push("delete-new");
+      },
+      deletePreviousObject: async () => {
+        unconfirmedDeliveryRollbackEvents.push("delete-old");
+        return true;
+      },
+      deleteUploadRecord: async () => {
+        unconfirmedDeliveryRollbackEvents.push("delete-record");
+      },
+      revalidate: () => {
+        unconfirmedDeliveryRollbackEvents.push("revalidate");
+      },
+      rollbackCanonicalTeam: async () => {
+        unconfirmedDeliveryRollbackEvents.push("rollback");
+        throw new Error("rollback result unknown");
+      },
+      updateCanonicalTeam: async () => {
+        unconfirmedDeliveryRollbackEvents.push("update");
+        return { id: "team-1" };
+      },
+      uploadNewObject: async () => {
+        unconfirmedDeliveryRollbackEvents.push("upload");
+      },
+      verifyActivatedDelivery: async () => {
+        unconfirmedDeliveryRollbackEvents.push("verify-active");
+        throw new Error("delivery failed");
+      },
+      verifyNewObject: async () => {
+        unconfirmedDeliveryRollbackEvents.push("verify");
+      },
+      writeDeliveryFailureAudit: async (failure) => {
+        unconfirmedDeliveryRollbackEvents.push("delivery-audit");
+        assert.equal(failure.rollbackConfirmed, false);
+      },
+      writeRequiredAudit: async () => {
+        unconfirmedDeliveryRollbackEvents.push("audit");
+      },
+    });
+  } catch (error) {
+    unconfirmedDeliveryRollbackError = error;
+  }
+  assert.ok(unconfirmedDeliveryRollbackError instanceof ActiveAssetDeliveryError);
+  assert.equal(unconfirmedDeliveryRollbackError.rollbackConfirmed, false);
+  assert.deepEqual(unconfirmedDeliveryRollbackEvents, [
+    "upload",
+    "verify",
+    "audit",
+    "update",
+    "verify-active",
+    "rollback",
+    "delivery-audit",
+    "revalidate",
+  ]);
+
+  const rollbackRevalidationEvents: string[] = [];
+  let rollbackRevalidationError: unknown;
+  try {
+    await replaceTeamLogoAtomically({
+      ...deliveryGuardDefaults,
+      createUploadRecord: async () => ({ id: "upload-revalidation-unconfirmed" }),
+      deleteNewObject: async () => {
+        rollbackRevalidationEvents.push("delete-new");
+      },
+      deletePreviousObject: async () => {
+        rollbackRevalidationEvents.push("delete-old");
+        return true;
+      },
+      deleteUploadRecord: async () => {
+        rollbackRevalidationEvents.push("delete-record");
+      },
+      revalidate: () => {
+        rollbackRevalidationEvents.push("revalidate");
+        throw new Error("cache state unknown");
+      },
+      rollbackCanonicalTeam: async () => {
+        rollbackRevalidationEvents.push("rollback");
+      },
+      updateCanonicalTeam: async () => ({ id: "team-1" }),
+      uploadNewObject: async () => undefined,
+      verifyActivatedDelivery: async () => {
+        rollbackRevalidationEvents.push("verify-active");
+        throw new Error("delivery failed");
+      },
+      verifyNewObject: async () => undefined,
+      writeDeliveryFailureAudit: async () => {
+        rollbackRevalidationEvents.push("delivery-audit");
+      },
+      writeRequiredAudit: async () => undefined,
+    });
+  } catch (error) {
+    rollbackRevalidationError = error;
+  }
+  assert.ok(rollbackRevalidationError instanceof ActiveAssetDeliveryError);
+  assert.equal(rollbackRevalidationError.rollbackConfirmed, true);
+  assert.deepEqual(rollbackRevalidationEvents, ["verify-active", "rollback", "delivery-audit", "revalidate"]);
 
   const rollbackEvents: string[] = [];
   await assert.rejects(() =>
     replaceTeamLogoAtomically({
+      ...deliveryGuardDefaults,
       createUploadRecord: async () => {
         rollbackEvents.push("record");
         return { id: "upload-2" };
@@ -210,11 +401,36 @@ async function main() {
       },
     }),
   );
-  assert.deepEqual(rollbackEvents, ["upload", "verify", "record", "audit", "update", "delete-record", "delete-new"]);
+  assert.deepEqual(rollbackEvents, ["upload", "verify", "record", "audit", "update", "delete-new", "delete-record"]);
+
+  const retainedCleanupRecordEvents: string[] = [];
+  await assert.rejects(() =>
+    replaceTeamLogoAtomically({
+      ...deliveryGuardDefaults,
+      createUploadRecord: async () => ({ id: "upload-retained-for-cleanup" }),
+      deleteNewObject: async () => {
+        retainedCleanupRecordEvents.push("delete-new-failed");
+        throw new Error("storage unavailable");
+      },
+      deletePreviousObject: async () => true,
+      deleteUploadRecord: async () => {
+        retainedCleanupRecordEvents.push("delete-record");
+      },
+      revalidate: () => undefined,
+      updateCanonicalTeam: async () => {
+        throw new Error("database update failed");
+      },
+      uploadNewObject: async () => undefined,
+      verifyNewObject: async () => undefined,
+      writeRequiredAudit: async () => undefined,
+    }),
+  );
+  assert.deepEqual(retainedCleanupRecordEvents, ["delete-new-failed"]);
 
   const unconfirmedActivationEvents: string[] = [];
   await assert.rejects(() =>
     replaceTeamLogoAtomically({
+      ...deliveryGuardDefaults,
       cleanupNewArtifactsOnError: () => false,
       createUploadRecord: async () => {
         unconfirmedActivationEvents.push("record");
@@ -246,6 +462,7 @@ async function main() {
   assert.deepEqual(unconfirmedActivationEvents, ["upload", "verify", "record", "audit", "update"]);
 
   const cleanupResult = await replaceTeamLogoAtomically({
+    ...deliveryGuardDefaults,
     createUploadRecord: async () => ({ id: "upload-3" }),
     deleteNewObject: async () => undefined,
     deletePreviousObject: async () => {
@@ -262,6 +479,7 @@ async function main() {
 
   const revalidationFailureEvents: string[] = [];
   const revalidationFailureResult = await replaceTeamLogoAtomically({
+    ...deliveryGuardDefaults,
     createUploadRecord: async () => ({ id: "upload-revalidation-failure" }),
     deleteNewObject: async () => undefined,
     deletePreviousObject: async () => {
@@ -282,6 +500,7 @@ async function main() {
   assert.equal(revalidationFailureResult.cleanupPending, true);
 
   const unresolvedCleanupResult = await replaceTeamLogoAtomically({
+    ...deliveryGuardDefaults,
     createUploadRecord: async () => ({ id: "upload-4" }),
     deleteNewObject: async () => undefined,
     deletePreviousObject: async () => false,
@@ -297,6 +516,7 @@ async function main() {
   const uploadFailureEvents: string[] = [];
   await assert.rejects(() =>
     replaceTeamLogoAtomically({
+      ...deliveryGuardDefaults,
       createUploadRecord: async () => {
         uploadFailureEvents.push("record");
         return { id: "upload-never-created" };
@@ -335,6 +555,7 @@ async function main() {
   const auditFailureEvents: string[] = [];
   await assert.rejects(() =>
     replaceTeamLogoAtomically({
+      ...deliveryGuardDefaults,
       createUploadRecord: async () => {
         auditFailureEvents.push("record");
         return { id: "upload-5" };
@@ -368,7 +589,7 @@ async function main() {
       },
     }),
   );
-  assert.deepEqual(auditFailureEvents, ["upload", "verify", "record", "audit", "delete-record", "delete-new"]);
+  assert.deepEqual(auditFailureEvents, ["upload", "verify", "record", "audit", "delete-new", "delete-record"]);
 
   assert.doesNotThrow(() =>
     assertPublicObjectDelivery(
@@ -445,8 +666,8 @@ async function main() {
     "record",
     "audit",
     "request",
-    "delete-record",
     "delete-candidate",
+    "delete-record",
   ]);
 
   const approvalEvents: string[] = [];
@@ -498,6 +719,13 @@ async function main() {
   );
 
   assert.equal(getManagedPublicObjectKeyFromUrl("/api/uploads/r2?key=teams%2Fteam-1%2Flogo-v1.png"), "teams/team-1/logo-v1.png");
+  assert.equal(resolvePublicAssetUrl("teams/team-1/logo-v1.png"), "/api/uploads/r2?key=teams%2Fteam-1%2Flogo-v1.png");
+  assert.equal(
+    resolvePublicAssetUrl("/api/uploads/r2?key=teams%252Fteam-1%252Flogo-v1.png"),
+    "/api/uploads/r2?key=teams%2Fteam-1%2Flogo-v1.png",
+  );
+  assert.equal(resolvePublicAssetUrl("/images/brand/logo.svg"), "/images/brand/logo.svg");
+  assert.equal(resolvePublicAssetUrl("https://attacker.invalid/logo.png"), null);
   assert.equal(
     validateSameOriginRequest(new Request("https://bravo.example/api/admin/teams", { method: "POST" })),
     "A same-origin request is required.",
@@ -583,6 +811,8 @@ async function main() {
   const publicUploadRouteSource = await readFile(new URL("../app/api/uploads/r2/route.ts", import.meta.url), "utf8");
   assert.doesNotMatch(publicUploadRouteSource, /buildPublicAssetFallbackResponse/);
   assert.match(publicUploadRouteSource, /status: 404/);
+  assert.doesNotMatch(publicUploadRouteSource, /export async function POST/);
+  assert.match(publicUploadRouteSource, /unsupported_public_asset_type/);
 
   assert.match(workspaceUploadRouteSource, /pendingMossObjectPath/);
   assert.match(workspaceUploadRouteSource, /pendingMossUploadRecordId/);
@@ -591,7 +821,8 @@ async function main() {
 
   const registrationLogoRouteSource = await readFile(new URL("../app/api/registrations/logo/route.ts", import.meta.url), "utf8");
   assert.match(registrationLogoRouteSource, /prepareCanonicalImage/);
-  assert.doesNotMatch(registrationLogoRouteSource, /previousUrl/);
+  assert.match(registrationLogoRouteSource, /previousUploadId/);
+  assert.match(registrationLogoRouteSource, /deletePrivateObjectByKey\(previousPath\)/);
 
   const registrationApprovalRouteSource = await readFile(new URL("../app/api/registrations/route.ts", import.meta.url), "utf8");
   assert.match(registrationApprovalRouteSource, /requirePlatformAdmin/);
@@ -617,9 +848,20 @@ async function main() {
   const directTeamLogoRouteSource = await readFile(new URL("../app/api/admin/teams/[id]/logo/route.ts", import.meta.url), "utf8");
   const directTeamLogoDelete = directTeamLogoRouteSource.match(/export async function DELETE[\s\S]+$/)?.[0] ?? "";
   assert.ok(
-    directTeamLogoDelete.indexOf("revalidateTeamAssetPaths") < directTeamLogoDelete.indexOf("deleteFromStorageByUrl"),
+    directTeamLogoDelete.indexOf("revalidateTeamAssetPaths") < directTeamLogoDelete.indexOf("cleanupUnreferencedPublicAssetByUrl"),
     "Direct logo removal must revalidate before deleting the previous object.",
   );
+
+  const adoptionRouteSource = await readFile(new URL("../app/api/admin/teams/[id]/logo/adopt/route.ts", import.meta.url), "utf8");
+  assert.match(adoptionRouteSource, /requirePlatformAdmin/);
+  assert.match(adoptionRouteSource, /sourceUpload\.relatedId !== team\.id/);
+  assert.match(adoptionRouteSource, /sourceUpload\.relatedType !== "admin_upload"/);
+  assert.match(adoptionRouteSource, /replaceCanonicalTeamLogoWithCas/);
+  assert.doesNotMatch(adoptionRouteSource, /matchTeamLogoFile|normalizeTeamLogoLabel/);
+
+  const playerAvatarServiceSource = await readFile(new URL("../lib/player-avatar-service.ts", import.meta.url), "utf8");
+  assert.match(playerAvatarServiceSource, /\.eq\("updated_at", input\.expectedUpdatedAt\)/);
+  assert.match(playerAvatarServiceSource, /player_avatar_activation_unconfirmed/);
 
   const competitionRelationalSource = await readFile(new URL("../lib/competition-relational.ts", import.meta.url), "utf8");
   assert.match(competitionRelationalSource, /\.eq\("is_active", true\)/);

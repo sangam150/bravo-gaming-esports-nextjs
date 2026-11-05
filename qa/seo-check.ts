@@ -137,12 +137,25 @@ assert.match(newsPageSource, /buildArticleStructuredData/, "news details must pu
 assert.match(newsPageSource, /buildBreadcrumbStructuredData/, "news details must publish breadcrumb structured data");
 assert.doesNotMatch(newsPageSource, /dangerouslySetInnerHTML/, "news details must not inject raw JSON-LD");
 
+for (const [relativePath, label] of [
+  ["app/media/[slug]/page.tsx", "media"],
+  ["app/sponsors/[slug]/page.tsx", "sponsor"],
+] as const) {
+  const source = read(relativePath);
+  assert.match(source, /buildBreadcrumbStructuredData/, `${label} details must publish breadcrumb structured data`);
+  assert.match(source, /<JsonLd/, `${label} details must render structured data through the safe JSON-LD component`);
+  assert.doesNotMatch(source, /dangerouslySetInnerHTML/, `${label} details must not inject raw JSON-LD`);
+}
+
 const publicHeroSource = read("components/public/PublicDesignSystem.tsx");
 assert.match(
   publicHeroSource,
   /<PublicBreadcrumbs current=\{breadcrumbCurrent\}/,
   "public list-page heroes must render semantic breadcrumbs",
 );
+const pubgHubUiSource = read("components/pubg/PubgHubUI.tsx");
+assert.match(pubgHubUiSource, /<nav aria-label="Breadcrumb"/, "PUBG detail-page heroes must render visible breadcrumbs");
+assert.match(pubgHubUiSource, /aria-current="page"/, "PUBG detail-page breadcrumbs must identify the current page");
 for (const [relativePath, label] of [
   ["components/public/content/EventsReferencePage.tsx", "Events"],
   ["components/public/content/MediaReferencePage.tsx", "Media"],

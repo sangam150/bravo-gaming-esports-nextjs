@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { ensureUniqueDocumentSlug, filterSoftDeleted, getDocumentByIdOrSlug, softDeleteDocumentEntity } from "./document-entities";
 import { COLLECTIONS, fetchDocumentCollection, isDocumentStoreConfigured, saveDocument } from "./document-store";
 import { nepalDateTimeLocalToUtcIso } from "./nepal-datetime";
+import { claimStagedAdminPublicAssets } from "./public-asset-cleanup";
 import { normalizeVerifiedStreamHref } from "./public-event-policy";
 import { normalizePublicActionHref } from "./public-links";
 import { slugify } from "./slug-utils";
@@ -9,6 +10,7 @@ import { slugify } from "./slug-utils";
 type ManagedPlatformGameStatus = "flagship" | "active" | "building" | "planned";
 export type ManagedPlatformEventStatus = "live" | "upcoming" | "completed" | "planned" | "cancelled" | "archived";
 type ManagedPlatformContentState = "published" | "planned" | "coming_soon";
+const MANAGED_PLATFORM_GAME_STATUSES = new Set<ManagedPlatformGameStatus>(["flagship", "active", "building", "planned"]);
 const MANAGED_PLATFORM_EVENT_STATUSES = new Set<ManagedPlatformEventStatus>([
   "live",
   "upcoming",
@@ -17,6 +19,7 @@ const MANAGED_PLATFORM_EVENT_STATUSES = new Set<ManagedPlatformEventStatus>([
   "cancelled",
   "archived",
 ]);
+const MANAGED_PLATFORM_CONTENT_STATES = new Set<ManagedPlatformContentState>(["published", "planned", "coming_soon"]);
 
 export interface ManagedPlatformGameRecord {
   id: string;
@@ -91,9 +94,24 @@ function cleanStringArray(values?: string[] | string | null) {
 }
 
 function normalizeManagedPlatformEventStatus(value?: string | null): ManagedPlatformEventStatus {
-  return value && MANAGED_PLATFORM_EVENT_STATUSES.has(value as ManagedPlatformEventStatus)
-    ? (value as ManagedPlatformEventStatus)
+  const normalizedValue = cleanString(value)?.toLowerCase();
+  return normalizedValue && MANAGED_PLATFORM_EVENT_STATUSES.has(normalizedValue as ManagedPlatformEventStatus)
+    ? (normalizedValue as ManagedPlatformEventStatus)
     : "upcoming";
+}
+
+function normalizeManagedPlatformGameStatus(value?: string | null): ManagedPlatformGameStatus {
+  const normalizedValue = cleanString(value)?.toLowerCase();
+  return normalizedValue && MANAGED_PLATFORM_GAME_STATUSES.has(normalizedValue as ManagedPlatformGameStatus)
+    ? (normalizedValue as ManagedPlatformGameStatus)
+    : "planned";
+}
+
+function normalizeManagedPlatformContentState(value?: string | null): ManagedPlatformContentState {
+  const normalizedValue = cleanString(value)?.toLowerCase();
+  return normalizedValue && MANAGED_PLATFORM_CONTENT_STATES.has(normalizedValue as ManagedPlatformContentState)
+    ? (normalizedValue as ManagedPlatformContentState)
+    : "planned";
 }
 
 function normalizeManagedPlatformGame(
@@ -112,7 +130,7 @@ function normalizeManagedPlatformGame(
     shortName: cleanString(data.shortName) ?? name,
     tagline: cleanString(data.tagline) ?? "Bravo game hub",
     summary: cleanString(data.summary) ?? "",
-    status: data.status ?? "planned",
+    status: normalizeManagedPlatformGameStatus(data.status),
     flagship: Boolean(data.flagship),
     heroLabel: cleanString(data.heroLabel) ?? "Game Hub",
     primaryHref: normalizePublicActionHref(data.primaryHref) ?? `/games/${cleanString(data.slug) ?? slugify(name)}`,
@@ -124,7 +142,7 @@ function normalizeManagedPlatformGame(
     trackedTeams: typeof data.trackedTeams === "number" ? data.trackedTeams : undefined,
     trackedPlayers: typeof data.trackedPlayers === "number" ? data.trackedPlayers : undefined,
     featuredNewsCount: typeof data.featuredNewsCount === "number" ? data.featuredNewsCount : undefined,
-    published: data.published !== false,
+    published: data.published === true,
     createdAt: cleanString(data.createdAt) ?? now,
     updatedAt: now,
   };
@@ -138,6 +156,8 @@ function normalizeManagedPlatformEvent(
 ): ManagedPlatformEventRecord {
   const now = new Date().toISOString();
   const name = data.name.trim();
+  const state = normalizeManagedPlatformContentState(data.state);
+  const published = data.published === true && state === "published";
 
   return {
     id: cleanString(data.id) ?? randomUUID(),
@@ -147,7 +167,7 @@ function normalizeManagedPlatformEvent(
     gameName: cleanString(data.gameName) ?? "PUBG PC",
     type: cleanString(data.type) ?? "tournament",
     status: normalizeManagedPlatformEventStatus(data.status),
-    state: data.state ?? "published",
+    state,
     featured: Boolean(data.featured),
     region: cleanString(data.region) ?? "Nepal",
     organizerName: cleanString(data.organizerName) ?? "Bravo Gaming Esports",
@@ -169,7 +189,7 @@ function normalizeManagedPlatformEvent(
     pointSystemId: cleanString(data.pointSystemId),
     pointSystemName: cleanString(data.pointSystemName),
     tabs: cleanStringArray(data.tabs),
-    published: data.published !== false,
+    published,
     deletedAt: cleanString(data.deletedAt),
     createdAt: cleanString(data.createdAt) ?? now,
     updatedAt: now,
@@ -180,6 +200,36 @@ function compareDateDesc<T extends { updatedAt?: string; startDate?: string; cre
   const firstKey = firstValue.startDate ?? firstValue.updatedAt ?? firstValue.createdAt ?? "";
   const secondKey = secondValue.startDate ?? secondValue.updatedAt ?? secondValue.createdAt ?? "";
   return secondKey.localeCompare(firstKey);
+}
+
+export function isManagedPlatformGamePublic(record: ManagedPlatformGameRecord) {
+  return record.published === true && Boolean(cleanString(record.name)) && Boolean(cleanString(record.slug));
+}
+
+export function isManagedPlatformEventPublic(record: ManagedPlatformEventRecord) {
+  if (
+    record.published !== true ||
+    record.state !== "published" ||
+    record.status === "planned" ||
+    record.status === "cancelled" ||
+    record.status === "archived"
+  ) {
+    return false;
+  }
+
+  const startTime = Date.parse(record.startDate);
+  if (!Number.isFinite(startTime)) {
+    return false;
+  }
+
+  if (record.endDate) {
+    const endTime = Date.parse(record.endDate);
+    if (!Number.isFinite(endTime) || endTime < startTime) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export async function getManagedPlatformGames(options: { includeUnpublished?: boolean } = {}) {
@@ -201,7 +251,7 @@ export async function getManagedPlatformGames(options: { includeUnpublished?: bo
         ),
     ).sort(compareDateDesc);
 
-    return options.includeUnpublished ? normalized : normalized.filter((record) => record.published);
+    return options.includeUnpublished ? normalized : normalized.filter((record) => isManagedPlatformGamePublic(record));
   } catch {
     return [];
   }
@@ -259,7 +309,7 @@ export async function getManagedPlatformEvents(options: { includeUnpublished?: b
         ),
     ).sort(compareDateDesc);
 
-    return options.includeUnpublished ? normalized : normalized.filter((record) => record.published);
+    return options.includeUnpublished ? normalized : normalized.filter((record) => isManagedPlatformEventPublic(record));
   } catch {
     return [];
   }
@@ -310,6 +360,11 @@ export async function saveManagedPlatformEvent(
   };
 
   await saveDocument(COLLECTIONS.platformEvents, docId, nextPayload as unknown as Record<string, unknown>);
+  await claimStagedAdminPublicAssets({
+    relatedId: docId,
+    relatedType: "platform_event",
+    urls: [nextPayload.bannerUrl],
+  });
   return { ...nextPayload, id: docId };
 }
 

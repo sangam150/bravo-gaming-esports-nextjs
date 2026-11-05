@@ -277,12 +277,12 @@ function CompetitionPulse({ pubg, teamCount, playerCount }: { pubg: PubgHubDatas
       icon: <CalendarDays className="h-5 w-5" aria-hidden="true" />,
     },
     {
-      label: "Registered Teams",
+      label: "Published Teams",
       value: teamCount > 0 ? formatPublicNumber(teamCount) : "—",
       icon: <Users className="h-5 w-5" aria-hidden="true" />,
     },
     {
-      label: "Active Players",
+      label: "Published Players",
       value: playerCount > 0 ? formatPublicNumber(playerCount) : "—",
       icon: <UserRound className="h-5 w-5" aria-hidden="true" />,
     },

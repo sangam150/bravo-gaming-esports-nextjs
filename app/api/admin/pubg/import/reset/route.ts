@@ -1,4 +1,5 @@
-import { requireAdmin } from "@/lib/admin-auth";
+import { requirePlatformAdmin } from "@/lib/admin-auth";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { resetImportedPubgMatch } from "@/lib/pubg-import-relational";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -6,8 +7,10 @@ import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import { logServerError } from "@/lib/server-monitoring";
 
 export async function POST(request: Request) {
-  const unauthorized = await requireAdmin(request);
-  if (unauthorized) return unauthorized;
+  const authorization = await requirePlatformAdmin(request);
+  if (authorization.response) return authorization.response;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
 
   const limited = await enforceRateLimit(request, {
     key: "admin-pubg-reset",
@@ -25,6 +28,8 @@ export async function POST(request: Request) {
 
     const result = await resetImportedPubgMatch(matchId, {
       confirmPublished: body.confirmPublished === true,
+      allowScoringDecisions: true,
+      actorId: authorization.session.profileId,
     });
 
     await writeAuditLogFromRequest(request, {
@@ -43,6 +48,6 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     await logServerError("admin.pubg.import.reset", error, request);
     const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ error: message }, { status: message.includes("revision conflict") ? 409 : 500 });
   }
 }

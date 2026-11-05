@@ -1,6 +1,8 @@
+import JsonLd from "@/components/JsonLd";
 import { PlatformMediaDetailPage } from "@/components/platform/PlatformPages";
 import { buildContentMetadata } from "@/lib/metadata";
 import { getPlatformHubData, getPlatformMediaBySlug } from "@/lib/platform-hub";
+import { buildBreadcrumbStructuredData } from "@/lib/structured-data";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -35,5 +37,18 @@ export default async function MediaDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  return <PlatformMediaDetailPage hub={hub} item={item} />;
+  const itemPath = `/media/${item.slug}`;
+
+  return (
+    <>
+      <JsonLd
+        data={buildBreadcrumbStructuredData([
+          { name: "Home", path: "/" },
+          { name: "Media", path: "/media" },
+          { name: item.title, path: itemPath },
+        ])}
+      />
+      <PlatformMediaDetailPage hub={hub} item={item} />
+    </>
+  );
 }

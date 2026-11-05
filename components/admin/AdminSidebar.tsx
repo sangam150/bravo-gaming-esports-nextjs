@@ -2,114 +2,35 @@
 
 import BravoLogo from "@/components/ui/BravoLogo";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ADMIN_WORKSPACES, getAdminWorkspace, getAdminSectionLabel, type AdminSection } from "@/lib/admin-navigation";
+export { ADMIN_SECTION_ROUTES, getAdminSectionLabel, type AdminSection } from "@/lib/admin-navigation";
 
-const sections = [
-  { id: "dashboard", label: "Dashboard", group: "Overview" },
-  { id: "registeredTeams", label: "Registered Teams", group: "Competition" },
-  { id: "teams", label: "Team Records", group: "Competition" },
-  { id: "players", label: "Players", group: "Competition" },
-  { id: "playerTeamLinking", label: "Player-Team Linking", group: "Competition", platformAdminOnly: true },
-  { id: "platformEvents", label: "Events Hub", group: "Competition" },
-  { id: "tournaments", label: "Tournaments", group: "Competition" },
-  { id: "seasons", label: "Seasons", group: "Competition" },
-  { id: "scrims", label: "Scrim Days", group: "Competition" },
-  { id: "matchManager", label: "Match Manager", group: "Results & Imports" },
-  { id: "pubg", label: "PUBG Import", group: "Results & Imports" },
-  { id: "pendingImports", label: "Pending Imports", group: "Results & Imports" },
-  { id: "approvedImports", label: "Import History", group: "Results & Imports" },
-  { id: "matches", label: "Statistics", group: "Results & Imports" },
-  { id: "leaderboard", label: "Leaderboards", group: "Results & Imports" },
-  { id: "registrations", label: "Registrations", group: "Operations" },
-  { id: "teamRequests", label: "Team Requests", group: "Operations" },
-  { id: "inbox", label: "Inbox", group: "Operations" },
-  { id: "homepage", label: "Homepage", group: "Content" },
-  { id: "news", label: "News", group: "Content" },
-  { id: "media", label: "Media", group: "Content" },
-  { id: "sponsors", label: "Sponsors", group: "Content" },
-  { id: "announcements", label: "Announcements", group: "Content" },
-  { id: "games", label: "Games", group: "Content" },
-  { id: "footer", label: "Footer", group: "Content" },
-  { id: "discordRoles", label: "Discord Mapping", group: "Access & Settings" },
-  { id: "settings", label: "Settings & Audit", group: "Access & Settings" },
-] as const;
+const sections = ADMIN_WORKSPACES.map((workspace) => ({ id: workspace.defaultSection, label: workspace.label, group: "Workspaces" }));
+const groupOrder = ["Workspaces"] as const;
 
-const groupOrder = ["Overview", "Competition", "Results & Imports", "Operations", "Content", "Access & Settings"] as const;
-
-export type AdminSection = (typeof sections)[number]["id"];
 type AdminNavGroup = (typeof groupOrder)[number];
-
-export const ADMIN_SECTION_ROUTES: Record<AdminSection, string> = {
-  dashboard: "",
-  registeredTeams: "registered-teams",
-  teams: "teams",
-  players: "players",
-  playerTeamLinking: "player-team-linking",
-  platformEvents: "events-hub",
-  tournaments: "tournaments",
-  seasons: "seasons",
-  scrims: "scrims",
-  matchManager: "match-manager",
-  pubg: "pubg-import",
-  pendingImports: "pending-imports",
-  approvedImports: "import-history",
-  matches: "statistics",
-  leaderboard: "leaderboards",
-  registrations: "registrations",
-  teamRequests: "team-requests",
-  inbox: "messages",
-  homepage: "homepage",
-  news: "news",
-  media: "media",
-  sponsors: "sponsors",
-  announcements: "announcements",
-  games: "games",
-  footer: "footer",
-  discordRoles: "discord-role-mappings",
-  settings: "settings",
-};
-
-export function getAdminSectionLabel(section: AdminSection) {
-  return sections.find((item) => item.id === section)?.label ?? "Dashboard";
-}
 
 function AdminNavigation({
   active,
   collapsed,
   openGroups,
   onChange,
-  onToggleGroup,
-  canManagePlatformAdmin,
 }: {
   active: AdminSection;
   collapsed: boolean;
   openGroups: Set<AdminNavGroup>;
   onChange: (section: AdminSection) => void;
   onToggleGroup: (group: AdminNavGroup) => void;
-  canManagePlatformAdmin: boolean;
 }) {
   return (
     <nav aria-label="Admin navigation" className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
       {groupOrder.map((group) => {
-        const groupSections = sections.filter(
-          (section) =>
-            section.group === group && (!("platformAdminOnly" in section) || !section.platformAdminOnly || canManagePlatformAdmin),
-        );
+        const groupSections = sections;
         if (groupSections.length === 0) return null;
         const isOpen = openGroups.has(group) || groupSections.some((section) => section.id === active);
 
         return (
           <section key={group}>
-            {!collapsed ? (
-              <button
-                type="button"
-                aria-expanded={isOpen}
-                onClick={() => onToggleGroup(group)}
-                className="flex w-full items-center justify-between rounded-btn px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.16em] text-text-muted hover:bg-bg-hover hover:text-white"
-              >
-                <span>{group}</span>
-                <span aria-hidden="true">{isOpen ? "−" : "+"}</span>
-              </button>
-            ) : null}
             {(collapsed || isOpen) && (
               <div className="mt-1 space-y-0.5">
                 {groupSections.map((section) => (
@@ -117,11 +38,11 @@ function AdminNavigation({
                     key={section.id}
                     type="button"
                     title={collapsed ? section.label : undefined}
-                    aria-current={active === section.id ? "page" : undefined}
+                    aria-current={getAdminWorkspace(active).defaultSection === section.id ? "page" : undefined}
                     onClick={() => onChange(section.id)}
                     className={`flex w-full items-center rounded-btn py-2.5 text-left font-display text-xs font-bold uppercase tracking-wide transition ${
                       collapsed ? "justify-center px-2" : "px-3"
-                    } ${active === section.id ? "bg-accent-blue text-white" : "text-text-muted hover:bg-bg-hover hover:text-white"}`}
+                    } ${getAdminWorkspace(active).defaultSection === section.id ? "bg-accent-blue text-white" : "text-text-muted hover:bg-bg-hover hover:text-white"}`}
                   >
                     {collapsed ? (
                       <span aria-hidden="true" className="text-[11px]">
@@ -158,7 +79,6 @@ function SidebarContent({
   backendLabel,
   onLogout,
   adminEmail,
-  canManagePlatformAdmin,
 }: {
   active: AdminSection;
   collapsed: boolean;
@@ -199,14 +119,7 @@ function SidebarContent({
         ) : null}
       </div>
 
-      <AdminNavigation
-        active={active}
-        collapsed={isCollapsed}
-        openGroups={openGroups}
-        onChange={onChange}
-        onToggleGroup={onToggleGroup}
-        canManagePlatformAdmin={canManagePlatformAdmin}
-      />
+      <AdminNavigation active={active} collapsed={isCollapsed} openGroups={openGroups} onChange={onChange} onToggleGroup={onToggleGroup} />
 
       <div className="space-y-3 border-t border-white/[0.08] pt-4">
         {!isCollapsed && adminEmail ? <p className="truncate text-[10px] text-text-muted">{adminEmail}</p> : null}

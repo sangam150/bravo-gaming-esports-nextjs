@@ -1,11 +1,12 @@
 "use client";
 
 import { useDiscordProviderEnabled } from "@/components/auth/DiscordLoginButton";
+import ManagedImage from "@/components/ui/ManagedImage";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { adminFetch } from "@/lib/admin-api";
 import type { AuditLogRecord } from "@/lib/audit-logs";
 import { BRAVO_DISCORD_URL, BRAVO_INSTAGRAM_URL } from "@/lib/brand-links";
-import { formatAnnouncementDate, formatDisplayDate, formatDisplayDateTime } from "@/lib/display-format";
+import { formatAnnouncementDate, formatDisplayDateTime } from "@/lib/display-format";
 import { scheduleEffectTask } from "@/lib/effect-task";
 import { formatKathmanduDateTimeInput, isManagedNewsArticlePublic } from "@/lib/news-publishing";
 import type { FooterLinkRecord, HomepageContentRecord, HomepageHeroSlideRecord, ManagedNewsArticleRecord } from "@/lib/platform-content";
@@ -37,9 +38,18 @@ import AdminDiscordLinkManager from "./AdminDiscordLinkManager";
 import AdminDiscordRoleMappingManager from "./AdminDiscordRoleMappingManager";
 import HomepageFeaturedEventsManager, { type HomepageFeatureEventOption } from "./HomepageFeaturedEventsManager";
 import AdminMatchManager from "./AdminMatchManager";
+import BroadcastControlRoom from "./BroadcastControlRoom";
+import AdminOverview from "./AdminOverview";
+import AdminWorkspaceTabs from "./AdminWorkspaceTabs";
+import CompetitionContextPanel from "./CompetitionContextPanel";
+import CompetitionScheduleEditor from "./CompetitionScheduleEditor";
+import EventProductionSettings from "./EventProductionSettings";
+import PointSystemManager from "./PointSystemManager";
+import { getAdminSectionHref, getAdminWorkspace } from "@/lib/admin-navigation";
+import { formatEventSchedule } from "@/lib/event-schedule";
 import AdminPlayerTeamLinkingManager from "./AdminPlayerTeamLinkingManager";
 import AdminRegisteredTeamsManager from "./AdminRegisteredTeamsManager";
-import AdminSidebar, { ADMIN_SECTION_ROUTES, getAdminSectionLabel, type AdminSection } from "./AdminSidebar";
+import AdminSidebar, { getAdminSectionLabel, type AdminSection } from "./AdminSidebar";
 import AdminTeamRequestsManager from "./AdminTeamRequestsManager";
 import { useAdminAuth } from "./AuthProvider";
 import BulkTeamLogoUpload from "./BulkTeamLogoUpload";
@@ -108,6 +118,8 @@ const defaultScrimForm: Partial<Scrim> = {
 
 function buildDefaultTournamentForm(season?: Season | null): Partial<Tournament> {
   return {
+    state: "draft",
+    published: false,
     status: "UPCOMING",
     maxTeams: 32,
     teamCount: 0,
@@ -408,9 +420,11 @@ function sortSeasonScrimsByDay(firstScrim: Scrim, secondScrim: Scrim) {
 export default function AdminDashboard({
   initialSection = "dashboard",
   focusImportBatchId = null,
+  initialCompetitionId = "",
 }: {
   initialSection?: AdminSection;
   focusImportBatchId?: string | null;
+  initialCompetitionId?: string;
 }) {
   const demoSeedTag = "bravo_demo_seed_2026";
   const discordAuthEnabled = useDiscordProviderEnabled();
@@ -418,9 +432,13 @@ export default function AdminDashboard({
   const canManageCanonicalTeams = role === "super_admin" || role === "admin";
   const canManagePlatformAdmin = canManageCanonicalTeams;
   const [section, setSection] = useState<AdminSection>(initialSection);
+  const [competitionId, setCompetitionId] = useState(initialCompetitionId);
+  const [directorySearch, setDirectorySearch] = useState("");
+  const [directoryStatus, setDirectoryStatus] = useState("all");
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const selectedCompetition = tournaments.find((tournament) => tournament.id === competitionId);
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [scrims, setScrims] = useState<Scrim[]>([]);
@@ -428,7 +446,6 @@ export default function AdminDashboard({
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [liveMatches, setLiveMatches] = useState<TournamentMatch[]>([]);
   const [importBatches, setImportBatches] = useState<PubgImportBatch[]>([]);
-  const [recentUploads, setRecentUploads] = useState<UploadRecord[]>([]);
   const [errorLogs, setErrorLogs] = useState<ErrorLogRecord[]>([]);
   const [homepageForm, setHomepageForm] = useState<HomepageContentRecord>(defaultHomepageForm);
   const [homepageEventOptions, setHomepageEventOptions] = useState<HomepageFeatureEventOption[]>([]);
@@ -456,7 +473,7 @@ export default function AdminDashboard({
   });
   const [scrimForm, setScrimForm] = useState<Partial<Scrim>>(defaultScrimForm);
   const [seasonForm, setSeasonForm] = useState<Partial<Season>>(defaultSeasonForm);
-  const [announcementForm, setAnnouncementForm] = useState<Partial<Announcement>>({ published: true });
+  const [announcementForm, setAnnouncementForm] = useState<Partial<Announcement>>({ published: false });
   const [newsForm, setNewsForm] = useState<ManagedNewsFormState>(defaultNewsForm);
   const [editingSeason, setEditingSeason] = useState<string | null>(null);
   const [editingTournament, setEditingTournament] = useState<string | null>(null);
@@ -508,73 +525,6 @@ export default function AdminDashboard({
     () => (focusImportBatchId ? (focusedImportBatch?.status === "pending" ? [focusedImportBatch] : []) : pendingImportBatches),
     [focusImportBatchId, focusedImportBatch, pendingImportBatches],
   );
-  const dashboardOverview = useMemo(() => {
-    const publishedArticles = newsArticles.filter((article) => article.state === "published").length;
-    const draftArticles = newsArticles.filter((article) => article.state === "draft").length;
-    const newInboxItems = messages.filter((message) => message.status === "new").length;
-    const pendingRegistrations = registrations.filter((registration) => registration.status === "pending").length;
-    const totalPlatformEvents = tournaments.length + scrims.length;
-    const pendingApprovals = pendingRegistrations + pendingImportBatches.length + newInboxItems;
-
-    return {
-      cards: [
-        {
-          label: "Total Events",
-          value: totalPlatformEvents,
-          tone: "text-accent-blue",
-        },
-        {
-          label: "Total Teams",
-          value: stats?.totalTeams ?? teams.length,
-          tone: "text-white",
-        },
-        {
-          label: "Total Players",
-          value: stats?.totalPlayers ?? players.length,
-          tone: "text-white",
-        },
-        {
-          label: "Published Articles",
-          value: publishedArticles,
-          tone: "text-accent-green",
-        },
-        {
-          label: "Pending Requests",
-          value: pendingApprovals,
-          tone: "text-accent-yellow",
-        },
-        {
-          label: "Published Matches",
-          value: liveMatches.length,
-          tone: "text-accent-blue",
-        },
-        { label: "Inbox Messages", value: messages.length, tone: "text-white" },
-        {
-          label: "Recent Uploads",
-          value: recentUploads.length,
-          tone: "text-accent-red",
-        },
-      ],
-      publishedArticles,
-      draftArticles,
-      newInboxItems,
-      pendingRegistrations,
-    };
-  }, [
-    liveMatches.length,
-    messages,
-    newsArticles,
-    pendingImportBatches.length,
-    players.length,
-    recentUploads.length,
-    registrations,
-    scrims.length,
-    stats?.totalPlayers,
-    stats?.totalTeams,
-    teams.length,
-    tournaments.length,
-  ]);
-
   const hasDemoSeededData = useMemo(
     () =>
       Boolean(activeSeason?.notes?.includes(demoSeedTag)) ||
@@ -587,16 +537,29 @@ export default function AdminDashboard({
     return scheduleEffectTask(() => setSection(initialSection));
   }, [initialSection]);
 
-  const handleSectionChange = useCallback((nextSection: AdminSection) => {
-    setError(null);
-    setMessage(null);
-    setSection(nextSection);
+  const handleSectionChange = useCallback(
+    (nextSection: AdminSection) => {
+      setError(null);
+      setMessage(null);
+      setSection(nextSection);
 
-    const route = ADMIN_SECTION_ROUTES[nextSection];
-    const nextPath = route ? `/admin/${route}` : "/admin";
-    if (window.location.pathname !== nextPath) {
-      window.history.replaceState(window.history.state, "", nextPath);
-    }
+      const href = getAdminSectionHref(nextSection);
+      const nextPath = `${href}${competitionId ? `${href.includes("?") ? "&" : "?"}competition=${encodeURIComponent(competitionId)}` : ""}`;
+      if (`${window.location.pathname}${window.location.search}` !== nextPath) {
+        window.history.pushState(window.history.state, "", nextPath);
+      }
+    },
+    [competitionId],
+  );
+
+  useEffect(() => {
+    const onPopState = () => {
+      // A history entry can have been created by another route; let the server
+      // resolve the canonical workspace and its authorized layout on back/forward.
+      window.location.reload();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   const loadData = useCallback(async () => {
@@ -606,10 +569,10 @@ export default function AdminDashboard({
     try {
       const [statsRes, seasonsData, tournamentsData, publicTeams, playersData, announcementsData] = await Promise.all([
         adminFetch("/api/stats?admin=true"),
-        fetchApiData<Season[]>("/api/seasons", "Seasons"),
-        fetchApiData<Tournament[]>("/api/tournaments", "Tournaments"),
+        fetchApiData<Season[]>("/api/seasons?admin=true", "Seasons"),
+        fetchApiData<Tournament[]>("/api/tournaments?admin=true", "Tournaments"),
         fetchApiData<Team[]>("/api/teams", "Public teams"),
-        fetchApiData<Player[]>("/api/players", "Players"),
+        fetchApiData<Player[]>("/api/players?admin=true", "Players"),
         fetchApiData<Announcement[]>("/api/announcements", "Announcements"),
       ]);
       setStats(statsRes.data);
@@ -724,7 +687,6 @@ export default function AdminDashboard({
       }
       if (matchesResult.status === "fulfilled") {
         setLiveMatches(matchesResult.value.data?.matches ?? []);
-        setRecentUploads(matchesResult.value.data?.uploads ?? []);
       } else {
         optionalWarnings.push("Published matches and recent uploads could not be loaded.");
       }
@@ -1349,8 +1311,8 @@ export default function AdminDashboard({
           date: announcementForm.date ?? formatAnnouncementDate(),
         }),
       });
-      setMessage("Announcement published");
-      setAnnouncementForm({ published: true });
+      setMessage(announcementForm.published === true ? "Announcement published" : "Announcement saved as draft");
+      setAnnouncementForm({ published: false });
       loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -1358,16 +1320,19 @@ export default function AdminDashboard({
   }
 
   async function resetCompetitionData() {
-    const confirmed = window.confirm(
-      "This will permanently delete seasons, tournaments, scrims, imported matches, standings, team/player competition records, and cached PUBG imports. Continue?",
+    const confirmation = window.prompt(
+      "This permanently deletes competition records and cannot be undone. Type RESET COMPETITION DATA to continue.",
     );
-    if (!confirmed) return;
+    if (confirmation !== "RESET COMPETITION DATA") return;
 
     setResettingData(true);
     setError(null);
 
     try {
-      const res = await adminFetch("/api/admin/reset", { method: "POST" });
+      const res = await adminFetch("/api/admin/reset", {
+        method: "POST",
+        body: JSON.stringify({ confirmation }),
+      });
       setMessage(res.message ?? res.data?.message ?? "Competition data reset");
       await loadData();
     } catch (err: unknown) {
@@ -1451,11 +1416,83 @@ export default function AdminDashboard({
             </nav>
             <h1 className="font-display text-3xl font-black uppercase text-white">{getAdminSectionLabel(section)}</h1>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
-            <span className="rounded-full border border-white/10 px-3 py-1">Production data</span>
-            <span>Published PUBG results only</span>
-          </div>
+          <p className="text-xs text-text-muted">Drafts stay private until published.</p>
         </div>
+
+        <AdminWorkspaceTabs section={section} onChange={handleSectionChange} canManagePlatformAdmin={canManagePlatformAdmin} />
+        {section === "seasons" && selectedCompetition && <EventProductionSettings key={selectedCompetition.id} tournamentId={selectedCompetition.id} teams={teams} announcements={announcements} canApprove={canManagePlatformAdmin} />}
+        {section === "competitionBroadcast" && (selectedCompetition ? <BroadcastControlRoom key={selectedCompetition.id} initialTournamentId={selectedCompetition.id} /> : <p className="text-sm text-text-muted">Select a competition to open its Broadcast Studio.</p>)}
+        {(section === "teams" || section === "players") && (
+          <div className="flex flex-wrap gap-3">
+            <label className="min-w-0 flex-1 text-sm text-text-muted">
+              Search teams or players
+              <input
+                className="input-esports"
+                type="search"
+                value={directorySearch}
+                onChange={(event) => setDirectorySearch(event.target.value)}
+              />
+            </label>
+            <label className="text-sm text-text-muted">
+              Status
+              <select className="input-esports" value={directoryStatus} onChange={(event) => setDirectoryStatus(event.target.value)}>
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </label>
+          </div>
+        )}
+        {getAdminWorkspace(section).id === "competitions" && (
+          <label className="block max-w-xl space-y-2 text-sm text-text-muted">
+            <span>Selected competition</span>
+            <select
+              className="input-esports"
+              value={competitionId}
+              onChange={(event) => {
+                setCompetitionId(event.target.value);
+                const url = new URL(window.location.href);
+                if (event.target.value) url.searchParams.set("competition", event.target.value);
+                else url.searchParams.delete("competition");
+                window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
+              }}
+            >
+              <option value="">All competitions</option>
+              {tournaments.map((tournament) => (
+                <option key={tournament.id} value={tournament.id}>
+                  {tournament.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(section === "competitionSchedule" || section === "competitionMatches" || section === "competitionStandings") && (
+          <CompetitionContextPanel
+            tournament={selectedCompetition}
+            matches={liveMatches}
+            mode={section === "competitionSchedule" ? "schedule" : section === "competitionMatches" ? "matches" : "standings"}
+            onEdit={() => {
+              if (selectedCompetition) {
+                setEditingTournament(selectedCompetition.id);
+                setTournamentForm(selectedCompetition);
+              }
+              handleSectionChange("tournaments");
+            }}
+            onResults={() => {
+              setImportTournamentId(competitionId);
+              handleSectionChange("matchManager");
+            }}
+          />
+        )}
+        {section === "competitionSchedule" && selectedCompetition && (
+          <CompetitionScheduleEditor
+            key={`${selectedCompetition.id}-${selectedCompetition.updatedAt}`}
+            tournament={selectedCompetition}
+            teams={teams}
+            matches={liveMatches}
+            onSaved={loadData}
+          />
+        )}
 
         {(message || error) && (
           <div
@@ -1497,194 +1534,32 @@ export default function AdminDashboard({
             <span className="mr-3 inline-flex rounded-full border border-amber-300/40 bg-amber-300/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">
               Demo
             </span>
-            Launch preview data is currently seeded. Run <code>npm run clear:demo</code> before final production launch.
+            Preview records are present. Review them with an administrator before release.
           </div>
         )}
 
         {loading && <p className="text-sm text-slate-400">Loading data...</p>}
 
-        {section === "dashboard" && stats && (
-          <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {dashboardOverview.cards.map((card) => (
-                <div key={card.label} className="stat-pill p-5">
-                  <p className="text-label uppercase text-text-muted">{card.label}</p>
-                  <p className={`mt-1 font-mono-stat text-3xl font-extrabold ${card.tone}`}>{card.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {activeSeason && (
-              <div className="esports-card p-5">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <p className="section-heading !text-sm">Active Season</p>
-                    <h2 className="mt-2 text-2xl font-black text-white">{activeSeason.seriesTitle ?? activeSeason.title}</h2>
-                    <p className="mt-2 text-sm text-text-muted">
-                      Started {activeSeason.startDate} | Day {activeSeason.currentDay} of {activeSeason.configuredDays}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <div className="rounded-card border border-white/10 bg-bg-primary px-4 py-3">
-                      <p className="text-label uppercase text-text-muted">Status</p>
-                      <p className="mt-2 font-mono-stat text-white">{activeSeason.status}</p>
-                    </div>
-                    <div className="rounded-card border border-white/10 bg-bg-primary px-4 py-3">
-                      <p className="text-label uppercase text-text-muted">Length</p>
-                      <p className="mt-2 font-mono-stat text-accent-blue">{activeSeason.configuredDays} Days</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
-              <div className="esports-card p-5">
-                <p className="section-heading !text-sm">Platform Snapshot</p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-card border border-white/10 bg-bg-primary p-4">
-                    <p className="text-label uppercase text-text-muted">Scrims</p>
-                    <p className="mt-2 font-mono-stat text-white">{stats.totalScrims}</p>
-                  </div>
-                  <div className="rounded-card border border-white/10 bg-bg-primary p-4">
-                    <p className="text-label uppercase text-text-muted">Tournaments</p>
-                    <p className="mt-2 font-mono-stat text-white">{stats.totalTournaments}</p>
-                  </div>
-                  <div className="rounded-card border border-white/10 bg-bg-primary p-4">
-                    <p className="text-label uppercase text-text-muted">Matches Played</p>
-                    <p className="mt-2 font-mono-stat text-accent-blue">{stats.matchesPlayed}</p>
-                  </div>
-                  <div className="rounded-card border border-white/10 bg-bg-primary p-4">
-                    <p className="text-label uppercase text-text-muted">Data Backend</p>
-                    <p className="mt-2 font-mono-stat text-accent-green">{stats.dataBackend ?? "Supabase"}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="esports-card p-5">
-                <p className="section-heading !text-sm">Approval Queue</p>
-                <div className="mt-4 space-y-3 text-sm">
-                  {[
-                    {
-                      label: "Pending registrations",
-                      value: dashboardOverview.pendingRegistrations,
-                    },
-                    {
-                      label: "Pending PUBG imports",
-                      value: pendingImportBatches.length,
-                    },
-                    {
-                      label: "New inbox messages",
-                      value: dashboardOverview.newInboxItems,
-                    },
-                    {
-                      label: "Published news",
-                      value: dashboardOverview.publishedArticles,
-                    },
-                    {
-                      label: "Draft articles",
-                      value: dashboardOverview.draftArticles,
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      className="flex items-center justify-between rounded-card border border-white/10 bg-bg-primary px-4 py-3"
-                    >
-                      <span className="text-white">{item.label}</span>
-                      <span className="font-mono-stat text-accent-yellow">{item.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="esports-card overflow-hidden !p-0">
-              <div className="border-b border-white/[0.08] px-4 py-3">
-                <p className="section-heading !text-sm">Recent Live Matches</p>
-              </div>
-              {liveMatches.length === 0 ? (
-                <p className="p-6 text-center text-sm text-text-muted">Match data will appear once results are published.</p>
-              ) : (
-                <div className="table-scroll" tabIndex={0}>
-                  <table className="data-table min-w-full">
-                    <caption className="sr-only">Recently published live matches</caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">Map</th>
-                        <th scope="col">Winner</th>
-                        <th scope="col">KOs</th>
-                        <th scope="col">Synced</th>
-                        <th scope="col">Source</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {liveMatches.slice(0, 8).map((m) => (
-                        <tr key={m.id}>
-                          <td className="text-accent-blue">{m.map}</td>
-                          <td className="font-semibold">{m.winner}</td>
-                          <td>{m.knockouts}</td>
-                          <td className="text-text-muted">{m.syncedAt ? formatDisplayDateTime(m.syncedAt) : "-"}</td>
-                          <td className="text-accent-green">{m.dataSource}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="esports-card p-5">
-                <p className="section-heading !text-sm">Recent Registrations</p>
-                {stats.recentRegistrations?.length ? (
-                  <ul className="mt-3 space-y-2 text-sm">
-                    {stats.recentRegistrations.map((r) => (
-                      <li key={r.id} className="flex justify-between border-b border-white/5 py-2">
-                        <span className="text-white">{r.teamName}</span>
-                        <span className="text-text-muted">{r.status}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-3 text-sm text-text-muted">No registrations yet</p>
-                )}
-              </div>
-              <div className="esports-card p-5">
-                <p className="section-heading !text-sm">Recent Uploads</p>
-                {stats.recentUploads?.length || recentUploads.length ? (
-                  <ul className="mt-3 space-y-2 text-sm">
-                    {(stats.recentUploads ?? recentUploads).map((u) => (
-                      <li key={u.id} className="flex justify-between border-b border-white/5 py-2">
-                        <span className="text-white">{u.type.replace(/_/g, " ")}</span>
-                        <span className="text-text-muted">{formatDisplayDate(u.uploadedAt)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-3 text-sm text-text-muted">No uploads yet</p>
-                )}
-              </div>
-              <div className="esports-card p-5">
-                <p className="section-heading !text-sm">Recent Admin Activity</p>
-                {auditLogs.length > 0 ? (
-                  <ul className="mt-3 space-y-2 text-sm">
-                    {auditLogs.map((log) => (
-                      <li key={log.id} className="border-b border-white/5 py-2">
-                        <p className="text-white">
-                          {log.actorName ?? log.actorEmail ?? "Admin"} | {log.action.replace(/_/g, " ")} {log.entity_type}
-                        </p>
-                        <p className="text-xs text-text-muted">
-                          {formatDisplayDateTime(log.created_at)} {log.entity_id ? `| ${log.entity_id}` : ""}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-3 text-sm text-text-muted">Audit entries will appear here after admin actions are recorded.</p>
-                )}
-              </div>
-            </div>
-          </div>
+        {section === "dashboard" && (
+          <AdminOverview
+            tournaments={tournaments}
+            matches={liveMatches}
+            registrations={registrations}
+            teamCount={teams.length}
+            playerCount={players.length}
+            activity={auditLogs}
+            onNavigate={(target) => {
+              if (target === "tournaments") {
+                setEditingTournament(null);
+                setTournamentForm(buildDefaultTournamentForm());
+              }
+              if (target === "scrims") {
+                setEditingScrim(null);
+                setScrimForm(defaultScrimForm);
+              }
+              handleSectionChange(target);
+            }}
+          />
         )}
 
         {section === "homepage" && (
@@ -3017,13 +2892,8 @@ export default function AdminDashboard({
                 aria-label="Schedule"
                 placeholder="Schedule"
                 rows={2}
-                value={tournamentForm.schedule ?? ""}
-                onChange={(e) =>
-                  setTournamentForm({
-                    ...tournamentForm,
-                    schedule: e.target.value,
-                  })
-                }
+                value={formatEventSchedule(tournamentForm.schedule)}
+                readOnly
               />
               <textarea
                 className={`${inputClass} sm:col-span-2`}
@@ -3062,6 +2932,26 @@ export default function AdminDashboard({
                   ))}
                 </div>
               </div>
+              <label className="sm:col-span-2 flex items-start gap-3 rounded-card border border-white/10 bg-bg-primary p-4 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={tournamentForm.published === true && tournamentForm.state === "published"}
+                  onChange={(event) =>
+                    setTournamentForm({
+                      ...tournamentForm,
+                      published: event.target.checked,
+                      state: event.target.checked ? "published" : "draft",
+                    })
+                  }
+                />
+                <span>
+                  <span className="block font-semibold text-white">Publish this tournament</span>
+                  <span className="mt-1 block text-xs text-text-muted">
+                    Draft tournaments remain private. Publish only after the event details and registered teams are verified.
+                  </span>
+                </span>
+              </label>
               <div className="sm:col-span-2 rounded-card border border-white/10 bg-bg-primary p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="max-w-3xl">
@@ -3296,76 +3186,81 @@ export default function AdminDashboard({
               </div>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
-              {teams.map((team) => (
-                <div key={team.id} className="esports-card p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-3">
-                      {team.logoUrl || team.logo ? (
-                        <Image
-                          src={team.logoUrl ?? team.logo ?? ""}
-                          alt={team.name}
-                          width={56}
-                          height={56}
-                          loading="lazy"
-                          decoding="async"
-                          className="h-14 w-14 rounded-xl border border-white/10 object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/15 text-[10px] uppercase text-text-muted">
-                          No Logo
+              {teams
+                .filter(
+                  (team) =>
+                    team.name.toLowerCase().includes(directorySearch.toLowerCase()) &&
+                    (directoryStatus === "all" || team.status === directoryStatus),
+                )
+                .map((team) => (
+                  <div key={team.id} className="esports-card p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        {team.logoUrl || team.logo ? (
+                          <ManagedImage
+                            src={team.logoUrl ?? team.logo ?? ""}
+                            alt={team.name}
+                            fallbackText={team.name.slice(0, 2)}
+                            sizes="56px"
+                            wrapperClassName="h-14 w-14 shrink-0 rounded-xl border border-white/10"
+                            className="h-14 w-14 rounded-xl border border-white/10 object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/15 text-[10px] uppercase text-text-muted">
+                            No Logo
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-white">
+                            {team.name} {team.tag && <span className="text-accent-blue">[{team.tag}]</span>}
+                          </p>
+                          <p className="text-sm text-slate-400">
+                            {team.country ?? "—"} · Official status: {team.status ?? "—"}
+                          </p>
+                          <p className="mt-1 text-xs text-text-muted">
+                            Slot #{team.slotNumber ?? "—"} · Rank #{team.rank ?? "—"} · {team.totalPoints ?? 0} pts · {team.matches ?? 0}{" "}
+                            matches
+                          </p>
                         </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="font-semibold text-white">
-                          {team.name} {team.tag && <span className="text-accent-blue">[{team.tag}]</span>}
-                        </p>
-                        <p className="text-sm text-slate-400">
-                          {team.country ?? "—"} · Official status: {team.status ?? "—"}
-                        </p>
-                        <p className="mt-1 text-xs text-text-muted">
-                          Slot #{team.slotNumber ?? "—"} · Rank #{team.rank ?? "—"} · {team.totalPoints ?? 0} pts · {team.matches ?? 0}{" "}
-                          matches
-                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTeam(team.id);
+                            setTeamForm(team);
+                            setSelectedTeamId(team.id);
+                            handleSectionChange("players");
+                          }}
+                          className="text-bravoBlue text-sm hover:underline"
+                        >
+                          Players
+                        </button>
+                        {canManageCanonicalTeams ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingTeam(team.id);
+                                setTeamForm(team);
+                              }}
+                              className="text-bravoBlue text-sm hover:underline"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void archiveAdminTeam(team.id)}
+                              className="text-bravoRed text-sm hover:underline"
+                            >
+                              Archive
+                            </button>
+                          </>
+                        ) : null}
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingTeam(team.id);
-                          setTeamForm(team);
-                          setSelectedTeamId(team.id);
-                          handleSectionChange("players");
-                        }}
-                        className="text-bravoBlue text-sm hover:underline"
-                      >
-                        Players
-                      </button>
-                      {canManageCanonicalTeams ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingTeam(team.id);
-                              setTeamForm(team);
-                            }}
-                            className="text-bravoBlue text-sm hover:underline"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void archiveAdminTeam(team.id)}
-                            className="text-bravoRed text-sm hover:underline"
-                          >
-                            Archive
-                          </button>
-                        </>
-                      ) : null}
-                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         )}
@@ -3485,13 +3380,17 @@ export default function AdminDashboard({
                 onChange={(e) => setPlayerForm({ ...playerForm, nationality: e.target.value })}
               />
               <div className="sm:col-span-2">
-                <FileUpload
-                  type="player_avatar"
-                  entityId={editingPlayer ?? playerForm.inGameName ?? "new"}
-                  label="Profile Picture"
-                  currentUrl={playerForm.avatarUrl ?? playerForm.avatar}
-                  onUploaded={(url) => setPlayerForm({ ...playerForm, avatarUrl: url })}
-                />
+                {editingPlayer ? (
+                  <FileUpload
+                    type="player_avatar"
+                    entityId={editingPlayer ?? "new"}
+                    label="Profile Picture"
+                    currentUrl={playerForm.avatarUrl ?? playerForm.avatar}
+                    onUploaded={(url) => setPlayerForm({ ...playerForm, avatarUrl: url })}
+                  />
+                ) : (
+                  <p className="text-sm text-text-muted">Create the player first, then edit their profile to upload an avatar.</p>
+                )}
               </div>
               <div className="flex gap-3 sm:col-span-2">
                 <button type="submit" className={btnPrimary}>
@@ -3542,42 +3441,50 @@ export default function AdminDashboard({
                     </tr>
                   </thead>
                   <tbody>
-                    {(selectedTeamId ? teamPlayers : players).map((p) => (
-                      <tr key={p.id} className="border-b border-white/5">
-                        <td className="px-4 py-3 font-semibold text-white">{p.inGameName ?? p.name}</td>
-                        <td className="px-4 py-3 text-slate-300">{p.teamName ?? "-"}</td>
-                        <td className="px-4 py-3 text-slate-300">{p.role ?? "-"}</td>
-                        <td className="px-4 py-3 text-slate-300">{p.kills}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-3">
-                            <button
-                              type="button"
-                              aria-label={`Edit ${p.inGameName ?? p.name}`}
-                              onClick={() => {
-                                setEditingPlayer(p.id);
-                                setPlayerForm(p);
-                              }}
-                              className="text-bravoBlue hover:underline"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              aria-label={`Delete ${p.inGameName ?? p.name}`}
-                              onClick={async () => {
-                                await adminFetch(`/api/players/${p.id}`, {
-                                  method: "DELETE",
-                                });
-                                loadData();
-                              }}
-                              className="text-bravoRed hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {(selectedTeamId ? teamPlayers : players)
+                      .filter(
+                        (player) =>
+                          `${player.inGameName ?? player.name} ${player.teamName ?? ""}`
+                            .toLowerCase()
+                            .includes(directorySearch.toLowerCase()) &&
+                          (directoryStatus === "all" || player.playerStatus === directoryStatus),
+                      )
+                      .map((p) => (
+                        <tr key={p.id} className="border-b border-white/5">
+                          <td className="px-4 py-3 font-semibold text-white">{p.inGameName ?? p.name}</td>
+                          <td className="px-4 py-3 text-slate-300">{p.teamName ?? "-"}</td>
+                          <td className="px-4 py-3 text-slate-300">{p.role ?? "-"}</td>
+                          <td className="px-4 py-3 text-slate-300">{p.kills}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-3">
+                              <button
+                                type="button"
+                                aria-label={`Edit ${p.inGameName ?? p.name}`}
+                                onClick={() => {
+                                  setEditingPlayer(p.id);
+                                  setPlayerForm(p);
+                                }}
+                                className="text-bravoBlue hover:underline"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Delete ${p.inGameName ?? p.name}`}
+                                onClick={async () => {
+                                  await adminFetch(`/api/players/${p.id}`, {
+                                    method: "DELETE",
+                                  });
+                                  loadData();
+                                }}
+                                className="text-bravoRed hover:underline"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -4312,78 +4219,81 @@ export default function AdminDashboard({
         {section === "registrations" && (
           <div className="space-y-6">
             <h2 className="text-2xl font-black text-white">Team Registrations</h2>
-            {registrations.length === 0 ? (
+            {registrations.filter((registration) => !competitionId || registration.tournamentId === competitionId).length === 0 ? (
               <div className="esports-card p-8 text-center text-slate-400">No registrations yet.</div>
             ) : (
               <div className="space-y-4">
-                {registrations.map((r) => (
-                  <div key={r.id} className="esports-card p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="flex min-w-0 items-start gap-4">
-                        {r.logoUrl ? (
-                          <Image
-                            src={r.logoUrl}
-                            alt={`${r.teamName} logo`}
-                            width={64}
-                            height={64}
-                            className="h-16 w-16 rounded-2xl border border-white/10 object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-dashed border-white/15 text-[10px] uppercase tracking-[0.14em] text-text-muted">
-                            No Logo
+                {registrations
+                  .filter((registration) => !competitionId || registration.tournamentId === competitionId)
+                  .map((r) => (
+                    <div key={r.id} className="esports-card p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="flex min-w-0 items-start gap-4">
+                          {r.logoUrl ? (
+                            <Image
+                              src={r.logoUrl}
+                              alt={`${r.teamName} logo`}
+                              width={64}
+                              height={64}
+                              unoptimized
+                              className="h-16 w-16 rounded-2xl border border-white/10 object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-dashed border-white/15 text-[10px] uppercase tracking-[0.14em] text-text-muted">
+                              No Logo
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-semibold text-white">{r.teamName}</p>
+                            <p className="mt-1 text-sm text-slate-400">Captain: {r.captainName}</p>
+                            <p className="text-sm text-slate-400">Discord: {r.captainDiscord}</p>
+                            <p className="mt-2 text-xs uppercase tracking-[0.14em] text-text-muted">
+                              Submitted {formatDisplayDateTime(r.createdAt)}
+                            </p>
+                            {r.playerNames.length > 0 ? (
+                              <p className="mt-2 text-sm text-slate-300">Roster: {r.playerNames.join(", ")}</p>
+                            ) : null}
+                            {r.tournamentId ? (
+                              <p className="mt-1 text-sm text-slate-300">Tournament: {r.tournamentTitle ?? "Published event linked"}</p>
+                            ) : null}
+                            {r.approvedTeamId ? <p className="mt-1 text-sm text-accent-green">Published team: {r.approvedTeamId}</p> : null}
+                            <span
+                              className={`mt-3 inline-block rounded-full px-3 py-1 text-xs uppercase ${
+                                r.status === "pending"
+                                  ? "bg-amber-500/20 text-amber-300"
+                                  : r.status === "approved"
+                                    ? "bg-bravoGreen/20 text-bravoGreen"
+                                    : "bg-bravoRed/20 text-bravoRed"
+                              }`}
+                            >
+                              {r.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {r.status === "pending" && (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void handleRegistrationStatusChange(r.id, "approved")}
+                              disabled={registrationActionId === r.id}
+                              className={btnPrimary}
+                            >
+                              {registrationActionId === r.id ? "Processing..." : "Approve"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleRegistrationStatusChange(r.id, "rejected")}
+                              disabled={registrationActionId === r.id}
+                              className={btnDanger}
+                            >
+                              Reject
+                            </button>
                           </div>
                         )}
-                        <div className="min-w-0">
-                          <p className="font-semibold text-white">{r.teamName}</p>
-                          <p className="mt-1 text-sm text-slate-400">Captain: {r.captainName}</p>
-                          <p className="text-sm text-slate-400">Discord: {r.captainDiscord}</p>
-                          <p className="mt-2 text-xs uppercase tracking-[0.14em] text-text-muted">
-                            Submitted {formatDisplayDateTime(r.createdAt)}
-                          </p>
-                          {r.playerNames.length > 0 ? (
-                            <p className="mt-2 text-sm text-slate-300">Roster: {r.playerNames.join(", ")}</p>
-                          ) : null}
-                          {r.tournamentId ? (
-                            <p className="mt-1 text-sm text-slate-300">Tournament: {r.tournamentTitle ?? "Published event linked"}</p>
-                          ) : null}
-                          {r.approvedTeamId ? <p className="mt-1 text-sm text-accent-green">Published team: {r.approvedTeamId}</p> : null}
-                          <span
-                            className={`mt-3 inline-block rounded-full px-3 py-1 text-xs uppercase ${
-                              r.status === "pending"
-                                ? "bg-amber-500/20 text-amber-300"
-                                : r.status === "approved"
-                                  ? "bg-bravoGreen/20 text-bravoGreen"
-                                  : "bg-bravoRed/20 text-bravoRed"
-                            }`}
-                          >
-                            {r.status}
-                          </span>
-                        </div>
                       </div>
-
-                      {r.status === "pending" && (
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void handleRegistrationStatusChange(r.id, "approved")}
-                            disabled={registrationActionId === r.id}
-                            className={btnPrimary}
-                          >
-                            {registrationActionId === r.id ? "Processing..." : "Approve"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleRegistrationStatusChange(r.id, "rejected")}
-                            disabled={registrationActionId === r.id}
-                            className={btnDanger}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
@@ -4420,8 +4330,21 @@ export default function AdminDashboard({
                 }
                 required
               />
+              <label className="inline-flex items-center gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={announcementForm.published === true}
+                  onChange={(event) =>
+                    setAnnouncementForm({
+                      ...announcementForm,
+                      published: event.target.checked,
+                    })
+                  }
+                />
+                Publish immediately
+              </label>
               <button type="submit" className={`${btnPrimary} w-fit`}>
-                Publish
+                {announcementForm.published === true ? "Publish announcement" : "Save draft"}
               </button>
             </form>
             <div className="space-y-3">
@@ -4463,7 +4386,25 @@ export default function AdminDashboard({
           />
         )}
 
-        {section === "matchManager" && <AdminMatchManager tournaments={tournaments} scrims={scrims} onChanged={loadData} />}
+        {(section === "matchManager" || section === "competitionMatches" && selectedCompetition) && (
+          <AdminMatchManager
+            tournaments={tournaments}
+            scrims={scrims}
+            knownTeams={teams}
+            knownPlayers={players}
+            key={section === "competitionMatches" ? competitionId : "results"}
+            initialTournamentId={section === "competitionMatches" ? competitionId : importTournamentId || competitionId}
+            onImportRequested={(tournamentId, scrimId, reference) => {
+              setImportTournamentId(tournamentId);
+              setImportScrimId(scrimId);
+              setMatchId(reference);
+              handleSectionChange("pubg");
+            }}
+            onChanged={loadData}
+          />
+        )}
+        {section === "broadcast" && <BroadcastControlRoom />}
+        {section === "pointSystems" && <PointSystemManager onCreated={loadData} />}
 
         {section === "settings" && (
           <div className="space-y-6">
@@ -4499,21 +4440,23 @@ export default function AdminDashboard({
                 </div>
               )}
             </div>
-            <div className="esports-card space-y-4 p-6">
-              <p className="font-semibold text-white">Reset Competition Data</p>
-              <p className="text-sm text-slate-400">
-                Clears imported seasons, tournaments, scrims, teams, players, standings, match history, and cached PUBG import records.
-                Announcements, registrations, and uploaded media stay untouched.
-              </p>
-              <button
-                type="button"
-                onClick={resetCompetitionData}
-                disabled={!stats?.dataConnected || resettingData}
-                className={`${btnDanger} disabled:cursor-not-allowed disabled:opacity-60`}
-              >
-                {resettingData ? "Resetting..." : "Reset Imported Data"}
-              </button>
-            </div>
+            {role === "super_admin" ? (
+              <div className="esports-card space-y-4 p-6">
+                <p className="font-semibold text-white">Reset Competition Data</p>
+                <p className="text-sm text-slate-400">
+                  Clears imported seasons, tournaments, scrims, teams, players, standings, match history, and cached PUBG import records.
+                  Announcements, registrations, and uploaded media stay untouched.
+                </p>
+                <button
+                  type="button"
+                  onClick={resetCompetitionData}
+                  disabled={!stats?.dataConnected || resettingData}
+                  className={`${btnDanger} disabled:cursor-not-allowed disabled:opacity-60`}
+                >
+                  {resettingData ? "Resetting..." : "Reset Imported Data"}
+                </button>
+              </div>
+            ) : null}
             <div className="esports-card space-y-4 p-6">
               <p className="font-semibold text-white">Auto-Sync Cron</p>
               <p className="text-sm text-slate-400">

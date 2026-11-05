@@ -1,10 +1,19 @@
 import assert from "node:assert/strict";
+import { buildSafeLiveStreamFeed, isExplicitlyPublishedContent, isPublicStreamSchedule } from "../lib/data";
 import { selectHomepageEvents } from "../lib/homepage-events";
+import {
+  isManagedPlatformEventPublic,
+  isManagedPlatformGamePublic,
+  type ManagedPlatformEventRecord,
+  type ManagedPlatformGameRecord,
+} from "../lib/platform-cms";
 import { buildEventTeamDamageTotals } from "../lib/pubg-hub";
 import { getCanonicalPublicEventHref, normalizePublicActionHref } from "../lib/public-links";
 import { selectPublicScrimDays, selectPublicScrims } from "../lib/public-scrims";
 import { resolvePublicEventPolicy } from "../lib/public-event-policy";
 import { HOMEPAGE_REVALIDATION_PATHS } from "../lib/revalidate-public";
+import { sanitizePublicAssetUrl } from "../lib/public-content";
+import { sanitizePublicMatch } from "../lib/public-match";
 import {
   isSponsorSlugAlias,
   normalizeSponsorExternalUrl,
@@ -14,9 +23,123 @@ import {
   SponsorLinkValidationError,
   validateSponsorDestinations,
 } from "../lib/sponsor-links";
-import type { Scrim, ScrimDayResult } from "../lib/types";
+import type { Scrim, ScrimDayResult, TournamentMatch } from "../lib/types";
 
 const NOW = Date.parse("2026-07-28T12:00:00.000Z");
+
+function testPublicAssetProjection() {
+  assert.equal(sanitizePublicAssetUrl("/images/brand/logo.svg"), "/images/brand/logo.svg");
+  assert.equal(sanitizePublicAssetUrl("teams/team-id/logo.webp"), "/api/uploads/r2?key=teams%2Fteam-id%2Flogo.webp");
+  assert.equal(sanitizePublicAssetUrl("https://assets.bravogamingesports.com/logo.png"), "https://assets.bravogamingesports.com/logo.png");
+  assert.equal(sanitizePublicAssetUrl("https://attacker.invalid/image.png"), undefined);
+  assert.equal(sanitizePublicAssetUrl("/api/uploads/private/evidence"), undefined);
+
+  const privateAssetReferences = [
+    "https://user:PRIVATE_GRANT@assets.bravogamingesports.com/image.png",
+    "https://assets.bravogamingesports.com/image.png?X-Amz-Signature=PRIVATE_GRANT",
+    "https://assets.bravogamingesports.com/image.png?token=PRIVATE_GRANT",
+    "https://hldppfhtkfgthainismr.supabase.co/storage/v1/object/sign/private/image.png?token=PRIVATE_GRANT",
+    "https://bravo-gaming-esports.vercel.app/api/uploads/private/PRIVATE_GRANT",
+    "https://hldppfhtkfgthainismr.supabase.co/storage/v1/object/authenticated/private/PRIVATE_GRANT.png",
+  ];
+  for (const reference of privateAssetReferences) {
+    assert.equal(sanitizePublicAssetUrl(reference), undefined);
+    const result: TournamentMatch = {
+      id: "verified-result", pubgMatchId: "verified-match", map: "Erangel", status: "published",
+      winner: "Verified team", points: 0, knockouts: 0, dataSource: "manual_correction",
+      resultScreenshotUrl: reference, scoreboardImageUrl: reference, resultImageUrl: reference,
+      screenshotUrls: [reference, "/images/brand/logo.svg"],
+    };
+    const projected = sanitizePublicMatch(result);
+    assert.doesNotMatch(JSON.stringify(projected), /PRIVATE_GRANT/, "The public match DTO itself must not expose a private image grant");
+    assert.equal(projected.resultScreenshotUrl, undefined);
+    assert.equal(projected.scoreboardImageUrl, undefined);
+    assert.equal(projected.resultImageUrl, undefined);
+    assert.deepEqual(projected.screenshotUrls, ["/images/brand/logo.svg"]);
+  }
+}
+
+function testExplicitPublicationBoundary() {
+  assert.equal(isExplicitlyPublishedContent({}), false);
+  assert.equal(isExplicitlyPublishedContent({ published: false }), false);
+  assert.equal(isExplicitlyPublishedContent({ published: true }), true);
+  assert.equal(isExplicitlyPublishedContent({ published: true }, { requirePublishedAt: true, now: NOW }), false);
+  assert.equal(isExplicitlyPublishedContent({ published: true, publishedAt: "not-a-date" }, { requirePublishedAt: true, now: NOW }), false);
+  assert.equal(
+    isExplicitlyPublishedContent({ published: true, publishedAt: "2026-07-28T11:59:59.000Z" }, { requirePublishedAt: true, now: NOW }),
+    true,
+  );
+  assert.equal(
+    isExplicitlyPublishedContent({ published: true, publishedAt: "2026-07-28T12:00:01.000Z" }, { requirePublishedAt: true, now: NOW }),
+    false,
+  );
+
+  const publishedStream = {
+    id: "published-stream",
+    title: "Official Bravo broadcast",
+    time: "2026-07-28T13:00:00.000Z",
+    published: true,
+    state: "published",
+  };
+  assert.equal(isPublicStreamSchedule(publishedStream, NOW), true);
+  assert.equal(isPublicStreamSchedule({ ...publishedStream, published: undefined }, NOW), false);
+  assert.equal(isPublicStreamSchedule({ ...publishedStream, state: "draft" }, NOW), false);
+  assert.equal(isPublicStreamSchedule({ ...publishedStream, publishedAt: "invalid" }, NOW), false);
+  assert.equal(isPublicStreamSchedule({ ...publishedStream, publishedAt: "2026-07-29T00:00:00.000Z" }, NOW), false);
+
+  const safeChannelFeed = buildSafeLiveStreamFeed();
+  assert.equal(safeChannelFeed.isLive, false);
+  assert.equal(safeChannelFeed.time, "");
+  assert.equal(safeChannelFeed.embedUrl, undefined);
+  assert.equal(safeChannelFeed.viewers, undefined);
+
+  const publishedGame: ManagedPlatformGameRecord = {
+    id: "game",
+    slug: "verified-game",
+    name: "Verified Game",
+    shortName: "VG",
+    tagline: "Verified",
+    summary: "Verified published game.",
+    status: "active",
+    flagship: false,
+    heroLabel: "Game",
+    primaryHref: "/games/verified-game",
+    sections: [],
+    completionLabel: "Available",
+    published: true,
+  };
+  assert.equal(isManagedPlatformGamePublic(publishedGame), true);
+  assert.equal(isManagedPlatformGamePublic({ ...publishedGame, published: false }), false);
+
+  const publishedEvent: ManagedPlatformEventRecord = {
+    id: "event",
+    slug: "verified-event",
+    name: "Verified Event",
+    gameSlug: "verified-game",
+    gameName: "Verified Game",
+    type: "tournament",
+    status: "upcoming",
+    state: "published",
+    featured: false,
+    region: "Nepal",
+    organizerName: "Bravo Gaming Esports",
+    prizePool: "Not tracked",
+    teamsCount: 0,
+    matchesCount: 0,
+    startDate: "2026-08-01T00:00:00.000Z",
+    endDate: "2026-08-02T00:00:00.000Z",
+    summary: "Verified published event.",
+    registrationOpen: false,
+    tabs: [],
+    published: true,
+  };
+  assert.equal(isManagedPlatformEventPublic(publishedEvent), true);
+  assert.equal(isManagedPlatformEventPublic({ ...publishedEvent, published: false }), false);
+  assert.equal(isManagedPlatformEventPublic({ ...publishedEvent, state: "planned" }), false);
+  assert.equal(isManagedPlatformEventPublic({ ...publishedEvent, status: "planned" }), false);
+  assert.equal(isManagedPlatformEventPublic({ ...publishedEvent, startDate: "invalid" }), false);
+  assert.equal(isManagedPlatformEventPublic({ ...publishedEvent, endDate: "2026-07-31T00:00:00.000Z" }), false);
+}
 
 function testSponsorDestinations() {
   assert.equal(normalizeSponsorExternalUrl("https://hukut.com"), "https://hukut.com/");
@@ -212,6 +335,7 @@ function testPublicScrimsAndRevalidation() {
     lobbyTime: "20:00",
     teamIds: [],
     status: "scheduled",
+    published: true,
   };
   const selected = selectPublicScrims([
     baseScrim,
@@ -248,12 +372,14 @@ function testPublicScrimsAndRevalidation() {
         scrims: [{ ...baseScrim, id: "private", published: false }],
       },
     ]).map((day) => day.id),
-    ["public-day"],
+    ["scrim-day-2026-08-01"],
   );
   assert.deepEqual([...HOMEPAGE_REVALIDATION_PATHS], ["/", "/events", "/news", "/media", "/sponsors", "/pubg"]);
 }
 
 testSponsorDestinations();
+testPublicAssetProjection();
+testExplicitPublicationBoundary();
 testEventPolicy();
 testHomepageSelection();
 testDamageFallback();

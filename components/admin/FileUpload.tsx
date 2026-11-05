@@ -1,12 +1,28 @@
 "use client";
 
-import { adminUpload, adminUploadTeamLogo } from "@/lib/admin-api";
+import {
+  adminDeletePlayerAvatar,
+  adminDeleteStagedUpload,
+  adminDeleteTeamLogo,
+  adminUpload,
+  adminUploadPlayerAvatar,
+  adminUploadTeamLogo,
+} from "@/lib/admin-api";
 import { scheduleEffectTask } from "@/lib/effect-task";
+import { resolvePublicAssetUrl } from "@/lib/public-asset-url";
 import { formatUploadSize, getUploadMaxBytes, IMAGE_FILE_INPUT_ACCEPT, type UploadType } from "@/lib/upload-config";
 import { validateImageUpload } from "@/lib/upload-validation";
 import { toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type StagedAdminUpload = {
+  objectKey: string;
+  uploadId: string;
+  url: string;
+};
 
 export default function FileUpload({
   type,
@@ -23,6 +39,7 @@ export default function FileUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const stagedUploadRef = useRef<StagedAdminUpload | null>(null);
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -35,9 +52,20 @@ export default function FileUpload({
   }, [currentUrl]);
 
   useEffect(() => {
+    const stagedUpload = stagedUploadRef.current;
+    if (stagedUpload && currentUrl?.trim() === stagedUpload.url) {
+      stagedUploadRef.current = null;
+    }
+  }, [currentUrl]);
+
+  useEffect(() => {
     return () => {
       if (previewUrlRef.current) {
         URL.revokeObjectURL(previewUrlRef.current);
+      }
+      const stagedUpload = stagedUploadRef.current;
+      if (stagedUpload) {
+        void adminDeleteStagedUpload(stagedUpload, { keepalive: true }).catch(() => undefined);
       }
     };
   }, []);
@@ -72,23 +100,51 @@ export default function FileUpload({
     setProgress(0);
 
     try {
-      const isCanonicalTeamLogo =
-        type === "team_logo" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(entityId);
+      const isCanonicalTeamLogo = type === "team_logo" && UUID_PATTERN.test(entityId);
+      const isCanonicalPlayerAvatar = type === "player_avatar" && UUID_PATTERN.test(entityId);
       if (type === "team_logo" && !isCanonicalTeamLogo) {
         throw new Error("Create the official team before uploading its logo.");
       }
+      if (type === "player_avatar" && !isCanonicalPlayerAvatar) {
+        throw new Error("Create the canonical player before uploading a profile picture.");
+      }
       const res = isCanonicalTeamLogo
-        ? await adminUploadTeamLogo(file, entityId, {
-            onProgress: setProgress,
-          })
-        : await adminUpload(file, type, entityId || "draft", {
-            onProgress: setProgress,
-            previousUrl: currentUrl,
-          });
+        ? await adminUploadTeamLogo(file, entityId, { onProgress: setProgress })
+        : isCanonicalPlayerAvatar
+          ? await adminUploadPlayerAvatar(file, entityId, { onProgress: setProgress })
+          : await adminUpload(file, type, entityId || "draft", {
+              onProgress: setProgress,
+              previousUrl: currentUrl,
+            });
+      let previousStageCleanupFailed = false;
+      if (!isCanonicalTeamLogo && !isCanonicalPlayerAvatar) {
+        const previousStagedUpload = stagedUploadRef.current;
+        stagedUploadRef.current = {
+          objectKey: res.path,
+          uploadId: res.id,
+          url: res.url,
+        };
+        if (previousStagedUpload && previousStagedUpload.uploadId !== res.id) {
+          try {
+            await adminDeleteStagedUpload(previousStagedUpload);
+          } catch {
+            previousStageCleanupFailed = true;
+          }
+        }
+      }
       resetPreviewObjectUrl();
       setPreview(res.url);
       onUploaded(res.url);
-      setNotice("Upload complete.");
+      const cleanupPending = "cleanupPending" in res && res.cleanupPending === true;
+      setNotice(
+        isCanonicalTeamLogo || isCanonicalPlayerAvatar
+          ? cleanupPending
+            ? "Image published. Previous-file cleanup is pending."
+            : "Image published."
+          : previousStageCleanupFailed
+            ? "File uploaded. Save this form to publish it; cleanup of the previous staged file is pending."
+            : "File uploaded to managed storage. Save this form to publish the change.",
+      );
     } catch (err: unknown) {
       setError(
         toUserFacingErrorMessage(err, {
@@ -117,12 +173,65 @@ export default function FileUpload({
     }
   }
 
-  function handleClearImage() {
+  async function handleClearImage() {
     if (uploading) return;
+    setError(null);
+    const isCanonicalTeamLogo = type === "team_logo" && UUID_PATTERN.test(entityId);
+    const isCanonicalPlayerAvatar = type === "player_avatar" && UUID_PATTERN.test(entityId);
+
+    if (isCanonicalTeamLogo || isCanonicalPlayerAvatar) {
+      setUploading(true);
+      setNotice("Removing the published image...");
+      try {
+        const result = isCanonicalTeamLogo ? await adminDeleteTeamLogo(entityId) : await adminDeletePlayerAvatar(entityId);
+        resetPreviewObjectUrl();
+        setPreview(null);
+        onUploaded("");
+        setNotice(result.cleanupPending ? "Image removed. Storage cleanup is pending." : "Image removed.");
+      } catch (err: unknown) {
+        setError(
+          toUserFacingErrorMessage(err, {
+            fallback: USER_FACING_ERROR_MESSAGES.admin,
+          }),
+        );
+        setNotice(null);
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+
+    const stagedUpload = stagedUploadRef.current;
+    if (stagedUpload) {
+      setUploading(true);
+      setNotice("Removing the staged image...");
+      try {
+        const result = await adminDeleteStagedUpload(stagedUpload);
+        stagedUploadRef.current = null;
+        resetPreviewObjectUrl();
+        setPreview(null);
+        onUploaded("");
+        setNotice(
+          result.referenced
+            ? "Image cleared from this form. Its published reference was preserved."
+            : "Staged image removed from managed storage.",
+        );
+      } catch (err: unknown) {
+        setError(
+          toUserFacingErrorMessage(err, {
+            fallback: "The staged image was preserved because safe cleanup could not be confirmed.",
+          }),
+        );
+        setNotice(null);
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+
     resetPreviewObjectUrl();
     setPreview(null);
-    setError(null);
-    setNotice("Image cleared. Save the form to keep this change.");
+    setNotice("Image cleared from this form. Save the form to publish the change.");
     onUploaded("");
   }
 
@@ -132,6 +241,7 @@ export default function FileUpload({
   }
 
   const persistedUrl = currentUrl?.trim() || (preview && !preview.startsWith("blob:") ? preview : "");
+  const previewSrc = preview && (preview.startsWith("blob:") || preview.startsWith("data:") ? preview : resolvePublicAssetUrl(preview));
   const maxUploadSizeLabel = formatUploadSize(getUploadMaxBytes(type));
 
   return (
@@ -175,9 +285,9 @@ export default function FileUpload({
         } ${uploading ? "cursor-wait opacity-90" : "cursor-pointer"}`}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          {preview ? (
+          {previewSrc ? (
             <Image
-              src={preview}
+              src={previewSrc}
               alt={`${label} preview`}
               width={96}
               height={96}
@@ -223,7 +333,7 @@ export default function FileUpload({
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    handleClearImage();
+                    void handleClearImage();
                   }}
                   disabled={uploading}
                   className="btn-watch-live !text-[11px] disabled:opacity-60"

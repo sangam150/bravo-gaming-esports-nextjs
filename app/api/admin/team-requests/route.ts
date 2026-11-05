@@ -3,8 +3,8 @@ import { writeRequiredAuditLogFromRequest } from "@/lib/audit-logs";
 import { prepareCanonicalPublicImageUpload } from "@/lib/canonical-image-upload";
 import { CanonicalTeamError, getCanonicalAdminTeam, mergeTeamSourceMetadata, replaceCanonicalTeamLogoWithCas } from "@/lib/canonical-teams";
 import { sanitizeJsonObject } from "@/lib/json-utils";
+import { cleanupUnreferencedPublicAssetByUrl } from "@/lib/public-asset-cleanup";
 import {
-  deleteFromStorageByUrl,
   deletePrivateObjectByKey,
   deletePublicObjectByKey,
   getManagedUploadRecord,
@@ -20,7 +20,7 @@ import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import { assertTeamLogoCandidateOwnership, reviewPendingTeamLogoRequest, TeamLogoApprovalError } from "@/lib/team-logo-approval";
-import { replaceTeamLogoAtomically } from "@/lib/team-logo-service";
+import { ActiveAssetDeliveryError, replaceTeamLogoAtomically } from "@/lib/team-logo-service";
 import { createUploadRecord, deleteUploadRecord } from "@/lib/upload-records";
 import { getUserFacingTeamLabel, toUserFacingErrorMessage } from "@/lib/user-facing-errors";
 import type { Json, Tables } from "@/types/database.types";
@@ -347,6 +347,12 @@ async function reviewTeamLogoRequest(
           ...metadata,
           activationId,
         };
+        const verifyDelivery = () =>
+          verifyPublicObjectDelivery(objectKey, {
+            contentType: preparedImage.decoded.contentType,
+            deliveryOrigin: new URL(request.url).origin,
+            sizeBytes: preparedImage.decoded.sizeBytes,
+          });
         const activationResult = await replaceTeamLogoAtomically({
           cleanupNewArtifactsOnError: (error) =>
             !(error instanceof CanonicalTeamError && error.code === "team_logo_activation_unconfirmed"),
@@ -366,10 +372,18 @@ async function reviewTeamLogoRequest(
           deleteNewObject: () => deletePublicObjectByKey(objectKey),
           deletePreviousObject: async () => {
             if (!team.logoUrl || team.logoUrl === publicUrl) return true;
-            return deleteFromStorageByUrl(team.logoUrl);
+            return (await cleanupUnreferencedPublicAssetByUrl(team.logoUrl)).deleted;
           },
           deleteUploadRecord,
           revalidate: () => revalidateTeamAssetPaths(team.id, team.slug),
+          rollbackCanonicalTeam: async (activatedTeam) => {
+            await replaceCanonicalTeamLogoWithCas(team.id, {
+              expectedLogoUrl: publicUrl,
+              expectedUpdatedAt: activatedTeam.updatedAt,
+              logoUrl: team.logoUrl,
+              sourceMetadata: team.sourceMetadata,
+            });
+          },
           updateCanonicalTeam: () =>
             replaceCanonicalTeamLogoWithCas(team.id, {
               expectedLogoUrl: team.logoUrl,
@@ -382,12 +396,28 @@ async function reviewTeamLogoRequest(
                 },
               }),
             }),
-          uploadNewObject: () => uploadPublicObjectAtKey(objectKey, buffer, preparedImage.decoded.contentType).then(() => undefined),
-          verifyNewObject: () =>
-            verifyPublicObjectDelivery(objectKey, {
-              contentType: preparedImage.decoded.contentType,
-              sizeBytes: preparedImage.decoded.sizeBytes,
-            }),
+          uploadNewObject: () =>
+            uploadPublicObjectAtKey(objectKey, preparedImage.buffer, preparedImage.decoded.contentType).then(() => undefined),
+          verifyActivatedDelivery: () => verifyDelivery(),
+          verifyNewObject: () => verifyDelivery(),
+          writeDeliveryFailureAudit: (failure) =>
+            writeRequiredAuditLogFromRequest(request, {
+              action: "team_logo_approval_delivery_failed",
+              entityId: team.id,
+              entityType: "team",
+              oldValue: {
+                logoUrl: publicUrl,
+                requestId: claimedRequest.id,
+                uploadRecordId: failure.uploadRecordId,
+              },
+              newValue: {
+                deliveryErrorName: failure.deliveryError instanceof Error ? failure.deliveryError.name : "UnknownError",
+                logoUrl: failure.rollbackConfirmed ? team.logoUrl : "unconfirmed",
+                rollbackConfirmed: failure.rollbackConfirmed,
+                rollbackErrorName:
+                  failure.rollbackError instanceof Error ? failure.rollbackError.name : failure.rollbackError ? "UnknownError" : null,
+              },
+            }).then(() => undefined),
           writeRequiredAudit: (uploadRecordId) =>
             writeRequiredAuditLogFromRequest(request, {
               action: "team_logo_approval_requested",
@@ -454,7 +484,9 @@ async function reviewTeamLogoRequest(
     };
   } catch (error) {
     const activationMayBeCommitted =
-      activationCompleted || (error instanceof CanonicalTeamError && error.code === "team_logo_activation_unconfirmed");
+      activationCompleted ||
+      (error instanceof CanonicalTeamError && error.code === "team_logo_activation_unconfirmed") ||
+      (error instanceof ActiveAssetDeliveryError && !error.rollbackConfirmed);
     if (!activationMayBeCommitted) {
       try {
         await client
@@ -765,6 +797,12 @@ export async function PATCH(request: Request) {
     await logServerError("admin.team-requests.review", error, request);
     if (error instanceof TeamLogoApprovalError) {
       return Response.json({ success: false, error: error.message, code: error.code }, { status: error.status });
+    }
+    if (error instanceof ActiveAssetDeliveryError) {
+      return Response.json(
+        { success: false, error: error.message, code: error.code, rollbackConfirmed: error.rollbackConfirmed },
+        { status: error.status },
+      );
     }
     return Response.json(
       {

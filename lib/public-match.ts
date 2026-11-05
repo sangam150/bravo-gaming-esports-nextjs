@@ -8,6 +8,10 @@ export function isExplicitlyPublishedMatch(match: Pick<TournamentMatch, "status"
 
 function sanitizeTeamResult(result: TeamMatchResult): TeamMatchResult {
   return {
+    adjustmentPoints: result.adjustmentPoints,
+    decisionReason: result.decisionReason,
+    disqualified: result.disqualified,
+    tieBreakers: result.tieBreakers,
     teamId: result.teamId,
     teamName: result.teamName,
     slotNumber: result.slotNumber,
@@ -20,9 +24,16 @@ function sanitizeTeamResult(result: TeamMatchResult): TeamMatchResult {
   };
 }
 
-function sanitizePlayerResult(result: MatchPlayerResult): MatchPlayerResult {
+export function publicMatchPlayerId(result: MatchPlayerResult, matchId: string, index: number) {
+  return result.playerId === result.pubgPlayerId || /^account\./i.test(result.playerId)
+    ? `unlinked-${matchId}-${index}` : result.playerId;
+}
+
+function sanitizePlayerResult(result: MatchPlayerResult, matchId: string, index: number): MatchPlayerResult {
   return {
-    playerId: result.playerId,
+    disqualified: result.disqualified,
+    awardCriteria: result.awardCriteria,
+    playerId: publicMatchPlayerId(result, matchId, index),
     playerName: result.playerName,
     teamId: result.teamId,
     teamName: result.teamName,
@@ -49,7 +60,7 @@ export function sanitizePublicMatch(match: TournamentMatch): TournamentMatch {
     map: match.map,
     eventName: match.eventName,
     eventSlug: match.eventSlug,
-    status: "published",
+    status: match.status,
     winner: match.winner,
     points: match.points,
     knockouts: match.knockouts,
@@ -60,13 +71,12 @@ export function sanitizePublicMatch(match: TournamentMatch): TournamentMatch {
     resultScreenshotUrl: sanitizePublicAssetUrl(match.resultScreenshotUrl) ?? undefined,
     scoreboardImageUrl: sanitizePublicAssetUrl(match.scoreboardImageUrl) ?? undefined,
     resultImageUrl: sanitizePublicAssetUrl(match.resultImageUrl) ?? undefined,
-    screenshotUrls: match.screenshotUrls
-      ?.map((url) => sanitizePublicAssetUrl(url))
-      .filter((url): url is string => Boolean(url)),
+    screenshotUrls: match.screenshotUrls?.map((url) => sanitizePublicAssetUrl(url)).filter((url): url is string => Boolean(url)),
     dataSource: match.dataSource,
     publishedAt: match.publishedAt,
     pointSystemName: match.pointSystemName,
+    scoringRules: match.scoringRules,
     teamResults: (match.teamResults ?? []).map(sanitizeTeamResult),
-    playerResults: (match.playerResults ?? []).map(sanitizePlayerResult),
+    playerResults: (match.playerResults ?? []).map((row, index) => sanitizePlayerResult(row, match.id, index)),
   };
 }

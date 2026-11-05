@@ -10,6 +10,7 @@ import {
   SectionHeader,
 } from "@/components/pubg/PubgHubUI";
 import ManagedImage from "@/components/ui/ManagedImage";
+import { resolveSponsorHeroUrl } from "@/lib/public-asset-url";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type {
@@ -1826,7 +1827,7 @@ export function PlatformSponsorDetailPage({ hub, sponsor }: { hub: PlatformHubDa
   const tierLabel = sponsorTierLabel(sponsor);
   const supportingLabel = sponsorSupportingLabel(sponsor);
   const destination = resolveSponsorDestination(sponsor);
-  const partnerVisual = sponsor.bannerUrl ?? sponsor.designAssetUrl ?? sponsor.logoUrl ?? null;
+  const partnerVisual = resolveSponsorHeroUrl(sponsor);
 
   return (
     <main className="page-shell pb-12 pt-6">

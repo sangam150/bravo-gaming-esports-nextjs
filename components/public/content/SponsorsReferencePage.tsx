@@ -1,22 +1,19 @@
 import {
   PublicActionLink,
   PublicEmptyState,
-  PublicMetric,
   PublicPageHero,
   PublicPartnerStrip,
-  PublicSectionHeader,
-  PublicStatusBadge,
-  formatPublicNumber,
   joinClasses,
 } from "@/components/public/PublicDesignSystem";
 import ManagedImage from "@/components/ui/ManagedImage";
 import type { PlatformHubData, PlatformSponsorProfile } from "@/lib/platform-hub";
+import { resolveSponsorHeroUrl } from "@/lib/public-asset-url";
 import { resolveSponsorDestination } from "@/lib/sponsor-links";
-import { Gamepad2, MessageCircle, ShieldCheck, Trophy, Users } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { isCompatibilityFallback } from "./ContentPageShared";
 
 function sponsorVisual(sponsor: PlatformSponsorProfile) {
-  return sponsor.bannerUrl ?? sponsor.designAssetUrl ?? sponsor.logoUrl ?? null;
+  return resolveSponsorHeroUrl(sponsor);
 }
 
 function SponsorAsset({
@@ -98,60 +95,11 @@ function FeaturedSponsor({ sponsor }: { sponsor: PlatformSponsorProfile }) {
   );
 }
 
-function PartnershipTier({
-  title,
-  tone,
-  description,
-  opportunities,
-}: {
-  title: string;
-  tone: "blue" | "amber" | "neutral" | "green";
-  description: string;
-  opportunities: string[];
-}) {
-  return (
-    <article
-      className={joinClasses(
-        "public-card flex flex-col p-5",
-        tone === "amber" && "border-accent-yellow/30 bg-accent-yellow/[0.04]",
-        tone === "blue" && "border-accent-blue/35",
-        tone === "green" && "border-accent-green/25",
-      )}
-    >
-      <PublicStatusBadge tone={tone}>{title}</PublicStatusBadge>
-      <p className="mt-4 text-sm leading-6 text-text-secondary">{description}</p>
-      <ul className="mt-5 space-y-3 text-sm text-white">
-        {opportunities.map((opportunity) => (
-          <li key={opportunity} className="flex items-start gap-2">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent-blue-light" aria-hidden="true" />
-            <span>{opportunity}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-5 text-xs leading-5 text-text-muted">
-        Final scope and deliverables are confirmed per campaign.
-      </p>
-      <div className="mt-auto pt-5">
-        <PublicActionLink href="/contact" variant="secondary" className="w-full justify-center">
-          Discuss {title}
-        </PublicActionLink>
-      </div>
-    </article>
-  );
-}
-
 export function SponsorsReferencePage({ hub }: { hub: PlatformHubData }) {
   const sponsors = hub.sponsors.filter(
     (sponsor) => sponsor.visible && sponsor.showOnSponsorsPage && !isCompatibilityFallback(sponsor.id),
   );
   const featuredSponsor = sponsors.find((sponsor) => sponsor.featured) ?? sponsors[0] ?? null;
-  const publishedEvents = hub.events.filter(
-    (event) => event.state === "published" && !isCompatibilityFallback(event.id),
-  );
-  const pubgGame = hub.games.find((game) => game.slug === "pubg-pc") ?? null;
-  const verifiedTeams = pubgGame && pubgGame.trackedTeams > 0 ? pubgGame.trackedTeams : null;
-  const verifiedPlayers = pubgGame && pubgGame.trackedPlayers > 0 ? pubgGame.trackedPlayers : null;
-  const verifiedMatches = pubgGame && pubgGame.trackedMatches > 0 ? pubgGame.trackedMatches : null;
 
   return (
     <main className="public-page">
@@ -190,80 +138,6 @@ export function SponsorsReferencePage({ hub }: { hub: PlatformHubData }) {
             }
           />
         )}
-
-        <section className="space-y-4">
-          <PublicSectionHeader eyebrow="Partnership Opportunities" title="Explore Ways to Partner" />
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <PartnershipTier
-              title="Titanium Partner"
-              tone="blue"
-              description="A potential flagship collaboration for campaigns requiring broad event and broadcast visibility."
-              opportunities={[
-                "Possible flagship event placement",
-                "Potential broadcast integrations",
-                "Campaign-specific creative planning",
-              ]}
-            />
-            <PartnershipTier
-              title="Gold Partner"
-              tone="amber"
-              description="A potential campaign package spanning selected event, media, and community touchpoints."
-              opportunities={[
-                "Possible selected-event visibility",
-                "Potential digital content placement",
-                "Campaign activation planning",
-              ]}
-            />
-            <PartnershipTier
-              title="Silver Partner"
-              tone="neutral"
-              description="A focused option for brands exploring targeted competition and community placements."
-              opportunities={["Possible digital placements", "Selected social mentions", "Event-support discussions"]}
-            />
-            <PartnershipTier
-              title="Community Partner"
-              tone="green"
-              description="A grassroots collaboration path for organizations supporting Nepal’s competitive community."
-              opportunities={[
-                "Potential community recognition",
-                "Selected public-page placement",
-                "Grassroots campaign planning",
-              ]}
-            />
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <PublicSectionHeader eyebrow="Verified Platform Context" title="Why Partner With Bravo" />
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            {verifiedPlayers ? (
-              <PublicMetric
-                label="Tracked players"
-                value={formatPublicNumber(verifiedPlayers)}
-                icon={<Users className="h-5 w-5" />}
-              />
-            ) : null}
-            {verifiedTeams ? (
-              <PublicMetric
-                label="Tracked teams"
-                value={formatPublicNumber(verifiedTeams)}
-                icon={<ShieldCheck className="h-5 w-5" />}
-              />
-            ) : null}
-            <PublicMetric
-              label="Published events"
-              value={formatPublicNumber(publishedEvents.length)}
-              icon={<Trophy className="h-5 w-5" />}
-            />
-            {verifiedMatches ? (
-              <PublicMetric
-                label="Tracked matches"
-                value={formatPublicNumber(verifiedMatches)}
-                icon={<Gamepad2 className="h-5 w-5" />}
-              />
-            ) : null}
-          </div>
-        </section>
 
         <section className="public-cta">
           <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">

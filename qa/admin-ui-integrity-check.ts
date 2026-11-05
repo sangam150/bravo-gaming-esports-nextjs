@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { resolveHomepageEventAction, selectHomepageEvents } from "../lib/homepage-events";
 import { formatNepalDateTimeInput, nepalDateTimeLocalToUtcIso } from "../lib/nepal-datetime";
+import { ADMIN_WORKSPACES, ADMIN_SECTION_ROUTES, getAdminSectionHref, getAdminWorkspace, type AdminSection } from "../lib/admin-navigation";
 
 const NOW = Date.parse("2026-07-28T12:00:00.000Z");
 
@@ -105,7 +106,24 @@ async function main() {
     readFile(new URL("../lib/platform-cms.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(sidebarSource, /playerTeamLinking".*platformAdminOnly: true/);
+  assert.match(sidebarSource, /ADMIN_WORKSPACES/);
+  assert.deepEqual(
+    ADMIN_WORKSPACES.map((workspace) => workspace.label),
+    ["Dashboard", "Competitions", "Scrims", "Teams & Players", "Match Results", "Broadcast Studio", "Content", "Settings"],
+  );
+  assert.equal(
+    ADMIN_WORKSPACES.flatMap((workspace) => workspace.tools).find((tool) => tool.id === "playerTeamLinking")?.platformAdminOnly,
+    true,
+  );
+  for (const section of Object.keys(ADMIN_SECTION_ROUTES) as AdminSection[]) {
+    assert.ok(getAdminWorkspace(section), `Every existing operation must have one workspace: ${section}`);
+    assert.equal(
+      ADMIN_WORKSPACES.filter((workspace) => workspace.defaultSection === section || workspace.tools.some((tool) => tool.id === section))
+        .length,
+      1,
+    );
+    assert.match(getAdminSectionHref(section), /^\/admin(?:\/[^?]+)?(?:\?view=\w+)?$/);
+  }
   assert.match(requestsSource, /readOnly = false/);
   assert.match(requestsSource, /request\.status === "pending" \|\| request\.status === "review_later"/);
   assert.match(requestsSource, /submission\.status === "submitted"/);
@@ -115,6 +133,10 @@ async function main() {
   assert.doesNotMatch(dashboardSource, /aria-label="Team registration status"/);
   assert.match(catalogSource, /option value="cancelled"/);
   assert.match(catalogSource, /option value="archived"/);
+  assert.match(catalogSource, /const defaultGameForm[\s\S]*?published: false,\s*};/);
+  assert.match(catalogSource, /const defaultEventForm[\s\S]*?state: "planned"[\s\S]*?published: false,\s*};/);
+  assert.match(catalogSource, /const defaultSponsorForm[\s\S]*?published: false,\s*};/);
+  assert.match(catalogSource, /const defaultMediaForm[\s\S]*?published: false,\s*};/);
   assert.match(cmsSource, /"cancelled",\s+"archived"/);
 
   console.log("Admin role gating, terminal requests, homepage CTA policy, Nepal datetime, event status, and bootstrap QA passed.");

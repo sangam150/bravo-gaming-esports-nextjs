@@ -1,66 +1,67 @@
 "use client";
 
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getSupabasePasswordRecoveryClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { clearBravoSession } from "@/lib/login-client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function PasswordRecoveryClient() {
+  const configured = isSupabaseConfigured();
   const [recoverySession, setRecoverySession] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [checkingRecovery, setCheckingRecovery] = useState(true);
+  const [checkingRecovery, setCheckingRecovery] = useState(configured);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(configured ? null : "Password recovery is temporarily unavailable. Please contact the Bravo owner.");
 
   useEffect(() => {
-    const client = getSupabaseBrowserClient();
+    if (!configured) return;
     let active = true;
+    const recoveryUrl = new URL(window.location.href);
+    const code = recoveryUrl.searchParams.get("code");
+    const providerError = recoveryUrl.searchParams.get("error");
+    const hashParameters = new URLSearchParams(recoveryUrl.hash.replace(/^#/, ""));
+    const recoveryAccessToken = hashParameters.get("access_token");
+    const implicitRecovery = hashParameters.get("type") === "recovery" && Boolean(recoveryAccessToken);
+    const client = getSupabasePasswordRecoveryClient();
+
+    function acceptRecoverySession(session: { access_token: string } | null) {
+      if (!active || !implicitRecovery || !recoveryAccessToken || session?.access_token !== recoveryAccessToken) return false;
+      setRecoverySession(true);
+      setCheckingRecovery(false);
+      setError(null);
+      return true;
+    }
+
     const { data } = client.auth.onAuthStateChange((event, session) => {
       if (!active) return;
-      if (event === "PASSWORD_RECOVERY" && session) {
-        setRecoverySession(true);
-        setError(null);
+      if (event === "PASSWORD_RECOVERY") {
+        acceptRecoverySession(session);
       } else if (event === "SIGNED_OUT") {
         setRecoverySession(false);
       }
     });
 
     void (async () => {
-      const recoveryUrl = new URL(window.location.href);
-      const code = recoveryUrl.searchParams.get("code");
-      const providerError = recoveryUrl.searchParams.get("error");
-      const hashParameters = new URLSearchParams(recoveryUrl.hash.replace(/^#/, ""));
-      const implicitRecovery = hashParameters.get("type") === "recovery";
-
-      if (providerError) {
+      if (providerError || code) {
         if (active) {
           setError("This recovery link is invalid or expired. Request a new password reset.");
-        }
-      } else if (code) {
-        const { data: exchangeData, error: exchangeError } = await client.auth.exchangeCodeForSession(code);
-        if (active) {
-          if (exchangeError || !exchangeData.session) {
-            setError("This recovery link is invalid or expired. Request a new password reset.");
-          } else {
-            setRecoverySession(true);
-          }
+          setCheckingRecovery(false);
         }
       } else if (implicitRecovery) {
         const { data: sessionData } = await client.auth.getSession();
-        if (active && sessionData.session) {
-          setRecoverySession(true);
+        if (!acceptRecoverySession(sessionData.session) && active) {
+          setError("This recovery link is invalid or expired. Request a new password reset.");
+          setCheckingRecovery(false);
         }
-      }
-
-      if (code || providerError || implicitRecovery) {
-        window.history.replaceState(window.history.state, "", "/reset-password");
-      }
-      if (active) {
+      } else if (active) {
         setCheckingRecovery(false);
       }
+
+      if (code || providerError || implicitRecovery) window.history.replaceState(window.history.state, "", "/reset-password");
     })().catch(() => {
       if (active) {
         setError("This recovery link could not be verified. Request a new password reset.");
@@ -72,7 +73,7 @@ export default function PasswordRecoveryClient() {
       active = false;
       data.subscription.unsubscribe();
     };
-  }, []);
+  }, [configured]);
 
   async function requestReset(event: React.FormEvent) {
     event.preventDefault();
@@ -110,14 +111,24 @@ export default function PasswordRecoveryClient() {
     }
     setLoading(true);
     setError(null);
-    const { error: updateError } = await getSupabaseBrowserClient().auth.updateUser({ password });
+    const recoveryClient = getSupabasePasswordRecoveryClient();
+    const { error: updateError } = await recoveryClient.auth.updateUser({ password });
     if (updateError) {
       setError("This recovery link is invalid or expired. Request a new password reset.");
       setLoading(false);
       return;
     }
-    await getSupabaseBrowserClient().auth.signOut({ scope: "local" });
-    await clearBravoSession();
+    await recoveryClient.auth.signOut({ scope: "local" });
+    try {
+      await clearBravoSession();
+    } catch {
+      setError("Your password was updated, but sign-out could not be confirmed. Check your connection and sign out before continuing.");
+      setRecoverySession(false);
+      setPassword("");
+      setConfirmPassword("");
+      setLoading(false);
+      return;
+    }
     setMessage("Password updated. You can now sign in with your new password.");
     setRecoverySession(false);
     setPassword("");
@@ -201,7 +212,7 @@ export default function PasswordRecoveryClient() {
             </label>
           )}
 
-          <button disabled={checkingRecovery || loading} className="btn-primary w-full justify-center disabled:opacity-60">
+          <button disabled={!configured || checkingRecovery || loading} className="btn-primary w-full justify-center disabled:opacity-60">
             {checkingRecovery ? "Verifying..." : loading ? "Please wait..." : recoverySession ? "Update Password" : "Send Recovery Link"}
           </button>
           <Link href="/login" className="btn-secondary w-full justify-center">

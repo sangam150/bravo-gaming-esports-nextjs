@@ -30,21 +30,56 @@ function trimTrailingSlash(value: string) {
 }
 
 function resolveR2PublicDeliveryMode() {
-  return process.env.R2_PUBLIC_DELIVERY_MODE?.trim().toLowerCase() === "proxy" ? "proxy" : "direct";
+  const configuredMode = process.env.R2_PUBLIC_DELIVERY_MODE?.trim().toLowerCase();
+  if (!configuredMode || configuredMode === "proxy") return "proxy";
+  if (configuredMode === "direct") return "direct";
+  throw new Error("R2_PUBLIC_DELIVERY_MODE must be either proxy or direct.");
+}
+
+function normalizePublicBaseUrl(value: string, variableName: string) {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${variableName} must be a valid HTTPS URL.`);
+  }
+
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error(`${variableName} must be a credential-free HTTPS URL without a query string or fragment.`);
+  }
+
+  return trimTrailingSlash(parsed.toString());
 }
 
 function getR2Environment(): R2Environment {
   const accountId = getRequiredEnvironmentValue("R2_ACCOUNT_ID");
   const endpoint = trimTrailingSlash(process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`);
+  const privateBucketName = getRequiredEnvironmentValue("R2_PRIVATE_BUCKET_NAME");
+  const publicBucketName = getRequiredEnvironmentValue("R2_BUCKET_NAME");
+  if (privateBucketName === publicBucketName) {
+    throw new Error("Cloudflare R2 public and private storage must use separate buckets.");
+  }
+
+  const publicDeliveryMode = resolveR2PublicDeliveryMode();
+  const publicBaseUrl = normalizePublicBaseUrl(getRequiredEnvironmentValue("R2_PUBLIC_BASE_URL"), "R2_PUBLIC_BASE_URL");
+  if (publicDeliveryMode === "direct") {
+    const clientPublicBaseUrl = normalizePublicBaseUrl(
+      getRequiredEnvironmentValue("NEXT_PUBLIC_R2_PUBLIC_BASE_URL"),
+      "NEXT_PUBLIC_R2_PUBLIC_BASE_URL",
+    );
+    if (clientPublicBaseUrl !== publicBaseUrl) {
+      throw new Error("NEXT_PUBLIC_R2_PUBLIC_BASE_URL must exactly match R2_PUBLIC_BASE_URL when direct delivery is enabled.");
+    }
+  }
 
   return {
     accountId,
     accessKeyId: getRequiredEnvironmentValue("R2_ACCESS_KEY_ID"),
     endpoint,
-    privateBucketName: getRequiredEnvironmentValue("R2_PRIVATE_BUCKET_NAME"),
-    publicDeliveryMode: resolveR2PublicDeliveryMode(),
-    publicBaseUrl: trimTrailingSlash(getRequiredEnvironmentValue("R2_PUBLIC_BASE_URL")),
-    publicBucketName: getRequiredEnvironmentValue("R2_BUCKET_NAME"),
+    privateBucketName,
+    publicDeliveryMode,
+    publicBaseUrl,
+    publicBucketName,
     secretAccessKey: getRequiredEnvironmentValue("R2_SECRET_ACCESS_KEY"),
   };
 }

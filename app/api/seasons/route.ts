@@ -1,14 +1,22 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { getSeasons, saveSeason } from "@/lib/data";
+import { requireSameOrigin } from "@/lib/request-origin";
 
-export async function GET() {
-  const data = await getSeasons();
-  return Response.json({ success: true, data });
+export async function GET(request: Request) {
+  const internal = new URL(request.url).searchParams.get("admin") === "true";
+  if (internal) {
+    const denied = await requireAdmin(request);
+    if (denied) return denied;
+  }
+  const data = await getSeasons({ includeInternal: internal });
+  return Response.json({ success: true, data }, { headers: { "Cache-Control": internal ? "private, no-store" : "no-cache" } });
 }
 
 export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
 
   try {
     const body = await request.json();

@@ -1,18 +1,16 @@
-import LoginHubClient from "@/components/auth/LoginHubClient";
-import { getServerAuthenticatedSession } from "@/lib/admin-auth";
-import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
+import LoginHubClient from "@/components/auth/LoginHubClient";
+import { hasTeamWorkspaceAccess } from "@/lib/authz";
+import { getServerAuthenticatedSession } from "@/lib/admin-auth";
 
 export const metadata: Metadata = {
   title: "Login",
-  description: "Secure Bravo Gaming Esports login for viewers, players, approved team staff, and administrators.",
-  robots: {
-    index: false,
-    follow: false,
-  },
+  description: "Bravo Gaming Esports Supabase login hub for admin and team access.",
 };
+
+export const revalidate = 300;
 
 export default async function LoginPage() {
   const session = await getServerAuthenticatedSession();
@@ -21,12 +19,8 @@ export default async function LoginPage() {
     redirect("/admin");
   }
 
-  if (session && hasTeamWorkspaceAccess(session.role, session.isAdmin) && session.teamId) {
+  if (session && hasTeamWorkspaceAccess(session.role, session.isAdmin)) {
     redirect("/team");
-  }
-
-  if (session && hasPlayerDashboardAccess(session.role, session.isAdmin) && session.playerId) {
-    redirect("/dashboard/player");
   }
 
   return (
@@ -59,9 +53,7 @@ export default async function LoginPage() {
                       <p className="section-title">Access Hub</p>
                       <h2 className="mt-2 font-display text-2xl font-black uppercase text-white">Preparing secure workspace</h2>
                     </div>
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-accent-blue/25 bg-accent-blue/10 text-accent-blue-light">
-                      •
-                    </span>
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-accent-blue/25 bg-accent-blue/10 text-accent-blue-light">•</span>
                   </div>
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     {[

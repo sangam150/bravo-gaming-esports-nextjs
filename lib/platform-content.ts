@@ -10,6 +10,7 @@ import {
   resolveManagedNewsEffectiveState,
   type ManagedNewsStateValue,
 } from "./news-publishing";
+import { claimStagedAdminPublicAssets } from "./public-asset-cleanup";
 import { normalizePublicActionHref } from "./public-links";
 import { slugify } from "./slug-utils";
 
@@ -514,6 +515,11 @@ export async function getHomepageContent(): Promise<HomepageContentRecord> {
 export async function saveHomepageContent(data: Partial<HomepageContentRecord>) {
   const payload = normalizeHomepageContent(data);
   await saveDocument(COLLECTIONS.homepageContent, "main", payload as unknown as Record<string, unknown>);
+  await claimStagedAdminPublicAssets({
+    relatedId: payload.id,
+    relatedType: "homepage_content",
+    urls: payload.heroSlides.map((slide) => slide.imageUrl),
+  });
   return payload;
 }
 
@@ -593,6 +599,11 @@ export async function saveManagedNewsArticle(
   };
 
   await saveDocument(COLLECTIONS.newsArticles, docId, nextPayload as unknown as Record<string, unknown>);
+  await claimStagedAdminPublicAssets({
+    relatedId: docId,
+    relatedType: "news_article",
+    urls: [nextPayload.imageUrl, nextPayload.ogImageUrl],
+  });
   return { ...nextPayload, id: docId };
 }
 

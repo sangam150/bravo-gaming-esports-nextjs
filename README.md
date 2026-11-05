@@ -26,6 +26,18 @@ Admin dashboard:
 - Persist documents through the Supabase-backed app document store
 - Review recent server error logs from the admin settings panel
 
+Broadcast operation:
+
+- Open `/admin/broadcast` to select published results, preview graphics, and control the on-air program.
+- Add `/overlay/program` as an OBS Browser Source at 1920 × 1080.
+- Run `npm run qa:broadcast` and `npm run qa:broadcast:ui` for broadcast checks.
+- Follow the [platform operating and deployment guide](docs/platform-operations.md).
+- Use the [eight admin workspaces and automated broadcast scene guide](docs/admin-broadcast-completion.md); [real staging acceptance](docs/staging-verification.md) remains a release gate.
+- The [global production follow-up](docs/global-production-readiness.md) covers the supplied blue references, event settings, template editor, private-preview/live controls and explicitly unfinished master requirements.
+- The [5 November development verification](docs/master-development-verification.md) records versioned scoring, expanded graphics, public tournament workflows, local evidence and remaining release gaps.
+- The [final release audit](docs/release-audit.md) records transaction/security fixes, current checks, the explicit file manifest, prepared PR text and blocked commit/push/deployment gates.
+- Read the [audit](docs/platform-audit.md) and [actual verification results and file changes](docs/platform-verification.md) before releasing.
+
 Public PUBG hub:
 
 - Visit `/pubg` for the dedicated PUBG dashboard

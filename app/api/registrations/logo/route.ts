@@ -1,10 +1,16 @@
 import { prepareCanonicalImage } from "@/lib/canonical-image-upload";
 import { ImageDecodeError } from "@/lib/image-validation";
-import { buildPrivateUploadUrl, deletePrivateObjectByKey, uploadPrivateFile } from "@/lib/r2/storage";
+import {
+  buildPrivateUploadUrl,
+  deletePrivateObjectByKey,
+  getManagedUploadRecord,
+  isR2ObjectMissingError,
+  uploadPrivateFile,
+} from "@/lib/r2/storage";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
-import { createUploadRecord } from "@/lib/upload-records";
+import { createUploadRecord, deleteUploadRecord } from "@/lib/upload-records";
 import { validateUpload } from "@/lib/upload-validation";
 import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import { randomUUID } from "crypto";
@@ -26,6 +32,9 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const teamName = (formData.get("teamName") as string | null)?.trim() || "registration";
+    const previousUploadId = (formData.get("previousUploadId") as string | null)?.trim() || null;
+    const previousPath = (formData.get("previousPath") as string | null)?.trim() || null;
+    const previousUrl = (formData.get("previousUrl") as string | null)?.trim() || null;
 
     if (!file) {
       return Response.json({ error: "Choose a team logo before uploading." }, { status: 400 });
@@ -49,6 +58,7 @@ export async function POST(request: Request) {
       buffer,
       declaredContentType: file.type,
       fileName: file.name,
+      type: "team_logo_pending",
     });
     const uploadRecordId = randomUUID();
     const candidateFileName = `logo-${preparedImage.metadata.version}.${preparedImage.decoded.extension}`;
@@ -56,7 +66,7 @@ export async function POST(request: Request) {
       "team_logo_pending",
       teamName,
       candidateFileName,
-      buffer,
+      preparedImage.buffer,
       preparedImage.decoded.contentType,
     );
     pendingObjectKey = uploadResult.path;
@@ -79,9 +89,40 @@ export async function POST(request: Request) {
       sizeBytes: preparedImage.decoded.sizeBytes,
       uploadedBy: null,
     });
+    let cleanupPending = false;
+    if (previousUploadId && previousPath && previousUrl && previousUploadId !== record.id) {
+      const previousUpload = await getManagedUploadRecord(previousUploadId).catch(() => null);
+      if (
+        previousUpload?.fileType === "team_logo_pending" &&
+        previousUpload.relatedType === "team_registration" &&
+        previousUpload.relatedId === null &&
+        previousUpload.filePath === previousPath &&
+        previousUpload.url === previousUrl
+      ) {
+        let objectDeleted = false;
+        try {
+          await deletePrivateObjectByKey(previousPath);
+          objectDeleted = true;
+        } catch (cleanupError) {
+          objectDeleted = isR2ObjectMissingError(cleanupError);
+        }
+        if (objectDeleted) {
+          try {
+            await deleteUploadRecord(previousUploadId);
+          } catch {
+            cleanupPending = true;
+          }
+        } else {
+          cleanupPending = true;
+        }
+      } else {
+        cleanupPending = true;
+      }
+    }
 
     return Response.json({
       success: true,
+      cleanupPending,
       id: record.id,
       metadata,
       path: uploadResult.path,

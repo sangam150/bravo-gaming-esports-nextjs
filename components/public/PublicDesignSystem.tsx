@@ -1,4 +1,5 @@
 import ManagedImage from "@/components/ui/ManagedImage";
+import { resolveSponsorLogoUrl } from "@/lib/public-asset-url";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import type { PlatformSponsorProfile } from "@/lib/platform-hub";
 import { normalizePublicActionHref } from "@/lib/public-links";
@@ -316,7 +317,7 @@ export function PublicCommunityCta({
 }
 
 function sponsorVisualUrl(sponsor: PlatformSponsorProfile) {
-  return sponsor.logoUrl ?? sponsor.designAssetUrl ?? sponsor.bannerUrl ?? null;
+  return resolveSponsorLogoUrl(sponsor);
 }
 
 export function PublicPartnerStrip({ sponsors }: { sponsors: PlatformSponsorProfile[] }) {

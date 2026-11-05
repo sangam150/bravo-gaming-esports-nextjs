@@ -1,4 +1,9 @@
 import "server-only";
+import { validateMatchResultsForPublication } from "./match-result-validation";
+import { canonicalPlayerFields } from "./player-profile-input";
+import { readSavedScoringRules, parseScoringDecision, hasScoringDecisions } from "./scoring-rules";
+import { getEventProduction } from "./event-production-server";
+import { parseEventSchedule } from "./event-schedule";
 
 import type { Database, Json, Tables, TablesInsert } from "@/types/database.types";
 import { randomUUID } from "crypto";
@@ -35,6 +40,9 @@ type MatchSnapshot = Partial<TournamentMatch> & {
 
 type SaveCompetitionMatchOptions = {
   publish?: boolean;
+  allowScoringDecisions?: boolean;
+  reviewedPublication?: boolean;
+  actorId?: string | null;
 };
 
 const MATCH_SOURCE_MANUAL = "manual";
@@ -75,7 +83,7 @@ function normalizeMatchDataSource(value?: MatchDataSource | string | null) {
 }
 
 function fromDatabaseMatchStatus(value: Tables<"matches">["status"] | null | undefined) {
-  return value === "published" || value === "approved" ? "published" : "draft";
+  return value === "published" ? "published" : "draft";
 }
 
 function toDatabaseMatchStatus(status?: "draft" | "published", publish = false): Tables<"matches">["status"] {
@@ -138,6 +146,7 @@ function parseMatchSnapshot(rawJson: Json | null): MatchSnapshot | null {
 function normalizeInputTeamResults(teamResults?: TeamMatchResult[] | null) {
   return (teamResults ?? []).map((teamResult) => ({
     ...teamResult,
+    ...parseScoringDecision(teamResult),
     teamId: cleanString(teamResult.teamId),
     teamName: teamResult.teamName.trim(),
     slotNumber: toOptionalNumber(teamResult.slotNumber),
@@ -241,9 +250,11 @@ function mapSeasonRow(row: Tables<"seasons">): Season {
 function mapEventRow(row: Tables<"events">, registeredTeamIds: string[]): Tournament {
   return {
     id: row.id,
+    slug: row.slug ?? slugify(row.name ?? row.title),
     title: row.name ?? row.title,
     state: row.published ? "published" : "draft",
     published: row.published,
+    publishedAt: row.published_at ?? undefined,
     tier: (row as Tables<"events"> & { tier?: string | null }).tier ?? "OPEN",
     status: toTournamentStatus(row),
     prizePool: row.prize_pool ?? "TBD",
@@ -317,7 +328,7 @@ function mapPlayerRow(
     id: row.id,
     slug: row.slug ?? slugify(row.pubg_name),
     name: row.display_name ?? row.pubg_name,
-    inGameName: row.display_name ?? row.pubg_name,
+    inGameName: row.pubg_name,
     teamId: row.current_team_id ?? undefined,
     teamName: leaderboard?.team_name ?? undefined,
     avatar: row.avatar_url ?? row.photo_url ?? undefined,
@@ -337,21 +348,49 @@ function mapPlayerRow(
   };
 }
 
-async function getEventTeamMap(eventIds: string[]) {
+async function getEventTeamMap(eventIds: string[], options: { publicOnly?: boolean } = {}) {
   const client = getSupabaseServiceRoleClient();
   if (eventIds.length === 0) {
     return new Map<string, string[]>();
   }
 
-  const { data, error } = await client.from("event_teams").select("event_id,team_id").in("event_id", eventIds);
+  let query = client.from("event_teams").select("event_id,team_id").in("event_id", eventIds);
+  if (options.publicOnly) {
+    query = query.is("demo_seed_tag", null).in("status", ["approved", "confirmed", "accepted"]);
+  }
+  const { data, error } = await query;
   if (error) {
     throw error;
   }
 
+  let publicTeamIds: Set<string> | null = null;
+  if (options.publicOnly && (data?.length ?? 0) > 0) {
+    const relatedTeamIds = Array.from(new Set((data ?? []).map((row) => row.team_id)));
+    const { data: publicTeams, error: publicTeamsError } = await client
+      .from("teams")
+      .select("id")
+      .in("id", relatedTeamIds)
+      .eq("is_active", true)
+      .eq("status", "active")
+      .is("archived_at", null)
+      .is("merged_into_team_id", null)
+      .is("deleted_at", null)
+      .is("demo_seed_tag", null);
+    if (publicTeamsError) {
+      throw publicTeamsError;
+    }
+    publicTeamIds = new Set((publicTeams ?? []).map((team) => team.id));
+  }
+
   const teamMap = new Map<string, string[]>();
   for (const row of data ?? []) {
+    if (publicTeamIds && !publicTeamIds.has(row.team_id)) {
+      continue;
+    }
     const currentValue = teamMap.get(row.event_id) ?? [];
-    currentValue.push(row.team_id);
+    if (!currentValue.includes(row.team_id)) {
+      currentValue.push(row.team_id);
+    }
     teamMap.set(row.event_id, currentValue);
   }
 
@@ -377,6 +416,7 @@ async function getPointSystem(pointSystemId?: string | null, fallbackPointSystem
     if (data) {
       return data as PointSystemRecord;
     }
+    if (pointSystemId === id) throw new Error("The selected scoring version was not found.");
   }
 
   const { data, error } = await client
@@ -415,13 +455,17 @@ export async function listCompetitionPointSystems() {
   return (data ?? []) as Array<PointSystemRecord & { active: boolean }>;
 }
 
-export async function listCompetitionSeasons() {
+type CompetitionSeasonReadOptions = {
+  includeInternal?: boolean;
+};
+
+export async function listCompetitionSeasons(options: CompetitionSeasonReadOptions = {}) {
   const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client
-    .from("seasons")
-    .select("*")
-    .order("start_date", { ascending: false })
-    .order("created_at", { ascending: false });
+  let query = client.from("seasons").select("*");
+  if (!options.includeInternal) {
+    query = query.in("status", ["active", "completed"]).is("demo_seed_tag", null);
+  }
+  const { data, error } = await query.order("start_date", { ascending: false }).order("created_at", { ascending: false });
 
   if (error) {
     throw error;
@@ -430,10 +474,14 @@ export async function listCompetitionSeasons() {
   return ((data ?? []) as Tables<"seasons">[]).map(mapSeasonRow);
 }
 
-export async function getCompetitionSeason(idOrSlug: string) {
+export async function getCompetitionSeason(idOrSlug: string, options: CompetitionSeasonReadOptions = {}) {
   const client = getSupabaseServiceRoleClient();
   const value = idOrSlug.trim();
-  const byId = looksLikeUuid(value) ? await client.from("seasons").select("*").eq("id", value).maybeSingle() : { data: null, error: null };
+  let byIdQuery = client.from("seasons").select("*").eq("id", value);
+  if (!options.includeInternal) {
+    byIdQuery = byIdQuery.in("status", ["active", "completed"]).is("demo_seed_tag", null);
+  }
+  const byId = looksLikeUuid(value) ? await byIdQuery.maybeSingle() : { data: null, error: null };
 
   if (byId.error) {
     throw byId.error;
@@ -443,7 +491,11 @@ export async function getCompetitionSeason(idOrSlug: string) {
     return mapSeasonRow(byId.data as Tables<"seasons">);
   }
 
-  const { data, error } = await client.from("seasons").select("*").eq("slug", value.toLowerCase()).maybeSingle();
+  let bySlugQuery = client.from("seasons").select("*").eq("slug", value.toLowerCase());
+  if (!options.includeInternal) {
+    bySlugQuery = bySlugQuery.in("status", ["active", "completed"]).is("demo_seed_tag", null);
+  }
+  const { data, error } = await bySlugQuery.maybeSingle();
   if (error) {
     throw error;
   }
@@ -454,11 +506,12 @@ export async function getCompetitionSeason(idOrSlug: string) {
 export async function getCurrentCompetitionSeason() {
   const client = getSupabaseServiceRoleClient();
 
-  for (const status of ["active", "planned"] as const) {
+  for (const status of ["active", "completed"] as const) {
     const { data, error } = await client
       .from("seasons")
       .select("*")
       .eq("status", status)
+      .is("demo_seed_tag", null)
       .order("start_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(1)
@@ -473,19 +526,7 @@ export async function getCurrentCompetitionSeason() {
     }
   }
 
-  const { data, error } = await client
-    .from("seasons")
-    .select("*")
-    .order("start_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return data ? mapSeasonRow(data as Tables<"seasons">) : null;
+  return null;
 }
 
 export async function saveCompetitionSeason(data: Partial<Season> & { title: string }, id?: string) {
@@ -527,6 +568,12 @@ export async function saveCompetitionSeason(data: Partial<Season> & { title: str
 
 export async function deleteCompetitionSeason(id: string) {
   const client = getSupabaseServiceRoleClient();
+  const [{ count: events, error: eventError }, { count: matches, error: matchError }] = await Promise.all([
+    client.from("events").select("id", { count: "exact", head: true }).eq("season_id", id),
+    client.from("matches").select("id", { count: "exact", head: true }).eq("season_id", id),
+  ]);
+  if (eventError || matchError) throw eventError || matchError;
+  if (events || matches) throw new Error("Season contains competition history. Archive it instead of deleting it.");
   const { error } = await client.from("seasons").delete().eq("id", id);
   if (error) {
     throw error;
@@ -539,11 +586,32 @@ type CompetitionEventReadOptions = {
   includeUnpublished?: boolean;
 };
 
+async function getPublicCompetitionSeasonIds(seasonIds: string[]) {
+  const uniqueSeasonIds = Array.from(new Set(seasonIds.filter(Boolean)));
+  if (uniqueSeasonIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const client = getSupabaseServiceRoleClient();
+  const { data, error } = await client
+    .from("seasons")
+    .select("id")
+    .in("id", uniqueSeasonIds)
+    .in("status", ["active", "completed"])
+    .is("demo_seed_tag", null);
+
+  if (error) {
+    throw error;
+  }
+
+  return new Set((data ?? []).map((season) => season.id));
+}
+
 export async function listCompetitionEvents(status?: Tournament["status"], options: CompetitionEventReadOptions = {}) {
   const client = getSupabaseServiceRoleClient();
   let query = client.from("events").select("*").is("deleted_at", null);
   if (!options.includeUnpublished) {
-    query = query.eq("published", true);
+    query = query.eq("published", true).not("published_at", "is", null).is("demo_seed_tag", null);
   }
   const { data, error } = await query.order("start_date", { ascending: false });
 
@@ -552,10 +620,30 @@ export async function listCompetitionEvents(status?: Tournament["status"], optio
   }
 
   const rows = (data ?? []) as Tables<"events">[];
-  const teamMap = await getEventTeamMap(rows.map((row) => row.id));
-  const tournaments = rows.map((row) => mapEventRow(row, teamMap.get(row.id) ?? []));
+  const publicSeasonIds = options.includeUnpublished
+    ? null
+    : await getPublicCompetitionSeasonIds(rows.flatMap((row) => (row.season_id ? [row.season_id] : [])));
+  const scopedRows = publicSeasonIds ? rows.filter((row) => !row.season_id || publicSeasonIds.has(row.season_id)) : rows;
+  const teamMap = await getEventTeamMap(
+    scopedRows.map((row) => row.id),
+    { publicOnly: !options.includeUnpublished },
+  );
+  const tournaments = scopedRows.map((row) => mapEventRow(row, teamMap.get(row.id) ?? []));
 
   return status ? tournaments.filter((tournament) => tournament.status === status) : tournaments;
+}
+
+export async function competitionEventIdentityExists(idOrSlug: string) {
+  const client = getSupabaseServiceRoleClient();
+  const value = idOrSlug.trim();
+  if (looksLikeUuid(value)) {
+    const { data, error } = await client.from("events").select("id").eq("id", value).maybeSingle();
+    if (error) throw error;
+    if (data) return true;
+  }
+  const { data, error } = await client.from("events").select("id").eq("slug", value.toLowerCase()).maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
 }
 
 export async function getCompetitionEvent(idOrSlug: string, options: CompetitionEventReadOptions = {}) {
@@ -563,7 +651,7 @@ export async function getCompetitionEvent(idOrSlug: string, options: Competition
   const value = idOrSlug.trim();
   let byIdQuery = client.from("events").select("*").eq("id", value).is("deleted_at", null);
   if (!options.includeUnpublished) {
-    byIdQuery = byIdQuery.eq("published", true);
+    byIdQuery = byIdQuery.eq("published", true).not("published_at", "is", null).is("demo_seed_tag", null);
   }
   const byId = looksLikeUuid(value) ? await byIdQuery.maybeSingle() : { data: null, error: null };
 
@@ -573,7 +661,7 @@ export async function getCompetitionEvent(idOrSlug: string, options: Competition
 
   let bySlugQuery = client.from("events").select("*").eq("slug", value.toLowerCase()).is("deleted_at", null);
   if (!options.includeUnpublished) {
-    bySlugQuery = bySlugQuery.eq("published", true);
+    bySlugQuery = bySlugQuery.eq("published", true).not("published_at", "is", null).is("demo_seed_tag", null);
   }
   const bySlug = byId.data ? { data: null, error: null } : await bySlugQuery.maybeSingle();
   if (bySlug.error) {
@@ -586,7 +674,14 @@ export async function getCompetitionEvent(idOrSlug: string, options: Competition
     return null;
   }
 
-  const teamMap = await getEventTeamMap([row.id]);
+  if (!options.includeUnpublished && row.season_id) {
+    const publicSeasonIds = await getPublicCompetitionSeasonIds([row.season_id]);
+    if (!publicSeasonIds.has(row.season_id)) {
+      return null;
+    }
+  }
+
+  const teamMap = await getEventTeamMap([row.id], { publicOnly: !options.includeUnpublished });
   return mapEventRow(row, teamMap.get(row.id) ?? []);
 }
 
@@ -596,6 +691,8 @@ export async function saveCompetitionEvent(data: Partial<Tournament> & { title: 
   const registeredTeamIds = cleanStringArray(data.registeredTeamIds);
   const eventId = id ?? data.id ?? randomUUID();
   const competitionStatus = data.status ?? "UPCOMING";
+  const requestedState = data.state?.trim().toLowerCase();
+  const published = data.published === true && requestedState === "published";
   const payload: TablesInsert<"events"> = {
     id: eventId,
     season_id: cleanString(data.seasonId) ?? null,
@@ -625,8 +722,8 @@ export async function saveCompetitionEvent(data: Partial<Tournament> & { title: 
     season_day_number: toOptionalNumber(data.seasonDayNumber ?? data.dayNumber) ?? null,
     match_count: Math.max(0, toFiniteNumber(data.matchCount, 0)),
     source_url: cleanString(data.sourceUrl) ?? null,
-    published: true,
-    published_at: now,
+    published,
+    published_at: published ? (cleanString(data.publishedAt) ?? now) : null,
     created_at: data.createdAt ?? now,
     updated_at: now,
   };
@@ -642,7 +739,7 @@ export async function saveCompetitionEvent(data: Partial<Tournament> & { title: 
       event_id: eventId,
       team_id: teamId,
       slot_number: index + 1,
-      status: "registered",
+      status: published ? "approved" : "registered",
     }));
 
     const { error: eventTeamsError } = await client.from("event_teams").insert(eventTeams);
@@ -811,7 +908,7 @@ function findExistingPlayer(playerResult: MatchPlayerResult, playerLookup: Await
     : (existingPlayerById ?? playerLookup.byName.get(playerResult.playerName.trim().toLowerCase()) ?? null);
 }
 
-async function getMatchRows(matchIds: string[]) {
+async function getMatchRows(matchIds: string[], options: { publicOnly?: boolean } = {}) {
   const client = getSupabaseServiceRoleClient();
   if (matchIds.length === 0) {
     return {
@@ -833,16 +930,26 @@ async function getMatchRows(matchIds: string[]) {
     throw playerResultsError;
   }
 
+  const normalizedTeamResults = (teamResults ?? []) as Tables<"match_team_results">[];
+  const normalizedPlayerResults = (playerResults ?? []) as Tables<"match_player_results">[];
   return {
-    teamResults: (teamResults ?? []) as Tables<"match_team_results">[],
-    playerResults: (playerResults ?? []) as Tables<"match_player_results">[],
+    teamResults: options.publicOnly ? normalizedTeamResults.filter((row) => row.demo_seed_tag === null) : normalizedTeamResults,
+    playerResults: options.publicOnly ? normalizedPlayerResults.filter((row) => row.demo_seed_tag === null) : normalizedPlayerResults,
   };
 }
 
-async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
+async function hydrateCompetitionMatches(matchRows: Tables<"matches">[], options: { publicOnly?: boolean } = {}) {
   const client = getSupabaseServiceRoleClient();
   const matchIds = matchRows.map((row) => row.id);
-  const { teamResults, playerResults } = await getMatchRows(matchIds);
+  const { teamResults, playerResults } = await getMatchRows(matchIds, options);
+  if (matchIds.length && matchRows.every(row => typeof row.revision === "number")) {
+    // Parent and children are separate HTTP reads. Fail closed if a transaction
+    // committed between them; never combine one scoring version with new rows.
+    const { data: current, error } = await client.from("matches").select("id,revision").in("id", matchIds);
+    if (error) throw error;
+    const revisions = new Map((current ?? []).map(row => [row.id, row.revision]));
+    if (matchRows.some(row => revisions.get(row.id) !== row.revision)) throw new Error("Match revision conflict. Reload the match before retrying.");
+  }
   const eventIds = Array.from(new Set(matchRows.map((row) => row.event_id).filter((value): value is string => Boolean(value))));
   const pointSystemIds = Array.from(
     new Set(matchRows.map((row) => row.point_system_id).filter((value): value is string => Boolean(value))),
@@ -883,10 +990,11 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
       slotNumber: teamResult.slot_number ?? undefined,
       placement: teamResult.placement,
       kills: teamResult.kills,
-      damage: 0,
+      damage: teamResult.damage ?? 0,
       placementPoints: teamResult.placement_points,
       killPoints: teamResult.kill_points,
       totalPoints: teamResult.total_points,
+      ...parseScoringDecision({ adjustmentPoints: teamResult.adjustment_points, decisionReason: teamResult.decision_reason, disqualified: teamResult.disqualified }),
     });
     teamResultsByMatchId.set(teamResult.match_id, currentValue);
   }
@@ -922,7 +1030,8 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
   }
 
   return matchRows.map((row) => {
-    const snapshot = parseMatchSnapshot(row.raw_json);
+    const scoringRules = readSavedScoringRules(row.scoring_rules);
+    const snapshot = options.publicOnly ? undefined : parseMatchSnapshot(row.raw_json);
     const storedTeamResults = teamResultsByMatchId.get(row.id);
     const storedPlayerResults = playerResultsByMatchId.get(row.id);
     const event = row.event_id ? (eventById.get(row.event_id) ?? null) : null;
@@ -930,9 +1039,14 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
       storedTeamResults && storedTeamResults.length > 0 ? storedTeamResults : normalizeInputTeamResults(snapshot?.teamResults);
     const playerResultsValue =
       storedPlayerResults && storedPlayerResults.length > 0 ? storedPlayerResults : normalizeInputPlayerResults(snapshot?.playerResults);
+    for (const team of teamResultsValue) team.tieBreakers = scoringRules?.tieBreakers;
+    for (const player of playerResultsValue) {
+      player.awardCriteria = scoringRules?.awardCriteria;
+      player.disqualified = teamResultsValue.find(team => team.teamId && player.teamId ? team.teamId === player.teamId : team.teamName.toLowerCase() === player.teamName.toLowerCase())?.disqualified ?? false;
+    }
     teamResultsValue.sort((firstValue, secondValue) => compareMatchTeamResults(firstValue, secondValue));
     playerResultsValue.sort((firstValue, secondValue) => compareMatchPlayerResults(firstValue, secondValue));
-    const winner = teamResultsValue[0]?.teamName ?? cleanString(snapshot?.winner) ?? "Winner Pending";
+    const winner = teamResultsValue.find((result) => result.placement === 1 && !result.disqualified)?.teamName ?? "Winner Pending";
 
     return {
       id: row.id,
@@ -958,6 +1072,7 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
       resultImageUrl: row.result_image_url ?? cleanString(snapshot?.resultImageUrl),
       screenshotUrls: Array.isArray(row.screenshot_urls) ? (row.screenshot_urls as string[]) : cleanStringArray(snapshot?.screenshotUrls),
       pointSystemId: row.point_system_id ?? cleanString(snapshot?.pointSystemId),
+      scoringRules,
       pointSystemName:
         (row.point_system_id ? pointSystemNameById.get(row.point_system_id) : undefined) ?? cleanString(snapshot?.pointSystemName),
       dataSource: row.data_source === "pubg_api" || row.data_source === "external_feed" ? row.data_source : "manual_correction",
@@ -966,6 +1081,7 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[]) {
       deletedAt: row.deleted_at ?? undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      revision: row.revision,
       teamResults: teamResultsValue,
       playerResults: playerResultsValue,
     } satisfies TournamentMatch;
@@ -1004,10 +1120,14 @@ export async function getCompetitionMatch(id: string) {
 }
 
 export async function getCompetitionMatchesForEvent(eventId: string, options: { includeDrafts?: boolean } = {}) {
+  if (!options.includeDrafts && !(await getCompetitionEvent(eventId))) {
+    return [];
+  }
+
   const client = getSupabaseServiceRoleClient();
   let query = client.from("matches").select("*").eq("event_id", eventId).is("deleted_at", null).order("match_number", { ascending: true });
   if (!options.includeDrafts) {
-    query = query.eq("status", "published");
+    query = query.eq("status", "published").not("published_at", "is", null).is("demo_seed_tag", null);
   }
 
   const { data, error } = await query;
@@ -1015,7 +1135,7 @@ export async function getCompetitionMatchesForEvent(eventId: string, options: { 
     throw error;
   }
 
-  return hydrateCompetitionMatches((data ?? []) as Tables<"matches">[]);
+  return hydrateCompetitionMatches((data ?? []) as Tables<"matches">[], { publicOnly: !options.includeDrafts });
 }
 
 async function ensureUniqueEventMatchNumber(eventId: string, matchNumber: number, excludeMatchId?: string | null) {
@@ -1058,7 +1178,11 @@ export async function previewCompetitionMatch(input: Partial<TournamentMatch>) {
     throw new Error("The selected event could not be found.");
   }
 
-  const pointSystem = await getPointSystem(normalizedInput.pointSystemId, event.point_system_id);
+  const production = (await getEventProduction(normalizedInput.tournamentId)).approved;
+  const schedule = parseEventSchedule(event.schedule ?? undefined);
+  const scheduled = schedule?.matches.find(row => row.matchId && input.id ? row.matchId === input.id : row.matchNumber === normalizedInput.matchNumber);
+  const stageRules = production?.stages.find(stage => stage.id === scheduled?.stageId)?.pointSystemId;
+  const pointSystem = await getPointSystem(normalizedInput.pointSystemId, stageRules || event.point_system_id);
   const scored = scoreMatchResults(normalizedInput.teamResults, normalizedInput.playerResults, pointSystem);
 
   return {
@@ -1086,6 +1210,7 @@ export async function previewCompetitionMatch(input: Partial<TournamentMatch>) {
     screenshotUrls: normalizedInput.screenshotUrls,
     pointSystemId: pointSystem.id,
     pointSystemName: pointSystem.name,
+    scoringRules: scored.scoringRules,
     dataSource: normalizedInput.dataSource,
     teamResults: scored.teamResults,
     playerResults: scored.playerResults,
@@ -1117,13 +1242,14 @@ function buildStoredMatchSnapshot(match: TournamentMatch) {
     screenshotUrls: match.screenshotUrls,
     pointSystemId: match.pointSystemId,
     pointSystemName: match.pointSystemName,
+    scoringRules: match.scoringRules,
     dataSource: match.dataSource,
     teamResults: match.teamResults,
     playerResults: match.playerResults,
   }) ?? null) as Json | null;
 }
 
-async function replaceMatchResults(
+async function prepareMatchResults(
   matchId: string,
   preview: TournamentMatch,
   options: { publish: boolean; region?: string | null; eventId: string },
@@ -1137,7 +1263,6 @@ async function replaceMatchResults(
 
   const teamRows: TablesInsert<"match_team_results">[] = [];
   const playerRows: TablesInsert<"match_player_results">[] = [];
-  const publishedTeamIds: string[] = [];
   const { data: existingPlayerRows, error: existingPlayerRowsError } = await client
     .from("match_player_results")
     .select("pubg_account_id")
@@ -1154,9 +1279,6 @@ async function replaceMatchResults(
       eventTeamIds,
       region: options.region,
     });
-    if (resolvedTeam?.id) {
-      publishedTeamIds.push(resolvedTeam.id);
-    }
 
     teamRows.push({
       match_id: matchId,
@@ -1165,10 +1287,14 @@ async function replaceMatchResults(
       slot_number: teamResult.slotNumber ?? null,
       placement: teamResult.placement,
       kills: teamResult.kills,
-      placement_points: Math.round(teamResult.placementPoints),
+      damage: teamResult.damage,
+      placement_points: teamResult.placementPoints,
       kill_points: teamResult.killPoints,
       total_points: teamResult.totalPoints,
-      wwcd: teamResult.placement === 1,
+      wwcd: teamResult.placement === 1 && !teamResult.disqualified,
+      adjustment_points: teamResult.adjustmentPoints ?? 0,
+      decision_reason: teamResult.decisionReason ?? "",
+      disqualified: teamResult.disqualified ?? false,
     });
   }
 
@@ -1199,68 +1325,13 @@ async function replaceMatchResults(
       knocks: playerResult.knocks,
       damage: Math.round(playerResult.damage),
       survival_time: Math.round(playerResult.survivalTime),
-      placement_points: Math.round(playerResult.placementPoints),
+      placement_points: playerResult.placementPoints,
       total_points: playerResult.totalPoints,
+      link_eligibility: playerResult.linkEligibility ?? "eligible",
     });
   }
 
-  const { error: deleteTeamResultsError } = await client.from("match_team_results").delete().eq("match_id", matchId);
-  if (deleteTeamResultsError) {
-    throw deleteTeamResultsError;
-  }
-
-  const { error: deletePlayerResultsError } = await client.from("match_player_results").delete().eq("match_id", matchId);
-  if (deletePlayerResultsError) {
-    throw deletePlayerResultsError;
-  }
-
-  if (teamRows.length > 0) {
-    const { error } = await client.from("match_team_results").insert(teamRows);
-    if (error) {
-      throw error;
-    }
-  }
-
-  if (playerRows.length > 0) {
-    const { error } = await client.from("match_player_results").insert(playerRows);
-    if (error) {
-      throw error;
-    }
-  }
-
-  for (const playerResult of preview.playerResults ?? []) {
-    const pubgAccountId = cleanString(playerResult.pubgPlayerId);
-    const linkEligibility = playerResult.linkEligibility ?? "eligible";
-    if (!pubgAccountId || linkEligibility === "eligible") {
-      continue;
-    }
-
-    const { error } = await client
-      .from("match_player_results")
-      .update({
-        link_eligibility: linkEligibility,
-      })
-      .eq("match_id", matchId)
-      .eq("pubg_account_id", pubgAccountId);
-    if (error && error.code !== "42703" && error.code !== "PGRST204") {
-      throw error;
-    }
-  }
-
-  if (options.publish && publishedTeamIds.length > 0) {
-    const uniqueTeamIds = Array.from(new Set(publishedTeamIds));
-    const eventTeams: TablesInsert<"event_teams">[] = uniqueTeamIds.map((teamId) => ({
-      event_id: options.eventId,
-      team_id: teamId,
-      status: "registered",
-    }));
-    const { error } = await client.from("event_teams").upsert(eventTeams, { onConflict: "event_id,team_id" });
-    if (error) {
-      throw error;
-    }
-  }
-
-  return Array.from(new Set(affectedPubgAccountIds.map((value) => value.trim().toLowerCase()).filter(Boolean)));
+  return { teamRows, playerRows, affectedPubgAccountIds: Array.from(new Set(affectedPubgAccountIds.map((value) => value.trim().toLowerCase()).filter(Boolean))) };
 }
 
 export async function saveCompetitionMatch(input: Partial<TournamentMatch>, options: SaveCompetitionMatchOptions = {}) {
@@ -1275,8 +1346,13 @@ export async function saveCompetitionMatch(input: Partial<TournamentMatch>, opti
 
   const now = new Date().toISOString();
   const matchId = normalizedInput.id ?? randomUUID();
-  const publish = options.publish ?? preview.status === "published";
-  const existingMatch = normalizedInput.id ? await getCompetitionMatch(normalizedInput.id).catch(() => null) : null;
+  const existingMatch = normalizedInput.id ? await getCompetitionMatch(normalizedInput.id) : null;
+  if (existingMatch && (!Number.isSafeInteger(input.revision) || input.revision !== existingMatch.revision)) {
+    throw new Error("Match revision conflict. Reload the match before retrying.");
+  }
+  const publish = Boolean((options.publish ?? preview.status === "published") && (existingMatch?.status !== "published" || options.reviewedPublication));
+  if (publish) validateMatchResultsForPublication(preview.teamResults ?? [], preview.playerResults ?? []);
+  if ((hasScoringDecisions(preview.teamResults) || hasScoringDecisions(existingMatch?.teamResults)) && !options.allowScoringDecisions) throw new Error("Authorized platform-administrator approval is required for scoring decisions.");
 
   await ensureUniqueEventMatchNumber(event.id, preview.matchNumber ?? 1, existingMatch?.id ?? matchId);
 
@@ -1292,178 +1368,90 @@ export async function saveCompetitionMatch(input: Partial<TournamentMatch>, opti
     map_name: preview.map,
     match_date: preview.playedAt ?? now,
     start_time: preview.playedAt ?? now,
-    status: toDatabaseMatchStatus(preview.status, publish),
+    // The RPC commits this snapshot and all child rows as one transaction.
+    status: toDatabaseMatchStatus("draft", false),
     raw_json: buildStoredMatchSnapshot(preview),
     point_system_id: preview.pointSystemId ?? null,
+    scoring_rules: sanitizeJsonValue(preview.scoringRules) ?? {},
     source_url: preview.sourceUrl ?? null,
     vod_url: preview.vodUrl ?? null,
     scoreboard_image_url: preview.scoreboardImageUrl ?? null,
     result_image_url: preview.resultImageUrl ?? null,
     screenshot_urls: sanitizeJsonValue(preview.screenshotUrls) ?? [],
-    published_at: publish ? (existingMatch?.publishedAt ?? now) : null,
+    published_at: null,
     deleted_at: null,
     created_at: existingMatch?.createdAt ?? now,
     updated_at: now,
     data_source: preview.dataSource === "pubg_api" || preview.dataSource === "external_feed" ? preview.dataSource : MATCH_SOURCE_MANUAL,
   };
 
-  const { error } = await client.from("matches").upsert(payload);
-  if (error) {
-    throw error;
-  }
-
-  const affectedPubgAccountIds = await replaceMatchResults(matchId, preview, {
+  const { teamRows, playerRows, affectedPubgAccountIds } = await prepareMatchResults(matchId, preview, {
     publish,
     region: event.server,
     eventId: event.id,
   });
+
+  const { error } = await client.rpc("commit_competition_match", {
+    p_match: payload as Json,
+    p_team_rows: teamRows as Json,
+    p_player_rows: playerRows as Json,
+    p_expected_revision: existingMatch ? input.revision! : null,
+    p_publish: publish,
+    p_action: "replace",
+    p_actor_id: options.actorId ?? null,
+  });
+  if (error) throw new Error(error.message);
 
   const savedMatch = await getCompetitionMatch(matchId);
   if (!savedMatch) {
     throw new Error("The match was saved but could not be reloaded.");
   }
 
-  await client
-    .from("events")
-    .update({
-      match_count: await countPublishedMatchesForEvent(event.id),
-      updated_at: now,
-    })
-    .eq("id", event.id);
-
   await reconcilePlayerTeamLinksForAccounts(affectedPubgAccountIds);
 
   return savedMatch;
 }
 
-async function countPublishedMatchesForEvent(eventId: string) {
+async function commitMatchState(id: string, action: "unpublish" | "delete", expectedRevision: number, actorId?: string | null) {
   const client = getSupabaseServiceRoleClient();
-  const { count, error } = await client
-    .from("matches")
-    .select("id", { count: "exact", head: true })
-    .eq("event_id", eventId)
-    .in("status", ["approved", "published"])
-    .is("deleted_at", null);
-
-  if (error) {
-    throw error;
-  }
-
-  return count ?? 0;
-}
-
-export async function setCompetitionMatchPublishedState(id: string, published: boolean) {
-  const client = getSupabaseServiceRoleClient();
-  const match = await getCompetitionMatch(id);
-  if (!match) {
-    throw new Error("Match not found.");
-  }
-
-  const now = new Date().toISOString();
-  const { data: playerRows, error: playerRowsError } = await client
-    .from("match_player_results")
-    .select("pubg_account_id")
-    .eq("match_id", id);
-  if (playerRowsError) {
-    throw playerRowsError;
-  }
-  const { error } = await client
-    .from("matches")
-    .update({
-      status: published ? "published" : "pending",
-      published_at: published ? now : null,
-      updated_at: now,
-    })
-    .eq("id", id);
-
-  if (error) {
-    throw error;
-  }
-
-  if (match.tournamentId) {
-    await client
-      .from("events")
-      .update({
-        match_count: await countPublishedMatchesForEvent(match.tournamentId),
-        updated_at: now,
-      })
-      .eq("id", match.tournamentId);
-  }
-
-  const updatedMatch = await getCompetitionMatch(id);
-  if (!updatedMatch) {
-    throw new Error("Match state changed but the record could not be reloaded.");
-  }
-
-  await reconcilePlayerTeamLinksForAccounts((playerRows ?? []).map((row) => row.pubg_account_id ?? "").filter(Boolean));
-
-  return updatedMatch;
-}
-
-export async function recalculateCompetitionMatch(id: string) {
-  const match = await getCompetitionMatch(id);
-  if (!match) {
-    throw new Error("Match not found.");
-  }
-
-  return saveCompetitionMatch(match, { publish: match.status === "published" });
-}
-
-export async function restoreCompetitionMatchFromSnapshot(snapshot: TournamentMatch) {
-  return saveCompetitionMatch(snapshot, {
-    publish: snapshot.status === "published",
+  const { error } = await client.rpc("commit_competition_match", {
+    p_match: { id }, p_team_rows: [], p_player_rows: [], p_expected_revision: expectedRevision,
+    p_publish: false, p_action: action, p_actor_id: actorId ?? null,
   });
+  if (error) throw new Error(error.message);
 }
 
-export async function deleteCompetitionMatch(id: string) {
-  const client = getSupabaseServiceRoleClient();
+export async function setCompetitionMatchPublishedState(id: string, published: boolean, expectedRevision: number, actorId?: string | null) {
+  if (published) throw new Error("Use reviewed result publication to publish a match.");
+  await commitMatchState(id, "unpublish", expectedRevision, actorId);
   const match = await getCompetitionMatch(id);
-  if (!match) {
-    return { id, deleted: true };
-  }
+  if (!match) throw new Error("Match not found after withdrawal.");
+  await reconcilePlayerTeamLinksForAccounts((match.playerResults ?? []).map(row => row.pubgPlayerId ?? "").filter(Boolean));
+  return match;
+}
 
-  if (match.status !== "draft") {
-    throw new Error("Published matches cannot be deleted. Unpublish the match first.");
-  }
+export async function recalculateCompetitionMatch(id: string, allowScoringDecisions: boolean, expectedRevision: number, actorId?: string | null) {
+  const match = await getCompetitionMatch(id);
+  if (!match) throw new Error("Match not found.");
+  return saveCompetitionMatch({ ...match, revision: expectedRevision, status: "draft" }, { publish: false, allowScoringDecisions, actorId });
+}
 
-  const now = new Date().toISOString();
-  const { data: playerRows, error: playerRowsError } = await client
-    .from("match_player_results")
-    .select("pubg_account_id")
-    .eq("match_id", id);
-  if (playerRowsError) {
-    throw playerRowsError;
-  }
-  const { error } = await client
-    .from("matches")
-    .update({
-      deleted_at: now,
-      status: "rejected",
-      published_at: null,
-      updated_at: now,
-    })
-    .eq("id", id);
+export async function restoreCompetitionMatchFromSnapshot(snapshot: TournamentMatch, allowScoringDecisions = false, actorId?: string | null) {
+  return saveCompetitionMatch(snapshot, { publish: false, allowScoringDecisions, actorId });
+}
 
-  if (error) {
-    throw error;
-  }
-
-  if (match.tournamentId) {
-    await client
-      .from("events")
-      .update({
-        match_count: await countPublishedMatchesForEvent(match.tournamentId),
-        updated_at: now,
-      })
-      .eq("id", match.tournamentId);
-  }
-
-  await reconcilePlayerTeamLinksForAccounts((playerRows ?? []).map((row) => row.pubg_account_id ?? "").filter(Boolean));
-
+export async function deleteCompetitionMatch(id: string, expectedRevision: number, actorId?: string | null) {
+  const match = await getCompetitionMatch(id);
+  await commitMatchState(id, "delete", expectedRevision, actorId);
+  await reconcilePlayerTeamLinksForAccounts((match?.playerResults ?? []).map(row => row.pubgPlayerId ?? "").filter(Boolean));
   return { id, deleted: true };
 }
 
 export async function getCompetitionSeasonLeaderboardRows(seasonId: string): Promise<LeaderboardRow[]> {
+  if (!(await getCompetitionSeason(seasonId))) {
+    return [];
+  }
+
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client.from("team_leaderboard").select("*").eq("season_id", seasonId);
   if (error) {
@@ -1487,10 +1475,21 @@ export async function getCompetitionSeasonLeaderboardRows(seasonId: string): Pro
 }
 
 export async function getCompetitionSeasonTeams(seasonId: string): Promise<Team[]> {
+  if (!(await getCompetitionSeason(seasonId))) {
+    return [];
+  }
+
   const client = getSupabaseServiceRoleClient();
   const [leaderboardRows, eventsResponse] = await Promise.all([
     client.from("team_leaderboard").select("*").eq("season_id", seasonId),
-    client.from("events").select("id").eq("season_id", seasonId).is("deleted_at", null),
+    client
+      .from("events")
+      .select("id")
+      .eq("season_id", seasonId)
+      .eq("published", true)
+      .not("published_at", "is", null)
+      .is("demo_seed_tag", null)
+      .is("deleted_at", null),
   ]);
 
   if (leaderboardRows.error) {
@@ -1501,7 +1500,7 @@ export async function getCompetitionSeasonTeams(seasonId: string): Promise<Team[
   }
 
   const eventIds = ((eventsResponse.data ?? []) as Array<Pick<Tables<"events">, "id">>).map((event) => event.id);
-  const teamMap = await getEventTeamMap(eventIds);
+  const teamMap = await getEventTeamMap(eventIds, { publicOnly: true });
   const seasonTeamIds = new Set<string>();
   for (const teamIds of teamMap.values()) {
     for (const teamId of teamIds) {
@@ -1526,12 +1525,22 @@ export async function getCompetitionSeasonTeams(seasonId: string): Promise<Team[
     .eq("status", "active")
     .is("archived_at", null)
     .is("merged_into_team_id", null)
+    .is("demo_seed_tag", null)
     .is("deleted_at", null);
   if (teamsError) {
     throw teamsError;
   }
 
-  const { data: players } = await client.from("players").select("id,current_team_id").in("current_team_id", Array.from(seasonTeamIds));
+  const { data: players, error: playersError } = await client
+    .from("players")
+    .select("id,current_team_id")
+    .in("current_team_id", Array.from(seasonTeamIds))
+    .eq("is_active", true)
+    .is("demo_seed_tag", null)
+    .is("deleted_at", null);
+  if (playersError) {
+    throw playersError;
+  }
   const playerIdsByTeamId = new Map<string, string[]>();
   for (const player of players ?? []) {
     if (!player.current_team_id) {
@@ -1553,6 +1562,10 @@ export async function getCompetitionSeasonTeams(seasonId: string): Promise<Team[
 }
 
 export async function getCompetitionSeasonPlayers(seasonId: string): Promise<Player[]> {
+  if (!(await getCompetitionSeason(seasonId))) {
+    return [];
+  }
+
   const client = getSupabaseServiceRoleClient();
   const [{ data: leaderboardRows, error: leaderboardError }, { data: mvpRows, error: mvpError }] = await Promise.all([
     client.from("player_leaderboard").select("*").eq("season_id", seasonId),
@@ -1578,7 +1591,13 @@ export async function getCompetitionSeasonPlayers(seasonId: string): Promise<Pla
     return [];
   }
 
-  const { data: players, error } = await client.from("players").select("*").in("id", playerIds).is("deleted_at", null);
+  const { data: players, error } = await client
+    .from("players")
+    .select("*")
+    .in("id", playerIds)
+    .eq("is_active", true)
+    .is("demo_seed_tag", null)
+    .is("deleted_at", null);
   if (error) {
     throw error;
   }
@@ -1610,6 +1629,7 @@ export async function listCompetitionTeams(): Promise<Team[]> {
     .eq("status", "active")
     .is("archived_at", null)
     .is("merged_into_team_id", null)
+    .is("demo_seed_tag", null)
     .is("deleted_at", null)
     .order("name", { ascending: true });
   if (error) {
@@ -1619,8 +1639,8 @@ export async function listCompetitionTeams(): Promise<Team[]> {
   return ((data ?? []) as Tables<"teams">[]).map((team) => mapTeamRow(team));
 }
 
-export async function listCompetitionPlayers(): Promise<Player[]> {
-  const currentSeason = await getCurrentCompetitionSeason();
+export async function listCompetitionPlayers(options: { includeInternal?: boolean } = {}): Promise<Player[]> {
+  const currentSeason = options.includeInternal ? null : await getCurrentCompetitionSeason();
   if (currentSeason) {
     const seasonPlayers = await getCompetitionSeasonPlayers(currentSeason.id);
     if (seasonPlayers.length > 0) {
@@ -1629,10 +1649,51 @@ export async function listCompetitionPlayers(): Promise<Player[]> {
   }
 
   const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client.from("players").select("*").is("deleted_at", null).order("pubg_name", { ascending: true });
+  let query = client.from("players").select("*").is("demo_seed_tag", null).is("deleted_at", null).order("pubg_name", { ascending: true });
+  if (!options.includeInternal) query = query.eq("is_active", true);
+  const { data, error } = await query;
   if (error) {
     throw error;
   }
 
   return ((data ?? []) as Tables<"players">[]).map((player) => mapPlayerRow(player));
+}
+
+export async function getCompetitionPlayer(id: string): Promise<Player | null> {
+  if (!looksLikeUuid(id)) return null;
+  const { data, error } = await getSupabaseServiceRoleClient()
+    .from("players")
+    .select("*")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapPlayerRow(data as Tables<"players">) : null;
+}
+
+export async function saveCompetitionPlayer(input: Partial<Player> & { name: string }, id?: string) {
+  const client = getSupabaseServiceRoleClient();
+  if (id && !looksLikeUuid(id)) throw new Error("A canonical player ID is required.");
+  const fields = canonicalPlayerFields(input);
+  const payload = {
+    ...fields,
+    slug: input.slug || slugify(fields.pubg_name),
+    updated_at: new Date().toISOString(),
+  };
+  // Profile edits never overwrite match results, computed statistics, or the
+  // avatar managed by the existing R2 replacement/CAS service.
+  const result = id
+    ? await client.from("players").update(payload).eq("id", id).is("deleted_at", null).select("*").single()
+    : await client.from("players").insert(payload).select("*").single();
+  if (result.error) throw result.error;
+  return mapPlayerRow(result.data as Tables<"players">);
+}
+
+export async function archiveCompetitionPlayer(id: string) {
+  if (!looksLikeUuid(id)) return;
+  const { error } = await getSupabaseServiceRoleClient()
+    .from("players")
+    .update({ is_active: false, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
 }

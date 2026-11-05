@@ -1,6 +1,7 @@
 import type { Tables } from "@/types/database.types";
 import { compareMatchPlayerResults, compareMatchTeamResults } from "./ranking-sort";
 import type { MatchPlayerResult, TeamMatchResult } from "./types";
+import { parseScoringDecision, readSavedScoringRules } from "./scoring-rules";
 
 export const DEFAULT_POINT_SYSTEM_ID = "00000000-0000-4000-8000-000000000001";
 
@@ -50,17 +51,21 @@ function normalizeTeamKey(teamResult: Pick<TeamMatchResult, "teamId" | "teamName
 export function scoreMatchResults(teamResults: TeamMatchResult[], playerResults: MatchPlayerResult[], pointSystem: PointSystemRecord) {
   const placementPointsMap = normalizePlacementPointsMap(pointSystem.placement_points);
   const killPointMultiplier = toFiniteNumber(pointSystem.kill_points, 1);
+  const scoringRules = readSavedScoringRules(pointSystem.rules_json);
 
   const scoredTeamResults = [...teamResults]
     .map((teamResult) => {
       const placement = toFiniteNumber(teamResult.placement);
       const kills = toFiniteNumber(teamResult.kills);
-      const placementPoints = resolvePlacementPoints(placementPointsMap, placement);
-      const killPoints = Number((kills * killPointMultiplier).toFixed(2));
-      const totalPoints = Number((placementPoints + killPoints).toFixed(2));
+      const decision = parseScoringDecision(teamResult);
+      const placementPoints = decision.disqualified ? 0 : resolvePlacementPoints(placementPointsMap, placement);
+      const killPoints = decision.disqualified ? 0 : Number((kills * killPointMultiplier).toFixed(2));
+      const totalPoints = decision.disqualified ? 0 : Number((placementPoints + killPoints + decision.adjustmentPoints).toFixed(2));
 
       return {
         ...teamResult,
+        ...decision,
+        tieBreakers: scoringRules?.tieBreakers,
         placement,
         kills,
         damage: toFiniteNumber(teamResult.damage),
@@ -77,14 +82,16 @@ export function scoreMatchResults(teamResults: TeamMatchResult[], playerResults:
     .map((playerResult) => {
       const relatedTeam =
         teamLookup.get(normalizeTeamKey(playerResult)) ??
-        (playerResult.teamName.trim() ? (teamLookup.get(`name:${playerResult.teamName.trim().toLowerCase()}`) ?? null) : null);
+        (playerResult.teamName.trim() ? (scoredTeamResults.find(team => team.teamName.trim().toLowerCase() === playerResult.teamName.trim().toLowerCase()) ?? null) : null);
       const placement = toFiniteNumber(playerResult.placement, relatedTeam?.placement ?? 0);
       const kills = toFiniteNumber(playerResult.kills);
-      const placementPoints = resolvePlacementPoints(placementPointsMap, placement);
-      const totalPoints = Number((placementPoints + kills * killPointMultiplier).toFixed(2));
+      const placementPoints = relatedTeam?.disqualified ? 0 : resolvePlacementPoints(placementPointsMap, placement);
+      const totalPoints = relatedTeam?.disqualified ? 0 : Number((placementPoints + kills * killPointMultiplier).toFixed(2));
 
       return {
         ...playerResult,
+        disqualified: relatedTeam?.disqualified ?? false,
+        awardCriteria: scoringRules?.awardCriteria,
         teamId: playerResult.teamId ?? relatedTeam?.teamId,
         teamName: playerResult.teamName || relatedTeam?.teamName || "Team Pending",
         slotNumber: playerResult.slotNumber ?? relatedTeam?.slotNumber,
@@ -100,11 +107,12 @@ export function scoreMatchResults(teamResults: TeamMatchResult[], playerResults:
     })
     .sort((firstValue, secondValue) => compareMatchPlayerResults(firstValue, secondValue));
 
-  const winningTeam = scoredTeamResults[0] ?? null;
+  const winningTeam = scoredTeamResults.find(result => result.placement === 1 && !result.disqualified) ?? null;
 
   return {
     pointSystemId: pointSystem.id,
     pointSystemName: pointSystem.name,
+    scoringRules,
     teamResults: scoredTeamResults,
     playerResults: scoredPlayerResults,
     winner: winningTeam?.teamName ?? "Winner Pending",

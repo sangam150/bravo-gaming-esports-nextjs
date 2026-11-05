@@ -116,6 +116,11 @@ async function main() {
     assert.match(operationalRoute, /enforceRateLimit/);
   }
 
+  const cronRoute = await readFile(new URL("../app/api/cron/sync-matches/route.ts", import.meta.url), "utf8");
+  assert.match(cronRoute, /const cronSecret = process\.env\.CRON_SECRET\?\.trim\(\)/);
+  assert.match(cronRoute, /if \(!cronSecret \|\| authHeader !== `Bearer \$\{cronSecret\}`\)/);
+  assert.doesNotMatch(cronRoute, /if \(cronSecret &&/);
+
   console.log("Offline PUBG API exposure, authorization, and response-projection QA passed.");
 }
 

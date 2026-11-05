@@ -5,7 +5,7 @@ import { useEffect } from "react";
 
 export function MotionObserver() {
   const pathname = usePathname();
-  const protectedRoute = /^\/(admin|team|dashboard)(\/|$)/.test(pathname);
+  const protectedRoute = /^\/(admin|team|dashboard|overlay)(\/|$)/.test(pathname);
 
   useEffect(() => {
     if (protectedRoute) return;
@@ -40,7 +40,7 @@ export function MotionObserver() {
 
 export function RouteTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const protectedRoute = /^\/(admin|team|dashboard)(\/|$)/.test(pathname);
+  const protectedRoute = /^\/(admin|team|dashboard|overlay)(\/|$)/.test(pathname);
   return (
     <div key={pathname} className={protectedRoute ? "route-static" : "route-transition"}>
       {children}

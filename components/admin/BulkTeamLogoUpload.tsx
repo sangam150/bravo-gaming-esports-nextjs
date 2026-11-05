@@ -1,6 +1,6 @@
 "use client";
 
-import { adminFetch, adminUploadTeamLogo } from "@/lib/admin-api";
+import { adminAdoptTeamLogo, adminFetch, adminUploadTeamLogo } from "@/lib/admin-api";
 import { matchTeamLogoFile, type TeamLogoMatchTeam } from "@/lib/team-logo-matching";
 import type { Team } from "@/lib/types";
 import { formatUploadSize, getUploadMaxBytes, IMAGE_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
@@ -66,6 +66,11 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: TeamW
   const inputRef = useRef<HTMLInputElement>(null);
   const previewUrlsRef = useRef<string[]>([]);
   const [aliasSavingId, setAliasSavingId] = useState<string | null>(null);
+  const [adoptionBusy, setAdoptionBusy] = useState(false);
+  const [adoptionMessage, setAdoptionMessage] = useState<string | null>(null);
+  const [adoptionObjectKey, setAdoptionObjectKey] = useState("");
+  const [adoptionTeamId, setAdoptionTeamId] = useState("");
+  const [adoptionUploadId, setAdoptionUploadId] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [results, setResults] = useState<UploadResult[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -260,6 +265,28 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: TeamW
     }
   }
 
+  async function adoptManagedUpload() {
+    if (adoptionBusy || !adoptionTeamId || !adoptionUploadId.trim() || !adoptionObjectKey.trim()) return;
+    setAdoptionBusy(true);
+    setAdoptionMessage("Validating and copying the managed upload...");
+    try {
+      const response = await adminAdoptTeamLogo(adoptionTeamId, {
+        objectKey: adoptionObjectKey.trim(),
+        uploadId: adoptionUploadId.trim(),
+      });
+      setAdoptionMessage(
+        response.cleanupPending ? "Logo activated. Cleanup of the source upload is pending." : `Logo activated for ${response.team.name}.`,
+      );
+      setAdoptionObjectKey("");
+      setAdoptionUploadId("");
+      await onComplete();
+    } catch (error) {
+      setAdoptionMessage(error instanceof Error ? error.message : "The managed upload could not be adopted.");
+    } finally {
+      setAdoptionBusy(false);
+    }
+  }
+
   const uploadedCount = results.filter((result) => result.status === "uploaded").length;
   const unmatchedCount = results.filter((result) => result.status === "unmatched").length;
   const errorCount = results.filter((result) => result.status === "error").length;
@@ -279,6 +306,61 @@ export default function BulkTeamLogoUpload({ teams, onComplete }: { teams: TeamW
         <div className="rounded-card border border-white/10 bg-bg-primary px-4 py-3 text-sm text-text-muted">
           {teamsWithLogos}/{teams.length} teams currently have logos
         </div>
+      </div>
+
+      <div className="mt-5 rounded-card border border-accent-blue/20 bg-accent-blue/5 p-4">
+        <div>
+          <h4 className="text-sm font-semibold text-white">Adopt an Existing Managed R2 Logo</h4>
+          <p className="mt-1 text-xs leading-5 text-text-muted">
+            Recovery tool for an upload that exists in managed storage but is not active on its canonical team. Select the official team and
+            provide the exact upload ID and object key; the server validates the relationship and creates a new versioned asset.
+          </p>
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+          <select
+            aria-label="Canonical team for managed logo adoption"
+            className="input-esports"
+            disabled={adoptionBusy}
+            value={adoptionTeamId}
+            onChange={(event) => setAdoptionTeamId(event.target.value)}
+          >
+            <option value="">Select official team</option>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name} — {team.id}
+              </option>
+            ))}
+          </select>
+          <input
+            aria-label="Managed upload ID"
+            className="input-esports font-mono text-xs"
+            disabled={adoptionBusy}
+            placeholder="Upload UUID"
+            value={adoptionUploadId}
+            onChange={(event) => setAdoptionUploadId(event.target.value)}
+          />
+          <input
+            aria-label="Managed R2 object key"
+            className="input-esports font-mono text-xs"
+            disabled={adoptionBusy}
+            placeholder="teams/.../logo.png"
+            value={adoptionObjectKey}
+            onChange={(event) => setAdoptionObjectKey(event.target.value)}
+          />
+          <button
+            type="button"
+            className="btn-secondary disabled:opacity-60"
+            disabled={adoptionBusy || !adoptionTeamId || !adoptionUploadId.trim() || !adoptionObjectKey.trim()}
+            onClick={() => void adoptManagedUpload()}
+          >
+            {adoptionBusy ? "Adopting..." : "Validate & Adopt"}
+          </button>
+        </div>
+        {adoptionMessage ? (
+          <p role="status" aria-live="polite" className="mt-3 text-xs text-text-secondary">
+            {adoptionMessage}
+          </p>
+        ) : null}
       </div>
 
       <input

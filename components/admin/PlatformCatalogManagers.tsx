@@ -97,7 +97,7 @@ const defaultGameForm: Partial<ManagedPlatformGameRecord> = {
   analyticsHref: "",
   sections: ["Overview", "Events", "Teams", "Players", "Matches", "Rankings", "Media", "News"],
   completionLabel: "",
-  published: true,
+  published: false,
 };
 
 export function AdminGamesManager() {
@@ -311,7 +311,7 @@ export function AdminGamesManager() {
             <label className="inline-flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={form.published !== false}
+                checked={form.published === true}
                 onChange={(event) => setForm({ ...form, published: event.target.checked })}
               />
               Published
@@ -373,7 +373,7 @@ const defaultEventForm: Partial<ManagedPlatformEventRecord> = {
   gameName: "PUBG PC",
   type: "tournament",
   status: "upcoming",
-  state: "published",
+  state: "planned",
   featured: false,
   region: "Nepal",
   organizerName: "Bravo Gaming Esports",
@@ -395,7 +395,7 @@ const defaultEventForm: Partial<ManagedPlatformEventRecord> = {
   pointSystemId: "bravo-pubg-default",
   pointSystemName: "Bravo PUBG",
   tabs: ["Overview", "Teams", "Matches", "Schedule", "Statistics", "Sponsors", "Rules"],
-  published: true,
+  published: false,
 };
 
 export function AdminPlatformEventsManager() {
@@ -745,7 +745,7 @@ export function AdminPlatformEventsManager() {
             <label className="inline-flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={form.published !== false}
+                checked={form.published === true}
                 onChange={(event) => setForm({ ...form, published: event.target.checked })}
               />
               Published
@@ -820,7 +820,7 @@ const defaultSponsorForm: Partial<SponsorItem> = {
   partnershipHistory: [],
   visible: true,
   featured: false,
-  published: true,
+  published: false,
   showOnHomepage: false,
   showOnSponsorsPage: true,
   showOnEventPage: false,
@@ -1273,7 +1273,7 @@ export function AdminSponsorsManager() {
             <label className="inline-flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={form.published !== false}
+                checked={form.published === true}
                 onChange={(event) => setForm({ ...form, published: event.target.checked })}
               />
               Published
@@ -1332,7 +1332,7 @@ export function AdminSponsorsManager() {
                   <div>
                     <p className="font-semibold text-white">{sponsor.name}</p>
                     <p className="text-sm text-text-muted">
-                      {(sponsor.kind ?? "partner").toUpperCase()} | {sponsor.tier} | {sponsor.published !== false ? "published" : "draft"} |{" "}
+                      {(sponsor.kind ?? "partner").toUpperCase()} | {sponsor.tier} | {sponsor.published === true ? "published" : "draft"} |{" "}
                       {sponsor.visible !== false ? "visible" : "hidden"}
                     </p>
                   </div>
@@ -1390,7 +1390,7 @@ const defaultMediaForm: Partial<VideoItem> = {
   summary: "",
   imageUrl: "",
   featured: false,
-  published: true,
+  published: false,
 };
 
 export function AdminMediaManager() {
@@ -1609,7 +1609,7 @@ export function AdminMediaManager() {
             <label className="inline-flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={form.published !== false}
+                checked={form.published === true}
                 onChange={(event) => setForm({ ...form, published: event.target.checked })}
               />
               Published
@@ -1630,7 +1630,7 @@ export function AdminMediaManager() {
                   <div>
                     <p className="font-semibold text-white">{item.title}</p>
                     <p className="text-sm text-text-muted">
-                      {item.kind ?? "Media"} | {item.category} | {item.published !== false ? "published" : "draft"}
+                      {item.kind ?? "Media"} | {item.category} | {item.published === true ? "published" : "draft"}
                     </p>
                   </div>
                   <div className="flex gap-3 text-sm">

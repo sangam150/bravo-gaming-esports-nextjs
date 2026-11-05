@@ -150,7 +150,18 @@ function isUploadFolder(value: string): value is UploadFolder {
   return (Object.values(STORAGE_TARGET_BY_TYPE) as StorageTarget[]).some((target) => target.folder === value);
 }
 
-export function normalizeUploadFolder(value: string | null | undefined): UploadFolder | null {
+const PUBLIC_UPLOAD_FOLDERS = new Set<UploadFolder>(
+  (Object.values(STORAGE_TARGET_BY_TYPE) as StorageTarget[])
+    .filter((target) => target.visibility === "public")
+    .map((target) => target.folder),
+);
+
+function normalizeUploadFolder(value: string | null | undefined): UploadFolder | null {
   if (!value) return null;
   return isUploadFolder(value) ? value : null;
+}
+
+export function normalizePublicUploadFolder(value: string | null | undefined): UploadFolder | null {
+  const folder = normalizeUploadFolder(value);
+  return folder && PUBLIC_UPLOAD_FOLDERS.has(folder) ? folder : null;
 }

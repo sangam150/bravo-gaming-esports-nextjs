@@ -1,17 +1,7 @@
 "use client";
 
-import { getSupabaseBrowserClient } from "./supabase/client";
 import type { UploadType } from "./upload-config";
 import { getResponseErrorMessage, USER_FACING_ERROR_MESSAGES } from "./user-facing-errors";
-
-async function getIdToken(): Promise<string | null> {
-  const supabase = getSupabaseBrowserClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  return session?.access_token ?? null;
-}
 
 export async function adminFetch(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers);
@@ -19,9 +9,8 @@ export async function adminFetch(url: string, options: RequestInit = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  const token = await getIdToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-
+  // SSR cookies are authoritative after server-side password login. A cached
+  // SDK bearer can belong to the previous account and override those cookies.
   const res = await fetch(url, { ...options, headers, credentials: "include" });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -36,14 +25,14 @@ export async function adminFetch(url: string, options: RequestInit = {}) {
 
 type UploadProgressCallback = (progress: number) => void;
 
-export type AdminUploadResponse = {
+type AdminUploadResponse = {
   success: true;
   id: string;
   path: string;
   url: string;
 };
 
-export type AdminTeamLogoUploadResponse = AdminUploadResponse & {
+type AdminTeamLogoUploadResponse = AdminUploadResponse & {
   cleanupPending: boolean;
   key: string;
   team: {
@@ -53,6 +42,10 @@ export type AdminTeamLogoUploadResponse = AdminUploadResponse & {
     slug: string | null;
     updatedAt: string;
   };
+};
+
+type AdminPlayerAvatarUploadResponse = AdminUploadResponse & {
+  cleanupPending: boolean;
 };
 
 async function sendUploadRequest<TResponse extends AdminUploadResponse>(
@@ -122,8 +115,6 @@ export async function adminUpload(
   }
 
   const headers = new Headers();
-  const token = await getIdToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
 
   return sendUploadRequest<AdminUploadResponse>("/api/admin/uploads/r2", formData, headers, options.onProgress);
 }
@@ -138,12 +129,59 @@ export async function adminUploadTeamLogo(
   const formData = new FormData();
   formData.append("file", file);
   const headers = new Headers();
-  const token = await getIdToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
   return sendUploadRequest<AdminTeamLogoUploadResponse>(
     `/api/admin/teams/${encodeURIComponent(teamId)}/logo`,
     formData,
     headers,
     options.onProgress,
   );
+}
+
+export async function adminUploadPlayerAvatar(
+  file: File,
+  playerId: string,
+  options: {
+    onProgress?: UploadProgressCallback;
+  } = {},
+) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const headers = new Headers();
+  return sendUploadRequest<AdminPlayerAvatarUploadResponse>(
+    `/api/admin/players/${encodeURIComponent(playerId)}/avatar`,
+    formData,
+    headers,
+    options.onProgress,
+  );
+}
+
+export async function adminDeleteTeamLogo(teamId: string) {
+  return (await adminFetch(`/api/admin/teams/${encodeURIComponent(teamId)}/logo`, {
+    method: "DELETE",
+  })) as { cleanupPending: boolean; success: true; url: null };
+}
+
+export async function adminDeletePlayerAvatar(playerId: string) {
+  return (await adminFetch(`/api/admin/players/${encodeURIComponent(playerId)}/avatar`, {
+    method: "DELETE",
+  })) as { cleanupPending: boolean; success: true; url: null };
+}
+
+export async function adminDeleteStagedUpload(input: { objectKey: string; uploadId: string }, options: { keepalive?: boolean } = {}) {
+  return (await adminFetch("/api/admin/uploads/r2", {
+    body: JSON.stringify(input),
+    keepalive: options.keepalive,
+    method: "DELETE",
+  })) as {
+    deleted: boolean;
+    referenced: boolean;
+    success: true;
+  };
+}
+
+export async function adminAdoptTeamLogo(teamId: string, input: { objectKey: string; uploadId: string }) {
+  return (await adminFetch(`/api/admin/teams/${encodeURIComponent(teamId)}/logo/adopt`, {
+    body: JSON.stringify(input),
+    method: "POST",
+  })) as AdminTeamLogoUploadResponse & { sourceCleanupPending: boolean };
 }

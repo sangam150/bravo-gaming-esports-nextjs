@@ -1,13 +1,32 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { chromium } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { assertStagingTarget, readStagingEnvironment } from "./staging-target.mjs";
 
-const origin = process.env.QA_AUTH_ORIGIN || "https://bravo-gaming-esports.vercel.app";
-const rawOrigin = process.env.QA_AUTH_RAW_ORIGIN || "https://bravo-gaming-esports-kjmkrye0k-sangams-projects-9468acfa.vercel.app";
-const isLiveProductionOrigin = new URL(origin).protocol === "https:";
+// This legacy-named script creates temporary users/rows. It must never use the
+// production environment passed by older package-script invocations.
+Object.assign(process.env, readStagingEnvironment());
+assertStagingTarget(process.env);
+
+function readQaOrigin(name, required) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    if (required) throw new Error(`${name} must explicitly identify the deployment under test.`);
+    return null;
+  }
+
+  const parsed = new URL(value);
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    throw new Error(`${name} must be an HTTPS origin without credentials, a path, a query, or a fragment.`);
+  }
+  return parsed.origin;
+}
+
+const origin = readQaOrigin("QA_AUTH_ORIGIN", true);
+const rawOrigin = readQaOrigin("QA_AUTH_RAW_ORIGIN", false);
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!url || !serviceKey) throw new Error("Supabase production QA configuration is incomplete.");
+const serviceKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!origin || !url || !serviceKey) throw new Error("Isolated staging QA configuration is incomplete. Production fallback is forbidden.");
 
 const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -54,7 +73,7 @@ async function createQaUser(email, role, teamId = null, playerId = null) {
 
 const browser = await chromium.launch({
   headless: true,
-  executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  ...(process.env.QA_BROWSER_EXECUTABLE ? { executablePath: process.env.QA_BROWSER_EXECUTABLE } : {}),
 });
 
 try {
@@ -118,7 +137,7 @@ try {
   const sessionCookie = cookies.find((cookie) => cookie.name === "bravo_session");
   assert(
     sessionCookie?.httpOnly && sessionCookie.secure && sessionCookie.sameSite === "Strict",
-    `Session cookie security attributes are invalid: ${JSON.stringify(sessionCookie ?? null)}`,
+    "Session cookie security attributes are invalid (cookie values are deliberately redacted).",
   );
 
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -241,7 +260,7 @@ try {
 
   const resetResponse = await fetch(`${origin}/api/auth/password-reset`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: origin },
     body: JSON.stringify({ email: emails.viewer }),
   });
   const resetBody = await resetResponse.json();
@@ -249,12 +268,12 @@ try {
 
   const aliasResponse = await fetch(`${origin}/admin`, { redirect: "manual" });
   assert(aliasResponse.status >= 300 && aliasResponse.status < 400, "Owner alias did not protect /admin.");
-  if (isLiveProductionOrigin) {
+  if (rawOrigin) {
     const rawResponse = await fetch(`${rawOrigin}/admin`, { redirect: "manual" });
     assert(rawResponse.status >= 300 && rawResponse.status < 400, "Raw deployment did not protect /admin.");
   }
   console.log(
-    "Production browser authentication QA passed: admin login/refresh/direct route/logout, viewer rejection, team isolation, mobile login, reset request, and raw/alias protection.",
+    "Isolated staging browser authentication QA passed: admin login/refresh/direct route/logout, viewer rejection, team isolation, mobile login, reset request, and raw/alias protection.",
   );
 } finally {
   await browser.close();

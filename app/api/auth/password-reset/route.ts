@@ -1,4 +1,5 @@
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
 import { requireSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@supabase/supabase-js";
@@ -18,6 +19,9 @@ function getRecoveryOrigin(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
+
   const limited = await enforceRateLimit(request, {
     key: "auth-password-reset",
     maxRequests: 5,
@@ -44,7 +48,7 @@ export async function POST(request: Request) {
 
   const { url, publicKey } = requireSupabaseEnv();
   const client = createClient(url, publicKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
+    auth: { autoRefreshToken: false, flowType: "implicit", persistSession: false },
   });
   const origin = getRecoveryOrigin(request);
 

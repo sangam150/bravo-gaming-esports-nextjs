@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { createReadinessProbe } from "./readiness-probe";
 import { getRequestedServerDataBackend } from "./data-backend";
 import { COLLECTIONS } from "./document-store-collections";
 import { readJsonObject, sanitizeJsonObject } from "./json-utils";
@@ -48,41 +49,26 @@ export function isDocumentStoreConfigured(): boolean {
   return isSupabaseServiceRoleConfigured();
 }
 
-let supabaseDocumentStoreProbe: Promise<boolean> | null = null;
+const probeSupabaseDocumentStore = createReadinessProbe(async () => {
+  const client = getSupabaseServiceRoleClient();
+  const { error } = await client
+    .from(SUPABASE_DOCUMENT_STORE_TABLE)
+    .select("id", { head: true, count: "exact" })
+    .limit(1)
+    .abortSignal(AbortSignal.timeout(8000));
+  if (error) {
+    if (isSupabaseDocumentStoreMissingError(error)) return false;
+    throw error;
+  }
+  return true;
+});
 
 async function hasSupabaseDocumentStore() {
   if (!isSupabaseServiceRoleConfigured()) {
     return false;
   }
 
-  if (supabaseDocumentStoreProbe) {
-    return supabaseDocumentStoreProbe;
-  }
-
-  supabaseDocumentStoreProbe = (async () => {
-    try {
-      const client = getSupabaseServiceRoleClient();
-      const { error } = await client.from(SUPABASE_DOCUMENT_STORE_TABLE).select("id", { head: true, count: "exact" }).limit(1);
-
-      if (error) {
-        if (isSupabaseDocumentStoreMissingError(error)) {
-          return false;
-        }
-
-        throw error;
-      }
-
-      return true;
-    } catch (error: unknown) {
-      if (isSupabaseDocumentStoreMissingError(error)) {
-        return false;
-      }
-
-      throw error;
-    }
-  })();
-
-  return supabaseDocumentStoreProbe;
+  return probeSupabaseDocumentStore();
 }
 
 async function requireSupabaseDocumentStore() {
@@ -99,7 +85,7 @@ async function requireSupabaseDocumentStore() {
   }
 
   if (!(await hasSupabaseDocumentStore())) {
-    throw new Error("Supabase document store is not ready. Run the SQL in supabase/schema.sql so public.app_documents exists.");
+    throw new Error("Supabase document store is not ready. Apply the tracked Supabase migrations so public.app_documents exists.");
   }
 }
 

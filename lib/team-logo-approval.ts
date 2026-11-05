@@ -67,11 +67,17 @@ export async function createPendingTeamLogoRequest<TRequest>(dependencies: {
       uploadRecordId: record.id,
     };
   } catch (error) {
-    if (uploadRecordId) {
-      await dependencies.deleteUploadRecord(uploadRecordId).catch(() => undefined);
-    }
+    let objectDeleted = !uploaded;
     if (uploaded) {
-      await dependencies.deleteCandidateObject().catch(() => undefined);
+      try {
+        await dependencies.deleteCandidateObject();
+        objectDeleted = true;
+      } catch {
+        objectDeleted = false;
+      }
+    }
+    if (uploadRecordId && objectDeleted) {
+      await dependencies.deleteUploadRecord(uploadRecordId).catch(() => undefined);
     }
     throw error;
   }

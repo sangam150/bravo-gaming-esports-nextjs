@@ -113,7 +113,7 @@ export async function ensureViewerProfile(user: User, discordUserId?: string | n
       email: user.email.toLowerCase(),
       display_name: readDisplayName(user),
       role: "viewer",
-      role_source: "system_provisioned",
+      role_source: "system",
       is_active: true,
       discord_user_id: discordUserId ?? null,
     })

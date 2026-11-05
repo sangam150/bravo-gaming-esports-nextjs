@@ -1,6 +1,7 @@
 "use client";
 
 import BravoLogo from "@/components/ui/BravoLogo";
+import ManagedImage from "@/components/ui/ManagedImage";
 import { hasTeamWorkspaceAccess } from "@/lib/authz";
 import { formatDisplayDateTime } from "@/lib/display-format";
 import { scheduleEffectTask } from "@/lib/effect-task";
@@ -10,7 +11,6 @@ import type { AuthenticatedUserProfile, TeamWorkspaceData } from "@/lib/types";
 import { IMAGE_FILE_INPUT_ACCEPT, MOSS_FILE_INPUT_ACCEPT, TEAM_LOGO_FILE_INPUT_ACCEPT } from "@/lib/upload-config";
 import { getResponseErrorMessage, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import type { Session } from "@supabase/supabase-js";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
@@ -232,15 +232,17 @@ export default function TeamPanelClient() {
     if (!supabase) return;
     setNotice(null);
     setAuthError(null);
-    await fetch("/api/auth/session", {
-      method: "DELETE",
-      credentials: "include",
-    });
-    await supabase.auth.signOut();
-    setProfile(null);
-    setWorkspace(null);
-    router.push("/team/login");
-    router.refresh();
+    try {
+      const response = await fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
+      if (!response.ok) throw new Error("Sign-out was not confirmed.");
+      await supabase.auth.signOut({ scope: "local" });
+      setProfile(null);
+      setWorkspace(null);
+      router.push("/team/login");
+      router.refresh();
+    } catch {
+      setAuthError("Sign-out could not be confirmed. Check your connection and retry.");
+    }
   }
 
   async function uploadTeamFile(file: File, type: TeamUploadType) {
@@ -559,11 +561,11 @@ export default function TeamPanelClient() {
         <section className="esports-card p-6">
           <div className="flex flex-wrap items-center gap-4">
             {workspace?.team?.logoUrl ? (
-              <Image
+              <ManagedImage
                 src={workspace.team.logoUrl}
                 alt={`${workspace.team.name} logo`}
-                width={80}
-                height={80}
+                sizes="80px"
+                wrapperClassName="h-20 w-20 shrink-0 rounded-3xl border border-white/10 bg-black/20"
                 className="h-20 w-20 rounded-3xl border border-white/10 bg-black/20 object-cover"
               />
             ) : (
@@ -608,11 +610,12 @@ export default function TeamPanelClient() {
                   <div key={player.id} className="rounded-3xl border border-white/10 bg-bg-primary/70 p-4">
                     <div className="flex items-start gap-3">
                       {player.avatarUrl ? (
-                        <Image
+                        <ManagedImage
                           src={player.avatarUrl}
                           alt={`${player.pubgName} avatar`}
-                          width={64}
-                          height={64}
+                          fallbackText={player.pubgName.slice(0, 2)}
+                          sizes="64px"
+                          wrapperClassName="h-16 w-16 shrink-0 rounded-2xl border border-white/10"
                           className="h-16 w-16 rounded-2xl border border-white/10 object-cover"
                         />
                       ) : (

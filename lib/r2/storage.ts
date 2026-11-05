@@ -1,8 +1,8 @@
 import "server-only";
 
+import { normalizeManagedPublicAssetKey } from "@/lib/public-asset-key";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import {
-  normalizeUploadFolder,
   normalizeUploadType,
   sanitizeStorageSegment,
   sanitizeUploadFileName,
@@ -34,6 +34,14 @@ function normalizeObjectKey(objectKey: string) {
     normalized.split("/").some((segment) => segment === "." || segment === "..")
   ) {
     throw new Error("Invalid managed storage object key.");
+  }
+  return normalized;
+}
+
+function requireManagedPublicObjectKey(objectKey: string) {
+  const normalized = normalizeManagedPublicAssetKey(objectKey);
+  if (!normalized) {
+    throw new Error("Invalid managed public storage object key.");
   }
   return normalized;
 }
@@ -129,7 +137,7 @@ function parseManagedPublicProxyObjectKey(url: string) {
     }
 
     const objectKey = parsedUrl.searchParams.get("key");
-    return objectKey ? normalizeObjectKey(objectKey) : null;
+    return objectKey ? normalizeManagedPublicAssetKey(objectKey, { repairLegacyEncoding: true }) : null;
   } catch {
     return null;
   }
@@ -183,7 +191,7 @@ async function deleteLegacySupabaseObject(bucketName: string, filePath: string) 
 }
 
 export function buildPublicFileUrl(objectKey: string) {
-  const normalizedObjectKey = normalizeObjectKey(objectKey);
+  const normalizedObjectKey = requireManagedPublicObjectKey(objectKey);
 
   if (getR2PublicDeliveryMode() === "proxy") {
     return `/api/uploads/r2?key=${encodeURIComponent(normalizedObjectKey)}`;
@@ -231,7 +239,7 @@ async function uploadObjectToR2(input: {
 }
 
 export async function uploadPublicObjectAtKey(objectKey: string, body: Buffer, contentType: string) {
-  const normalizedObjectKey = normalizeObjectKey(objectKey);
+  const normalizedObjectKey = requireManagedPublicObjectKey(objectKey);
   await uploadObjectToR2({
     body,
     bucket: getR2PublicBucketName(),
@@ -296,7 +304,7 @@ async function deleteObjectFromR2(visibility: StorageVisibility, objectKey: stri
 }
 
 export async function deletePublicObjectByKey(objectKey: string) {
-  await deleteObjectFromR2("public", normalizeObjectKey(objectKey));
+  await deleteObjectFromR2("public", requireManagedPublicObjectKey(objectKey));
 }
 
 export async function deletePrivateObjectByKey(objectKey: string) {
@@ -333,7 +341,7 @@ async function verifyPublicObject(
     sizeBytes?: number;
   } = {},
 ) {
-  return verifyObject("public", objectKey, expected);
+  return verifyObject("public", requireManagedPublicObjectKey(objectKey), expected);
 }
 
 export async function verifyPrivateObject(
@@ -368,8 +376,14 @@ export function assertPublicObjectDelivery(
   }
 }
 
-async function fetchDeliveredPublicObject(objectKey: string) {
-  const response = await fetch(buildPublicFileUrl(objectKey), {
+async function fetchDeliveredPublicObject(objectKey: string, deliveryOrigin?: string) {
+  const publicUrl = buildPublicFileUrl(objectKey);
+  const deliveryUrl = publicUrl.startsWith("/") ? (deliveryOrigin ? new URL(publicUrl, deliveryOrigin).toString() : null) : publicUrl;
+  if (!deliveryUrl) {
+    return null;
+  }
+
+  const response = await fetch(deliveryUrl, {
     cache: "no-store",
     headers: {
       Accept: "image/avif,image/webp,image/png,image/jpeg,*/*",
@@ -394,13 +408,14 @@ export async function verifyPublicObjectDelivery(
   objectKey: string,
   expected: {
     contentType?: string;
+    deliveryOrigin?: string;
     sizeBytes?: number;
   } = {},
 ) {
-  const normalizedObjectKey = normalizeObjectKey(objectKey);
+  const normalizedObjectKey = requireManagedPublicObjectKey(objectKey);
   await verifyPublicObject(normalizedObjectKey, expected);
 
-  if (getR2PublicDeliveryMode() === "proxy") {
+  if (getR2PublicDeliveryMode() === "proxy" && !expected.deliveryOrigin) {
     const object = await getPublicObject(normalizedObjectKey);
     const body = await readObjectBodyAsBuffer(object.Body);
     if (!body) {
@@ -422,7 +437,10 @@ export async function verifyPublicObjectDelivery(
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
     }
     try {
-      const delivered = await fetchDeliveredPublicObject(normalizedObjectKey);
+      const delivered = await fetchDeliveredPublicObject(normalizedObjectKey, expected.deliveryOrigin);
+      if (!delivered) {
+        throw new Error("The configured public proxy URL could not be resolved for delivery verification.");
+      }
       assertPublicObjectDelivery(
         {
           contentType: delivered.contentType,
@@ -441,7 +459,8 @@ export async function verifyPublicObjectDelivery(
 
 export function getManagedPublicObjectKeyFromUrl(url: string | null | undefined) {
   if (!url) return null;
-  return parseManagedPublicProxyObjectKey(url) ?? parseManagedPublicObjectKey(url);
+  const objectKey = parseManagedPublicProxyObjectKey(url) ?? parseManagedPublicObjectKey(url);
+  return objectKey ? normalizeManagedPublicAssetKey(objectKey, { repairLegacyEncoding: true }) : null;
 }
 
 export async function deleteFromStorageByUrl(url: string | null | undefined) {
@@ -495,41 +514,13 @@ export async function getPublicObject(filePath: string): Promise<GetObjectComman
   return getR2Client().send(
     new GetObjectCommand({
       Bucket: getR2PublicBucketName(),
-      Key: normalizeObjectKey(filePath),
+      Key: requireManagedPublicObjectKey(filePath),
     }),
   );
 }
 
 export function normalizeManagedPublicObjectKey(filePath: string) {
-  const normalizedKey = normalizeObjectKey(filePath);
-  const segments = normalizedKey.split("/").filter(Boolean);
-  const [folder, demoSeedTag, demoFolder] = segments;
-
-  if (!folder || normalizedKey.includes("..")) {
-    return null;
-  }
-
-  if (normalizeUploadFolder(folder)) {
-    return normalizedKey;
-  }
-
-  // Demo preview assets live under demo/<seed-tag>/<managed-folder>/... so they can be cleaned up safely.
-  if (
-    folder === "demo" &&
-    segments.length >= 4 &&
-    demoSeedTag &&
-    /^[a-z0-9_-]+$/i.test(demoSeedTag) &&
-    demoFolder &&
-    normalizeUploadFolder(demoFolder)
-  ) {
-    return normalizedKey;
-  }
-
-  if (!normalizeUploadFolder(folder)) {
-    return null;
-  }
-
-  return normalizedKey;
+  return normalizeManagedPublicAssetKey(filePath);
 }
 
 export function isR2ObjectMissingError(error: unknown) {

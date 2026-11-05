@@ -354,6 +354,94 @@ export type Database = {
           },
         ];
       };
+      event_player_statistics: {
+        Row: {
+          assists: number;
+          best_placement: number | null;
+          created_at: string;
+          damage: number;
+          demo_seed_tag: string | null;
+          event_id: string;
+          id: string;
+          kills: number;
+          knocks: number;
+          matches_played: number;
+          placement_points: number;
+          player_id: string;
+          source_provider: string;
+          source_player_id: string;
+          source_rank: number | null;
+          source_updated_at: string | null;
+          team_id: string | null;
+          total_points: number;
+          updated_at: string;
+        };
+        Insert: {
+          assists?: number;
+          best_placement?: number | null;
+          created_at?: string;
+          damage?: number;
+          demo_seed_tag?: string | null;
+          event_id: string;
+          id?: string;
+          kills?: number;
+          knocks?: number;
+          matches_played?: number;
+          placement_points?: number;
+          player_id: string;
+          source_provider: string;
+          source_player_id: string;
+          source_rank?: number | null;
+          source_updated_at?: string | null;
+          team_id?: string | null;
+          total_points?: number;
+          updated_at?: string;
+        };
+        Update: {
+          assists?: number;
+          best_placement?: number | null;
+          created_at?: string;
+          damage?: number;
+          demo_seed_tag?: string | null;
+          event_id?: string;
+          id?: string;
+          kills?: number;
+          knocks?: number;
+          matches_played?: number;
+          placement_points?: number;
+          player_id?: string;
+          source_provider?: string;
+          source_player_id?: string;
+          source_rank?: number | null;
+          source_updated_at?: string | null;
+          team_id?: string | null;
+          total_points?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_player_statistics_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_player_statistics_player_id_fkey";
+            columns: ["player_id"];
+            isOneToOne: false;
+            referencedRelation: "players";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_player_statistics_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       events: {
         Row: {
           banner_url: string | null;
@@ -805,6 +893,10 @@ export type Database = {
       };
       match_team_results: {
         Row: {
+          damage: number;
+          adjustment_points: number;
+          decision_reason: string;
+          disqualified: boolean;
           created_at: string;
           demo_seed_tag: string | null;
           id: string;
@@ -821,6 +913,10 @@ export type Database = {
           wwcd: boolean;
         };
         Insert: {
+          damage?: number;
+          adjustment_points?: number;
+          decision_reason?: string;
+          disqualified?: boolean;
           created_at?: string;
           demo_seed_tag?: string | null;
           id?: string;
@@ -837,6 +933,10 @@ export type Database = {
           wwcd?: boolean;
         };
         Update: {
+          damage?: number;
+          adjustment_points?: number;
+          decision_reason?: string;
+          disqualified?: boolean;
           created_at?: string;
           demo_seed_tag?: string | null;
           id?: string;
@@ -871,6 +971,8 @@ export type Database = {
       };
       matches: {
         Row: {
+          revision: number;
+          scoring_rules: Json;
           created_at: string;
           data_source: string;
           day_id: string | null;
@@ -898,6 +1000,8 @@ export type Database = {
           vod_url: string | null;
         };
         Insert: {
+          scoring_rules?: Json;
+          revision?: number;
           created_at?: string;
           data_source?: string;
           day_id?: string | null;
@@ -925,6 +1029,8 @@ export type Database = {
           vod_url?: string | null;
         };
         Update: {
+          scoring_rules?: Json;
+          revision?: number;
           created_at?: string;
           data_source?: string;
           day_id?: string | null;
@@ -2873,6 +2979,10 @@ export type Database = {
       };
     };
     Functions: {
+      commit_competition_match: {
+        Args: { p_match: Json; p_team_rows: Json; p_player_rows: Json; p_expected_revision: number | null; p_publish: boolean; p_action?: string; p_actor_id?: string | null };
+        Returns: number;
+      };
       consume_rate_limit: {
         Args: { p_key: string; p_max_requests: number; p_window_ms: number };
         Returns: Json;

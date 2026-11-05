@@ -109,14 +109,17 @@ export async function proxy(request: NextRequest) {
   const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
   const isTeamRoute = request.nextUrl.pathname === "/team" || request.nextUrl.pathname.startsWith("/team/");
   const isPlayerRoute = request.nextUrl.pathname === "/dashboard/player" || request.nextUrl.pathname.startsWith("/dashboard/player/");
-  if (!isAdminRoute && !isTeamRoute && !isPlayerRoute) {
+  const isAdminLoginPage = request.nextUrl.pathname === "/admin/login";
+  const isTeamLoginPage = request.nextUrl.pathname === "/team/login";
+  const requiresIdentity = (isAdminRoute && !isAdminLoginPage) || (isTeamRoute && !isTeamLoginPage) || isPlayerRoute;
+  if (!requiresIdentity) {
     return (await refreshSupabaseSession(request, NextResponse.next({ request }))).response;
   }
 
-  const refreshed = await refreshSupabaseSession(request, NextResponse.next({ request }));
+  const refreshed = await refreshSupabaseSession(request, NextResponse.next({ request }), {
+    resolveIdentity: true,
+  });
   const identity = refreshed.identity;
-  const isAdminLoginPage = request.nextUrl.pathname === "/admin/login";
-  const isTeamLoginPage = request.nextUrl.pathname === "/team/login";
 
   if (isAdminRoute && !isAdminLoginPage && !hasAdminAccess(identity)) {
     const response = NextResponse.redirect(new URL("/admin/login", request.url));
@@ -141,5 +144,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*", "/team", "/team/:path*", "/dashboard/player/:path*", "/news/:path*", "/pubg/matches/:path*"],
+  matcher: [
+    "/((?!api(?:/|$)|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:avif|css|gif|ico|jpe?g|js|json|map|mp4|png|svg|txt|webm|webp|woff2?)$).*)",
+  ],
 };

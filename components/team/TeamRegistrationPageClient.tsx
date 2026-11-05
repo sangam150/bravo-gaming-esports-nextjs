@@ -163,6 +163,8 @@ export default function TeamRegistrationPageClient({
       formData.append("teamName", teamName || captainName || "registration");
       if (uploadedLogo?.url) {
         formData.append("previousUrl", uploadedLogo.url);
+        formData.append("previousUploadId", uploadedLogo.id);
+        formData.append("previousPath", uploadedLogo.path);
       }
 
       const response = await fetch("/api/registrations/logo", {
@@ -185,7 +187,11 @@ export default function TeamRegistrationPageClient({
         path: data.path,
         url: data.url,
       });
-      setLogoNotice("Team logo uploaded privately and ready for admin review.");
+      setLogoNotice(
+        "cleanupPending" in data && data.cleanupPending === true
+          ? "Team logo uploaded privately. Cleanup of the replaced candidate is pending."
+          : "Team logo uploaded privately and ready for admin review.",
+      );
       setError(null);
     } catch (uploadError: unknown) {
       clearLogoPreviewObjectUrl();

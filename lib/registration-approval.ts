@@ -15,8 +15,8 @@ import {
 } from "./canonical-teams";
 import { updateRegistrationStatus } from "./data";
 import { COLLECTIONS, DocumentWriteConflictError, getDocument } from "./document-store";
+import { cleanupUnreferencedPublicAssetByUrl } from "./public-asset-cleanup";
 import {
-  deleteFromStorageByUrl,
   deletePrivateObjectByKey,
   deletePublicObjectByKey,
   getManagedUploadRecord,
@@ -478,6 +478,12 @@ async function approveRegistrationLogo(
   });
   const activeUploadRecordId = randomUUID();
   let approvedRegistration: RegistrationApprovalResult | null = null;
+  const verifyDelivery = () =>
+    verifyPublicObjectDelivery(preparedImage.objectKey, {
+      contentType: preparedImage.decoded.contentType,
+      deliveryOrigin: new URL(request.url).origin,
+      sizeBytes: preparedImage.decoded.sizeBytes,
+    });
 
   const replacement = await replaceTeamLogoAtomically({
     cleanupNewArtifactsOnError: (error) => !shouldPreserveUnconfirmedLogoArtifacts(error),
@@ -497,12 +503,41 @@ async function approveRegistrationLogo(
     deleteNewObject: () => deletePublicObjectByKey(preparedImage.objectKey),
     deletePreviousObject: async () => {
       if (!team.logoUrl || team.logoUrl === preparedImage.publicUrl) return true;
-      return deleteFromStorageByUrl(team.logoUrl);
+      return (await cleanupUnreferencedPublicAssetByUrl(team.logoUrl)).deleted;
     },
     deleteUploadRecord,
     revalidate: () => {
       revalidateTeamPaths(team.id);
       revalidateCompetitionPaths();
+    },
+    rollbackCanonicalTeam: async (activatedTeam) => {
+      const restoredTeam = await replaceCanonicalTeamLogoWithCas(team.id, {
+        expectedLogoUrl: preparedImage.publicUrl,
+        expectedUpdatedAt: activatedTeam.updatedAt,
+        logoUrl: team.logoUrl,
+        sourceMetadata: team.sourceMetadata,
+      });
+      input.onCanonicalRestore(restoredTeam);
+
+      const activatedRegistration = approvedRegistration;
+      if (!activatedRegistration) {
+        throw new RegistrationApprovalRollbackError(
+          "The official team logo was restored, but the registration approval state could not be confirmed.",
+          { cause: new Error("Registration update returned no result.") },
+        );
+      }
+      await updateRegistrationStatus(
+        registration.id,
+        "pending",
+        {
+          ...registrationLinkUpdates(registration),
+          approvalClaimToken: undefined,
+          approvalClaimedAt: undefined,
+          approvalClaimedBy: undefined,
+        },
+        { expectedRegistration: activatedRegistration },
+      );
+      approvedRegistration = null;
     },
     updateCanonicalTeam: async () => {
       const activatedTeam = await replaceCanonicalTeamLogoWithCas(team.id, {
@@ -543,12 +578,28 @@ async function approveRegistrationLogo(
       return activatedTeam;
     },
     uploadNewObject: () =>
-      uploadPublicObjectAtKey(preparedImage.objectKey, buffer, preparedImage.decoded.contentType).then(() => undefined),
-    verifyNewObject: () =>
-      verifyPublicObjectDelivery(preparedImage.objectKey, {
-        contentType: preparedImage.decoded.contentType,
-        sizeBytes: preparedImage.decoded.sizeBytes,
-      }),
+      uploadPublicObjectAtKey(preparedImage.objectKey, preparedImage.buffer, preparedImage.decoded.contentType).then(() => undefined),
+    verifyActivatedDelivery: () => verifyDelivery(),
+    verifyNewObject: () => verifyDelivery(),
+    writeDeliveryFailureAudit: (failure) =>
+      writeRequiredAuditLogFromRequest(request, {
+        action: "registration_logo_delivery_failed",
+        entityId: team.id,
+        entityType: "team",
+        oldValue: {
+          logoUrl: preparedImage.publicUrl,
+          registrationId: registration.id,
+          uploadRecordId: failure.uploadRecordId,
+        },
+        newValue: {
+          deliveryErrorName: failure.deliveryError instanceof Error ? failure.deliveryError.name : "UnknownError",
+          logoUrl: failure.rollbackConfirmed ? team.logoUrl : "unconfirmed",
+          registrationStatus: failure.rollbackConfirmed ? "pending" : "unconfirmed",
+          rollbackConfirmed: failure.rollbackConfirmed,
+          rollbackErrorName:
+            failure.rollbackError instanceof Error ? failure.rollbackError.name : failure.rollbackError ? "UnknownError" : null,
+        },
+      }).then(() => undefined),
     writeRequiredAudit: (uploadRecordId) =>
       writeRequiredAuditLogFromRequest(request, {
         action: "promote_registration_logo_requested",

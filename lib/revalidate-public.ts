@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 export const HOMEPAGE_REVALIDATION_PATHS = ["/", "/events", "/news", "/media", "/sponsors", "/pubg"] as const;
 
@@ -43,6 +43,7 @@ export function revalidatePlatformMediaPaths(slug?: string | null) {
 }
 
 export function revalidatePlatformSponsorPaths(slug?: string | null, eventSlugs?: string[] | null) {
+  revalidateTag("broadcast", { expire: 0 });
   revalidateMany([
     "/",
     "/sponsors",
@@ -55,6 +56,7 @@ export function revalidatePlatformSponsorPaths(slug?: string | null, eventSlugs?
 }
 
 export function revalidateCompetitionPaths(matchId?: string | null) {
+  revalidateTag("broadcast", { expire: 0 });
   revalidateMany([
     "/",
     "/current-season",

@@ -11,8 +11,18 @@ select *
 from public.videos;
 
 create or replace view public.site_settings as
-select *
-from public.settings;
+select
+  id,
+  key,
+  value,
+  updated_at
+from public.settings
+where key in (
+  'youtube_channel_id',
+  'youtube_channel_url',
+  'youtube_live_fallback_url',
+  'discord_invite_url'
+);
 
 create or replace view public.homepage_content as
 select
@@ -104,6 +114,56 @@ select
 from public.team_leaderboard
 group by team_id, team_name;
 
+alter view public.user_profiles set (security_invoker = true);
+alter view public.season_days set (security_invoker = true);
+alter view public.media set (security_invoker = true);
+alter view public.site_settings set (security_invoker = true);
+alter view public.homepage_content set (security_invoker = true);
+alter view public.contact_messages set (security_invoker = true);
+alter view public.news_articles set (security_invoker = true);
+alter view public.season_standings set (security_invoker = true);
+alter view public.standings set (security_invoker = true);
+alter view public.player_season_stats set (security_invoker = true);
+alter view public.alltime_standings set (security_invoker = true);
+
+alter table public.settings enable row level security;
+drop policy if exists "public read settings" on public.settings;
+drop policy if exists "public read allowlisted settings" on public.settings;
+create policy "public read allowlisted settings" on public.settings
+for select
+to anon, authenticated
+using (
+  key in (
+    'youtube_channel_id',
+    'youtube_channel_url',
+    'youtube_live_fallback_url',
+    'discord_invite_url'
+  )
+);
+
+revoke all privileges on table public.settings from public, anon, authenticated;
+grant select on table public.settings to anon;
+grant select, insert, update, delete on table public.settings to authenticated;
+grant all privileges on table public.settings to service_role;
+
+revoke all privileges on table public.user_profiles from public, anon, authenticated;
+grant select on table public.user_profiles to service_role;
+
+revoke all privileges on table
+  public.homepage_content,
+  public.contact_messages,
+  public.news_articles
+from public, anon, authenticated;
+
+grant select on table
+  public.homepage_content,
+  public.contact_messages,
+  public.news_articles
+to authenticated, service_role;
+
+revoke all privileges on table public.site_settings from public, anon, authenticated;
+grant select on table public.site_settings to anon, authenticated, service_role;
+
 insert into storage.buckets (id, name, public)
 values
   ('player-photos', 'player-photos', true),
@@ -116,6 +176,10 @@ values
   ('posters', 'posters', true),
   ('hero-slides', 'hero-slides', true)
 on conflict (id) do nothing;
+
+update storage.buckets
+set public = false
+where id in ('moss-files', 'private-team-documents', 'sensitive-review-files');
 
 drop policy if exists "public read public storage buckets" on storage.objects;
 drop policy if exists "admin manage storage buckets" on storage.objects;
@@ -139,7 +203,6 @@ using (
     'hero-slides',
     'news-images',
     'posters',
-    'moss-files',
     'stream-assets'
   )
 );
@@ -164,6 +227,8 @@ using (
     'news-images',
     'posters',
     'moss-files',
+    'private-team-documents',
+    'sensitive-review-files',
     'stream-assets'
   )
   and public.is_admin_role()
@@ -185,7 +250,11 @@ with check (
     'news-images',
     'posters',
     'moss-files',
+    'private-team-documents',
+    'sensitive-review-files',
     'stream-assets'
   )
   and public.is_admin_role()
 );
+
+notify pgrst, 'reload schema';

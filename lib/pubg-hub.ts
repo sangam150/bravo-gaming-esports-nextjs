@@ -406,6 +406,18 @@ type BaseEventTeamRow = {
   status: string;
 };
 
+type BaseEventPlayerStatisticRow = {
+  eventId: string;
+  playerId: string;
+  teamId?: string | null;
+  matches: number;
+  kills: number;
+  assists: number;
+  knocks: number;
+  damage: number;
+  sourceRank?: number | null;
+};
+
 type BaseMatchRow = {
   id: string;
   eventId: string;
@@ -447,6 +459,7 @@ type BaseDataset = {
   rosterHistory: BaseRosterRow[];
   events: BaseEventRow[];
   eventTeams: BaseEventTeamRow[];
+  eventPlayerStatistics: BaseEventPlayerStatisticRow[];
   matches: BaseMatchRow[];
   teamResults: BaseTeamResultRow[];
   playerResults: BasePlayerResultRow[];
@@ -482,11 +495,6 @@ function toBoolean(value: unknown, fallback = false) {
   return fallback;
 }
 
-function isHiddenPublicStatus(status: string | null | undefined) {
-  const normalizedStatus = status?.trim().toLowerCase() ?? "";
-  return ["inactive", "pending", "draft", "private", "archived"].includes(normalizedStatus);
-}
-
 function sortByNewest<T extends { startTime?: string; startDate?: string }>(firstValue: T, secondValue: T) {
   return (secondValue.startTime ?? secondValue.startDate ?? "").localeCompare(firstValue.startTime ?? firstValue.startDate ?? "");
 }
@@ -518,6 +526,7 @@ function buildEmptyBaseDataset(): BaseDataset {
     rosterHistory: [],
     events: [],
     eventTeams: [],
+    eventPlayerStatistics: [],
     matches: [],
     teamResults: [],
     playerResults: [],
@@ -545,6 +554,7 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
       playerRows,
       eventRows,
       eventTeamRows,
+      eventPlayerStatisticRows,
       matchRows,
       matchTeamResultRows,
       matchPlayerResultRows,
@@ -555,6 +565,7 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
       fetchSupabaseRows("players"),
       fetchSupabaseRows("events"),
       fetchSupabaseRows("event_teams"),
+      fetchSupabaseRows("event_player_statistics"),
       fetchSupabaseRows("matches"),
       fetchSupabaseRows("match_team_results"),
       fetchSupabaseRows("match_player_results"),
@@ -566,6 +577,7 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
         .filter(
           (row) =>
             !["active", "completed"].includes(toText(row.status).trim().toLowerCase()) ||
+            Boolean(toOptionalText(row.demo_seed_tag)) ||
             hasPublicDemoMarker(toOptionalText(row.name), toOptionalText(row.slug), toOptionalText(row.series_title)),
         )
         .map((row) => toText(row.id))
@@ -579,6 +591,7 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
         const isDeleted = Boolean(toOptionalText(row.deleted_at));
         const isArchived = Boolean(toOptionalText(row.archived_at));
         const isMerged = Boolean(toOptionalText(row.merged_into_team_id));
+        const isDemo = Boolean(toOptionalText(row.demo_seed_tag));
         const isRevoked = toText(row.verification_status).trim().toLowerCase() === "revoked";
 
         return {
@@ -589,7 +602,14 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
           logoUrl: toOptionalText(row.logo_url),
           region: toOptionalText(row.region),
           slotNumber: toOptionalNumber(row.slot_number),
-          active: isActiveFlag && !isDeleted && !isArchived && !isMerged && !isRevoked && !isHiddenPublicStatus(normalizedStatus),
+          active:
+            isActiveFlag &&
+            normalizedStatus.trim().toLowerCase() === "active" &&
+            !isDeleted &&
+            !isArchived &&
+            !isMerged &&
+            !isDemo &&
+            !isRevoked,
         };
       })
       .filter((team): team is BaseTeamRow => Boolean(team?.id && team.name));
@@ -603,7 +623,7 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
           avatarUrl: toOptionalText(row.avatar_url ?? row.photo_url),
           teamId: toOptionalText(row.current_team_id),
           role: null,
-          active: toBoolean(row.is_active, true) && !Boolean(toOptionalText(row.deleted_at)),
+          active: toBoolean(row.is_active, true) && !Boolean(toOptionalText(row.deleted_at)) && !Boolean(toOptionalText(row.demo_seed_tag)),
           matches: 0,
           kills: 0,
           assists: 0,
@@ -620,7 +640,13 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
 
     const events: BaseEventRow[] = eventRows
       .map<BaseEventRow | null>((row) => {
-        if (toOptionalText(row.season_id) && hiddenSeasonIds.has(toText(row.season_id))) {
+        if (
+          row.published !== true ||
+          !toOptionalText(row.published_at) ||
+          toOptionalText(row.deleted_at) ||
+          toOptionalText(row.demo_seed_tag) ||
+          (toOptionalText(row.season_id) && hiddenSeasonIds.has(toText(row.season_id)))
+        ) {
           return null;
         }
 
@@ -671,19 +697,66 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
       })
       .filter((event): event is BaseEventRow => Boolean(event?.id && event.name));
 
+    const activeTeamIds = new Set(teams.filter((team) => team.active).map((team) => team.id));
+    const activePlayerIds = new Set(players.filter((player) => player.active).map((player) => player.id));
+    const publicEventIds = new Set(events.map((event) => event.id));
+
     const eventTeams: BaseEventTeamRow[] = eventTeamRows
       .map<BaseEventTeamRow | null>((row) => {
+        const status = toText(row.status, "registered").toLowerCase();
+        if (
+          !publicEventIds.has(toText(row.event_id)) ||
+          !activeTeamIds.has(toText(row.team_id)) ||
+          toOptionalText(row.demo_seed_tag) ||
+          !["approved", "confirmed", "accepted"].includes(status)
+        ) {
+          return null;
+        }
         return {
           eventId: toText(row.event_id),
           teamId: toText(row.team_id),
           slotNumber: toOptionalNumber(row.slot_number),
-          status: toText(row.status, "approved"),
+          status,
         };
       })
       .filter((row): row is BaseEventTeamRow => Boolean(row?.eventId && row.teamId));
 
+    const eventPlayerStatistics: BaseEventPlayerStatisticRow[] = eventPlayerStatisticRows
+      .map<BaseEventPlayerStatisticRow | null>((row) => {
+        const eventId = toText(row.event_id);
+        const playerId = toText(row.player_id);
+        const teamId = toOptionalText(row.team_id);
+        if (
+          !publicEventIds.has(eventId) ||
+          !activePlayerIds.has(playerId) ||
+          (teamId && !activeTeamIds.has(teamId)) ||
+          toOptionalText(row.demo_seed_tag)
+        ) {
+          return null;
+        }
+        return {
+          eventId,
+          playerId,
+          teamId,
+          matches: toNumber(row.matches_played, 0),
+          kills: toNumber(row.kills, 0),
+          assists: toNumber(row.assists, 0),
+          knocks: toNumber(row.knocks, 0),
+          damage: toNumber(row.damage, 0),
+          sourceRank: toOptionalNumber(row.source_rank),
+        };
+      })
+      .filter((row): row is BaseEventPlayerStatisticRow => Boolean(row?.eventId && row.playerId && row.matches > 0));
+
     const matches: BaseMatchRow[] = matchRows
-      .filter((row) => toText(row.status).trim().toLowerCase() === "published")
+      .filter(
+        (row) =>
+          toText(row.status).trim().toLowerCase() === "published" &&
+          Boolean(toOptionalText(row.published_at)) &&
+          !toOptionalText(row.deleted_at) &&
+          !toOptionalText(row.demo_seed_tag) &&
+          publicEventIds.has(toText(row.event_id)),
+      )
       .map<BaseMatchRow | null>((row) => {
         if (toOptionalText(row.season_id) && hiddenSeasonIds.has(toText(row.season_id))) {
           return null;
@@ -701,8 +774,13 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
       })
       .filter((match): match is BaseMatchRow => Boolean(match?.id && match.eventId));
 
+    const publicMatchIds = new Set(matches.map((match) => match.id));
+
     const teamResults: BaseTeamResultRow[] = matchTeamResultRows
       .map<BaseTeamResultRow | null>((row) => {
+        if (!publicMatchIds.has(toText(row.match_id)) || !activeTeamIds.has(toText(row.team_id)) || toOptionalText(row.demo_seed_tag)) {
+          return null;
+        }
         return {
           id: toText(row.id),
           matchId: toText(row.match_id),
@@ -719,6 +797,14 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
 
     const playerResults: BasePlayerResultRow[] = matchPlayerResultRows
       .map<BasePlayerResultRow | null>((row) => {
+        if (
+          !publicMatchIds.has(toText(row.match_id)) ||
+          !activePlayerIds.has(toText(row.player_id)) ||
+          !activeTeamIds.has(toText(row.team_id)) ||
+          toOptionalText(row.demo_seed_tag)
+        ) {
+          return null;
+        }
         return {
           id: toText(row.id),
           matchId: toText(row.match_id),
@@ -735,6 +821,9 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
 
     const rosterHistory: BaseRosterRow[] = rosterHistoryRows
       .map<BaseRosterRow | null>((row) => {
+        if (!activeTeamIds.has(toText(row.team_id)) || !activePlayerIds.has(toText(row.player_id)) || toOptionalText(row.demo_seed_tag)) {
+          return null;
+        }
         return {
           teamId: toText(row.team_id),
           playerId: toText(row.player_id),
@@ -754,6 +843,7 @@ async function buildSupabaseBaseDataset(): Promise<SupabaseBaseDatasetResult> {
         rosterHistory,
         events,
         eventTeams,
+        eventPlayerStatistics,
         matches,
         teamResults,
         playerResults,
@@ -819,10 +909,7 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
 
     const tournaments = tournamentDocs.filter(
       (tournament) =>
-        tournament.id &&
-        tournament.title &&
-        tournament.published === true &&
-        tournament.state?.trim().toLowerCase() !== "draft",
+        tournament.id && tournament.title && tournament.published === true && tournament.state?.trim().toLowerCase() !== "draft",
     );
     const scrims = scrimDocs.filter((scrim) => scrim.id && scrim.title && isPublicScrim(scrim));
     const eventsById = new Map<string, BaseEventRow>();
@@ -936,48 +1023,58 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
       }),
     ].filter((eventTeam) => eventTeam.eventId && eventTeam.teamId);
 
-    const matches: BaseMatchRow[] = Array.from(uniqueMatches.values())
-      .map((match) => ({
-        id: match.id,
-        eventId: match.tournamentId ?? match.scrimId ?? match.eventSlug ?? match.id,
-        matchNumber: match.matchNumber ?? match.sequenceNumber ?? 1,
-        mapName: normalizeMapName(match.map || "Unknown"),
-        startTime: match.playedAt ?? match.syncedAt ?? "",
-        status: match.status ?? "draft",
-        vodUrl: match.vodUrl ?? null,
-      }));
+    const matches: BaseMatchRow[] = Array.from(uniqueMatches.values()).map((match) => ({
+      id: match.id,
+      eventId: match.tournamentId ?? match.scrimId ?? match.eventSlug ?? match.id,
+      matchNumber: match.matchNumber ?? match.sequenceNumber ?? 1,
+      mapName: normalizeMapName(match.map || "Unknown"),
+      startTime: match.playedAt ?? match.syncedAt ?? "",
+      status: match.status ?? "draft",
+      vodUrl: match.vodUrl ?? null,
+    }));
 
-    const teamResults: BaseTeamResultRow[] = Array.from(uniqueMatches.values())
-      .flatMap((match) =>
-        (match.teamResults ?? []).map((teamResult, index) => ({
-          id: `${match.id}-${teamResult.teamId ?? teamResult.teamName}-${index}`,
-          matchId: match.id,
-          teamId: teamResult.teamId ?? teamResult.teamName,
-          placement: teamResult.placement,
-          kills: teamResult.kills,
-          placementPoints: teamResult.placementPoints,
-          killPoints: teamResult.killPoints,
-          totalPoints: teamResult.totalPoints,
-          wwcd: teamResult.placement === 1,
-        })),
-      );
+    const teamResults: BaseTeamResultRow[] = Array.from(uniqueMatches.values()).flatMap((match) =>
+      (match.teamResults ?? []).map((teamResult, index) => ({
+        id: `${match.id}-${teamResult.teamId ?? teamResult.teamName}-${index}`,
+        matchId: match.id,
+        teamId: teamResult.teamId ?? teamResult.teamName,
+        placement: teamResult.placement,
+        kills: teamResult.kills,
+        placementPoints: teamResult.placementPoints,
+        killPoints: teamResult.killPoints,
+        totalPoints: teamResult.totalPoints,
+        wwcd: teamResult.placement === 1,
+      })),
+    );
 
-    const playerResults: BasePlayerResultRow[] = Array.from(uniqueMatches.values())
-      .flatMap((match) =>
-        (match.playerResults ?? []).map((playerResult, index) => ({
-          id: `${match.id}-${playerResult.playerId}-${index}`,
-          matchId: match.id,
-          playerId: playerResult.playerId,
-          teamId: playerResult.teamId ?? "",
-          kills: playerResult.kills,
-          assists: playerResult.assists,
-          knocks: playerResult.knocks,
-          damage: playerResult.damage,
-          survivalTime: playerResult.survivalTime,
-        })),
-      );
+    const playerResults: BasePlayerResultRow[] = Array.from(uniqueMatches.values()).flatMap((match) =>
+      (match.playerResults ?? []).map((playerResult, index) => ({
+        id: `${match.id}-${playerResult.playerId}-${index}`,
+        matchId: match.id,
+        playerId: playerResult.playerId,
+        teamId: playerResult.teamId ?? "",
+        kills: playerResult.kills,
+        assists: playerResult.assists,
+        knocks: playerResult.knocks,
+        damage: playerResult.damage,
+        survivalTime: playerResult.survivalTime,
+      })),
+    );
 
     const rosterHistory: BaseRosterRow[] = [];
+    const eventPlayerStatistics: BaseEventPlayerStatisticRow[] = players
+      .filter((player) => player.sourceTournamentId && player.matches > 0)
+      .map((player) => ({
+        eventId: player.sourceTournamentId as string,
+        playerId: player.id,
+        teamId: player.teamId ?? null,
+        matches: player.matches,
+        kills: player.kills,
+        assists: player.assists,
+        knocks: player.knocks,
+        damage: player.damage,
+        sourceRank: player.sourceRank ?? null,
+      }));
 
     const events = Array.from(eventsById.values()).filter((event) => event.published);
 
@@ -992,6 +1089,7 @@ async function buildDocumentStoreBaseDataset(): Promise<BaseDataset | null> {
       rosterHistory,
       events,
       eventTeams,
+      eventPlayerStatistics,
       matches,
       teamResults,
       playerResults,
@@ -1084,33 +1182,40 @@ export function buildEventTeamDamageTotals(rows: ReadonlyArray<{ playerId: strin
   return totals;
 }
 
-function buildAggregateEventPlayerRows(players: readonly BasePlayerRow[], eventId: string, teamsById: ReadonlyMap<string, BaseTeamRow>) {
-  return getRankedPlayers(
-    players
-      .filter((player) => player.sourceTournamentId === eventId && player.matches > 0)
-      .map(
-        (player) =>
-          ({
-            rank: 0,
-            id: player.id,
-            playerId: player.id,
-            pubgName: player.pubgName,
-            teamId: player.teamId ?? null,
-            teamName: player.teamId ? (teamsById.get(player.teamId)?.name ?? null) : null,
-            avatarUrl: player.avatarUrl ?? null,
-            matches: player.matches,
-            kills: player.kills,
-            assists: player.assists,
-            knocks: player.knocks,
-            damage: player.damage,
-            avgKills: player.avgKills,
-            avgDamage: player.avgDamage,
-            mvpCount: 0,
-            trend: [],
-            sourceRank: player.sourceRank ?? null,
-          }) satisfies PubgHubEventPlayerRow & { id: string },
-      ),
-  ).map((row, index) => ({
+function buildAggregateEventPlayerRows(
+  statistics: readonly BaseEventPlayerStatisticRow[],
+  eventId: string,
+  playersById: ReadonlyMap<string, BasePlayerRow>,
+  teamsById: ReadonlyMap<string, BaseTeamRow>,
+) {
+  const rows = statistics
+    .filter((row) => row.eventId === eventId && row.matches > 0)
+    .map<(PubgHubEventPlayerRow & { id: string }) | null>((row) => {
+      const player = playersById.get(row.playerId);
+      if (!player?.active) return null;
+      return {
+        rank: 0,
+        id: row.playerId,
+        playerId: row.playerId,
+        pubgName: player.pubgName,
+        teamId: row.teamId ?? null,
+        teamName: row.teamId ? (teamsById.get(row.teamId)?.name ?? null) : null,
+        avatarUrl: player.avatarUrl ?? null,
+        matches: row.matches,
+        kills: row.kills,
+        assists: row.assists,
+        knocks: row.knocks,
+        damage: row.damage,
+        avgKills: Number((row.kills / Math.max(row.matches, 1)).toFixed(2)),
+        avgDamage: Number((row.damage / Math.max(row.matches, 1)).toFixed(2)),
+        mvpCount: 0,
+        trend: [],
+        sourceRank: row.sourceRank ?? null,
+      } satisfies PubgHubEventPlayerRow & { id: string };
+    })
+    .filter((row): row is PubgHubEventPlayerRow & { id: string } => row !== null);
+
+  return getRankedPlayers(rows).map((row, index) => ({
     ...row,
     rank: index + 1,
   }));
@@ -1466,7 +1571,9 @@ function buildDataset(base: BaseDataset): PubgHubDataset {
           rank: index + 1,
         }));
       const fallbackPlayerTable =
-        matchDerivedPlayerTable.length > 0 ? [] : buildAggregateEventPlayerRows(base.players, event.id, teamsById);
+        matchDerivedPlayerTable.length > 0
+          ? []
+          : buildAggregateEventPlayerRows(base.eventPlayerStatistics, event.id, playersById, teamsById);
       const playerTable = matchDerivedPlayerTable.length > 0 ? matchDerivedPlayerTable : fallbackPlayerTable;
       const eventDamageByTeamId = buildEventTeamDamageTotals(playerTable);
       const standingsWithDamage = standings.map((standing) => ({

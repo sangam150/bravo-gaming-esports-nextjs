@@ -1,11 +1,31 @@
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { AuthConfigurationError } from "@/lib/auth-errors";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
 import { createSessionCookie, getSessionCookieMaxAge, REFRESH_COOKIE, SESSION_COOKIE, verifyAccessToken } from "@/lib/supabase-auth-server";
+import { isSupabaseAuthCookieName } from "@/lib/supabase-auth-cookies";
+import { createSupabaseRouteClient } from "@/lib/supabase/server";
 import { jsonErrorResponse, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
+function expireAuthCookie(response: NextResponse, name: string, sameSite: "lax" | "strict") {
+  response.cookies.set(name, "", {
+    expires: new Date(0),
+    httpOnly: true,
+    maxAge: 0,
+    path: "/",
+    priority: "high",
+    sameSite,
+    secure: process.env.NODE_ENV === "production",
+  });
+}
 
 export async function POST(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
+
   const limited = await enforceRateLimit(request, {
     key: "auth-session",
     maxRequests: 10,
@@ -77,9 +97,35 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE() {
-  const response = Response.json({ success: true }, { headers: { "Cache-Control": "private, no-store" } });
-  response.headers.append("Set-Cookie", `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=0`);
-  response.headers.append("Set-Cookie", `${REFRESH_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=0`);
+export async function DELETE(request: NextRequest) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
+
+  const response = NextResponse.json({ success: true }, { headers: { "Cache-Control": "private, no-store" } });
+  const supabaseCookieNames = new Set(
+    request.cookies
+      .getAll()
+      .map((cookie) => cookie.name)
+      .filter(isSupabaseAuthCookieName),
+  );
+
+  try {
+    const supabase = createSupabaseRouteClient(request, response);
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // Explicit expiry below is authoritative even when the SDK cannot sign out.
+  }
+
+  for (const cookie of response.cookies.getAll()) {
+    if (isSupabaseAuthCookieName(cookie.name)) {
+      supabaseCookieNames.add(cookie.name);
+    }
+  }
+  for (const cookieName of supabaseCookieNames) {
+    expireAuthCookie(response, cookieName, "lax");
+  }
+  expireAuthCookie(response, SESSION_COOKIE, "strict");
+  expireAuthCookie(response, REFRESH_COOKIE, "strict");
+
   return response;
 }

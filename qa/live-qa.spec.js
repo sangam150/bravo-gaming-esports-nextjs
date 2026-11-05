@@ -399,7 +399,8 @@ async function verifyDynamicRouteNotFound(page, prefix, label) {
   writeSummary();
 }
 
-test.describe.configure({ mode: "serial" });
+// Routes are independent; one failure must not prevent auditing later pages.
+test.describe.configure({ mode: "default" });
 
 const publicStaticRoutes = [
   ["/", "Homepage"],
@@ -666,6 +667,7 @@ test("Auth entry-point smoke QA", async ({ page }) => {
   summary.passed.push({ label: "Admin login screen renders", route: "/admin/login" });
   writeSummary();
 
+  await expect(page.getByLabel("Admin email", { exact: true })).toBeVisible();
   await page.getByLabel("Admin email", { exact: true }).fill(`qa-invalid-${Date.now()}@example.com`);
   await page.getByLabel("Password", { exact: true }).fill("InvalidQA-Credential-Only!");
   const [loginResponse] = await Promise.all([

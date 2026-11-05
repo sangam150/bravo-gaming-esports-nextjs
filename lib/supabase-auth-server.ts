@@ -4,8 +4,7 @@ import { cookies } from "next/headers";
 import "server-only";
 import { AuthConfigurationError } from "./auth-errors";
 import { isAdminRole as isAdminRoleHelper, isPlatformRole } from "./authz";
-import { extractDiscordUserId } from "./discord-auth";
-import { syncDiscordRoles } from "./discord-role-sync";
+import { isSupabaseSessionCookieName } from "./supabase-auth-cookies";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { createSupabaseServerClient } from "./supabase/server";
 
@@ -13,10 +12,7 @@ export const SESSION_COOKIE = "bravo_session";
 export const REFRESH_COOKIE = "bravo_refresh";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 5; // 5 days
 
-type ProfileRecord = Pick<
-  Tables<"profiles">,
-  "id" | "role" | "team_id" | "player_id" | "display_name" | "discord_user_id" | "discord_role_synced_at"
-> & {
+type ProfileRecord = Pick<Tables<"profiles">, "id" | "role" | "role_source" | "team_id" | "player_id" | "display_name"> & {
   is_active: boolean;
 };
 
@@ -36,24 +32,11 @@ function isAdminRole(role: string | null | undefined) {
   return isAdminRoleHelper(role);
 }
 
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (error && typeof error === "object" && "message" in error) {
-    const message = (error as { message?: unknown }).message;
-    return typeof message === "string" ? message : String(error);
-  }
-
-  return String(error);
-}
-
 async function getProfileFromProfiles(authUserId: string): Promise<ProfileRecord | null> {
   const client = getSupabaseServiceRoleClient();
   const { data, error } = await client
     .from("profiles")
-    .select("id,role,team_id,player_id,display_name,discord_user_id,discord_role_synced_at,is_active")
+    .select("id,role,role_source,team_id,player_id,display_name,is_active")
     .eq("auth_user_id", authUserId)
     .maybeSingle();
 
@@ -62,43 +45,6 @@ async function getProfileFromProfiles(authUserId: string): Promise<ProfileRecord
   }
 
   return (data ?? null) as ProfileRecord | null;
-}
-
-async function getProfileFromDiscordUserId(discordUserId: string): Promise<ProfileRecord | null> {
-  const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client
-    .from("profiles")
-    .select("id,role,team_id,player_id,display_name,discord_user_id,discord_role_synced_at,is_active")
-    .eq("discord_user_id", discordUserId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? null) as ProfileRecord | null;
-}
-
-async function getUserProfileRecord(authUserId: string, discordUserId?: string | null) {
-  try {
-    const profileRecord = await getProfileFromProfiles(authUserId);
-    if (profileRecord) {
-      return profileRecord;
-    }
-
-    if (discordUserId) {
-      return await getProfileFromDiscordUserId(discordUserId);
-    }
-
-    return null;
-  } catch (error: unknown) {
-    const message = getErrorMessage(error);
-    if (!/profiles/i.test(message)) {
-      throw error;
-    }
-  }
-
-  return null;
 }
 
 function decodeJwtPayload(accessToken: string) {
@@ -138,8 +84,7 @@ async function resolveVerifiedUser(user: User | null) {
     throw new Error("Unauthorized: invalid session");
   }
 
-  const discordUserId = extractDiscordUserId(user);
-  let profileRecord = await getUserProfileRecord(user.id, discordUserId);
+  const profileRecord = await getProfileFromProfiles(user.id);
   if (!profileRecord) {
     throw new AuthConfigurationError("profile_missing", "Your account has not been fully configured. Please contact the Bravo owner.");
   }
@@ -152,28 +97,19 @@ async function resolveVerifiedUser(user: User | null) {
   if (!profileRecord.is_active) {
     throw new AuthConfigurationError("account_inactive", "This account is currently inactive. Please contact the Bravo owner.");
   }
-  if (discordUserId && profileRecord.discord_user_id === discordUserId) {
-    const configuredTtl = Number(process.env.DISCORD_ROLE_SYNC_TTL_SECONDS ?? 300);
-    const ttlSeconds = Number.isFinite(configuredTtl) ? Math.max(configuredTtl, 60) : 300;
-    const lastSync = profileRecord.discord_role_synced_at ? new Date(profileRecord.discord_role_synced_at).getTime() : 0;
-    if (!lastSync || Date.now() - lastSync >= ttlSeconds * 1000) {
-      await syncDiscordRoles(user);
-      profileRecord = await getUserProfileRecord(user.id, discordUserId);
-      if (!profileRecord?.is_active) {
-        throw new AuthConfigurationError("account_inactive", "This account is currently inactive. Please contact the Bravo owner.");
-      }
-    }
-  }
+  const relationalDiscordAuthorizationEnabled = process.env.DISCORD_RELATIONAL_TEAM_AUTH_ENABLED?.trim().toLowerCase() === "true";
+  const roleIsTrusted = profileRecord.role_source !== "discord_sync" || relationalDiscordAuthorizationEnabled;
+  const role = roleIsTrusted ? profileRecord.role : "viewer";
 
   return {
     profileId: profileRecord.id,
     uid: user.id,
     email: user.email,
-    role: profileRecord.role,
-    teamId: profileRecord.team_id,
-    playerId: profileRecord.player_id,
+    role,
+    teamId: roleIsTrusted ? profileRecord.team_id : null,
+    playerId: roleIsTrusted ? profileRecord.player_id : null,
     displayName: profileRecord.display_name,
-    isAdmin: isAdminRole(profileRecord.role),
+    isAdmin: isAdminRole(role),
     accountStatus: "active",
   } satisfies VerifiedSession;
 }
@@ -203,6 +139,8 @@ export async function verifySessionCookie(sessionCookie: string) {
 }
 
 export async function getServerSession() {
+  const cookieStore = await cookies();
+  const hasSupabaseCookie = cookieStore.getAll().some((cookie) => isSupabaseSessionCookieName(cookie.name));
   try {
     const supabase = await createSupabaseServerClient();
     const {
@@ -216,7 +154,7 @@ export async function getServerSession() {
     // Fall through to the short-lived compatibility cookie during migration.
   }
 
-  const cookieStore = await cookies();
+  if (hasSupabaseCookie) return null;
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 

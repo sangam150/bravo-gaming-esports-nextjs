@@ -11,6 +11,27 @@ const privatePagePaths = [
 ];
 const privateApiPaths = ["/api/admin/:path*", "/api/auth/:path*", "/api/cron/:path*", "/api/team/:path*", "/api/uploads/private/:path*"];
 
+const configuredPublicImageRemotePattern = (() => {
+  const configuredUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL?.trim();
+  if (!configuredUrl) return null;
+
+  try {
+    const parsedUrl = new URL(configuredUrl);
+    if (parsedUrl.protocol !== "https:" || parsedUrl.username || parsedUrl.password || parsedUrl.search || parsedUrl.hash) {
+      return null;
+    }
+    const basePath = parsedUrl.pathname.replace(/\/+$/g, "");
+    return {
+      protocol: "https",
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port,
+      pathname: basePath ? `${basePath}/**` : "/**",
+    };
+  } catch {
+    return null;
+  }
+})();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
@@ -34,6 +55,14 @@ const nextConfig = {
       },
       ...privatePagePaths.map((source) => ({ source, headers: privateNoIndexHeaders })),
       ...privateApiPaths.map((source) => ({ source, headers: privateNoStoreHeaders })),
+      {
+        source: "/overlay/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ],
+      },
     ];
   },
   images: {
@@ -49,6 +78,7 @@ const nextConfig = {
       { protocol: "https", hostname: "hldppfhtkfgthainismr.supabase.co" },
       { protocol: "https", hostname: "i.ytimg.com" },
       { protocol: "https", hostname: "**.r2.dev" },
+      ...(configuredPublicImageRemotePattern ? [configuredPublicImageRemotePattern] : []),
     ],
   },
 };

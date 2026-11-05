@@ -1,13 +1,7 @@
 import { requireAdmin, requirePlatformAdmin } from "@/lib/admin-auth";
 import { writeRequiredAuditLogFromRequest } from "@/lib/audit-logs";
 import { CanonicalTeamError } from "@/lib/canonical-teams";
-import {
-  createRegistration,
-  getRegistration,
-  getRegistrations,
-  getRegistrationTeamCandidates,
-  updateRegistrationStatus,
-} from "@/lib/data";
+import { createRegistration, getRegistration, getRegistrations, getRegistrationTeamCandidates, updateRegistrationStatus } from "@/lib/data";
 import { COLLECTIONS, DocumentWriteConflictError, getDocument } from "@/lib/document-store";
 import { ImageDecodeError } from "@/lib/image-validation";
 import { getManagedUploadRecord } from "@/lib/r2/storage";
@@ -25,6 +19,7 @@ import {
 } from "@/lib/registration-submission-state";
 import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
+import { ActiveAssetDeliveryError } from "@/lib/team-logo-service";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import { findTeamDuplicateCandidates } from "@/lib/team-onboarding";
 import { isValidDiscordHandle, RegistrationValidationError, validateRegistrationTarget } from "@/lib/team-registration";
@@ -324,7 +319,10 @@ export async function PATCH(request: Request) {
     }
     if (registration.status !== "pending") {
       if (requestedStatus === registration.status) {
-        const cleanupPending = requestedStatus === "approved" ? await cleanupPendingRegistrationLogoCandidates(registration.id) : false;
+        const cleanupPending =
+          requestedStatus === "approved" || requestedStatus === "rejected"
+            ? await cleanupPendingRegistrationLogoCandidates(registration.id)
+            : false;
         return Response.json({
           success: true,
           cleanupPending,
@@ -374,14 +372,15 @@ export async function PATCH(request: Request) {
     });
 
     if (requestedStatus !== "approved") {
+      const rejecting = requestedStatus === "rejected";
       const result = await updateRegistrationStatus(
         registrationId,
         requestedStatus as "pending" | "rejected",
         {
           approvedTeamId: normalizeOptionalString(registration.approvedTeamId),
-          logoPath: normalizeOptionalString(registration.logoPath),
-          logoUploadId: normalizeOptionalString(registration.logoUploadId),
-          logoUrl: normalizeOptionalString(registration.logoUrl),
+          logoPath: rejecting ? undefined : normalizeOptionalString(registration.logoPath),
+          logoUploadId: rejecting ? undefined : normalizeOptionalString(registration.logoUploadId),
+          logoUrl: rejecting ? undefined : normalizeOptionalString(registration.logoUrl),
           tournamentId: registration.tournamentId,
           tournamentTitle: registration.tournamentTitle,
         },
@@ -389,8 +388,10 @@ export async function PATCH(request: Request) {
           expectedRegistration: registration,
         },
       );
+      const cleanupPending = rejecting ? await cleanupPendingRegistrationLogoCandidates(registrationId) : false;
       return Response.json({
         success: true,
+        cleanupPending,
         data: result,
         team: null,
         message: requestedStatus === "rejected" ? "Registration rejected." : "Registration moved back to pending.",
@@ -412,6 +413,12 @@ export async function PATCH(request: Request) {
     await logServerError("registrations.update", error, request);
     if (error instanceof RegistrationApprovalError || error instanceof CanonicalTeamError) {
       return Response.json({ error: error.message, code: error.code }, { status: error.status });
+    }
+    if (error instanceof ActiveAssetDeliveryError) {
+      return Response.json(
+        { error: error.message, code: error.code, rollbackConfirmed: error.rollbackConfirmed },
+        { status: error.status },
+      );
     }
     if (error instanceof DocumentWriteConflictError) {
       return Response.json(

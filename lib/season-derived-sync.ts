@@ -132,20 +132,20 @@ export async function syncSeasonDerivedData(seasonId: string) {
     return null;
   }
 
-  const season = await getSeason(seasonId);
+  const season = await getSeason(seasonId, { includeInternal: true });
   if (!season) {
     return null;
   }
 
   const seasonTitle = season.seriesTitle ?? season.title;
-  const tournaments = await getSeasonTournaments(seasonId);
+  const tournaments = await getSeasonTournaments(seasonId, { includeInternal: true });
   const tournamentSnapshots = await Promise.all(
     tournaments.map(async (tournament) => {
       const [matches, standings, teams, players] = await Promise.all([
-        getTournamentMatches(tournament.id),
-        getTournamentStandings(tournament.id),
-        getTournamentTeams(tournament.id),
-        getTournamentPlayers(tournament.id),
+        getTournamentMatches(tournament.id, { includeDrafts: true }),
+        getTournamentStandings(tournament.id, { includeDrafts: true }),
+        getTournamentTeams(tournament.id, { includeInternal: true }),
+        getTournamentPlayers(tournament.id, { includeInternal: true }),
       ]);
 
       return { tournament, matches, standings, teams, players };

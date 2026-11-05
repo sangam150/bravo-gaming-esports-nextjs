@@ -45,6 +45,10 @@ export function toTeamMatchResults(
 }
 
 export function buildTournamentStandings(tournamentId: string, tournamentTitle: string, matches: TournamentMatch[]): TournamentStanding[] {
+  // One policy for every row. The latest included published scoring version
+  // governs this period's ties; no historical point totals are recalculated.
+  const orderedMatches = [...matches].sort((a, b) => (b.playedAt ?? "").localeCompare(a.playedAt ?? "") || (b.matchNumber ?? b.sequenceNumber ?? 0) - (a.matchNumber ?? a.sequenceNumber ?? 0) || b.id.localeCompare(a.id));
+  const latest = orderedMatches[0];
   const standingsMap = new Map<
     string,
     Omit<TournamentStanding, "rank"> & {
@@ -54,7 +58,7 @@ export function buildTournamentStandings(tournamentId: string, tournamentTitle: 
     }
   >();
 
-  for (const match of matches) {
+  for (const match of [...orderedMatches].reverse()) {
     for (const result of match.teamResults ?? []) {
       const teamKey = result.teamId ?? result.teamName.toLowerCase();
       const standing = standingsMap.get(teamKey) ?? {
@@ -77,10 +81,11 @@ export function buildTournamentStandings(tournamentId: string, tournamentTitle: 
         sourceTournamentId: tournamentId,
         sourceTournamentTitle: tournamentTitle,
         sourceProvider: "bravo_feed",
+        tieBreakers: latest?.scoringRules?.tieBreakers,
       };
 
       standing.matches += 1;
-      standing.wins += result.placement === 1 ? 1 : 0;
+      standing.wins += result.placement === 1 && !result.disqualified ? 1 : 0;
       standing.kills += result.kills;
       standing.killPoints += result.killPoints ?? result.kills;
       standing.placementPoints += result.placementPoints ?? placementPoints(result.placement);
@@ -89,6 +94,8 @@ export function buildTournamentStandings(tournamentId: string, tournamentTitle: 
       standing.placementTotal += result.placement;
       if ((match.playedAt ?? "").localeCompare(standing.latestPlayedAt ?? "") >= 0) {
         standing.latestPlayedAt = match.playedAt;
+        standing.latestPlacement = result.disqualified ? 1000 : result.placement;
+        standing.latestKills = result.disqualified ? 0 : result.kills;
       }
       if ((match.sequenceNumber ?? Number.NEGATIVE_INFINITY) >= (standing.sequenceNumber ?? Number.NEGATIVE_INFINITY)) {
         standing.sequenceNumber = match.sequenceNumber;

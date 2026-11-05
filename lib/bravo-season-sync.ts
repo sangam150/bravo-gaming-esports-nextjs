@@ -135,7 +135,7 @@ export async function syncBravoDailyScrimSeason(options?: { configuredDays?: num
   }
 
   const importedFeed = options?.importFeed === false ? null : await importBravoGamingFeed({ maxDay: BRAVO_REFERENCE_IMPORT_MAX_DAY });
-  const existingSeason = await getSeason(BRAVO_SEASON_SLUG);
+  const existingSeason = await getSeason(BRAVO_SEASON_SLUG, { includeInternal: true });
   const configuredDays = Math.max(
     options?.configuredDays ?? Number(existingSeason?.configuredDays ?? DEFAULT_SEASON_LENGTH),
     options?.currentDay ?? Number(existingSeason?.currentDay ?? DEFAULT_CURRENT_DAY),
@@ -257,10 +257,10 @@ export async function syncBravoDailyScrimSeason(options?: { configuredDays?: num
   const tournamentSnapshots: TournamentSnapshot[] = await Promise.all(
     seasonTournaments.map(async (tournament) => {
       const [matches, standings, teams, players] = await Promise.all([
-        getTournamentMatches(tournament.id),
-        getTournamentStandings(tournament.id),
-        getTournamentTeams(tournament.id),
-        getTournamentPlayers(tournament.id),
+        getTournamentMatches(tournament.id, { includeDrafts: true }),
+        getTournamentStandings(tournament.id, { includeDrafts: true }),
+        getTournamentTeams(tournament.id, { includeInternal: true }),
+        getTournamentPlayers(tournament.id, { includeInternal: true }),
       ]);
 
       return { tournament, matches, standings, teams, players };

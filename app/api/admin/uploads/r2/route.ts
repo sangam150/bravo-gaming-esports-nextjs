@@ -13,11 +13,13 @@ import {
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
+import { cleanupOneAbandonedAdminUpload, cleanupStagedAdminUpload, ManagedAssetCleanupError } from "@/lib/public-asset-cleanup";
 import { isImageUploadType, isPrivateUploadType, normalizeUploadType } from "@/lib/upload-config";
 import { createUploadRecord, deleteUploadRecord } from "@/lib/upload-records";
 import { resolveUploadContentType, validateUpload } from "@/lib/upload-validation";
 import { toUserFacingErrorMessage } from "@/lib/user-facing-errors";
 import { randomUUID } from "crypto";
+import { after } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -87,6 +89,7 @@ export async function POST(request: Request) {
     let publicObjectKey: string | null = null;
     let url: string;
     let visibility: "private" | "public";
+    let storedSizeBytes = buffer.byteLength;
 
     try {
       if (isImageUploadType(type) && !isPrivateUploadType(type)) {
@@ -103,9 +106,11 @@ export async function POST(request: Request) {
         publicObjectKey = path;
         url = preparedImage.publicUrl;
         visibility = "public";
-        await uploadPublicObjectAtKey(path, buffer, contentType);
+        storedSizeBytes = preparedImage.buffer.byteLength;
+        await uploadPublicObjectAtKey(path, preparedImage.buffer, contentType);
         await verifyPublicObjectDelivery(path, {
           contentType,
+          deliveryOrigin: new URL(request.url).origin,
           sizeBytes: preparedImage.decoded.sizeBytes,
         });
       } else {
@@ -129,7 +134,7 @@ export async function POST(request: Request) {
         id: uploadRecordId,
         relatedId: entityId,
         relatedType: "admin_upload",
-        sizeBytes: buffer.byteLength,
+        sizeBytes: storedSizeBytes,
         uploadedBy: session?.profileId ?? null,
       });
       persistedUploadRecordId = record.id;
@@ -146,6 +151,13 @@ export async function POST(request: Request) {
           visibility,
         },
       });
+      after(async () => {
+        try {
+          await cleanupOneAbandonedAdminUpload(record.id);
+        } catch (cleanupError) {
+          await logServerError("admin.upload.r2.abandoned_cleanup", cleanupError, request);
+        }
+      });
 
       return Response.json({
         success: true,
@@ -156,14 +168,25 @@ export async function POST(request: Request) {
         url,
       });
     } catch (error) {
-      if (persistedUploadRecordId) {
-        await deleteUploadRecord(persistedUploadRecordId).catch(() => undefined);
-      }
+      let objectDeleted = !publicObjectKey && !privateObjectKey;
       if (publicObjectKey) {
-        await deletePublicObjectByKey(publicObjectKey).catch(() => undefined);
+        try {
+          await deletePublicObjectByKey(publicObjectKey);
+          objectDeleted = true;
+        } catch {
+          objectDeleted = false;
+        }
       }
       if (privateObjectKey) {
-        await deletePrivateObjectByKey(privateObjectKey).catch(() => undefined);
+        try {
+          await deletePrivateObjectByKey(privateObjectKey);
+          objectDeleted = true;
+        } catch {
+          objectDeleted = false;
+        }
+      }
+      if (persistedUploadRecordId && objectDeleted) {
+        await deleteUploadRecord(persistedUploadRecordId).catch(() => undefined);
       }
       throw error;
     }
@@ -179,6 +202,61 @@ export async function POST(request: Request) {
           status: 500,
           fallback: "We couldn't upload that image right now. Please try again shortly.",
         }),
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+  const limited = await enforceRateLimit(request, {
+    key: "admin-upload-r2-cleanup",
+    maxRequests: 30,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
+  try {
+    const body = (await request.json().catch(() => null)) as {
+      objectKey?: unknown;
+      uploadId?: unknown;
+    } | null;
+    const objectKey = typeof body?.objectKey === "string" ? body.objectKey.trim() : "";
+    const uploadId = typeof body?.uploadId === "string" ? body.uploadId.trim() : "";
+    const result = await cleanupStagedAdminUpload({ objectKey, uploadId });
+
+    await writeRequiredAuditLogFromRequest(request, {
+      action: result.deleted ? "staged_upload_deleted" : "staged_upload_cleanup_skipped",
+      entityId: uploadId,
+      entityType: "upload",
+      oldValue: {
+        objectKey,
+      },
+      newValue: {
+        deleted: result.deleted,
+        referenced: result.referenced,
+      },
+    });
+
+    return Response.json({
+      success: true,
+      deleted: result.deleted,
+      referenced: result.referenced,
+    });
+  } catch (error: unknown) {
+    await logServerError("admin.upload.r2.cleanup", error, request);
+    if (error instanceof ManagedAssetCleanupError) {
+      return Response.json({ success: false, code: error.code, error: error.message }, { status: error.status });
+    }
+    return Response.json(
+      {
+        success: false,
+        code: "staged_upload_cleanup_failed",
+        error: "The staged upload was preserved because safe cleanup could not be confirmed.",
       },
       { status: 500 },
     );

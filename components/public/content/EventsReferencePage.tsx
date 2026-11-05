@@ -46,6 +46,16 @@ function eventMatchesStatus(event: PlatformEvent, status: string) {
   return event.status === status;
 }
 
+function getDistinctEventResultsHref(event: PlatformEvent) {
+  const resultsHref = event.analyticsHref?.trim();
+  if (!resultsHref) return null;
+
+  const detailHref = getCanonicalPublicEventHref(event);
+  const normalizedResultsHref = resultsHref.replace(/\/+$/u, "");
+  const normalizedDetailHref = detailHref.replace(/\/+$/u, "");
+  return normalizedResultsHref === normalizedDetailHref ? null : resultsHref;
+}
+
 function sortEvents(events: PlatformEvent[], sort: string) {
   const nextEvents = [...events];
   if (sort === "oldest") {
@@ -131,6 +141,8 @@ function EventVisual({
 }
 
 function FeaturedEvent({ event }: { event: PlatformEvent }) {
+  const resultsHref = getDistinctEventResultsHref(event);
+
   return (
     <section className="public-panel overflow-hidden border-accent-blue/30">
       <div className="grid lg:grid-cols-[minmax(17rem,0.8fr)_minmax(0,1.2fr)]">
@@ -173,8 +185,13 @@ function FeaturedEvent({ event }: { event: PlatformEvent }) {
           </dl>
           <div className="flex flex-wrap gap-3 lg:col-span-2">
             <PublicActionLink href={getCanonicalPublicEventHref(event)}>View Details</PublicActionLink>
-            {event.analyticsHref ? (
-              <PublicActionLink href={event.analyticsHref} variant="secondary">
+            {resultsHref ? (
+              <PublicActionLink
+                href={resultsHref}
+                variant="secondary"
+                openInNewTab={resultsHref.startsWith("http")}
+                externalLabel={resultsHref.startsWith("http") ? " opens in a new tab" : undefined}
+              >
                 View Published Results
               </PublicActionLink>
             ) : null}
@@ -186,6 +203,8 @@ function FeaturedEvent({ event }: { event: PlatformEvent }) {
 }
 
 function EventCard({ event }: { event: PlatformEvent }) {
+  const resultsHref = getDistinctEventResultsHref(event);
+
   return (
     <article className="public-card flex min-w-0 flex-col overflow-hidden">
       <div className="relative">
@@ -219,11 +238,12 @@ function EventCard({ event }: { event: PlatformEvent }) {
           <PublicActionLink href={getCanonicalPublicEventHref(event)} variant="secondary" className="flex-1 justify-center">
             View Details
           </PublicActionLink>
-          {event.analyticsHref ? (
+          {resultsHref ? (
             <PublicActionLink
-              href={event.analyticsHref}
+              href={resultsHref}
               className="flex-1 justify-center"
-              externalLabel={event.analyticsHref.startsWith("http") ? " opens in a new tab" : undefined}
+              openInNewTab={resultsHref.startsWith("http")}
+              externalLabel={resultsHref.startsWith("http") ? " opens in a new tab" : undefined}
             >
               Results
             </PublicActionLink>
@@ -398,7 +418,7 @@ export function EventsReferencePage({
           />
         ) : null}
 
-        <section aria-label="Event summary" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <section aria-label="Event summary" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           <PublicMetric
             label="Published events"
             value={formatPublicNumber(publicEvents.length)}
@@ -424,20 +444,15 @@ export function EventsReferencePage({
             value={teamEntries > 0 ? formatPublicNumber(teamEntries) : UNAVAILABLE}
             icon={<Users className="h-5 w-5" />}
           />
-          <PublicMetric
-            label="Prize pool"
-            value={UNAVAILABLE}
-            icon={<Trophy className="h-5 w-5" />}
-          />
         </section>
 
         <section className="space-y-5">
           <PublicSectionHeader
-            eyebrow="Upcoming & Ongoing Events"
+            eyebrow="Published Events"
             title="Competition Board"
             action={
               <span className="text-xs text-text-muted">
-                {listingEvents.length} additional published {listingEvents.length === 1 ? "result" : "results"}
+                {listingEvents.length} additional published {listingEvents.length === 1 ? "event" : "events"}
               </span>
             }
           />

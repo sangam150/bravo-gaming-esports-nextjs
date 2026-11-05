@@ -2,37 +2,43 @@ import { requireSupabaseEnv } from "@/lib/supabase/env";
 
 export const dynamic = "force-dynamic";
 
-function isDiscordAuthorizationRedirect(location: string | null) {
-  if (!location) return false;
+const PROVIDER_SETTINGS_TIMEOUT_MS = 4_000;
 
-  try {
-    const hostname = new URL(location).hostname.toLowerCase();
-    return hostname === "discord.com" || hostname === "www.discord.com";
-  } catch {
+function isDiscordEnabled(settings: unknown) {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
     return false;
   }
+
+  const external = (settings as { external?: unknown }).external;
+  return Boolean(
+    external && typeof external === "object" && !Array.isArray(external) && (external as { discord?: unknown }).discord === true,
+  );
 }
 
-async function canStartDiscordAuthorization() {
+async function readDiscordProviderSetting() {
   const { url, publicKey } = requireSupabaseEnv();
-  const authorizeUrl = new URL("/auth/v1/authorize", url);
-  authorizeUrl.searchParams.set("provider", "discord");
-  authorizeUrl.searchParams.set("scopes", "identify email");
+  const settingsUrl = new URL("/auth/v1/settings", url);
 
-  const response = await fetch(authorizeUrl, {
-    headers: { apikey: publicKey },
-    redirect: "manual",
+  const response = await fetch(settingsUrl, {
+    headers: {
+      Accept: "application/json",
+      apikey: publicKey,
+    },
     cache: "no-store",
+    signal: AbortSignal.timeout(PROVIDER_SETTINGS_TIMEOUT_MS),
   });
+  if (!response.ok) {
+    return false;
+  }
 
-  return response.status >= 300 && response.status < 400 && isDiscordAuthorizationRedirect(response.headers.get("location"));
+  return isDiscordEnabled(await response.json());
 }
 
 export async function GET() {
   let discord = false;
 
   try {
-    discord = await canStartDiscordAuthorization();
+    discord = await readDiscordProviderSetting();
   } catch {
     // Provider discovery must fail closed without taking email login offline.
   }

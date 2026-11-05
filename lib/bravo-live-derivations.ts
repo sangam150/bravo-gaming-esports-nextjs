@@ -90,12 +90,7 @@ function hasTrackedTeamActivity(team: Team) {
 }
 
 function hasManagedTeamProfile(team: Team) {
-  return Boolean(
-    (team.playerIds?.length ?? 0) > 0 ||
-    team.logoUrl?.trim() ||
-    team.logo?.trim() ||
-    team.country?.trim(),
-  );
+  return Boolean((team.playerIds?.length ?? 0) > 0 || team.logoUrl?.trim() || team.logo?.trim() || team.country?.trim());
 }
 
 function isPubliclyVisibleSeasonTeam(team: Team) {

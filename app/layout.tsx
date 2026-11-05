@@ -119,12 +119,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to main content
         </a>
-        <SiteHeader />
+        <div data-site-chrome className="contents">
+          <SiteHeader />
+        </div>
         <div id="main-content" className="flex-1" tabIndex={-1}>
           <RouteTransition>{children}</RouteTransition>
         </div>
         <MotionObserver />
-        <Footer />
+        <div data-site-chrome className="contents">
+          <Footer />
+        </div>
       </body>
     </html>
   );

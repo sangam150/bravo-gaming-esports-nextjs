@@ -1,5 +1,17 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import { COLLECTIONS, createDocument, deleteDocument, fetchDocumentCollection, saveDocument } from "@/lib/document-store";
+import { randomUUID } from "node:crypto";
+import {
+  COLLECTIONS,
+  fetchDocumentCollection,
+  getDocument,
+  saveDocument,
+  saveDocumentIfFieldsMatch,
+  DocumentWriteConflictError,
+} from "@/lib/document-store";
+import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
+import { requireSameOrigin } from "@/lib/request-origin";
+import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { validateScrimInput, ScrimInputError, scrimAuditSummary } from "@/lib/scrim-input";
 import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import type { Scrim } from "@/lib/types";
 
@@ -47,51 +59,114 @@ export async function GET(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
   const data = await fetchDocumentCollection<Scrim>(COLLECTIONS.scrims, 100);
-  return Response.json({ success: true, data });
+  return Response.json(
+    { success: true, data: data.filter((scrim) => !scrim.deletedAt) },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
   try {
     const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new ScrimInputError("A scrim object is required.");
     if (!body.title || !body.date || !body.map) {
       return Response.json({ error: "title, date, and map are required" }, { status: 400 });
     }
+    validateScrimInput(body);
     const payload = buildScrimPayload(body as Record<string, unknown>);
-    const result = await createDocument(COLLECTIONS.scrims, payload as Record<string, unknown>, body.id);
+    const id = typeof body.id === "string" && body.id.trim() ? body.id.trim() : randomUUID();
+    if (id.length > 160) return Response.json({ error: "Invalid scrim ID." }, { status: 400 });
+    const now = new Date().toISOString();
+    const { error } = await getSupabaseServiceRoleClient()
+      .from("app_documents")
+      .insert({
+        collection_name: COLLECTIONS.scrims,
+        id,
+        data: JSON.parse(JSON.stringify({ ...payload, createdAt: now, updatedAt: now })),
+      });
+    if (error) {
+      if (error.code === "23505") return Response.json({ error: "A scrim with this ID already exists." }, { status: 409 });
+      throw error;
+    }
+    const result = { id };
+    await writeAuditLogFromRequest(request, {
+      action: "create",
+      entityType: "scrim",
+      entityId: id,
+      newValue: scrimAuditSummary({ ...payload, id }),
+    });
     revalidateCompetitionPaths();
     return Response.json({
       success: true,
       data: { id: result.id, ...payload },
     });
   } catch (error: unknown) {
-    return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return scrimError(error);
   }
 }
 
 export async function PUT(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
   try {
     const body = await request.json();
-    if (!body.id) return Response.json({ error: "id is required" }, { status: 400 });
-    const payload = buildScrimPayload(body as Record<string, unknown>);
-    await saveDocument(COLLECTIONS.scrims, body.id, payload as Record<string, unknown>);
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new ScrimInputError("A scrim object is required.");
+    if (typeof body.id !== "string" || !body.id) return Response.json({ error: "id is required" }, { status: 400 });
+    const existing = await getDocument<Scrim>(COLLECTIONS.scrims, body.id);
+    if (!existing || existing.deletedAt) return Response.json({ error: "Scrim not found." }, { status: 404 });
+    const merged = { ...existing, ...body };
+    validateScrimInput(merged);
+    const payload = buildScrimPayload(merged);
+    await saveDocumentIfFieldsMatch(COLLECTIONS.scrims, body.id, payload as Record<string, unknown>, { updatedAt: existing.updatedAt });
+    await writeAuditLogFromRequest(request, {
+      action: "edit",
+      entityType: "scrim",
+      entityId: body.id,
+      oldValue: scrimAuditSummary(existing),
+      newValue: scrimAuditSummary({ ...payload, id: body.id }),
+    });
     revalidateCompetitionPaths();
     return Response.json({ success: true, data: { id: body.id, ...payload } });
   } catch (error: unknown) {
-    return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return scrimError(error);
   }
 }
 
 export async function DELETE(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   if (!id) return Response.json({ error: "id is required" }, { status: 400 });
-  await deleteDocument(COLLECTIONS.scrims, id);
-  revalidateCompetitionPaths();
-  return Response.json({ success: true });
+  try {
+    const existing = await getDocument<Scrim>(COLLECTIONS.scrims, id);
+    if (!existing || existing.deletedAt) return Response.json({ error: "Scrim not found." }, { status: 404 });
+    await saveDocument(COLLECTIONS.scrims, id, { published: false, deletedAt: new Date().toISOString() });
+    await writeAuditLogFromRequest(request, {
+      action: "archive",
+      entityType: "scrim",
+      entityId: id,
+      oldValue: scrimAuditSummary(existing),
+      newValue: { published: false, deleted: true },
+    });
+    revalidateCompetitionPaths();
+    return Response.json({ success: true });
+  } catch (error) {
+    return scrimError(error);
+  }
+}
+
+function scrimError(error: unknown) {
+  if (error instanceof ScrimInputError || error instanceof SyntaxError) return Response.json({ error: error.message }, { status: 400 });
+  if (error instanceof DocumentWriteConflictError)
+    return Response.json({ error: "Scrim changed while saving. Reload and try again." }, { status: 409 });
+  return Response.json({ error: "Could not save the scrim. Check the database connection and retry." }, { status: 503 });
 }

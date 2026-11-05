@@ -294,7 +294,9 @@ export function CompetitionTeamsPage({ dataset, searchParams, basePath }: Compet
               </div>
 
               <div className="border-y border-white/10 py-4 lg:border-x lg:border-y-0 lg:px-5 lg:py-0">
-                <p className="font-display text-[11px] font-semibold uppercase tracking-[0.05em] text-text-secondary">Season Stats</p>
+                <p className="font-display text-[11px] font-semibold uppercase tracking-[0.05em] text-text-secondary">
+                  Published Results
+                </p>
                 <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[5px] border border-[rgba(112,145,180,0.2)] bg-[rgba(112,145,180,0.2)]">
                   <PublicMetric label="Total Points" value={formatPublicNumber(featuredTeam.statsTracked ? featuredTeam.totalPoints : null)} />
                   <PublicMetric label="Total Kills" value={formatPublicNumber(featuredTeam.statsTracked ? featuredTeam.kills : null)} />
@@ -358,7 +360,7 @@ export function CompetitionTeamsPage({ dataset, searchParams, basePath }: Compet
           {visibleRows.length > 0 ? (
             <>
               <div className="hidden lg:block">
-                <div className="public-table-wrap">
+                <div className="public-table-wrap" role="region" aria-label="Published team directory table" tabIndex={0}>
                   <table className="public-table min-w-[1200px]">
                     <caption className="sr-only">Published PUBG team directory and standings</caption>
                     <thead>

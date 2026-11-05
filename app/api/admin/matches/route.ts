@@ -1,5 +1,7 @@
-import { requireAdmin } from "@/lib/admin-auth";
-import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { getRequestSession, requireAdmin, requirePlatformAdmin } from "@/lib/admin-auth";
+import { requireSameOrigin } from "@/lib/request-origin";
+import { writeAuditLogFromRequest, writeRequiredAuditLogFromRequest } from "@/lib/audit-logs";
+import { parseScoringDecision, hasScoringDecisions } from "@/lib/scoring-rules";
 import {
   deleteCompetitionMatch,
   getCompetitionMatch,
@@ -26,6 +28,7 @@ function normalizeTeamResults(value: unknown) {
     .map(
       (item) =>
         ({
+          ...parseScoringDecision(item),
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
           teamName: getUserFacingTeamLabel(
             typeof item.teamName === "string" ? item.teamName : undefined,
@@ -86,6 +89,7 @@ function normalizeMatchInput(value: Record<string, unknown>) {
 
   return {
     id: typeof value.id === "string" ? value.id : undefined,
+    revision: typeof value.revision === "number" && Number.isSafeInteger(value.revision) && value.revision >= 0 ? value.revision : undefined,
     tournamentId: typeof value.tournamentId === "string" ? value.tournamentId : undefined,
     scrimId: typeof value.scrimId === "string" ? value.scrimId : undefined,
     pubgMatchId: typeof value.pubgMatchId === "string" ? value.pubgMatchId : "",
@@ -97,7 +101,7 @@ function normalizeMatchInput(value: Record<string, unknown>) {
     eventSlug: typeof value.eventSlug === "string" ? value.eventSlug : undefined,
     pointSystemId: typeof value.pointSystemId === "string" ? value.pointSystemId : undefined,
     pointSystemName: typeof value.pointSystemName === "string" ? value.pointSystemName : undefined,
-    status: value.status === "draft" ? "draft" : "published",
+    status: value.status === "published" ? "published" : "draft",
     winner: typeof value.winner === "string" ? value.winner : undefined,
     points: typeof value.points === "number" && Number.isFinite(value.points) ? value.points : undefined,
     knockouts: typeof value.knockouts === "number" && Number.isFinite(value.knockouts) ? value.knockouts : undefined,
@@ -121,6 +125,7 @@ function normalizeMatchInput(value: Record<string, unknown>) {
 
 function getAdminMatchErrorStatus(message: string) {
   const normalizedMessage = message.trim().toLowerCase();
+  if (normalizedMessage.includes("revision conflict")) return 409;
   if (normalizedMessage.includes("already exists") || normalizedMessage.includes("duplicate match")) {
     return 409;
   }
@@ -129,7 +134,7 @@ function getAdminMatchErrorStatus(message: string) {
     return 404;
   }
 
-  if (normalizedMessage.includes("required")) {
+  if (normalizedMessage.includes("required") || normalizedMessage.startsWith("invalid match results:")) {
     return 400;
   }
 
@@ -186,12 +191,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
+    const actorId = (await getRequestSession(request))?.profileId;
     const entries = Array.isArray(body.matches)
       ? body.matches.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object").map(normalizeMatchInput)
       : [normalizeMatchInput(body)];
+    const decisions = entries.some(entry => hasScoringDecisions(entry.teamResults));
+    if (decisions) { const approval = await requirePlatformAdmin(request); if (approval.response) return approval.response; await writeRequiredAuditLogFromRequest(request, { action: "match.decision.review", entityType: "match", entityId: entries[0]?.id ?? "new", newValue: entries }); }
 
     if (entries.some((entry) => !entry.tournamentId || !entry.map)) {
       return Response.json({ error: "tournamentId and map are required for every match" }, { status: 400 });
@@ -201,11 +211,15 @@ export async function POST(request: Request) {
       entries.length === 1
         ? await saveCompetitionMatch(entries[0], {
             publish: entries[0].status === "published",
+            allowScoringDecisions: decisions,
+            actorId,
           })
         : await Promise.all(
             entries.map((entry) =>
               saveCompetitionMatch(entry, {
                 publish: entry.status === "published",
+                allowScoringDecisions: decisions,
+                actorId,
               }),
             ),
           );
@@ -226,9 +240,12 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
+    const actorId = (await getRequestSession(request))?.profileId;
     const action = typeof body.action === "string" ? body.action : undefined;
     const entry = normalizeMatchInput(body);
     const matchId = entry.id ?? (typeof body.id === "string" ? body.id : undefined);
@@ -242,9 +259,16 @@ export async function PUT(request: Request) {
       if (!existingMatch) {
         return Response.json({ error: "Match not found" }, { status: 404 });
       }
+      if (entry.revision === undefined || entry.revision !== existingMatch.revision) {
+        return Response.json({ error: "Match revision conflict. Reload the match before retrying." }, { status: 409 });
+      }
 
       let data: TournamentMatch;
       let auditAction = action;
+      let decisions = hasScoringDecisions(existingMatch.teamResults);
+      // A rollback may restore a protected decision absent from the current row.
+      if (action === "rollback") decisions = true;
+      if (decisions && action !== "unpublish") { const approval = await requirePlatformAdmin(request); if (approval.response) return approval.response; await writeRequiredAuditLogFromRequest(request, { action: "match.decision.review", entityType: "match", entityId: matchId, oldValue: existingMatch, newValue: { action } }); }
 
       if (action === "publish") {
         data = await saveCompetitionMatch(
@@ -252,12 +276,12 @@ export async function PUT(request: Request) {
             ...existingMatch,
             status: "published",
           },
-          { publish: true },
+          { publish: true, allowScoringDecisions: decisions, reviewedPublication: true, actorId },
         );
       } else if (action === "unpublish") {
-        data = await setCompetitionMatchPublishedState(matchId, false);
+        data = await setCompetitionMatchPublishedState(matchId, false, entry.revision, actorId);
       } else if (action === "recalculate") {
-        data = await recalculateCompetitionMatch(matchId);
+        data = await recalculateCompetitionMatch(matchId, decisions, entry.revision, actorId);
       } else {
         const snapshot = await getLatestRollbackSnapshot(matchId);
         if (!snapshot) {
@@ -267,7 +291,8 @@ export async function PUT(request: Request) {
         data = await restoreCompetitionMatchFromSnapshot({
           ...snapshot,
           id: matchId,
-        });
+          revision: existingMatch.revision,
+        }, decisions, actorId);
         auditAction = "rollback";
       }
 
@@ -287,8 +312,12 @@ export async function PUT(request: Request) {
     }
 
     const existingMatch = entry.id ? await getCompetitionMatch(entry.id) : null;
+    const decisions = hasScoringDecisions(entry.teamResults) || hasScoringDecisions(existingMatch?.teamResults);
+    if (decisions) { const approval = await requirePlatformAdmin(request); if (approval.response) return approval.response; await writeRequiredAuditLogFromRequest(request, { action: "match.decision.review", entityType: "match", entityId: entry.id ?? "new", oldValue: existingMatch, newValue: entry }); }
     const data = await saveCompetitionMatch(entry, {
       publish: entry.status === "published",
+      allowScoringDecisions: decisions,
+      actorId,
     });
     await writeAuditLogFromRequest(request, {
       action: "edit",
@@ -308,6 +337,8 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
@@ -318,7 +349,9 @@ export async function DELETE(request: Request) {
 
   try {
     const existingMatch = await getCompetitionMatch(id);
-    const data = await deleteCompetitionMatch(id);
+    const revision = Number(searchParams.get("revision"));
+    if (!searchParams.has("revision") || !Number.isSafeInteger(revision) || revision < 0) return Response.json({ error: "Match revision is required. Reload the match." }, { status: 400 });
+    const data = await deleteCompetitionMatch(id, revision, (await getRequestSession(request))?.profileId);
     await writeAuditLogFromRequest(request, {
       action: "delete",
       entityType: "match",
@@ -330,6 +363,6 @@ export async function DELETE(request: Request) {
     return Response.json({ success: true, data });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: message.includes("cannot be deleted") ? 409 : 500 });
+    return Response.json({ error: message }, { status: message.includes("cannot be deleted") ? 409 : getAdminMatchErrorStatus(message) });
   }
 }

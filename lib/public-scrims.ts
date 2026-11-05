@@ -13,9 +13,7 @@ export type PublicScrimDayResult = Omit<ScrimDayResult, "scrims"> & {
 };
 
 export function isPublicScrim(scrim: Scrim) {
-  return (
-    scrim.published === true && !scrim.deletedAt && !hasPublicDemoMarker(scrim.id, scrim.title, scrim.announcement, scrim.seasonTitle)
-  );
+  return scrim.published === true && !scrim.deletedAt && !hasPublicDemoMarker(scrim.id, scrim.title, scrim.announcement, scrim.seasonTitle);
 }
 
 export function selectPublicScrims(scrims: readonly Scrim[]) {

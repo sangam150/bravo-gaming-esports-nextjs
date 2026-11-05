@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import pg from "pg";
+import { EXPECTED_SUPABASE_PROJECT_REF, getVerifiedDatabaseConnection } from "../scripts/lib/verified-database-connection.mjs";
 
-const expectedProjectRef = "hldppfhtkfgthainismr";
 const { Client } = pg;
 
 function required(name) {
@@ -26,11 +26,11 @@ function describeConnection(name) {
 }
 
 async function verifyPostgres(name) {
-  const connectionString = required(name);
+  const connection = getVerifiedDatabaseConnection(required(name), name);
   const client = new Client({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
+    connectionString: connection.connectionString,
     connectionTimeoutMillis: 10_000,
+    ssl: connection.ssl,
   });
   await client.connect();
   try {
@@ -48,7 +48,7 @@ async function verifyPostgres(name) {
 
 const supabaseUrl = required("NEXT_PUBLIC_SUPABASE_URL");
 const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
-if (projectRef !== expectedProjectRef) {
+if (projectRef !== EXPECTED_SUPABASE_PROJECT_REF) {
   throw new Error(`Unexpected Supabase project ref: ${projectRef}`);
 }
 

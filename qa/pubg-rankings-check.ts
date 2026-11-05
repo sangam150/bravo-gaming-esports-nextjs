@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { getPubgDashboardData, getPubgHubDataset } from "../lib/pubg-hub";
 import {
   buildPubgAggregatePlayerBoardRows,
+  buildPubgEventPlayerBoardRows,
   buildPubgPlayerBoardRows,
   buildPubgTeamBoardRows,
   comparePubgPlayers,
@@ -56,6 +57,30 @@ function assertDeterministicRankingFixtures() {
     rankedPlayers.map((player) => player.id),
     ["player-b", "player-a", "player-c"],
   );
+
+  const eventPlayerBoard = buildPubgEventPlayerBoardRows(
+    [
+      {
+        rank: 1,
+        playerId: "player-a",
+        pubgName: "Alpha",
+        teamId: "historical-team",
+        teamName: "Historical Team",
+        matches: 4,
+        kills: 12,
+        assists: 4,
+        knocks: 7,
+        damage: 1_900,
+        avgKills: 3,
+        avgDamage: 475,
+        mvpCount: 1,
+        trend: [3, 4, 2, 3],
+      },
+    ],
+    new Map([["player-a", { id: "player-a", slug: "alpha", avatarUrl: null }]]),
+  );
+  assert.equal(eventPlayerBoard[0]?.teamId, "historical-team", "Event fallback must preserve the historical team ID");
+  assert.equal(eventPlayerBoard[0]?.teamName, "Historical Team", "Event fallback must preserve the historical team name");
 }
 
 async function main() {

@@ -1,3 +1,5 @@
+import type { CSSProperties, ReactNode } from "react";
+import Link from "next/link";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import type {
   PubgHubEvent,
@@ -10,24 +12,23 @@ import type {
   PubgHubSource,
   PubgHubTeam,
 } from "@/lib/pubg-hub";
-import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
 
 type SearchParamValue = string | string[] | undefined;
 
-const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
-const NPT_OFFSET_MS = (5 * 60 + 45) * 60 * 1000;
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "Asia/Kathmandu",
+});
 
-function getNptDateParts(value: Date) {
-  const nptDate = new Date(value.getTime() + NPT_OFFSET_MS);
-  return {
-    day: nptDate.getUTCDate(),
-    hours: nptDate.getUTCHours(),
-    minutes: nptDate.getUTCMinutes(),
-    month: SHORT_MONTHS[nptDate.getUTCMonth()],
-    year: nptDate.getUTCFullYear(),
-  };
-}
+const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "Asia/Kathmandu",
+});
 
 function joinClasses(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -70,8 +71,7 @@ export function formatDate(value?: string | null) {
     return value;
   }
 
-  const parts = getNptDateParts(parsed);
-  return `${parts.month} ${parts.day}, ${parts.year}`;
+  return dateFormatter.format(parsed);
 }
 
 export function formatDateTime(value?: string | null) {
@@ -82,10 +82,7 @@ export function formatDateTime(value?: string | null) {
     return value;
   }
 
-  const parts = getNptDateParts(parsed);
-  const period = parts.hours >= 12 ? "PM" : "AM";
-  const displayHour = parts.hours % 12 || 12;
-  return `${parts.month} ${parts.day}, ${displayHour}:${String(parts.minutes).padStart(2, "0")} ${period} NPT`;
+  return `${dateTimeFormatter.format(parsed)} NPT`;
 }
 
 export function formatDateRange(startDate?: string | null, endDate?: string | null) {
@@ -131,7 +128,9 @@ export function SectionHeader({
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
         <p className="section-title">{eyebrow}</p>
-        <h2 className="mt-2 font-display text-[1.55rem] font-black uppercase text-white sm:text-[1.8rem]">{title}</h2>
+        <h2 className="mt-2 font-display text-[1.55rem] font-black uppercase text-white sm:text-[1.8rem]">
+          {title}
+        </h2>
         {description ? <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">{description}</p> : null}
       </div>
       {action}
@@ -139,7 +138,11 @@ export function SectionHeader({
   );
 }
 
-function StatTone({ tone = "blue" }: { tone?: "blue" | "green" | "red" | "yellow" }) {
+function StatTone({
+  tone = "blue",
+}: {
+  tone?: "blue" | "green" | "red" | "yellow";
+}) {
   return tone === "green"
     ? "text-accent-green"
     : tone === "red"
@@ -185,11 +188,7 @@ export function PageHero({
   title: ReactNode;
   description: string;
   actions?: ReactNode;
-  stats?: Array<{
-    label: string;
-    value: string | number;
-    tone?: "blue" | "green" | "red" | "yellow";
-  }>;
+  stats?: Array<{ label: string; value: string | number; tone?: "blue" | "green" | "red" | "yellow" }>;
   aside?: ReactNode;
 }) {
   return (
@@ -197,9 +196,20 @@ export function PageHero({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(47,152,255,0.18),transparent_28%),radial-gradient(circle_at_86%_18%,rgba(20,126,245,0.14),transparent_24%)]" />
       <div className="relative grid gap-5 xl:grid-cols-[1.25fr,0.75fr]">
         <div className="min-w-0">
+          <nav aria-label="Breadcrumb" className="mb-4 text-xs text-text-muted">
+            <ol className="flex flex-wrap items-center gap-2">
+              <li><Link href="/">Home</Link></li>
+              <li aria-hidden="true">/</li>
+              <li><Link href="/pubg">PUBG</Link></li>
+              <li aria-hidden="true">/</li>
+              <li aria-current="page">{typeof title === "string" ? title : badge}</li>
+            </ol>
+          </nav>
           <span className="brand-badge">{badge}</span>
           <h1 className="hero-h1 mt-4">{title}</h1>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">{description}</p>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
+            {description}
+          </p>
           {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
           {stats?.length ? (
             <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -250,7 +260,7 @@ export function StatusPill({ status }: { status: PubgHubEventStatus }) {
     <span
       className={joinClasses(
         "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
-        toneClassForStatus(status),
+        toneClassForStatus(status)
       )}
     >
       {status === "ongoing" ? <span className="live-dot h-1.5 w-1.5" /> : null}
@@ -266,7 +276,7 @@ export function StatePill({ state }: { state: PubgHubEventState }) {
     <span
       className={joinClasses(
         "inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
-        toneClassForState(state),
+        toneClassForState(state)
       )}
     >
       {label}
@@ -294,12 +304,7 @@ export function SyncPill({ syncStatus }: { syncStatus: PubgHubEvent["syncStatus"
           : "Draft";
 
   return (
-    <span
-      className={joinClasses(
-        "inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
-        className,
-      )}
-    >
+    <span className={joinClasses("inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]", className)}>
       {label}
     </span>
   );
@@ -316,12 +321,7 @@ export function FormPill({ label }: { label: string }) {
           : "border-white/10 bg-white/5 text-text-muted";
 
   return (
-    <span
-      className={joinClasses(
-        "inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
-        className,
-      )}
-    >
+    <span className={joinClasses("inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]", className)}>
       {label}
     </span>
   );
@@ -336,25 +336,23 @@ export function RankBadge({ rank }: { rank: number }) {
         : "border-white/10 bg-white/5 text-text-muted";
 
   return (
-    <span
-      className={joinClasses(
-        "inline-flex min-w-10 items-center justify-center rounded-full border px-2.5 py-1 font-mono-stat text-xs",
-        className,
-      )}
-    >
+    <span className={joinClasses("inline-flex min-w-10 items-center justify-center rounded-full border px-2.5 py-1 font-mono-stat text-xs", className)}>
       #{rank}
     </span>
   );
 }
 
-export function EmptyState({ title, description, action }: { title: string; description: string; action?: ReactNode }) {
+export function EmptyState({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) {
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      className="rounded-[22px] border border-dashed border-white/10 bg-black/15 p-6 text-center"
-    >
+    <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 p-6 text-center">
       <p className="font-display text-lg font-black uppercase text-white">{title}</p>
       <p className="mt-3 text-sm leading-7 text-text-muted">{description}</p>
       {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
@@ -495,7 +493,9 @@ export function TeamIdentity({
       <TeamAvatar name={team.name} imageUrl={team.logoUrl ?? undefined} size="sm" />
       <div className="min-w-0">
         <p className="truncate font-semibold text-white">{team.name}</p>
-        <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{team.tag ? `[${team.tag}]` : "PUBG Team"}</p>
+        <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">
+          {team.tag ? `[${team.tag}]` : "PUBG Team"}
+        </p>
       </div>
       {meta ? <div className="ml-auto shrink-0">{meta}</div> : null}
     </div>
@@ -506,10 +506,7 @@ export function TeamIdentity({
   }
 
   return (
-    <Link
-      href={href}
-      className="block rounded-[18px] border border-white/[0.06] bg-black/15 p-4 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
-    >
+    <Link href={href} className="block rounded-[18px] border border-white/[0.06] bg-black/15 p-4 transition hover:border-accent-blue/25 hover:bg-accent-blue/5">
       {content}
     </Link>
   );
@@ -529,7 +526,9 @@ export function PlayerIdentity({
       <TeamAvatar name={player.pubgName} imageUrl={player.avatarUrl ?? undefined} size="sm" />
       <div className="min-w-0">
         <p className="truncate font-semibold text-white">{player.pubgName}</p>
-        <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">{player.currentTeamName ?? "Team TBD"}</p>
+        <p className="truncate text-xs uppercase tracking-[0.16em] text-text-muted">
+          {player.currentTeamName ?? "Team TBD"}
+        </p>
       </div>
       {meta ? <div className="ml-auto shrink-0">{meta}</div> : null}
     </div>
@@ -540,21 +539,21 @@ export function PlayerIdentity({
   }
 
   return (
-    <Link
-      href={href}
-      className="block rounded-[18px] border border-white/[0.06] bg-black/15 p-4 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
-    >
+    <Link href={href} className="block rounded-[18px] border border-white/[0.06] bg-black/15 p-4 transition hover:border-accent-blue/25 hover:bg-accent-blue/5">
       {content}
     </Link>
   );
 }
 
-export function EventSummaryCard({ event, href }: { event: PubgHubEvent; href: string }) {
+export function EventSummaryCard({
+  event,
+  href,
+}: {
+  event: PubgHubEvent;
+  href: string;
+}) {
   return (
-    <Link
-      href={href}
-      className="block rounded-[24px] border border-white/[0.06] bg-black/15 p-5 transition hover:border-accent-blue/25 hover:bg-accent-blue/5"
-    >
+    <Link href={href} className="block rounded-[24px] border border-white/[0.06] bg-black/15 p-5 transition hover:border-accent-blue/25 hover:bg-accent-blue/5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue">{event.region}</p>
@@ -581,7 +580,15 @@ export function EventSummaryCard({ event, href }: { event: PubgHubEvent; href: s
   );
 }
 
-export function MapStatsTable({ stats, title, description }: { stats: PubgHubMapStat[]; title?: string; description?: string }) {
+export function MapStatsTable({
+  stats,
+  title,
+  description,
+}: {
+  stats: PubgHubMapStat[];
+  title?: string;
+  description?: string;
+}) {
   return (
     <div className="esports-card overflow-hidden !p-0">
       {title ? (
@@ -597,9 +604,8 @@ export function MapStatsTable({ stats, title, description }: { stats: PubgHubMap
           />
         </div>
       ) : (
-        <div className="table-scroll" tabIndex={0}>
-          <table className="data-table min-w-full">
-            <caption className="sr-only">PUBG performance statistics by map</caption>
+        <div className="table-scroll">
+          <table aria-label="Map statistics" className="data-table min-w-full">
             <thead>
               <tr>
                 <th scope="col">Map</th>
@@ -614,14 +620,12 @@ export function MapStatsTable({ stats, title, description }: { stats: PubgHubMap
             <tbody>
               {stats.map((row) => (
                 <tr key={row.map}>
-                  <th scope="row" className="font-semibold text-white">
-                    {row.map}
-                  </th>
+                  <td className="font-semibold text-white">{row.map}</td>
                   <td className="text-right">{formatNumber(row.matches)}</td>
                   <td className="text-right">{formatNumber(row.kills)}</td>
                   <td className="text-right">{formatNumber(row.wins)}</td>
                   <td className="text-right">{formatDecimal(row.avgPlacement, 2)}</td>
-                  <td className="text-right">{row.damage === null ? "Not tracked" : formatNumber(row.damage)}</td>
+                  <td className="text-right">{row.damage === null ? "Unavailable" : formatNumber(row.damage)}</td>
                   <td className="points-cell text-right">{formatNumber(row.points)}</td>
                 </tr>
               ))}
@@ -642,7 +646,10 @@ export function RecentMatchCards({
 }) {
   if (matches.length === 0) {
     return (
-      <EmptyState title="No match results have been published yet" description="Results will appear once they are officially verified." />
+      <EmptyState
+        title="No match results have been published yet"
+        description="Results will appear once they are officially verified."
+      />
     );
   }
 
@@ -650,15 +657,13 @@ export function RecentMatchCards({
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {matches.map((match) => {
         const isRecentMatch = "teamName" in match;
-        const winnerName = isRecentMatch ? match.teamName : (match.winnerTeamName ?? "Winner TBD");
+        const winnerName = isRecentMatch ? match.teamName : match.winnerTeamName ?? "Winner TBD";
         const winnerLogo = isRecentMatch
-          ? (teamLookup?.get(match.teamId)?.logoUrl ?? null)
+          ? teamLookup?.get(match.teamId)?.logoUrl ?? null
           : match.winnerTeamId
-            ? (teamLookup?.get(match.winnerTeamId)?.logoUrl ?? null)
+            ? teamLookup?.get(match.winnerTeamId)?.logoUrl ?? null
             : null;
-        const href = buildHref(`/pubg/events/${match.eventSlug}`, {
-          tab: "matches",
-        });
+        const href = buildHref(`/pubg/events/${match.eventSlug}`, { tab: "matches" });
 
         return (
           <Link
@@ -778,11 +783,7 @@ export function RadarComparison({
           {[0.25, 0.5, 0.75, 1].map((ratio) => (
             <polygon
               key={ratio}
-              points={buildRadarPolygon(
-                points.map(() => ratio),
-                radius,
-                center,
-              )}
+              points={buildRadarPolygon(points.map(() => ratio), radius, center)}
               fill="none"
               stroke="rgba(255,255,255,0.08)"
               strokeWidth="1"
@@ -795,18 +796,8 @@ export function RadarComparison({
 
             return <line key={`axis-${index}`} x1={center} y1={center} x2={x} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />;
           })}
-          <polygon
-            points={buildRadarPolygon(normalizedSecond, radius, center)}
-            fill="rgba(22,163,74,0.14)"
-            stroke="rgba(22,163,74,0.92)"
-            strokeWidth="2.5"
-          />
-          <polygon
-            points={buildRadarPolygon(normalizedFirst, radius, center)}
-            fill="rgba(47,152,255,0.14)"
-            stroke="rgba(47,152,255,0.92)"
-            strokeWidth="2.5"
-          />
+          <polygon points={buildRadarPolygon(normalizedSecond, radius, center)} fill="rgba(22,163,74,0.14)" stroke="rgba(22,163,74,0.92)" strokeWidth="2.5" />
+          <polygon points={buildRadarPolygon(normalizedFirst, radius, center)} fill="rgba(47,152,255,0.14)" stroke="rgba(47,152,255,0.92)" strokeWidth="2.5" />
         </svg>
         {points.map((point, index) => {
           const angle = -Math.PI / 2 + (Math.PI * 2 * index) / points.length;

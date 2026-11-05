@@ -1,5 +1,6 @@
 import "server-only";
 import { hasTeamWorkspaceAccess } from "./authz";
+import { requestHasSupabaseAuthCookie } from "./supabase-auth-cookies";
 import {
   SESSION_COOKIE,
   getServerSession,
@@ -38,7 +39,7 @@ export async function getRequestSession(request: Request): Promise<VerifiedSessi
   }
 
   const sessionCookie = readSessionCookie(request);
-  if (sessionCookie) {
+  if (sessionCookie && !requestHasSupabaseAuthCookie(request)) {
     try {
       return await verifySessionCookie(sessionCookie);
     } catch {

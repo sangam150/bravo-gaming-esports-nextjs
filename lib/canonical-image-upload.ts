@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { decodeApprovedImage, type DecodedImageMetadata } from "./image-validation";
+import { canonicalizeApprovedImage, type DecodedImageMetadata } from "./image-validation";
 import { buildPublicFileUrl } from "./r2/storage";
 import { getUploadFolder, getUploadVisibility, isImageUploadType, sanitizeStorageSegment, type UploadType } from "./upload-config";
 
@@ -21,12 +21,14 @@ export type CanonicalImageAssetMetadata = {
 
 type CanonicalImageCoreMetadata = Omit<CanonicalImageAssetMetadata, "objectKey" | "publicUrl" | "status">;
 
-export type PreparedCanonicalImage = {
+type PreparedCanonicalImage = {
+  buffer: Buffer;
   decoded: DecodedImageMetadata;
   metadata: CanonicalImageCoreMetadata;
 };
 
-export type PreparedCanonicalPublicImage = {
+type PreparedCanonicalPublicImage = {
+  buffer: Buffer;
   decoded: DecodedImageMetadata;
   metadata: CanonicalImageAssetMetadata;
   objectKey: string;
@@ -37,31 +39,44 @@ function normalizeAssetName(value: string) {
   return sanitizeStorageSegment(value).replace(/_/g, "-").toLowerCase();
 }
 
+const SMALL_SQUARE_IMAGE_TYPES = new Set<UploadType>([
+  "coach_avatar",
+  "player_avatar",
+  "player_photo",
+  "sponsor_logo",
+  "team_logo",
+  "team_logo_pending",
+]);
+
 export async function prepareCanonicalImage(input: {
   altText?: string;
   buffer: Buffer;
   declaredContentType?: string | null;
   fileName: string;
   now?: Date;
+  type?: UploadType;
 }): Promise<PreparedCanonicalImage> {
-  const decoded = await decodeApprovedImage(input.buffer, {
+  const canonicalImage = await canonicalizeApprovedImage(input.buffer, {
     declaredContentType: input.declaredContentType,
     fileName: input.fileName,
+    maxDimension: input.type && SMALL_SQUARE_IMAGE_TYPES.has(input.type) ? 1024 : 2560,
+    quality: input.type && SMALL_SQUARE_IMAGE_TYPES.has(input.type) ? 90 : 86,
   });
-  const contentHash = createHash("sha256").update(input.buffer).digest("hex");
+  const contentHash = createHash("sha256").update(canonicalImage.buffer).digest("hex");
   const timestamp = (input.now ?? new Date()).getTime();
 
   return {
-    decoded,
+    buffer: canonicalImage.buffer,
+    decoded: canonicalImage.metadata,
     metadata: {
       altText: input.altText?.trim() || null,
       contentHash,
-      height: decoded.height,
-      mimeType: decoded.contentType,
-      sizeBytes: decoded.sizeBytes,
+      height: canonicalImage.metadata.height,
+      mimeType: canonicalImage.metadata.contentType,
+      sizeBytes: canonicalImage.metadata.sizeBytes,
       updatedAt: new Date(timestamp).toISOString(),
       version: `${timestamp}-${contentHash.slice(0, 12)}`,
-      width: decoded.width,
+      width: canonicalImage.metadata.width,
     },
   };
 }
@@ -86,6 +101,7 @@ export async function prepareCanonicalPublicImageUpload(input: {
     declaredContentType: input.declaredContentType,
     fileName: input.fileName,
     now: input.now,
+    type: input.type,
   });
   const entityId = sanitizeStorageSegment(input.entityId);
   const assetName = normalizeAssetName(input.assetName ?? input.type);
@@ -93,6 +109,7 @@ export async function prepareCanonicalPublicImageUpload(input: {
   const publicUrl = buildPublicFileUrl(objectKey);
 
   return {
+    buffer: preparedImage.buffer,
     decoded: preparedImage.decoded,
     metadata: {
       ...preparedImage.metadata,

@@ -23,6 +23,11 @@ export type DecodedImageMetadata = {
   width: number;
 };
 
+type CanonicalizedImage = {
+  buffer: Buffer;
+  metadata: DecodedImageMetadata;
+};
+
 export class ImageDecodeError extends Error {
   constructor(message: string) {
     super(message);
@@ -73,7 +78,7 @@ export async function decodeApprovedImage(
   }
 
   const contentType = CONTENT_TYPE_BY_FORMAT[supportedFormat];
-  const declaredContentType = options.declaredContentType?.trim().toLowerCase();
+  const declaredContentType = options.declaredContentType?.split(";", 1)[0]?.trim().toLowerCase();
   if (declaredContentType && declaredContentType !== contentType) {
     throw new ImageDecodeError("The file contents do not match the reported image type.");
   }
@@ -94,5 +99,62 @@ export async function decodeApprovedImage(
     height,
     sizeBytes: buffer.byteLength,
     width,
+  };
+}
+
+/**
+ * Fully decodes and re-encodes an approved image before it enters managed
+ * storage. Re-encoding strips EXIF/profile metadata, applies orientation,
+ * bounds dimensions, and gives every public rendering path a predictable
+ * browser-safe content type.
+ */
+export async function canonicalizeApprovedImage(
+  buffer: Buffer,
+  options: {
+    declaredContentType?: string | null;
+    fileName?: string;
+    maxDimension?: number;
+    maxPixels?: number;
+    quality?: number;
+  } = {},
+): Promise<CanonicalizedImage> {
+  const maxPixels = options.maxPixels ?? 40_000_000;
+  await decodeApprovedImage(buffer, {
+    declaredContentType: options.declaredContentType,
+    fileName: options.fileName,
+    maxPixels,
+  });
+
+  let canonicalBuffer: Buffer;
+  try {
+    canonicalBuffer = await sharp(buffer, {
+      failOn: "error",
+      limitInputPixels: maxPixels,
+    })
+      .rotate()
+      .resize({
+        fit: "inside",
+        height: options.maxDimension ?? 2560,
+        width: options.maxDimension ?? 2560,
+        withoutEnlargement: true,
+      })
+      .webp({
+        alphaQuality: 92,
+        effort: 4,
+        quality: options.quality ?? 88,
+      })
+      .toBuffer();
+  } catch {
+    throw new ImageDecodeError("The selected image could not be normalized safely.");
+  }
+
+  const metadata = await decodeApprovedImage(canonicalBuffer, {
+    declaredContentType: "image/webp",
+    fileName: "canonical.webp",
+    maxPixels,
+  });
+  return {
+    buffer: canonicalBuffer,
+    metadata,
   };
 }

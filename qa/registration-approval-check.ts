@@ -132,7 +132,8 @@ async function main() {
   assert.match(routeSource, /isDefinitiveRegistrationSubmissionRejection/);
   assert.match(routeSource, /registrationSubmissionMatchesExpectation/);
   assert.match(routeSource, /registration_submission_recovery_required/);
-  assert.match(routeSource, /requestedStatus === "approved" \? await cleanupPendingRegistrationLogoCandidates/);
+  assert.match(routeSource, /requestedStatus === "approved" \|\| requestedStatus === "rejected"/);
+  assert.match(routeSource, /rejecting \? await cleanupPendingRegistrationLogoCandidates\(registrationId\)/);
   assert.match(
     routeSource,
     /confirmedRegistration[\s\S]*registrationSubmissionMatchesExpectation[\s\S]*else if \(confirmedRegistration\)[\s\S]*releaseUploadRecordEntityClaim/,

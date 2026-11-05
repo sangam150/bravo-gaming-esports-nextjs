@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { deleteSeason, getSeason, getSeasonOverviewBySlug, saveSeason } from "@/lib/data";
+import { requireSameOrigin } from "@/lib/request-origin";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -27,6 +28,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
 export async function PUT(request: Request, { params }: RouteContext) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
 
   try {
     const { id } = await params;
@@ -46,8 +49,15 @@ export async function PUT(request: Request, { params }: RouteContext) {
 export async function DELETE(request: Request, { params }: RouteContext) {
   const unauthorized = await requireAdmin(request);
   if (unauthorized) return unauthorized;
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
 
   const { id } = await params;
-  const result = await deleteSeason(id);
-  return Response.json({ success: true, data: result });
+  try {
+    const result = await deleteSeason(id);
+    return Response.json({ success: true, data: result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Season deletion failed.";
+    return Response.json({ error: message }, { status: message.includes("Archive it") ? 409 : 503 });
+  }
 }

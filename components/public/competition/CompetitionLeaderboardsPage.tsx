@@ -23,7 +23,14 @@ import {
 } from "@/components/public/competition/CompetitionShared";
 import TeamAvatar from "@/components/ui/TeamAvatar";
 import { getPublicPubgPlayers, getPublicPubgTeams, type PubgHubMatch } from "@/lib/pubg-hub";
-import { buildPubgPlayerBoardRows, buildPubgTeamBoardRows, type PubgPlayerBoardRow, type PubgTeamBoardRow } from "@/lib/pubg-rankings";
+import {
+  buildPubgAggregatePlayerBoardRows,
+  buildPubgEventPlayerBoardRows,
+  buildPubgPlayerBoardRows,
+  buildPubgTeamBoardRows,
+  type PubgPlayerBoardRow,
+  type PubgTeamBoardRow,
+} from "@/lib/pubg-rankings";
 import { CalendarDays, Crosshair, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -157,7 +164,7 @@ function TeamLeaderboardSection({ rows, matches }: { rows: PubgTeamBoardRow[]; m
       {visibleRows.length > 0 ? (
         <>
           <div className="hidden md:block">
-            <div className="public-table-wrap">
+            <div className="public-table-wrap" role="region" aria-label="Team leaderboard table" tabIndex={0}>
               <table className="public-table min-w-[980px]">
                 <caption className="sr-only">Team leaderboard from the selected published matches</caption>
                 <thead>
@@ -246,7 +253,7 @@ function PlayerLeaderboardSection({ rows }: { rows: PubgPlayerBoardRow[] }) {
       {visibleRows.length > 0 ? (
         <>
           <div className="hidden md:block">
-            <div className="public-table-wrap">
+            <div className="public-table-wrap" role="region" aria-label="Player leaderboard table" tabIndex={0}>
               <table className="public-table min-w-[920px]">
                 <caption className="sr-only">Player leaderboard from the selected published matches</caption>
                 <thead>
@@ -337,7 +344,18 @@ export function CompetitionLeaderboardsPage({ dataset, searchParams, basePath }:
   });
 
   const teamBoard = buildPubgTeamBoardRows(filteredMatches, teamLookup);
-  const playerBoard = buildPubgPlayerBoardRows(filteredMatches, playerLookup);
+  const matchPlayerBoard = buildPubgPlayerBoardRows(filteredMatches, playerLookup);
+  const canUseAggregatePlayerResults = map === "all" && (mode === "all" || selectedEvent?.mode === mode);
+  const eventAggregatePlayerBoard =
+    canUseAggregatePlayerResults && selectedEvent
+      ? buildPubgEventPlayerBoardRows(selectedEvent.playerTable, playerLookup)
+      : [];
+  const aggregatePlayerBoard = !canUseAggregatePlayerResults
+    ? []
+    : eventAggregatePlayerBoard.length > 0
+      ? eventAggregatePlayerBoard
+      : buildPubgAggregatePlayerBoardRows(players, selectedEvent?.slug ?? "all");
+  const playerBoard = matchPlayerBoard.length > 0 ? matchPlayerBoard : aggregatePlayerBoard;
   const latestMatch = getLatestMatch(filteredMatches);
   const podiumRows = teamBoard.slice(0, 3);
   const lensLabel = [selectedEvent?.name ?? "All published events", mode === "all" ? null : mode, map === "all" ? null : map]

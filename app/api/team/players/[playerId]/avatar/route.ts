@@ -1,15 +1,16 @@
 import { requireTeamWorkspaceUser } from "@/lib/admin-auth";
 import { writeRequiredAuditLogFromRequest } from "@/lib/audit-logs";
 import { prepareCanonicalPublicImageUpload } from "@/lib/canonical-image-upload";
-import { getPlayer, savePlayer } from "@/lib/data";
+import { COLLECTIONS, getDocument, saveDocument } from "@/lib/document-store";
 import { ImageDecodeError } from "@/lib/image-validation";
-import { deleteFromStorageByUrl, deletePublicObjectByKey, uploadPublicObjectAtKey, verifyPublicObjectDelivery } from "@/lib/r2/storage";
+import { getCanonicalPlayerForAvatar, PlayerAvatarMutationError, replaceCanonicalPlayerAvatarWithCas } from "@/lib/player-avatar-service";
+import { cleanupUnreferencedPublicAssetByUrl } from "@/lib/public-asset-cleanup";
+import { deletePublicObjectByKey, uploadPublicObjectAtKey, verifyPublicObjectDelivery } from "@/lib/r2/storage";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { revalidateCompetitionPaths, revalidatePlayerPaths } from "@/lib/revalidate-public";
 import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
-import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
-import { replaceTeamLogoAtomically } from "@/lib/team-logo-service";
+import { ActiveAssetDeliveryError, replaceTeamLogoAtomically } from "@/lib/team-logo-service";
 import { createUploadRecord, deleteUploadRecord } from "@/lib/upload-records";
 import { validateUpload } from "@/lib/upload-validation";
 import { USER_FACING_ERROR_MESSAGES, toUserFacingErrorMessage } from "@/lib/user-facing-errors";
@@ -62,19 +63,7 @@ export async function POST(request: Request, { params }: RouteContext) {
       return Response.json({ success: false, error: validationError }, { status: 400 });
     }
 
-    const client = getSupabaseServiceRoleClient();
-    const { data: playerRow, error: playerError } = await client
-      .from("players")
-      .select("id,pubg_name,display_name,current_team_id,avatar_url,photo_url,pubg_account_id,is_active,slug,created_at,updated_at")
-      .eq("id", normalizedPlayerId)
-      .eq("current_team_id", auth.session.teamId)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (playerError) {
-      throw playerError;
-    }
-
+    const playerRow = await getCanonicalPlayerForAvatar(normalizedPlayerId, auth.session.teamId);
     if (!playerRow) {
       return Response.json(
         {
@@ -97,7 +86,15 @@ export async function POST(request: Request, { params }: RouteContext) {
     });
     const { metadata, objectKey, publicUrl } = preparedImage;
     const currentAvatarUrl = playerRow.avatar_url ?? playerRow.photo_url ?? null;
+    const verifyDelivery = () =>
+      verifyPublicObjectDelivery(objectKey, {
+        contentType: preparedImage.decoded.contentType,
+        deliveryOrigin: new URL(request.url).origin,
+        sizeBytes: preparedImage.decoded.sizeBytes,
+      });
     const result = await replaceTeamLogoAtomically({
+      cleanupNewArtifactsOnError: (error) =>
+        !(error instanceof PlayerAvatarMutationError && error.code === "player_avatar_activation_unconfirmed"),
       createUploadRecord: () =>
         createUploadRecord({
           contentType: preparedImage.decoded.contentType,
@@ -114,36 +111,54 @@ export async function POST(request: Request, { params }: RouteContext) {
       deleteNewObject: () => deletePublicObjectByKey(objectKey),
       deletePreviousObject: async () => {
         if (!currentAvatarUrl || currentAvatarUrl === publicUrl) return true;
-        return deleteFromStorageByUrl(currentAvatarUrl);
+        return (await cleanupUnreferencedPublicAssetByUrl(currentAvatarUrl)).deleted;
       },
       deleteUploadRecord,
       revalidate: () => {
         revalidatePlayerPaths(normalizedPlayerId);
         revalidateCompetitionPaths();
       },
-      updateCanonicalTeam: async () => {
-        const { data: updatedPlayer, error: updateError } = await client
-          .from("players")
-          .update({
-            avatar_url: publicUrl,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", normalizedPlayerId)
-          .eq("current_team_id", auth.session.teamId)
-          .select("id,pubg_name,display_name,current_team_id,avatar_url,photo_url,pubg_account_id,is_active,slug,created_at,updated_at")
-          .maybeSingle();
-        if (updateError) throw updateError;
-        if (!updatedPlayer) {
-          throw new Error("The player is no longer linked to your team.");
-        }
-        return updatedPlayer;
+      rollbackCanonicalTeam: async (activatedPlayer) => {
+        await replaceCanonicalPlayerAvatarWithCas({
+          avatarUrl: currentAvatarUrl,
+          expectedAvatarUrl: publicUrl,
+          expectedUpdatedAt: activatedPlayer.updated_at,
+          playerId: normalizedPlayerId,
+          teamId: auth.session.teamId,
+        });
       },
-      uploadNewObject: () => uploadPublicObjectAtKey(objectKey, buffer, preparedImage.decoded.contentType).then(() => undefined),
-      verifyNewObject: () =>
-        verifyPublicObjectDelivery(objectKey, {
-          contentType: preparedImage.decoded.contentType,
-          sizeBytes: preparedImage.decoded.sizeBytes,
-        }),
+      updateCanonicalTeam: async () => {
+        return replaceCanonicalPlayerAvatarWithCas({
+          avatarUrl: publicUrl,
+          clearPhotoUrl: Boolean(playerRow.photo_url),
+          expectedAvatarUrl: playerRow.avatar_url,
+          expectedPhotoUrl: playerRow.photo_url,
+          expectedUpdatedAt: playerRow.updated_at,
+          playerId: normalizedPlayerId,
+          teamId: auth.session.teamId,
+        });
+      },
+      uploadNewObject: () =>
+        uploadPublicObjectAtKey(objectKey, preparedImage.buffer, preparedImage.decoded.contentType).then(() => undefined),
+      verifyActivatedDelivery: () => verifyDelivery(),
+      verifyNewObject: () => verifyDelivery(),
+      writeDeliveryFailureAudit: (failure) =>
+        writeRequiredAuditLogFromRequest(request, {
+          action: "player_avatar_delivery_failed",
+          entityId: normalizedPlayerId,
+          entityType: "team_player_avatar",
+          oldValue: {
+            avatarUrl: publicUrl,
+            uploadRecordId: failure.uploadRecordId,
+          },
+          newValue: {
+            avatarUrl: failure.rollbackConfirmed ? currentAvatarUrl : "unconfirmed",
+            deliveryErrorName: failure.deliveryError instanceof Error ? failure.deliveryError.name : "UnknownError",
+            rollbackConfirmed: failure.rollbackConfirmed,
+            rollbackErrorName:
+              failure.rollbackError instanceof Error ? failure.rollbackError.name : failure.rollbackError ? "UnknownError" : null,
+          },
+        }).then(() => undefined),
       writeRequiredAudit: (uploadRecordId) =>
         writeRequiredAuditLogFromRequest(request, {
           action: "player_avatar_replace_requested",
@@ -162,17 +177,12 @@ export async function POST(request: Request, { params }: RouteContext) {
         }).then(() => undefined),
     });
 
-    const existingPlayer = await getPlayer(normalizedPlayerId).catch(() => null);
+    const existingPlayer = await getDocument(COLLECTIONS.players, normalizedPlayerId).catch(() => null);
     if (existingPlayer) {
-      await savePlayer(
-        {
-          ...existingPlayer,
-          avatar: publicUrl,
-          avatarUrl: publicUrl,
-          name: existingPlayer.name ?? playerRow.display_name ?? playerRow.pubg_name,
-        },
-        normalizedPlayerId,
-      ).catch(() => undefined);
+      await saveDocument(COLLECTIONS.players, normalizedPlayerId, {
+        avatar: publicUrl,
+        avatarUrl: publicUrl,
+      }).catch(() => undefined);
     }
 
     return Response.json({
@@ -188,6 +198,15 @@ export async function POST(request: Request, { params }: RouteContext) {
     await logServerError("team.players.avatar.upload", error, request);
     if (error instanceof ImageDecodeError) {
       return Response.json({ success: false, error: error.message, code: "invalid_image_signature" }, { status: 400 });
+    }
+    if (error instanceof ActiveAssetDeliveryError) {
+      return Response.json(
+        { success: false, error: error.message, code: error.code, rollbackConfirmed: error.rollbackConfirmed },
+        { status: error.status },
+      );
+    }
+    if (error instanceof PlayerAvatarMutationError) {
+      return Response.json({ success: false, error: error.message, code: error.code }, { status: error.status });
     }
     return Response.json(
       {

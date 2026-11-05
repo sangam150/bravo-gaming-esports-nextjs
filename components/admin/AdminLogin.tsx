@@ -6,13 +6,11 @@ import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { reportLoginFailure } from "@/lib/login-client";
 import { LOGIN_ERROR_MESSAGES, validateLoginCredentials } from "@/lib/user-facing-errors";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAdminAuth } from "./AuthProvider";
 
 export default function AdminLogin() {
   const { login, configured } = useAdminAuth();
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,7 +20,7 @@ export default function AdminLogin() {
     e.preventDefault();
     const credentialError = validateLoginCredentials(email, password);
     if (credentialError) {
-      await reportLoginFailure({
+      void reportLoginFailure({
         variant: "admin",
         category: "missing_credentials",
         stage: "credentials",
@@ -35,8 +33,8 @@ export default function AdminLogin() {
     setError(null);
     try {
       await login(email, password);
-      router.replace("/admin");
-      router.refresh();
+      // Recreate the protected layout from the server's newly written cookies.
+      window.location.replace("/admin");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : LOGIN_ERROR_MESSAGES.invalidCredentials);
     } finally {

@@ -1,3 +1,5 @@
+import { resolvePublicAssetUrl } from "./public-asset-url";
+
 const PUBLIC_TEXT_MARKERS = [
   "bravo_demo_seed_2026",
   "bravo_demo_seed_",
@@ -90,5 +92,8 @@ export function sanitizePublicAssetUrl(value?: string | null) {
     return undefined;
   }
 
-  return value;
+  // Apply the same approved-public policy at the JSON boundary as at render
+  // time. Dropping an image in the UI alone would still expose signed grants
+  // or URL credentials in API responses and serialized page props.
+  return resolvePublicAssetUrl(value) ?? undefined;
 }

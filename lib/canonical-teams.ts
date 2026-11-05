@@ -424,8 +424,14 @@ export async function replaceCanonicalTeamLogoWithCas(
     });
   }
 
-  const aliasesByTeamId = await listAliasesByTeamId([data.id]);
-  return toCanonicalTeam(data, aliasesByTeamId.get(data.id) ?? []);
+  try {
+    const aliasesByTeamId = await listAliasesByTeamId([data.id]);
+    return toCanonicalTeam(data, aliasesByTeamId.get(data.id) ?? []);
+  } catch {
+    // The CAS update is already committed. Alias hydration is not part of
+    // activation and must never make the caller delete the now-active object.
+    return toCanonicalTeam(data, []);
+  }
 }
 
 export async function createCanonicalAdminTeam(input: CanonicalTeamWriteInput & { name: string }) {

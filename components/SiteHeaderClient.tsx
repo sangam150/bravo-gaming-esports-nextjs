@@ -115,6 +115,7 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
   const [mounted, setMounted] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
   const desktopMenuButtonRef = useRef<HTMLButtonElement>(null);
@@ -221,12 +222,27 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
     setLoggingOut(true);
     setDesktopMenuOpen(false);
     setMobileOpen(false);
-    await Promise.allSettled([clearBravoSession(), Promise.resolve().then(() => getSupabaseBrowserClient().auth.signOut())]);
-    window.location.assign("/login");
+    setLogoutError(null);
+    try {
+      await clearBravoSession();
+      await getSupabaseBrowserClient()
+        .auth.signOut({ scope: "local" })
+        .catch(() => undefined);
+      window.location.replace("/login");
+    } catch {
+      setLogoutError("Sign-out could not be confirmed. Check your connection and retry.");
+      setLoggingOut(false);
+      setDesktopMenuOpen(true);
+    }
   }
 
   const accountControls = account ? (
     <>
+      {logoutError && (
+        <p role="alert" className="text-sm text-red-200">
+          {logoutError}
+        </p>
+      )}
       <div className="rounded-[5px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
         <p className="truncate text-sm font-semibold text-white">{account.identity}</p>
         {account.email !== account.identity ? <p className="mt-1 truncate text-xs text-text-muted">{account.email}</p> : null}

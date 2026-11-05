@@ -3,6 +3,7 @@ import { resolveAuthorizedAuthDestination } from "@/lib/auth-destinations";
 import { AuthConfigurationError } from "@/lib/auth-errors";
 import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
 import { createSessionCookie, getSessionCookieMaxAge, REFRESH_COOKIE, SESSION_COOKIE, verifyAccessToken } from "@/lib/supabase-auth-server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -68,6 +69,9 @@ function scheduleLoginFailure(request: Request, payload: Parameters<typeof logLo
 }
 
 export async function POST(request: Request) {
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) return invalidOrigin;
+
   const limited = await enforceRateLimit(request, {
     key: "auth-login",
     maxRequests: 8,

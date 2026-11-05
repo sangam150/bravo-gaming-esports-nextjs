@@ -102,9 +102,9 @@ function getLatestTemplate<T extends Tournament | Scrim>(items: T[]) {
 
 async function loadSeasonDayCollections(seasonId: string) {
   const [season, seasonTournaments, seasonTeams, allScrims] = await Promise.all([
-    getSeason(seasonId),
-    getSeasonTournaments(seasonId),
-    getSeasonTeams(seasonId),
+    getSeason(seasonId, { includeInternal: true }),
+    getSeasonTournaments(seasonId, { includeInternal: true }),
+    getSeasonTeams(seasonId, { includeInternal: true }),
     getScrims(),
   ]);
 

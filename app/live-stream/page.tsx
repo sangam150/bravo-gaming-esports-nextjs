@@ -17,7 +17,7 @@ export default async function LiveStreamPage() {
   const [liveFeed, streams, videos] = await Promise.all([getLiveStreamFeed(), getStreams(), getVideos()]);
   const hasStreams = streams.length > 0;
   const hasVideos = videos.length > 0;
-  const hasFeaturedBroadcast = hasStreams && Boolean(liveFeed.embedUrl);
+  const hasFeaturedBroadcast = liveFeed.isLive && Boolean(liveFeed.embedUrl);
   const watchOnYouTubeHref = liveFeed.channelUrl || BRAVO_YOUTUBE_URL;
   const showSingleFallback = !hasFeaturedBroadcast && !hasStreams && !hasVideos;
 
@@ -51,9 +51,11 @@ export default async function LiveStreamPage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div>
           <div className="mb-4 flex items-center gap-3">
-            <span className="live-dot" />
+            {liveFeed.isLive ? <span className="live-dot" /> : null}
             <span className="font-display text-label font-bold uppercase text-accent-red">{liveFeed.isLive ? "Live" : "Channel Feed"}</span>
-            {liveFeed.viewers && <span className="font-mono-stat text-sm text-text-muted">{liveFeed.viewers}</span>}
+            {liveFeed.isLive && liveFeed.viewers ? (
+              <span className="font-mono-stat text-sm text-text-muted">{liveFeed.viewers}</span>
+            ) : null}
           </div>
           <div className="overflow-hidden rounded-card border border-white/[0.08] bg-black">
             {hasFeaturedBroadcast ? (

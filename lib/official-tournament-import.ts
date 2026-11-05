@@ -703,7 +703,7 @@ export async function importFirstOfficialTournament(options?: { sourceUrl?: stri
           map: normalizeMapName(match.mapName ?? "Unknown"),
           eventName: publicTournamentTitle,
           eventSlug: PUBLIC_TOURNAMENT_ID,
-          status: "published",
+          status: "draft",
           winner,
           points: teamResults[0]?.totalPoints ?? 0,
           knockouts: teamResults.reduce((sum, teamResult) => sum + teamResult.kills, 0),
@@ -713,7 +713,6 @@ export async function importFirstOfficialTournament(options?: { sourceUrl?: stri
           sourceUrl,
           dataSource: "external_feed",
           syncedAt: fetchedAt,
-          publishedAt: fetchedAt,
           pointSystemName: pointSystemAvailable ? "Bravo PUBG Placement + Kills" : undefined,
           teamResults,
         } satisfies TournamentMatch;
@@ -918,6 +917,8 @@ export async function importFirstOfficialTournament(options?: { sourceUrl?: stri
 
     const tournamentDocument = {
       id: PUBLIC_TOURNAMENT_ID,
+      state: "draft",
+      published: false,
       title: publicTournamentTitle,
       tier: cleanString(payload.tournament.tier) ?? "S",
       status: eventStatus,

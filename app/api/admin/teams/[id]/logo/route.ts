@@ -9,12 +9,13 @@ import {
   replaceCanonicalTeamLogoWithCas,
 } from "@/lib/canonical-teams";
 import { ImageDecodeError } from "@/lib/image-validation";
-import { deleteFromStorageByUrl, deletePublicObjectByKey, uploadPublicObjectAtKey, verifyPublicObjectDelivery } from "@/lib/r2/storage";
+import { cleanupUnreferencedPublicAssetByUrl } from "@/lib/public-asset-cleanup";
+import { deletePublicObjectByKey, uploadPublicObjectAtKey, verifyPublicObjectDelivery } from "@/lib/r2/storage";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { revalidateTeamAssetPaths } from "@/lib/revalidate-public";
 import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
-import { replaceTeamLogoAtomically } from "@/lib/team-logo-service";
+import { ActiveAssetDeliveryError, replaceTeamLogoAtomically } from "@/lib/team-logo-service";
 import { validateUpload } from "@/lib/upload-validation";
 import { createUploadRecord, deleteUploadRecord } from "@/lib/upload-records";
 import type { Json } from "@/types/database.types";
@@ -32,6 +33,17 @@ function errorResponse(error: unknown) {
   }
   if (error instanceof ImageDecodeError) {
     return Response.json({ success: false, error: error.message, code: "invalid_image_signature" }, { status: 400 });
+  }
+  if (error instanceof ActiveAssetDeliveryError) {
+    return Response.json(
+      {
+        success: false,
+        error: error.message,
+        code: error.code,
+        rollbackConfirmed: error.rollbackConfirmed,
+      },
+      { status: error.status },
+    );
   }
   return Response.json(
     {
@@ -100,6 +112,12 @@ export async function POST(request: Request, { params }: RouteParams) {
       ...logoMetadata,
       activationId,
     };
+    const verifyDelivery = () =>
+      verifyPublicObjectDelivery(objectKey, {
+        contentType: preparedImage.decoded.contentType,
+        deliveryOrigin: new URL(request.url).origin,
+        sizeBytes: preparedImage.decoded.sizeBytes,
+      });
 
     const result = await replaceTeamLogoAtomically({
       cleanupNewArtifactsOnError: (error) => !(error instanceof CanonicalTeamError && error.code === "team_logo_activation_unconfirmed"),
@@ -119,10 +137,18 @@ export async function POST(request: Request, { params }: RouteParams) {
       deleteNewObject: () => deletePublicObjectByKey(objectKey),
       deletePreviousObject: async () => {
         if (!team.logoUrl || team.logoUrl === publicUrl) return true;
-        return deleteFromStorageByUrl(team.logoUrl);
+        return (await cleanupUnreferencedPublicAssetByUrl(team.logoUrl)).deleted;
       },
       deleteUploadRecord,
       revalidate: () => revalidateTeamAssetPaths(team.id, team.slug),
+      rollbackCanonicalTeam: async (activatedTeam) => {
+        await replaceCanonicalTeamLogoWithCas(team.id, {
+          expectedLogoUrl: publicUrl,
+          expectedUpdatedAt: activatedTeam.updatedAt,
+          logoUrl: team.logoUrl,
+          sourceMetadata: team.sourceMetadata,
+        });
+      },
       updateCanonicalTeam: () =>
         replaceCanonicalTeamLogoWithCas(team.id, {
           expectedLogoUrl: team.logoUrl,
@@ -136,14 +162,27 @@ export async function POST(request: Request, { params }: RouteParams) {
           }),
         }),
       uploadNewObject: async () => {
-        await uploadPublicObjectAtKey(objectKey, buffer, preparedImage.decoded.contentType);
+        await uploadPublicObjectAtKey(objectKey, preparedImage.buffer, preparedImage.decoded.contentType);
       },
-      verifyNewObject: async () => {
-        await verifyPublicObjectDelivery(objectKey, {
-          contentType: preparedImage.decoded.contentType,
-          sizeBytes: preparedImage.decoded.sizeBytes,
-        });
-      },
+      verifyActivatedDelivery: () => verifyDelivery(),
+      verifyNewObject: () => verifyDelivery(),
+      writeDeliveryFailureAudit: (failure) =>
+        writeRequiredAuditLogFromRequest(request, {
+          action: "replace_logo_delivery_failed",
+          entityId: team.id,
+          entityType: "team",
+          oldValue: {
+            logoUrl: publicUrl,
+            uploadRecordId: failure.uploadRecordId,
+          },
+          newValue: {
+            deliveryErrorName: failure.deliveryError instanceof Error ? failure.deliveryError.name : "UnknownError",
+            logoUrl: failure.rollbackConfirmed ? team.logoUrl : "unconfirmed",
+            rollbackConfirmed: failure.rollbackConfirmed,
+            rollbackErrorName:
+              failure.rollbackError instanceof Error ? failure.rollbackError.name : failure.rollbackError ? "UnknownError" : null,
+          },
+        }).then(() => undefined),
       writeRequiredAudit: (uploadRecordId) =>
         writeRequiredAuditLogFromRequest(request, {
           action: "replace_logo_requested",
@@ -234,7 +273,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
     if (!cleanupPending) {
       try {
-        cleanupPending = !(await deleteFromStorageByUrl(team.logoUrl));
+        cleanupPending = !(await cleanupUnreferencedPublicAssetByUrl(team.logoUrl)).deleted;
       } catch {
         cleanupPending = true;
       }

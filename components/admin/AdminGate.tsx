@@ -6,7 +6,7 @@ import { useAdminAuth } from "./AuthProvider";
 
 export default function AdminGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, isAdmin, loading } = useAdminAuth();
+  const { user, isAdmin, loading, authError, refreshSession } = useAdminAuth();
   const isLoginRoute = pathname === "/admin/login";
 
   if (isLoginRoute) {
@@ -19,6 +19,19 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
         <span role="status" aria-live="polite">
           Verifying secure session…
         </span>
+      </main>
+    );
+  }
+
+  if (authError) {
+    return (
+      <main className="flex min-h-[60vh] items-center justify-center px-4">
+        <div className="esports-card max-w-md space-y-4 p-8">
+          <p role="alert">{authError}</p>
+          <button className="btn-primary" onClick={() => void refreshSession()}>
+            Retry session check
+          </button>
+        </div>
       </main>
     );
   }

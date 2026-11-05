@@ -26,7 +26,8 @@ import {
 const NEWS_PAGE_SIZE = 9;
 
 function articleReadTime(article: PlatformArticle) {
-  const words = [article.title, article.summary, article.excerpt, ...article.body]
+  const primaryContent = article.body.length > 0 ? article.body : [article.excerpt?.trim() || article.summary];
+  const words = [article.title, ...primaryContent]
     .filter(Boolean)
     .join(" ")
     .trim()
@@ -205,15 +206,20 @@ export function NewsReferencePage({
     (article) =>
       articleMatchesCategory(article, category) && (!query || articleSearchText(article).includes(query)),
   );
-  const totalPages = Math.max(1, Math.ceil(filteredNews.length / NEWS_PAGE_SIZE));
-  const page = normalizePage(searchParams.page, totalPages);
-  const pageArticles = filteredNews.slice((page - 1) * NEWS_PAGE_SIZE, page * NEWS_PAGE_SIZE);
+  const filtersActive = category !== "all" || Boolean(query);
+  const featuredPool = filtersActive ? filteredNews : publishedNews;
   const featuredArticle =
-    publishedNews.find((article) => article.featured) ??
-    publishedNews.find((article) => article.breaking) ??
-    publishedNews[0] ??
+    featuredPool.find((article) => article.featured) ??
+    featuredPool.find((article) => article.breaking) ??
+    featuredPool[0] ??
     null;
-  const announcements = publishedNews.filter((article) => articleMatchesCategory(article, "announcements"));
+  const listingNews = filteredNews.filter((article) => article.id !== featuredArticle?.id);
+  const totalPages = Math.max(1, Math.ceil(listingNews.length / NEWS_PAGE_SIZE));
+  const page = normalizePage(searchParams.page, totalPages);
+  const pageArticles = listingNews.slice((page - 1) * NEWS_PAGE_SIZE, page * NEWS_PAGE_SIZE);
+  const announcements = publishedNews.filter(
+    (article) => article.id !== featuredArticle?.id && articleMatchesCategory(article, "announcements"),
+  );
 
   return (
     <main className="public-page">
@@ -304,22 +310,22 @@ export function NewsReferencePage({
               </>
             ) : (
               <PublicEmptyState
-                title={publishedNews.length === 0 ? "No published news yet" : "No stories match this search"}
+                title={
+                  filteredNews.length === 1 && featuredArticle
+                    ? "Featured story shown above"
+                    : "No stories match this search"
+                }
                 description={
-                  publishedNews.length === 0
-                    ? "Official stories will appear here after editorial review and publication."
+                  filteredNews.length === 1 && featuredArticle
+                    ? "There are no additional published stories for this selection."
                     : "Try another category or search phrase."
                 }
                 action={
-                  publishedNews.length > 0 ? (
+                  filteredNews.length === 0 && filtersActive ? (
                     <PublicActionLink href="/news" variant="secondary">
                       Clear Filters
                     </PublicActionLink>
-                  ) : (
-                    <PublicActionLink href={BRAVO_DISCORD_URL} variant="discord">
-                      Follow Updates
-                    </PublicActionLink>
-                  )
+                  ) : null
                 }
               />
             )}

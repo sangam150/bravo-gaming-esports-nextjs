@@ -6,7 +6,6 @@ import { readJsonObject, sanitizeJsonValue } from "./json-utils";
 import { previewPubgMatches } from "./pubg-sync";
 import { getRawPubgMatch } from "./pubg/raw-match-cache";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
-import { reconcilePlayerTeamLinksForAccounts } from "./player-team-linking";
 import type {
   MatchPlayerResult,
   PubgBulkImportResult,
@@ -193,6 +192,12 @@ function cleanString(value?: string | null) {
   return normalizedValue ? normalizedValue : undefined;
 }
 
+function requireMatchReference(value: string) {
+  const reference = value.trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/.test(reference)) throw new Error("Invalid match reference.");
+  return reference;
+}
+
 function isPublishedMatchStatus(status: Tables<"matches">["status"] | null | undefined) {
   return status === "approved" || status === "published";
 }
@@ -306,6 +311,7 @@ function isSafeDraftSlotMatch(row: ExistingDuplicateMatchRow, resultCountByMatch
 }
 
 async function findExistingDuplicate(tournamentId: string | undefined, matchId: string, matchNumber: number | undefined) {
+  matchId = requireMatchReference(matchId);
   const client = getSupabaseServiceRoleClient();
   const { data: byMatchId, error: byMatchIdError } = await client
     .from("matches")
@@ -472,7 +478,7 @@ export async function getLatestRawImportPayload(matchId: string) {
 }
 
 export async function importPubgMatchesRelational(matchIds: string[], options?: RelationalImportOptions): Promise<PubgBulkImportResult> {
-  const normalizedMatchIds = Array.from(new Set(matchIds.map((value) => value.trim()).filter(Boolean)));
+  const normalizedMatchIds = Array.from(new Set(matchIds.map((value) => value.trim()).filter(Boolean).map(requireMatchReference)));
   if (normalizedMatchIds.length === 0) {
     throw new Error("At least one PUBG match ID is required.");
   }
@@ -622,11 +628,14 @@ export async function importPubgMatchesRelational(matchIds: string[], options?: 
         continue;
       }
 
+      const targetMatch = duplicateResolution.kind === "none" ? null : await getCompetitionMatch(duplicateResolution.targetId);
       const matchPayload: Partial<TournamentMatch> & {
         pubgMatchId: string;
         map: string;
       } = {
         id: duplicateResolution.kind === "none" ? undefined : duplicateResolution.targetId,
+        revision: targetMatch?.revision,
+        pointSystemId: targetMatch?.pointSystemId,
         tournamentId: importContext.tournamentId,
         scrimId: importContext.scrimId,
         pubgMatchId: normalized.matchId,
@@ -641,9 +650,9 @@ export async function importPubgMatchesRelational(matchIds: string[], options?: 
         playerResults: normalized.playerResults,
       };
 
-      await saveCompetitionMatch(matchPayload, { publish });
+      const savedMatch = await saveCompetitionMatch(matchPayload, { publish });
 
-      await appendPendingImportLifecycle(normalized.matchId, publish ? "published" : "draft", {
+      await appendPendingImportLifecycle(normalized.matchId, savedMatch.status === "published" ? "published" : "draft", {
         context: importContext,
         preview,
         sourceMatchId: preview.matchId,
@@ -684,6 +693,7 @@ export async function importPubgMatchesRelational(matchIds: string[], options?: 
 }
 
 export async function repairImportedPubgMatchFromCache(matchId: string, options?: { publish?: boolean; forcePublished?: boolean }) {
+  matchId = requireMatchReference(matchId);
   const client = getSupabaseServiceRoleClient();
   const { data: existingRows, error } = await client
     .from("matches")
@@ -718,6 +728,8 @@ export async function repairImportedPubgMatchFromCache(matchId: string, options?
   const repaired = await saveCompetitionMatch(
     {
       id: existingRow.id,
+      revision: currentMatch?.revision,
+      pointSystemId: currentMatch?.pointSystemId,
       tournamentId: cache.context.tournamentId,
       scrimId: cache.context.scrimId,
       pubgMatchId: cache.preview.matchId,
@@ -746,7 +758,8 @@ export async function repairImportedPubgMatchFromCache(matchId: string, options?
   return repaired;
 }
 
-export async function resetImportedPubgMatch(matchId: string, options?: { confirmPublished?: boolean }) {
+export async function resetImportedPubgMatch(matchId: string, options?: { confirmPublished?: boolean; allowScoringDecisions?: boolean; actorId?: string }) {
+  matchId = requireMatchReference(matchId);
   const client = getSupabaseServiceRoleClient();
   const { data: existingRows, error } = await client
     .from("matches")
@@ -770,35 +783,11 @@ export async function resetImportedPubgMatch(matchId: string, options?: { confir
   }
 
   const before = await getCompetitionMatch(existingRow.id);
-  const { data: playerRows, error: playerRowsError } = await client
-    .from("match_player_results")
-    .select("pubg_account_id")
-    .eq("match_id", existingRow.id);
-  if (playerRowsError) {
-    throw playerRowsError;
-  }
-
-  const { error: deleteTeamResultsError } = await client.from("match_team_results").delete().eq("match_id", existingRow.id);
-  if (deleteTeamResultsError) {
-    throw deleteTeamResultsError;
-  }
-
-  const { error: deletePlayerResultsError } = await client.from("match_player_results").delete().eq("match_id", existingRow.id);
-  if (deletePlayerResultsError) {
-    throw deletePlayerResultsError;
-  }
-
-  const now = new Date().toISOString();
-  const { error: updateMatchError } = await client
-    .from("matches")
-    .update({
-      status: "failed",
-      updated_at: now,
-    })
-    .eq("id", existingRow.id);
-  if (updateMatchError) {
-    throw updateMatchError;
-  }
+  if (!before) throw new Error("Match not found.");
+  if (before.status === "published" && !options?.confirmPublished) throw new Error("This match is published. Confirm the current publication before resetting it.");
+  await saveCompetitionMatch({ ...before, status: "draft", teamResults: [], playerResults: [] }, {
+    publish: false, allowScoringDecisions: options?.allowScoringDecisions, actorId: options?.actorId,
+  });
 
   const cache = parseCachedPreview(await getLatestPendingImportCache(matchId));
   await appendPendingImportLifecycle(matchId, "reset", {
@@ -806,8 +795,6 @@ export async function resetImportedPubgMatch(matchId: string, options?: { confir
     preview: cache?.preview,
     sourceMatchId: cache?.sourceMatchId,
   });
-
-  await reconcilePlayerTeamLinksForAccounts((playerRows ?? []).map((row) => row.pubg_account_id ?? "").filter(Boolean));
 
   return { id: existingRow.id, before };
 }

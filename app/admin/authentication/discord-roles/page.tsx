@@ -1,5 +1,5 @@
-import AdminDiscordRoleMappingManager from "@/components/admin/AdminDiscordRoleMappingManager";
+import { redirect } from "next/navigation";
 
 export default function AdminDiscordRoleMappingPage() {
-  return <AdminDiscordRoleMappingManager />;
+  redirect("/admin/settings?view=discordRoles");
 }

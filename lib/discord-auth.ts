@@ -1,5 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 
+export const DISCORD_OAUTH_INTENT_COOKIE = "bravo_discord_oauth_intent";
+
 function normalizeTextValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -26,8 +28,10 @@ export function extractDiscordUserId(user: Pick<User, "identities"> | null | und
   return null;
 }
 
-export function buildDiscordAuthCallbackUrl(origin: string, nextPath = "/team") {
+export function buildDiscordAuthCallbackUrl(origin: string, nextPath: string, intent: string) {
   const callbackUrl = new URL("/auth/callback", origin);
+  callbackUrl.searchParams.set("flow", "discord");
+  callbackUrl.searchParams.set("intent", intent);
   callbackUrl.searchParams.set("next", nextPath);
   return callbackUrl.toString();
 }

@@ -41,9 +41,11 @@ export interface Season {
 
 export interface Tournament {
   id: string;
+  slug?: string;
   title: string;
   state?: string;
   published?: boolean;
+  publishedAt?: string;
   tier: string;
   status: TournamentStatus;
   prizePool: string;
@@ -80,6 +82,7 @@ export interface Tournament {
 }
 
 export interface TournamentMatch {
+  revision?: number;
   id: string;
   tournamentId?: string;
   scrimId?: string;
@@ -109,6 +112,7 @@ export interface TournamentMatch {
   deletedAt?: string;
   pointSystemId?: string;
   pointSystemName?: string;
+  scoringRules?: import("./scoring-rules").ScoringRules;
   createdAt?: string;
   updatedAt?: string;
   teamResults?: TeamMatchResult[];
@@ -116,6 +120,10 @@ export interface TournamentMatch {
 }
 
 export interface TeamMatchResult {
+  adjustmentPoints?: number;
+  decisionReason?: string;
+  disqualified?: boolean;
+  tieBreakers?: import("./scoring-rules").TeamTieBreak[];
   teamId?: string;
   teamName: string;
   slotNumber?: number;
@@ -128,6 +136,8 @@ export interface TeamMatchResult {
 }
 
 export interface MatchPlayerResult {
+  disqualified?: boolean;
+  awardCriteria?: import("./scoring-rules").AwardMetric[];
   playerId: string;
   playerName: string;
   pubgPlayerId?: string;
@@ -269,6 +279,9 @@ export interface ScrimDayStanding {
 }
 
 export interface TournamentStanding {
+  tieBreakers?: import("./scoring-rules").TeamTieBreak[];
+  latestPlacement?: number;
+  latestKills?: number;
   id: string;
   tournamentId: string;
   teamId: string;

@@ -1,12 +1,13 @@
 "use client";
 
 import { isAdminRole } from "@/lib/authz";
-import { clearBravoSession, createBravoSession, performPasswordLogin } from "@/lib/login-client";
+import { clearBravoSession, performPasswordLogin } from "@/lib/login-client";
+import { AUTH_SESSION_EVENT, AUTH_SESSION_STORAGE_KEY } from "@/lib/auth-session-events";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getLoginFailureDetails, validateLoginCredentials } from "@/lib/user-facing-errors";
 import type { User } from "@supabase/supabase-js";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 type AuthContextValue = {
   user: User | null;
@@ -14,32 +15,21 @@ type AuthContextValue = {
   isAdmin: boolean;
   loading: boolean;
   configured: boolean;
+  authError: string | null;
+  refreshSession: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
-
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function buildSessionUser(
-  user?: {
-    uid?: string;
-    email?: string;
-  } | null,
-): User | null {
-  if (!user?.uid) {
-    return null;
-  }
-
-  return {
-    id: user.uid,
-    email: user.email ?? "",
-  } as User;
+function buildSessionUser(user?: { uid?: string; email?: string } | null): User | null {
+  return user?.uid ? ({ id: user.uid, email: user.email ?? "" } as User) : null;
 }
 
 export function useAdminAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAdminAuth must be used within AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAdminAuth must be used within AuthProvider");
+  return context;
 }
 
 export default function AuthProvider({
@@ -55,177 +45,128 @@ export default function AuthProvider({
   const [user, setUser] = useState<User | null>(() => buildSessionUser(initialUser));
   const [role, setRole] = useState<string | null>(initialRole);
   const [loading, setLoading] = useState(configured && !initialUser);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const revision = useRef(0);
+  const pending = useRef<AbortController | null>(null);
 
-  const establishSession = useCallback(async (accessToken: string) => {
-    const { data } = await createBravoSession(accessToken);
-    return data;
-  }, []);
-
-  const clearSession = useCallback(async () => {
-    await clearBravoSession();
-  }, []);
-
-  const hydrateFromCookieSession = useCallback(async () => {
-    const response = await fetch("/api/auth/me", {
-      method: "GET",
-      credentials: "include",
-    });
-    const data = (await response.json().catch(() => ({}))) as {
-      authenticated?: boolean;
-      user?: {
-        uid?: string;
-        email?: string;
-        role?: string;
-      };
-    };
-
-    if (!response.ok || !data.authenticated || !data.user?.uid) {
-      return false;
+  // Password login writes SSR cookies on the server. The browser SDK can still
+  // hold an older in-memory session, so only the protected server projection
+  // determines the displayed account/role. Never POST old SDK tokens over it.
+  const synchronize = useCallback(async () => {
+    const current = ++revision.current;
+    pending.current?.abort();
+    const controller = new AbortController();
+    pending.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store", signal: controller.signal });
+      if (!response.ok) throw new Error("Session verification is temporarily unavailable. Please retry.");
+      const data = await response.json();
+      if (current !== revision.current) return;
+      setUser(data.authenticated === true ? buildSessionUser(data.user) : null);
+      setRole(data.authenticated === true ? (data.user?.role ?? null) : null);
+      setAuthError(null);
+    } catch {
+      if (current !== revision.current) return;
+      setUser(null);
+      setRole(null);
+      setAuthError("Session verification is temporarily unavailable. Check your connection and retry.");
+    } finally {
+      clearTimeout(timeout);
+      if (current === revision.current) setLoading(false);
     }
-
-    setUser(buildSessionUser(data.user));
-    setRole(data.user.role ?? null);
-    return true;
   }, []);
 
   useEffect(() => {
-    if (!configured) {
-      return;
-    }
-
-    const supabase = getSupabaseBrowserClient();
-    let active = true;
-
-    void supabase.auth.getSession().then(async ({ data, error }) => {
-      if (!active) return;
-
-      if (error) {
-        await hydrateFromCookieSession().catch(() => false);
-        setLoading(false);
-        return;
-      }
-
-      const nextUser = data.session?.user ?? null;
-
-      if (data.session?.access_token) {
-        setUser(nextUser);
-        try {
-          const sessionData = await establishSession(data.session.access_token);
-          setRole(sessionData.user?.role ?? null);
-        } catch {
-          /* browser session can stay active even if the admin cookie refresh fails */
-          setRole(null);
-        }
-      } else {
-        const hydrated = await hydrateFromCookieSession().catch(() => false);
-        if (!hydrated) {
-          setUser(null);
-          setRole(null);
-        }
-      }
-
-      setLoading(false);
-    });
-
+    if (!configured) return;
+    const generation = revision;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => void synchronize(), 0);
+    };
+    const storageChanged = (event: StorageEvent) => {
+      if (event.key === AUTH_SESSION_STORAGE_KEY) schedule();
+    };
+    const visibilityChanged = () => {
+      if (document.visibilityState === "visible") schedule();
+    };
+    // SDK callbacks remain synchronous; reconciliation runs after the SDK
+    // releases its auth lock and never starts a competing token session.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!active) return;
-
-      setUser(session?.user ?? null);
-
-      try {
-        if (session?.access_token) {
-          setUser(session.user ?? null);
-          const sessionData = await establishSession(session.access_token);
-          setRole(sessionData.user?.role ?? null);
-        } else if (event === "SIGNED_OUT") {
-          await clearSession();
-          setUser(null);
-          setRole(null);
-        } else {
-          const hydrated = await hydrateFromCookieSession().catch(() => false);
-          if (!hydrated) {
-            setUser(null);
-            setRole(null);
-          }
-        }
-      } catch {
-        /* cookie sync failure should not crash the auth provider */
-        const hydrated = await hydrateFromCookieSession().catch(() => false);
-        if (!hydrated) {
-          setUser(null);
-          setRole(null);
-        }
-      }
-
-      setLoading(false);
-    });
-
+    } = getSupabaseBrowserClient().auth.onAuthStateChange(() => schedule());
+    window.addEventListener(AUTH_SESSION_EVENT, schedule);
+    window.addEventListener("storage", storageChanged);
+    window.addEventListener("focus", schedule);
+    document.addEventListener("visibilitychange", visibilityChanged);
+    const interval = setInterval(visibilityChanged, 60_000);
+    schedule();
     return () => {
-      active = false;
+      ++generation.current;
+      clearTimeout(timer);
+      clearInterval(interval);
+      pending.current?.abort();
       subscription.unsubscribe();
+      window.removeEventListener(AUTH_SESSION_EVENT, schedule);
+      window.removeEventListener("storage", storageChanged);
+      window.removeEventListener("focus", schedule);
+      document.removeEventListener("visibilitychange", visibilityChanged);
     };
-  }, [configured, establishSession, clearSession, hydrateFromCookieSession]);
+  }, [configured, synchronize]);
 
+  const refreshSession = useCallback(async () => {
+    setLoading(true);
+    await synchronize();
+  }, [synchronize]);
   const login = useCallback(
     async (email: string, password: string) => {
       if (!configured) throw new Error("Supabase is not configured");
-
-      const credentialError = validateLoginCredentials(email, password);
-      if (credentialError) {
-        throw new Error(credentialError);
-      }
-
-      const { response, data } = await performPasswordLogin({
-        email,
-        password,
-        variant: "admin",
-      });
-
+      const error = validateLoginCredentials(email, password);
+      if (error) throw new Error(error);
+      ++revision.current;
+      pending.current?.abort();
+      const { response, data } = await performPasswordLogin({ email, password, variant: "admin" });
       if (!response.ok || !data.success) {
-        const details = getLoginFailureDetails(
-          data.error
-            ? {
-                message: data.error,
-                status: data.status ?? response.status,
-              }
-            : { status: data.status ?? response.status },
-          {
-            variant: "admin",
-            stage: "credentials",
-          },
+        throw new Error(
+          getLoginFailureDetails(
+            { message: data.error, status: data.status ?? response.status },
+            { variant: "admin", stage: "credentials" },
+          ).message,
         );
-        throw new Error(details.message);
       }
-
       setUser(buildSessionUser(data.user));
       setRole(data.user?.role ?? null);
+      setAuthError(null);
+      setLoading(false);
     },
     [configured],
   );
 
   const logout = useCallback(async () => {
-    await clearSession();
-    if (configured) {
-      await getSupabaseBrowserClient().auth.signOut();
+    ++revision.current;
+    pending.current?.abort();
+    setLoading(true);
+    try {
+      await clearBravoSession();
+      if (configured)
+        await getSupabaseBrowserClient()
+          .auth.signOut({ scope: "local" })
+          .catch(() => undefined);
+      ++revision.current;
+      setUser(null);
+      setRole(null);
+      setAuthError(null);
+    } catch {
+      setAuthError("Sign-out could not be confirmed. Check your connection and retry.");
+    } finally {
+      setLoading(false);
     }
-    setUser(null);
-    setRole(null);
-  }, [configured, clearSession]);
+  }, [configured]);
 
   const value = useMemo(
-    () => ({
-      user,
-      role,
-      isAdmin: isAdminRole(role),
-      loading,
-      configured,
-      login,
-      logout,
-    }),
-    [user, role, loading, configured, login, logout],
+    () => ({ user, role, isAdmin: isAdminRole(role), loading, configured, authError, refreshSession, login, logout }),
+    [user, role, loading, configured, authError, refreshSession, login, logout],
   );
-
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

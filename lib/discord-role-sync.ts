@@ -22,20 +22,51 @@ export class DiscordRoleSyncError extends Error {
   }
 }
 
+export type VerifiedDiscordGuildMember = {
+  discordUserId: string;
+  guildId: string;
+  roleIds: readonly string[];
+};
+
+function isDiscordSnowflake(value: string) {
+  return /^\d+$/.test(value);
+}
+
+function isDiscordSnowflakeList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((role) => typeof role === "string" && isDiscordSnowflake(role));
+}
+
+function isRelationalDiscordAuthorizationEnabled() {
+  return process.env.DISCORD_RELATIONAL_TEAM_AUTH_ENABLED?.trim().toLowerCase() === "true";
+}
+
 function getConfig() {
   const guildId = process.env.BRAVO_DISCORD_GUILD_ID?.trim();
   const botToken = process.env.DISCORD_BOT_TOKEN?.trim();
-  if (!guildId || !botToken) {
+  if (!guildId || !isDiscordSnowflake(guildId) || !botToken) {
     throw new DiscordRoleSyncError(
       "unavailable",
       "Discord role verification is temporarily unavailable. Please try again later or use email login.",
       503,
     );
   }
-  const mappings = DISCORD_ROLE_PRIORITY.flatMap(([envName, appRole]) => {
-    const roleId = process.env[envName]?.trim();
-    return roleId ? [{ roleId, appRole }] : [];
-  });
+  const relationalTeamAuthEnabled = isRelationalDiscordAuthorizationEnabled();
+  const mappings = relationalTeamAuthEnabled
+    ? DISCORD_ROLE_PRIORITY.flatMap(([envName, appRole]) => {
+        const roleId = process.env[envName]?.trim();
+        return roleId ? [{ roleId, appRole }] : [];
+      })
+    : [];
+  const bannedRoleIds = [process.env.DISCORD_ROLE_BANNED_ID?.trim(), process.env.DISCORD_ROLE_SUSPENDED_ID?.trim()].filter(
+    (value): value is string => Boolean(value),
+  );
+  if ([...mappings.map((mapping) => mapping.roleId), ...bannedRoleIds].some((roleId) => !isDiscordSnowflake(roleId))) {
+    throw new DiscordRoleSyncError(
+      "unavailable",
+      "Discord role verification is temporarily unavailable. Please try again later or use email login.",
+      503,
+    );
+  }
   const duplicates = mappings.filter((mapping, index) => mappings.findIndex((candidate) => candidate.roleId === mapping.roleId) !== index);
   if (duplicates.length > 0) {
     throw new DiscordRoleSyncError(
@@ -48,19 +79,17 @@ function getConfig() {
     guildId,
     botToken,
     mappings,
-    bannedRoleIds: [process.env.DISCORD_ROLE_BANNED_ID?.trim(), process.env.DISCORD_ROLE_SUSPENDED_ID?.trim()].filter(
-      (value): value is string => Boolean(value),
-    ),
+    bannedRoleIds,
+    relationalTeamAuthEnabled,
   };
 }
 
-export async function syncDiscordRoles(user: User) {
+async function fetchVerifiedDiscordGuildMember(user: User): Promise<VerifiedDiscordGuildMember> {
   const discordUserId = extractDiscordUserId(user);
-  if (!discordUserId) {
+  if (!discordUserId || !isDiscordSnowflake(discordUserId)) {
     throw new DiscordRoleSyncError("identity_missing", "Discord identity verification could not be completed.");
   }
   const config = getConfig();
-  const relationalTeamAuthEnabled = process.env.DISCORD_RELATIONAL_TEAM_AUTH_ENABLED?.trim().toLowerCase() === "true";
   let response: Response;
   try {
     response = await fetch(`https://discord.com/api/v10/guilds/${config.guildId}/members/${discordUserId}`, {
@@ -89,13 +118,51 @@ export async function syncDiscordRoles(user: User) {
     );
   }
   const member = (await response.json()) as { roles?: unknown };
-  const roleIds = Array.isArray(member.roles) ? member.roles.filter((role): role is string => typeof role === "string") : [];
+  if (!isDiscordSnowflakeList(member.roles)) {
+    throw new DiscordRoleSyncError(
+      "unavailable",
+      "Discord role verification is temporarily unavailable. Please try again later or use email login.",
+      503,
+    );
+  }
+  const roleIds = [...new Set(member.roles)];
+  if (config.bannedRoleIds.some((roleId) => roleIds.includes(roleId))) {
+    throw new DiscordRoleSyncError("banned", "This Discord account is not permitted to access Bravo Gaming Esports.");
+  }
+
+  return Object.freeze({
+    discordUserId,
+    guildId: config.guildId,
+    roleIds: Object.freeze(roleIds),
+  });
+}
+
+export async function syncDiscordRoles(user: User, verifiedMember?: VerifiedDiscordGuildMember) {
+  const member = verifiedMember ?? (await fetchVerifiedDiscordGuildMember(user));
+  const discordUserId = extractDiscordUserId(user);
+  const config = getConfig();
+  if (!discordUserId || discordUserId !== member.discordUserId || member.guildId !== config.guildId) {
+    throw new DiscordRoleSyncError("identity_missing", "Discord identity verification could not be completed.");
+  }
+  const roleIds = [...member.roleIds];
+  if (roleIds.some((roleId) => !isDiscordSnowflake(roleId))) {
+    throw new DiscordRoleSyncError(
+      "unavailable",
+      "Discord role verification is temporarily unavailable. Please try again later or use email login.",
+      503,
+    );
+  }
+  const relationalTeamAuthEnabled = config.relationalTeamAuthEnabled;
   const client = getSupabaseServiceRoleClient();
-  const { data: storedMappings, error: mappingError } = await client
+  let mappingQuery = client
     .from("discord_role_mappings")
     .select("discord_role_id,discord_role_name,mapping_type,application_role,team_id,priority,deny_access,enabled")
     .eq("discord_guild_id", config.guildId)
     .eq("enabled", true);
+  if (!relationalTeamAuthEnabled) {
+    mappingQuery = mappingQuery.or("mapping_type.eq.deny,deny_access.eq.true");
+  }
+  const { data: storedMappings, error: mappingError } = await mappingQuery;
   if (mappingError && mappingError.code !== "42P01") {
     throw new DiscordRoleSyncError(
       "unavailable",
@@ -113,6 +180,13 @@ export async function syncDiscordRoles(user: User) {
     denyAccess: mapping.deny_access,
     enabled: mapping.enabled,
   }));
+  if (databaseMappings.some((mapping) => !isDiscordSnowflake(mapping.roleId))) {
+    throw new DiscordRoleSyncError(
+      "unavailable",
+      "Discord role verification is temporarily unavailable. Please try again later or use email login.",
+      503,
+    );
+  }
   const configuredRoleIds = new Set(databaseMappings.map((mapping) => mapping.roleId));
   const fallbackMappings: DiscordRoleMapping[] = config.mappings
     .filter((mapping) => !configuredRoleIds.has(mapping.roleId))
@@ -122,8 +196,11 @@ export async function syncDiscordRoles(user: User) {
       appRole: mapping.appRole,
       enabled: true,
     }));
+  const configuredDenyRoleIds = new Set(
+    databaseMappings.filter((mapping) => mapping.mappingType === "deny" || mapping.denyAccess).map((mapping) => mapping.roleId),
+  );
   for (const bannedRoleId of config.bannedRoleIds) {
-    if (!configuredRoleIds.has(bannedRoleId)) {
+    if (!configuredDenyRoleIds.has(bannedRoleId)) {
       fallbackMappings.push({
         roleId: bannedRoleId,
         mappingType: "deny",
@@ -142,6 +219,9 @@ export async function syncDiscordRoles(user: User) {
     .single();
   if (error || !profile)
     throw new DiscordRoleSyncError("profile_missing", "Your account has not been fully configured. Please contact Bravo Admin.");
+  if (!profile.is_active) {
+    throw new DiscordRoleSyncError("account_inactive", "This account is currently inactive. Please contact Bravo Admin.");
+  }
   const profileId = profile.id;
   const verifiedDiscordUserId = discordUserId;
 
@@ -163,13 +243,13 @@ export async function syncDiscordRoles(user: User) {
     manuallyProtected,
     adminApprovalPending,
   } = resolveApprovedDiscordRole(primaryRole, profile.role, profile.role_source);
-  const nextActive = resolution.denied ? false : profile.is_active;
+  const nextActive = profile.is_active;
   const syncedAt = new Date().toISOString();
   const teamRole = ["team_manager", "team_igl", "coach"].includes(nextRole);
   const playerLinkMissing = nextRole === "player" && !profile.player_id;
   const teamMismatch = resolution.teamState === "resolved" && Boolean(profile.team_id) && profile.team_id !== resolution.teamId;
   let mappedTeamUnavailable = false;
-  if (resolution.teamState === "resolved" && resolution.teamId) {
+  if (relationalTeamAuthEnabled && resolution.teamState === "resolved" && resolution.teamId) {
     const { data: mappedTeam, error: mappedTeamError } = await client
       .from("teams")
       .select("id,is_active,deleted_at")
@@ -192,15 +272,17 @@ export async function syncDiscordRoles(user: User) {
     approvedMembership = Boolean(membership);
   }
   const teamResolutionBlocked =
+    relationalTeamAuthEnabled &&
     teamRole &&
-    (!relationalTeamAuthEnabled ||
-      resolution.teamState !== "resolved" ||
-      !profile.team_id ||
-      teamMismatch ||
-      mappedTeamUnavailable ||
-      !approvedMembership);
-  const roleResolutionBlocked = teamResolutionBlocked || playerLinkMissing;
-  const effectiveRole = roleResolutionBlocked && !manuallyProtected ? "viewer" : nextRole;
+    (resolution.teamState !== "resolved" || !profile.team_id || teamMismatch || mappedTeamUnavailable || !approvedMembership);
+  const roleResolutionBlocked = relationalTeamAuthEnabled && (teamResolutionBlocked || playerLinkMissing);
+  const effectiveRole = relationalTeamAuthEnabled
+    ? roleResolutionBlocked && !manuallyProtected
+      ? "viewer"
+      : nextRole
+    : profile.role_source === "discord_sync"
+      ? "viewer"
+      : profile.role;
   const { error: updateError } = await client
     .from("profiles")
     .update({
@@ -212,8 +294,8 @@ export async function syncDiscordRoles(user: User) {
       discord_team_role_id:
         relationalTeamAuthEnabled && resolution.teamState === "resolved" && !teamMismatch ? resolution.teamRoleId : undefined,
       discord_team_verified_at: relationalTeamAuthEnabled && resolution.teamState === "resolved" && !teamMismatch ? syncedAt : undefined,
-      role: effectiveRole,
-      role_source: manuallyProtected ? profile.role_source : "discord_sync",
+      role: relationalTeamAuthEnabled ? effectiveRole : profile.role,
+      role_source: relationalTeamAuthEnabled && !manuallyProtected ? "discord_sync" : profile.role_source,
       is_active: nextActive,
       updated_at: syncedAt,
     })
@@ -222,7 +304,13 @@ export async function syncDiscordRoles(user: User) {
 
   await writeAuditLog({
     actorId: profile.id,
-    action: adminApprovalPending ? "discord_admin_approval_pending" : "discord_roles_synchronized",
+    action: resolution.denied
+      ? "discord_access_denied"
+      : relationalTeamAuthEnabled
+        ? adminApprovalPending
+          ? "discord_admin_approval_pending"
+          : "discord_roles_synchronized"
+        : "discord_membership_verified",
     entityType: "profile",
     entityId: profile.id,
     oldValue: { role: profile.role, active: profile.is_active },
@@ -240,7 +328,7 @@ export async function syncDiscordRoles(user: User) {
 
   if (resolution.denied)
     throw new DiscordRoleSyncError("suspended", "Your Bravo portal access is currently suspended. Please contact Bravo Admin.");
-  if (adminApprovalPending) {
+  if (relationalTeamAuthEnabled && adminApprovalPending) {
     throw new DiscordRoleSyncError(
       "admin_pending",
       "Your Discord Admin role was verified, but website admin access is awaiting owner approval.",
@@ -314,19 +402,20 @@ export async function syncDiscordRoles(user: User) {
       "Your Discord team role is linked to an inactive Bravo team. Please contact Bravo Admin.",
     );
   }
-  if (nextRole === "player" && !profile.player_id) {
+  if (relationalTeamAuthEnabled && nextRole === "player" && !profile.player_id) {
     await queueReview("player_link_missing", {
       resolvedTeamId: resolution.teamId,
     });
   }
-  const notice =
-    !relationalTeamAuthEnabled && teamRole
-      ? "team_approval_pending"
-      : playerLinkMissing
-        ? "player_link_pending"
-        : nextRole === "viewer"
-          ? "viewer_access"
-          : null;
+  const notice = relationalTeamAuthEnabled
+    ? playerLinkMissing
+      ? "player_link_pending"
+      : nextRole === "viewer"
+        ? "viewer_access"
+        : null
+    : effectiveRole === "viewer"
+      ? "viewer_access"
+      : null;
   const redirectTo =
     notice && notice !== "viewer_access"
       ? "/login"
@@ -347,46 +436,5 @@ export async function syncDiscordRoles(user: User) {
 }
 
 export async function verifyDiscordGuildMembership(user: User) {
-  const discordUserId = extractDiscordUserId(user);
-  if (!discordUserId) {
-    throw new DiscordRoleSyncError("identity_missing", "Discord identity verification could not be completed.");
-  }
-
-  const config = getConfig();
-  let response: Response;
-  try {
-    response = await fetch(`https://discord.com/api/v10/guilds/${config.guildId}/members/${discordUserId}`, {
-      headers: { Authorization: `Bot ${config.botToken}` },
-      cache: "no-store",
-      signal: AbortSignal.timeout(8_000),
-    });
-  } catch {
-    throw new DiscordRoleSyncError(
-      "unavailable",
-      "Discord verification is temporarily unavailable. Please try again later or use email login.",
-      503,
-    );
-  }
-
-  if (response.status === 404) {
-    throw new DiscordRoleSyncError(
-      "not_member",
-      "You must be a member of the official Bravo Gaming Esports Discord server to use Discord login.",
-    );
-  }
-  if (!response.ok) {
-    throw new DiscordRoleSyncError(
-      "unavailable",
-      "Discord verification is temporarily unavailable. Please try again later or use email login.",
-      503,
-    );
-  }
-
-  const member = (await response.json()) as { roles?: unknown };
-  const roleIds = Array.isArray(member.roles) ? member.roles.filter((role): role is string => typeof role === "string") : [];
-  if (config.bannedRoleIds.some((roleId) => roleIds.includes(roleId))) {
-    throw new DiscordRoleSyncError("banned", "This Discord account is not permitted to access Bravo Gaming Esports.");
-  }
-
-  return { discordUserId, roleIds };
+  return fetchVerifiedDiscordGuildMember(user);
 }
