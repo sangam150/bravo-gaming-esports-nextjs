@@ -2,7 +2,9 @@ import { compareMatchPlayerResults, compareTopFraggerPerformance, compareTeamLea
 import { isExplicitlyPublishedMatch, sanitizePublicMatch, publicMatchPlayerId } from "./public-match";
 import { buildTournamentStandings } from "./tournament-standings";
 import { resolvePublicAssetUrl } from "./public-asset-url";
-import type { Player, SponsorItem, Team, Tournament, TournamentMatch } from "./types";
+import type { Player, Scrim, SponsorItem, Team, Tournament, TournamentMatch } from "./types";
+import { isPublicScrim } from "./public-scrims";
+import { validateScrimSlots } from "./scrim-slots";
 import { parseEventSchedule } from "./event-schedule";
 import { parseBroadcastTemplate, defaultBroadcastTemplate, type BroadcastTemplate } from "./broadcast-template";
 import type { EventProduction } from "./event-production";
@@ -45,11 +47,12 @@ export const BROADCAST_GRAPHICS = [
   "analyst-panel",
   "starting-soon",
   "advancement",
+  "team-slots",
 ] as const;
 export type BroadcastGraphic = (typeof BROADCAST_GRAPHICS)[number];
 export const BROADCAST_GRAPHIC_GROUPS: { name: string; graphics: readonly BroadcastGraphic[] }[] = [
   { name: "Opening", graphics: ["opening", "countdown", "starting-soon"] },
-  { name: "Schedule", graphics: ["schedule", "todays-matches", "map-intro"] },
+  { name: "Schedule", graphics: ["schedule", "todays-matches", "map-intro", "team-slots"] },
   { name: "Gameplay", graphics: ["scoreboard", "compact-scoreboard", "match-info", "lower-third", "headshots", "killfeed"] },
   {
     name: "Standings",
@@ -87,6 +90,7 @@ export interface BroadcastState {
   revision: number;
   tournamentId: string;
   matchId: string;
+  scrimId?: string;
   playerId: string;
   comparisonPlayerId?: string;
   rundown?: BroadcastGraphic[];
@@ -114,6 +118,7 @@ export const DEFAULT_BROADCAST_STATE: BroadcastState = {
   revision: 0,
   tournamentId: "",
   matchId: "",
+  scrimId: "",
   playerId: "",
   graphic: "scoreboard",
   visible: false,
@@ -234,6 +239,7 @@ export function parseBroadcastState(value: unknown): BroadcastState {
     revision: Number(row.revision),
     tournamentId: text("tournamentId", 160),
     matchId: text("matchId", 160),
+    scrimId: optionalText("scrimId", 160),
     playerId: text("playerId", 160),
     comparisonPlayerId: optionalText("comparisonPlayerId", 160),
     rundown: [...rundown] as BroadcastGraphic[],
@@ -278,6 +284,7 @@ export function buildBroadcastSnapshot(input: {
   teams: Team[];
   players: Player[];
   sponsors: SponsorItem[];
+  scrim?: Scrim | null;
   privatePreview?: boolean;
   production?: EventProduction | null;
   now?: number;
@@ -337,6 +344,24 @@ export function buildBroadcastSnapshot(input: {
       .filter((team) => !team.deletedAt && team.status !== "inactive")
       .map((team) => [team.id, publicImage(team.logoUrl ?? team.logo)]),
   );
+  // Slots belong to one explicitly selected, linked scrim. Global team slot
+  // metadata and list order must never become a lobby assignment.
+  const candidateScrim = input.scrim;
+  const slotScrim = tournament && candidateScrim && candidateScrim.id === state.scrimId && candidateScrim.tournamentId === tournament.id &&
+    !candidateScrim.deletedAt && (input.privatePreview === true || isPublicScrim(candidateScrim)) ? candidateScrim : null;
+  const capacity = slotScrim?.teamCapacity;
+  const assignments = slotScrim?.slotAssignments ?? [];
+  let validSlots = false;
+  if (slotScrim && typeof capacity === "number") {
+    try { validateScrimSlots(slotScrim as unknown as Record<string, unknown>); validSlots = true; }
+    catch { /* Malformed or legacy unconfigured slots never become a lobby layout. */ }
+  }
+  const teamSlots = slotScrim && validSlots ? Array.from({ length: capacity! }, (_, index) => {
+    const slotNumber = index + 1;
+    const assignment = assignments.find(row => row.slotNumber === slotNumber);
+    const team = assignment ? input.teams.find(row => row.id === assignment.teamId && teamImages.has(row.id)) : null;
+    return { slotNumber, occupied: Boolean(assignment), teamId: team?.id, teamName: team?.name, logoUrl: team ? teamImages.get(team.id) : undefined };
+  }) : [];
   const playerImages = new Map(
     input.players
       .filter((player) => !player.deletedAt && player.playerStatus !== "inactive")
@@ -354,6 +379,10 @@ export function buildBroadcastSnapshot(input: {
           kills: row.kills,
           killPoints: row.killPoints,
           placementPoints: row.placementPoints,
+          adjustmentPoints: row.adjustmentPoints ?? 0,
+          penaltyPoints: row.penaltyPoints ?? 0,
+          bonusPoints: row.bonusPoints ?? 0,
+          disqualifications: row.disqualifications ?? 0,
           totalPoints: row.totalPoints,
           logoUrl: teamImages.get(row.teamId),
         }))
@@ -557,6 +586,8 @@ export function buildBroadcastSnapshot(input: {
           .filter((team) => tournament.registeredTeamIds?.includes(team.id) && teamImages.has(team.id))
           .map((team) => ({ id: team.id, name: team.name, logoUrl: teamImages.get(team.id) }))
       : [],
+    teamSlots,
+    slotScrim: slotScrim && validSlots ? { id: slotScrim.id, title: slotScrim.title, date: slotScrim.date, locked: slotScrim.slotsLocked === true, capacity } : null,
     casters: tournament
       ? (state.casters ?? [])
           .filter(

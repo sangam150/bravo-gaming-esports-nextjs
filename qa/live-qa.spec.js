@@ -738,13 +738,15 @@ test("OAuth provider visibility follows live authorization readiness", async ({ 
   await expect(page.getByRole("button", { name: "Continue with Discord", exact: true })).toHaveCount(expectedDiscordControls);
 
   if (readiness.discord) {
+    // OAuth acceptance must stay on the designated staging project.
+    const expectedAuthOrigin = "https://yppefayrepkqpqtprbqa.supabase.co";
     await page.goto(`${baseURL}/login`, {
       waitUntil: "domcontentloaded",
       timeout: 45000,
     });
     const authorizationRequestPromise = page.waitForRequest(
       (request) =>
-        request.url().includes("hldppfhtkfgthainismr.supabase.co/auth/v1/authorize") &&
+        request.url().startsWith(`${expectedAuthOrigin}/auth/v1/authorize`) &&
         new URL(request.url()).searchParams.get("provider") === "discord",
       { timeout: 30000 },
     );
@@ -758,18 +760,14 @@ test("OAuth provider visibility follows live authorization readiness", async ({ 
     const applicationCallback = new URL(authorizationUrl.searchParams.get("redirect_to") ?? "");
     const discordUrl = new URL(page.url());
 
-    expect(authorizationUrl.hostname).toBe("hldppfhtkfgthainismr.supabase.co");
+    expect(authorizationUrl.origin).toBe(expectedAuthOrigin);
     expect(authorizationUrl.searchParams.get("code_challenge")).toBeTruthy();
     expect(authorizationUrl.searchParams.get("code_challenge_method")?.toLowerCase()).toBe("s256");
     const qaOrigin = new URL(baseURL);
-    const allowedCallbackOrigins =
-      qaOrigin.hostname === "localhost" || qaOrigin.hostname === "127.0.0.1"
-        ? [qaOrigin.origin, "https://bravo-gaming-esports.vercel.app"]
-        : [qaOrigin.origin];
-    expect(allowedCallbackOrigins).toContain(applicationCallback.origin);
+    expect(applicationCallback.origin).toBe(qaOrigin.origin);
     expect(applicationCallback.pathname).toBe("/auth/callback");
     expect(discordUrl.searchParams.get("client_id")).toBe("1530095874594836581");
-    expect(discordUrl.searchParams.get("redirect_uri")).toBe("https://hldppfhtkfgthainismr.supabase.co/auth/v1/callback");
+    expect(discordUrl.searchParams.get("redirect_uri")).toBe(`${expectedAuthOrigin}/auth/v1/callback`);
     expect(discordUrl.searchParams.get("state")).toBeTruthy();
   }
 

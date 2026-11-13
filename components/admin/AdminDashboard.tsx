@@ -1,5 +1,7 @@
 "use client";
 
+import { hasEventRegistrationTarget } from "@/lib/registration-approval-policy";
+
 import { useDiscordProviderEnabled } from "@/components/auth/DiscordLoginButton";
 import ManagedImage from "@/components/ui/ManagedImage";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -33,7 +35,7 @@ import type {
 } from "@/lib/types";
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdminDiscordLinkManager from "./AdminDiscordLinkManager";
 import AdminDiscordRoleMappingManager from "./AdminDiscordRoleMappingManager";
 import HomepageFeaturedEventsManager, { type HomepageFeatureEventOption } from "./HomepageFeaturedEventsManager";
@@ -43,10 +45,12 @@ import AdminOverview from "./AdminOverview";
 import AdminWorkspaceTabs from "./AdminWorkspaceTabs";
 import CompetitionContextPanel from "./CompetitionContextPanel";
 import CompetitionScheduleEditor from "./CompetitionScheduleEditor";
+import ScrimSlotEditor from "./ScrimSlotEditor";
 import EventProductionSettings from "./EventProductionSettings";
 import PointSystemManager from "./PointSystemManager";
 import { getAdminSectionHref, getAdminWorkspace } from "@/lib/admin-navigation";
 import { formatEventSchedule } from "@/lib/event-schedule";
+import { toggleScrimTeamConfirmation } from "@/lib/scrim-slots";
 import AdminPlayerTeamLinkingManager from "./AdminPlayerTeamLinkingManager";
 import AdminRegisteredTeamsManager from "./AdminRegisteredTeamsManager";
 import AdminSidebar, { getAdminSectionLabel, type AdminSection } from "./AdminSidebar";
@@ -114,6 +118,9 @@ const defaultScrimForm: Partial<Scrim> = {
   mapRotation: [],
   pubgMatchIds: [],
   published: false,
+  teamCapacity: 16,
+  slotAssignments: [],
+  slotsLocked: false,
 };
 
 function buildDefaultTournamentForm(season?: Season | null): Partial<Tournament> {
@@ -458,6 +465,8 @@ export default function AdminDashboard({
   const [resourceWarnings, setResourceWarnings] = useState<string[]>([]);
   const [savingHomepage, setSavingHomepage] = useState(false);
   const [savingNews, setSavingNews] = useState(false);
+  const [savingScrim, setSavingScrim] = useState(false);
+  const scrimSaveInFlight = useRef(false);
 
   const [tournamentForm, setTournamentForm] = useState<Partial<Tournament>>(() => buildDefaultTournamentForm());
   const [teamForm, setTeamForm] = useState<Partial<Team>>({
@@ -1252,7 +1261,10 @@ export default function AdminDashboard({
         method: "PATCH",
         body: JSON.stringify({ id: registrationId, status }),
       });
-      setMessage(response.message ?? (status === "approved" ? "Registration approved and team published." : "Registration updated."));
+      setMessage(
+        response.message ??
+          (status === "approved" ? "Team review approved. Event entry and slots require separate confirmation." : "Registration updated."),
+      );
       await loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -1264,11 +1276,19 @@ export default function AdminDashboard({
   async function handleScrimSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!scrimForm.title || !scrimForm.date || !scrimForm.map) return;
+    if (scrimSaveInFlight.current) return;
+    scrimSaveInFlight.current = true;
+    setSavingScrim(true);
+    setMessage(null);
+    setError(null);
     try {
+      const id = editingScrim || scrimForm.id || crypto.randomUUID();
+      if (!editingScrim && !scrimForm.id) setScrimForm((current) => ({ ...current, id }));
       const selectedSeason = seasons.find((season) => season.id === scrimForm.seasonId) ?? activeSeason ?? null;
       const pubgMatchIds = getScrimMatchIds(scrimForm);
       const payload = {
         ...scrimForm,
+        id,
         seasonId: scrimForm.seasonId ?? selectedSeason?.id,
         seasonTitle: scrimForm.seasonTitle ?? selectedSeason?.seriesTitle ?? selectedSeason?.title,
         pubgMatchId: pubgMatchIds[0],
@@ -1294,9 +1314,12 @@ export default function AdminDashboard({
         seasonTitle: activeSeason?.seriesTitle ?? activeSeason?.title,
       });
       setEditingScrim(null);
-      loadData();
+      await loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      scrimSaveInFlight.current = false;
+      setSavingScrim(false);
     }
   }
 
@@ -1374,9 +1397,11 @@ export default function AdminDashboard({
   }
 
   function toggleScrimTeam(teamId: string) {
-    const current = scrimForm.teamIds ?? [];
-    const next = current.includes(teamId) ? current.filter((id) => id !== teamId) : [...current, teamId];
-    setScrimForm({ ...scrimForm, teamIds: next });
+    try {
+      setScrimForm(toggleScrimTeamConfirmation(scrimForm, teamId));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not update confirmed teams.");
+    }
   }
 
   return (
@@ -1420,8 +1445,21 @@ export default function AdminDashboard({
         </div>
 
         <AdminWorkspaceTabs section={section} onChange={handleSectionChange} canManagePlatformAdmin={canManagePlatformAdmin} />
-        {section === "seasons" && selectedCompetition && <EventProductionSettings key={selectedCompetition.id} tournamentId={selectedCompetition.id} teams={teams} announcements={announcements} canApprove={canManagePlatformAdmin} />}
-        {section === "competitionBroadcast" && (selectedCompetition ? <BroadcastControlRoom key={selectedCompetition.id} initialTournamentId={selectedCompetition.id} /> : <p className="text-sm text-text-muted">Select a competition to open its Broadcast Studio.</p>)}
+        {section === "seasons" && selectedCompetition && (
+          <EventProductionSettings
+            key={selectedCompetition.id}
+            tournamentId={selectedCompetition.id}
+            teams={teams}
+            announcements={announcements}
+            canApprove={canManagePlatformAdmin}
+          />
+        )}
+        {section === "competitionBroadcast" &&
+          (selectedCompetition ? (
+            <BroadcastControlRoom key={selectedCompetition.id} initialTournamentId={selectedCompetition.id} />
+          ) : (
+            <p className="text-sm text-text-muted">Select a competition to open its Broadcast Studio.</p>
+          ))}
         {(section === "teams" || section === "players") && (
           <div className="flex flex-wrap gap-3">
             <label className="min-w-0 flex-1 text-sm text-text-muted">
@@ -3531,7 +3569,7 @@ export default function AdminDashboard({
                           <p className="mt-2 font-semibold text-white">{tournament.title}</p>
                           <p className="mt-1 text-sm text-text-muted">
                             {linkedScrim?.date ?? tournament.startDate} | {linkedScrim?.map ?? "Map pending"} |{" "}
-                            {linkedScrim?.lobbyTime ?? "8:00 PM NPT"}
+                            {linkedScrim?.lobbyTime || "Start time not set"}
                           </p>
                         </div>
                         <StatusBadge status={tournament.status} />
@@ -3639,9 +3677,10 @@ export default function AdminDashboard({
               <input
                 className={inputClass}
                 aria-label="Lobby Time"
-                placeholder="Lobby Time"
+                placeholder="Lobby time with timezone"
                 value={scrimForm.lobbyTime ?? ""}
                 onChange={(e) => setScrimForm({ ...scrimForm, lobbyTime: e.target.value })}
+                required
               />
               <input
                 className={inputClass}
@@ -3767,9 +3806,15 @@ export default function AdminDashboard({
                   ))}
                 </div>
               </div>
+              <ScrimSlotEditor
+                value={scrimForm}
+                saved={scrims.find((row) => row.id === editingScrim)}
+                teams={teams}
+                onChange={setScrimForm}
+              />
               <div className="flex gap-3 sm:col-span-2">
-                <button type="submit" className={btnPrimary}>
-                  {editingScrim ? "Update" : "Create"} Scrim
+                <button type="submit" className={btnPrimary} disabled={savingScrim}>
+                  {savingScrim ? "Saving…" : `${editingScrim ? "Update" : "Create"} Scrim`}
                 </button>
                 {editingScrim && (
                   <button
@@ -3789,6 +3834,20 @@ export default function AdminDashboard({
                 )}
               </div>
             </form>
+            {scrimForm.tournamentId && tournaments.find((row) => row.id === scrimForm.tournamentId) ? (
+              <CompetitionScheduleEditor
+                key={scrimForm.tournamentId}
+                tournament={tournaments.find((row) => row.id === scrimForm.tournamentId)!}
+                teams={teams}
+                matches={liveMatches}
+                onSaved={loadData}
+              />
+            ) : (
+              <p className="text-sm text-text-muted">
+                Link this scrim to its competition to manage the saved public match schedule. Set the registration window and capacity in
+                Competitions before opening public registration.
+              </p>
+            )}
             <div className="space-y-3">
               {scrims.map((s) => (
                 <div key={s.id} className="esports-card flex flex-wrap items-center justify-between gap-4 p-5">
@@ -4256,7 +4315,14 @@ export default function AdminDashboard({
                             {r.tournamentId ? (
                               <p className="mt-1 text-sm text-slate-300">Tournament: {r.tournamentTitle ?? "Published event linked"}</p>
                             ) : null}
-                            {r.approvedTeamId ? <p className="mt-1 text-sm text-accent-green">Published team: {r.approvedTeamId}</p> : null}
+                            {r.approvedTeamId ? <p className="mt-1 text-sm text-accent-green">Official team: {r.approvedTeamId}</p> : null}
+                            {hasEventRegistrationTarget(r) ? (
+                              <p className={`mt-2 max-w-xl text-sm ${r.status === "approved" ? "text-accent-green" : "text-sky-200"}`}>
+                                {r.status === "approved"
+                                  ? `Event membership confirmed${r.eventSlotNumber ? ` at slot ${r.eventSlotNumber}` : ""}.`
+                                  : "Approval requires an existing active official team and atomically reserves the next available event slot."}
+                              </p>
+                            ) : null}
                             <span
                               className={`mt-3 inline-block rounded-full px-3 py-1 text-xs uppercase ${
                                 r.status === "pending"
@@ -4279,7 +4345,11 @@ export default function AdminDashboard({
                               disabled={registrationActionId === r.id}
                               className={btnPrimary}
                             >
-                              {registrationActionId === r.id ? "Processing..." : "Approve"}
+                              {registrationActionId === r.id
+                                ? "Processing..."
+                                : hasEventRegistrationTarget(r)
+                                  ? "Approve & Confirm Slot"
+                                  : "Approve Team Review"}
                             </button>
                             <button
                               type="button"
@@ -4386,7 +4456,7 @@ export default function AdminDashboard({
           />
         )}
 
-        {(section === "matchManager" || section === "competitionMatches" && selectedCompetition) && (
+        {(section === "matchManager" || (section === "competitionMatches" && selectedCompetition)) && (
           <AdminMatchManager
             tournaments={tournaments}
             scrims={scrims}

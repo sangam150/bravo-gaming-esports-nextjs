@@ -9,6 +9,7 @@ import { getResponseErrorMessage, toUserFacingErrorMessage, USER_FACING_ERROR_ME
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useHydrated } from "@/lib/use-hydrated";
 
 type UploadedRegistrationLogo = {
   id: string;
@@ -49,8 +50,8 @@ function RegistrationStatusFlow() {
       tone: "border-amber-300/20 bg-amber-300/10 text-amber-100",
     },
     {
-      title: "Approved",
-      detail: "Your slot is confirmed through official Bravo channels.",
+      title: "Team Review Approved",
+      detail: "Event entry and slot assignment need separate confirmation through official Bravo channels.",
       tone: "border-bravoGreen/25 bg-bravoGreen/10 text-bravoGreen",
     },
     {
@@ -87,6 +88,7 @@ export default function TeamRegistrationPageClient({
   hasEventQuery: boolean;
   selectedTournament: RegistrationTargetSummary | null;
 }) {
+  const hydrated = useHydrated();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const logoPreviewUrlRef = useRef<string | null>(null);
 
@@ -111,7 +113,7 @@ export default function TeamRegistrationPageClient({
     (selectedTournament?.id === selectedEventId ? selectedTournament : null);
   const invalidTournamentSelection = hasEventQuery && !selectedTournament && !selectedTarget;
   const tournamentClosed = selectedTarget?.registrationState && selectedTarget.registrationState !== "open";
-  const submitBlocked = loading || logoUploading || invalidTournamentSelection || Boolean(tournamentClosed);
+  const submitBlocked = !hydrated || loading || logoUploading || invalidTournamentSelection || Boolean(tournamentClosed);
 
   useEffect(() => {
     return () => {
@@ -209,6 +211,7 @@ export default function TeamRegistrationPageClient({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!hydrated || loading || logoUploading) return;
 
     if (invalidTournamentSelection) {
       setError("The selected event is unavailable. Open registration from a published event page and try again.");
@@ -300,7 +303,8 @@ export default function TeamRegistrationPageClient({
       <div className="space-y-6">
         <RegistrationStatusFlow />
 
-        <form onSubmit={handleSubmit} aria-busy={loading || logoUploading} className="esports-card space-y-6 p-8">
+        <form method="post" action="/api/registrations" onSubmit={handleSubmit} aria-busy={loading || logoUploading} className="esports-card space-y-6 p-8">
+          <fieldset disabled={!hydrated} className="min-w-0 space-y-6">
           {selectedTarget ? (
             <div className="rounded-2xl border border-accent-blue/25 bg-accent-blue/10 px-5 py-4">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-accent-blue-light">Selected Event</p>
@@ -508,6 +512,7 @@ export default function TeamRegistrationPageClient({
           <p className="text-xs text-slate-500">
             If no public event is open, a general registration lets Bravo contact you about a suitable future event.
           </p>
+          </fieldset>
         </form>
       </div>
     </main>

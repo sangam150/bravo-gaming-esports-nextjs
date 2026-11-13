@@ -18,6 +18,17 @@ npm run dev
 Note: `npm run dev` now starts Next.js with webpack mode for stable local development.
 Use `npm run dev:turbopack` only if you want to test Turbopack.
 
+For the designated isolated Supabase staging project, configure the ignored
+`.env.staging.local` and use `npm run dev:staging` instead.
+This explicitly selects staging authentication, clears production credential
+fallbacks, and keeps R2 credentials excluded until their isolation is verified.
+Run `npm run dev:staging -- --check` to inspect configuration without starting
+a server. The optional `--discord` mode is for verified provider/schema readiness;
+current local Discord login is explicitly disabled. Normal `npm run dev` follows
+Next.js's standard environment file order and does not automatically load
+`.env.staging.local`.
+See [authentication setup, actual results and temporary-account lifecycle](docs/authentication-verification.md).
+
 Admin dashboard:
 
 - Visit `/admin` to access the PUBG control center
@@ -36,6 +47,8 @@ Broadcast operation:
 - The [global production follow-up](docs/global-production-readiness.md) covers the supplied blue references, event settings, template editor, private-preview/live controls and explicitly unfinished master requirements.
 - The [5 November development verification](docs/master-development-verification.md) records versioned scoring, expanded graphics, public tournament workflows, local evidence and remaining release gaps.
 - The [final release audit](docs/release-audit.md) records transaction/security fixes, current checks, the explicit file manifest, prepared PR text and blocked commit/push/deployment gates.
+- The [current production deployment report](docs/production-deployment-report.md) separates local verification from real staging acceptance and the explicit release approvals still required.
+- The [Preview resource isolation policy](docs/preview-resource-isolation.md) documents fail-closed configuration checks and the actual Vercel/R2 bindings that must be verified before a feature push.
 - Read the [audit](docs/platform-audit.md) and [actual verification results and file changes](docs/platform-verification.md) before releasing.
 
 Public PUBG hub:

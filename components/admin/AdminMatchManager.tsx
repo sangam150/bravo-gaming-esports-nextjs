@@ -21,7 +21,6 @@ import FileUpload from "./FileUpload";
 
 const inputClass = "input-esports";
 const btnPrimary = "btn-primary disabled:opacity-60";
-const defaultPointSystemId = "00000000-0000-4000-8000-000000000001";
 
 const pubgMaps = ["Erangel", "Miramar", "Rondo", "Taego", "Deston", "Vikendi", "Sanhok", "Karakin", "Paramo"];
 
@@ -104,8 +103,8 @@ const defaultBulkForm: BulkMatchFormState = {
   map: "Erangel",
   eventName: "",
   eventSlug: "",
-  pointSystemId: defaultPointSystemId,
-  pointSystemName: "Bravo PUBG",
+  pointSystemId: "",
+  pointSystemName: "Event scoring",
   status: "draft",
   playedAt: "",
   vodUrl: "",
@@ -271,8 +270,8 @@ function buildMatchForm(match: TournamentMatch): MatchFormState {
     map: match.map,
     eventName: match.eventName ?? "",
     eventSlug: match.eventSlug ?? "",
-    pointSystemId: match.pointSystemId ?? defaultPointSystemId,
-    pointSystemName: match.pointSystemName ?? "Bravo PUBG",
+    pointSystemId: match.pointSystemId ?? "",
+    pointSystemName: match.pointSystemName ?? "Event scoring",
     status: match.status === "draft" ? "draft" : "published",
     playedAt: formatDateTimeLocalInput(match.playedAt),
     vodUrl: match.vodUrl ?? "",
@@ -809,11 +808,10 @@ export default function AdminMatchManager({
                 setForm({
                   ...form,
                   pointSystemId: event.target.value,
-                  pointSystemName: nextPointSystem?.name ?? form.pointSystemName,
+                  pointSystemName: nextPointSystem?.name ?? "Event scoring",
                 });
               }}
             >
-              <option value={defaultPointSystemId}>Default Bravo point system</option>
               <option value="">Use approved stage / event scoring</option>
               {pointSystems.map((pointSystem) => (
                 <option key={pointSystem.id} value={pointSystem.id}>
@@ -1177,11 +1175,11 @@ export default function AdminMatchManager({
                   setBulkForm({
                     ...bulkForm,
                     pointSystemId: event.target.value,
-                    pointSystemName: nextPointSystem?.name ?? bulkForm.pointSystemName,
+                    pointSystemName: nextPointSystem?.name ?? "Event scoring",
                   });
                 }}
               >
-                <option value={defaultPointSystemId}>Default Bravo point system</option>
+                <option value="">Event scoring (configured rules)</option>
                 {pointSystems.map((pointSystem) => (
                   <option key={pointSystem.id} value={pointSystem.id}>
                     {pointSystem.name}

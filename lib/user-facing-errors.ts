@@ -27,6 +27,7 @@ export const LOGIN_ERROR_MESSAGES = {
   missingCredentials: "Please enter your email and password.",
   invalidCredentials: "Invalid email or password. Please check your details and try again.",
   backendUnavailable: "Login service is temporarily unavailable. Please try again later or contact Bravo support.",
+  serverError: "Sign-in could not be completed. Please try again or contact Bravo support.",
   rateLimited: "Too many login attempts. Please wait a moment and try again.",
   adminRoleMismatch: "This account does not have admin access.",
   teamRoleMismatch: "This account does not have team access.",
@@ -44,6 +45,7 @@ export type LoginFailureCategory =
   | "missing_credentials"
   | "invalid_credentials"
   | "backend_unavailable"
+  | "server_error"
   | "rate_limited"
   | "role_mismatch"
   | "email_unconfirmed"
@@ -226,6 +228,17 @@ export function getLoginFailureDetails(
     return {
       message: LOGIN_ERROR_MESSAGES.invalidCredentials,
       category: "invalid_credentials",
+      status,
+      code,
+    };
+  }
+
+  // Server responses distinguish an application failure from an unavailable
+  // dependency. Upstream provider errors are classified before this projection.
+  if (status === 500) {
+    return {
+      message: LOGIN_ERROR_MESSAGES.serverError,
+      category: "server_error",
       status,
       code,
     };

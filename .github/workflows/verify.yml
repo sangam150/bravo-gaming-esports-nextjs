@@ -1,0 +1,64 @@
+name: Local verification
+
+on:
+  pull_request:
+  push:
+    branches: [main, codex/platform-completion-20261104]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SITE_URL: http://localhost:3107
+      NEXT_PUBLIC_SUPABASE_URL: https://yppefayrepkqpqtprbqa.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ""
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+      SUPABASE_SECRET_KEY: ""
+      SUPABASE_SERVICE_ROLE_KEY: ""
+      DISCORD_LOGIN_ENABLED: "false"
+      VERCEL_ENV: ""
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-http-header-size=65536
+      QA_BASE_URL: http://localhost:3107
+      QA_AUTH_ORIGIN: http://localhost:3107
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          clean: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "22"
+          check-latest: true
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm run qa:secrets
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run qa:broadcast
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Browser fixtures without external credentials
+        run: npx playwright test qa/auth-provider.spec.js qa/admin-workspaces.spec.js qa/master-workflows.spec.js qa/interaction-hydration.spec.js qa/motion-hydration.spec.js qa/scrim-slots.spec.js qa/statistics-identity.spec.js --workers=1
+      - name: Broadcast fixtures on the local production-mode server
+        shell: bash
+        run: |
+          node qa/local-release-runtime.mjs start > ci-local-server.log 2>&1 &
+          ci_server_pid=$!
+          trap 'kill "$ci_server_pid"' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:3107/api/version > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://localhost:3107/api/version > /dev/null
+          npm run qa:broadcast:ui

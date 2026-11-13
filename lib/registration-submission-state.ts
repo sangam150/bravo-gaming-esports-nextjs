@@ -34,6 +34,19 @@ export function isDefinitiveRegistrationSubmissionRejection(error: unknown) {
   }
 
   const code = typeof error.code === "string" ? error.code.trim().toUpperCase() : "";
+  if (
+    [
+      "DUPLICATE_EVENT_TEAM",
+      "DUPLICATE_REGISTRATION",
+      "REGISTRATION_CAPACITY_FULL",
+      "REGISTRATION_EVENT_CLOSED",
+      "REGISTRATION_EVENT_NOT_FOUND",
+      "REGISTRATION_SLOT_OUT_OF_RANGE",
+      "REGISTRATION_TEAM_NOT_ELIGIBLE",
+    ].includes(code)
+  ) {
+    return true;
+  }
   if (["PGRST100", "PGRST102", "PGRST106", "PGRST107", "PGRST120", "PGRST122", "PGRST204"].includes(code)) {
     return true;
   }

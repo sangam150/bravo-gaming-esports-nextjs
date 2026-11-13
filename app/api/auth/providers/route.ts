@@ -38,7 +38,9 @@ export async function GET() {
   let discord = false;
 
   try {
-    discord = await readDiscordProviderSetting();
+    if (process.env.DISCORD_LOGIN_ENABLED?.trim().toLowerCase() !== "false") {
+      discord = await readDiscordProviderSetting();
+    }
   } catch {
     // Provider discovery must fail closed without taking email login offline.
   }

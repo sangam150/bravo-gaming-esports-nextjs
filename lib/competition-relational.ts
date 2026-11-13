@@ -728,27 +728,20 @@ export async function saveCompetitionEvent(data: Partial<Tournament> & { title: 
     updated_at: now,
   };
 
-  const { data: result, error } = await client.from("events").upsert(payload).select("*").single();
+  const { error } = await client.rpc("commit_competition_event", {
+    p_actor_id: null,
+    p_event: payload as Json,
+    p_team_ids: registeredTeamIds as Json,
+  });
   if (error) {
     throw error;
   }
 
-  await client.from("event_teams").delete().eq("event_id", eventId);
-  if (registeredTeamIds.length > 0) {
-    const eventTeams: TablesInsert<"event_teams">[] = registeredTeamIds.map((teamId, index) => ({
-      event_id: eventId,
-      team_id: teamId,
-      slot_number: index + 1,
-      status: published ? "approved" : "registered",
-    }));
-
-    const { error: eventTeamsError } = await client.from("event_teams").insert(eventTeams);
-    if (eventTeamsError) {
-      throw eventTeamsError;
-    }
+  const savedEvent = await getCompetitionEvent(eventId, { includeUnpublished: true });
+  if (!savedEvent) {
+    throw new Error("The event transaction completed but the saved event could not be reloaded.");
   }
-
-  return mapEventRow(result as Tables<"events">, registeredTeamIds);
+  return savedEvent;
 }
 
 export async function deleteCompetitionEvent(id: string) {
@@ -942,13 +935,14 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[], options
   const client = getSupabaseServiceRoleClient();
   const matchIds = matchRows.map((row) => row.id);
   const { teamResults, playerResults } = await getMatchRows(matchIds, options);
-  if (matchIds.length && matchRows.every(row => typeof row.revision === "number")) {
+  if (matchIds.length && matchRows.every((row) => typeof row.revision === "number")) {
     // Parent and children are separate HTTP reads. Fail closed if a transaction
     // committed between them; never combine one scoring version with new rows.
     const { data: current, error } = await client.from("matches").select("id,revision").in("id", matchIds);
     if (error) throw error;
-    const revisions = new Map((current ?? []).map(row => [row.id, row.revision]));
-    if (matchRows.some(row => revisions.get(row.id) !== row.revision)) throw new Error("Match revision conflict. Reload the match before retrying.");
+    const revisions = new Map((current ?? []).map((row) => [row.id, row.revision]));
+    if (matchRows.some((row) => revisions.get(row.id) !== row.revision))
+      throw new Error("Match revision conflict. Reload the match before retrying.");
   }
   const eventIds = Array.from(new Set(matchRows.map((row) => row.event_id).filter((value): value is string => Boolean(value))));
   const pointSystemIds = Array.from(
@@ -994,7 +988,11 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[], options
       placementPoints: teamResult.placement_points,
       killPoints: teamResult.kill_points,
       totalPoints: teamResult.total_points,
-      ...parseScoringDecision({ adjustmentPoints: teamResult.adjustment_points, decisionReason: teamResult.decision_reason, disqualified: teamResult.disqualified }),
+      ...parseScoringDecision({
+        adjustmentPoints: teamResult.adjustment_points,
+        decisionReason: teamResult.decision_reason,
+        disqualified: teamResult.disqualified,
+      }),
     });
     teamResultsByMatchId.set(teamResult.match_id, currentValue);
   }
@@ -1042,7 +1040,10 @@ async function hydrateCompetitionMatches(matchRows: Tables<"matches">[], options
     for (const team of teamResultsValue) team.tieBreakers = scoringRules?.tieBreakers;
     for (const player of playerResultsValue) {
       player.awardCriteria = scoringRules?.awardCriteria;
-      player.disqualified = teamResultsValue.find(team => team.teamId && player.teamId ? team.teamId === player.teamId : team.teamName.toLowerCase() === player.teamName.toLowerCase())?.disqualified ?? false;
+      player.disqualified =
+        teamResultsValue.find((team) =>
+          team.teamId && player.teamId ? team.teamId === player.teamId : team.teamName.toLowerCase() === player.teamName.toLowerCase(),
+        )?.disqualified ?? false;
     }
     teamResultsValue.sort((firstValue, secondValue) => compareMatchTeamResults(firstValue, secondValue));
     playerResultsValue.sort((firstValue, secondValue) => compareMatchPlayerResults(firstValue, secondValue));
@@ -1180,8 +1181,10 @@ export async function previewCompetitionMatch(input: Partial<TournamentMatch>) {
 
   const production = (await getEventProduction(normalizedInput.tournamentId)).approved;
   const schedule = parseEventSchedule(event.schedule ?? undefined);
-  const scheduled = schedule?.matches.find(row => row.matchId && input.id ? row.matchId === input.id : row.matchNumber === normalizedInput.matchNumber);
-  const stageRules = production?.stages.find(stage => stage.id === scheduled?.stageId)?.pointSystemId;
+  const scheduled = schedule?.matches.find((row) =>
+    row.matchId && input.id ? row.matchId === input.id : row.matchNumber === normalizedInput.matchNumber,
+  );
+  const stageRules = production?.stages.find((stage) => stage.id === scheduled?.stageId)?.pointSystemId;
   const pointSystem = await getPointSystem(normalizedInput.pointSystemId, stageRules || event.point_system_id);
   const scored = scoreMatchResults(normalizedInput.teamResults, normalizedInput.playerResults, pointSystem);
 
@@ -1331,7 +1334,11 @@ async function prepareMatchResults(
     });
   }
 
-  return { teamRows, playerRows, affectedPubgAccountIds: Array.from(new Set(affectedPubgAccountIds.map((value) => value.trim().toLowerCase()).filter(Boolean))) };
+  return {
+    teamRows,
+    playerRows,
+    affectedPubgAccountIds: Array.from(new Set(affectedPubgAccountIds.map((value) => value.trim().toLowerCase()).filter(Boolean))),
+  };
 }
 
 export async function saveCompetitionMatch(input: Partial<TournamentMatch>, options: SaveCompetitionMatchOptions = {}) {
@@ -1350,9 +1357,12 @@ export async function saveCompetitionMatch(input: Partial<TournamentMatch>, opti
   if (existingMatch && (!Number.isSafeInteger(input.revision) || input.revision !== existingMatch.revision)) {
     throw new Error("Match revision conflict. Reload the match before retrying.");
   }
-  const publish = Boolean((options.publish ?? preview.status === "published") && (existingMatch?.status !== "published" || options.reviewedPublication));
+  const publish = Boolean(
+    (options.publish ?? preview.status === "published") && (existingMatch?.status !== "published" || options.reviewedPublication),
+  );
   if (publish) validateMatchResultsForPublication(preview.teamResults ?? [], preview.playerResults ?? []);
-  if ((hasScoringDecisions(preview.teamResults) || hasScoringDecisions(existingMatch?.teamResults)) && !options.allowScoringDecisions) throw new Error("Authorized platform-administrator approval is required for scoring decisions.");
+  if ((hasScoringDecisions(preview.teamResults) || hasScoringDecisions(existingMatch?.teamResults)) && !options.allowScoringDecisions)
+    throw new Error("Authorized platform-administrator approval is required for scoring decisions.");
 
   await ensureUniqueEventMatchNumber(event.id, preview.matchNumber ?? 1, existingMatch?.id ?? matchId);
 
@@ -1415,8 +1425,13 @@ export async function saveCompetitionMatch(input: Partial<TournamentMatch>, opti
 async function commitMatchState(id: string, action: "unpublish" | "delete", expectedRevision: number, actorId?: string | null) {
   const client = getSupabaseServiceRoleClient();
   const { error } = await client.rpc("commit_competition_match", {
-    p_match: { id }, p_team_rows: [], p_player_rows: [], p_expected_revision: expectedRevision,
-    p_publish: false, p_action: action, p_actor_id: actorId ?? null,
+    p_match: { id },
+    p_team_rows: [],
+    p_player_rows: [],
+    p_expected_revision: expectedRevision,
+    p_publish: false,
+    p_action: action,
+    p_actor_id: actorId ?? null,
   });
   if (error) throw new Error(error.message);
 }
@@ -1426,24 +1441,36 @@ export async function setCompetitionMatchPublishedState(id: string, published: b
   await commitMatchState(id, "unpublish", expectedRevision, actorId);
   const match = await getCompetitionMatch(id);
   if (!match) throw new Error("Match not found after withdrawal.");
-  await reconcilePlayerTeamLinksForAccounts((match.playerResults ?? []).map(row => row.pubgPlayerId ?? "").filter(Boolean));
+  await reconcilePlayerTeamLinksForAccounts((match.playerResults ?? []).map((row) => row.pubgPlayerId ?? "").filter(Boolean));
   return match;
 }
 
-export async function recalculateCompetitionMatch(id: string, allowScoringDecisions: boolean, expectedRevision: number, actorId?: string | null) {
+export async function recalculateCompetitionMatch(
+  id: string,
+  allowScoringDecisions: boolean,
+  expectedRevision: number,
+  actorId?: string | null,
+) {
   const match = await getCompetitionMatch(id);
   if (!match) throw new Error("Match not found.");
-  return saveCompetitionMatch({ ...match, revision: expectedRevision, status: "draft" }, { publish: false, allowScoringDecisions, actorId });
+  return saveCompetitionMatch(
+    { ...match, revision: expectedRevision, status: "draft" },
+    { publish: false, allowScoringDecisions, actorId },
+  );
 }
 
-export async function restoreCompetitionMatchFromSnapshot(snapshot: TournamentMatch, allowScoringDecisions = false, actorId?: string | null) {
+export async function restoreCompetitionMatchFromSnapshot(
+  snapshot: TournamentMatch,
+  allowScoringDecisions = false,
+  actorId?: string | null,
+) {
   return saveCompetitionMatch(snapshot, { publish: false, allowScoringDecisions, actorId });
 }
 
 export async function deleteCompetitionMatch(id: string, expectedRevision: number, actorId?: string | null) {
   const match = await getCompetitionMatch(id);
   await commitMatchState(id, "delete", expectedRevision, actorId);
-  await reconcilePlayerTeamLinksForAccounts((match?.playerResults ?? []).map(row => row.pubgPlayerId ?? "").filter(Boolean));
+  await reconcilePlayerTeamLinksForAccounts((match?.playerResults ?? []).map((row) => row.pubgPlayerId ?? "").filter(Boolean));
   return { id, deleted: true };
 }
 

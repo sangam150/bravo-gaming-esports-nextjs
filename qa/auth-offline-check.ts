@@ -5,6 +5,9 @@ import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "../lib/authz";
 import { buildDiscordAuthCallbackUrl } from "../lib/discord-auth";
 import { validateSameOriginRequest } from "../lib/request-origin";
 import { isSupabaseAuthCookieName, isSupabaseSessionCookieName, requestHasSupabaseAuthCookie } from "../lib/supabase-auth-cookies";
+import { checkLoginRouteFailures } from "./login-route-check";
+import { checkSupabaseFetchTimeouts } from "./supabase-fetch-check";
+import { GET as getProviderAvailability } from "../app/api/auth/providers/route";
 
 assert.equal(readSafeAuthDestination("https://attacker.invalid"), null);
 assert.equal(readSafeAuthDestination("//attacker.invalid"), null);
@@ -52,6 +55,36 @@ assert.equal(
 );
 
 async function main() {
+  await checkLoginRouteFailures();
+  await checkSupabaseFetchTimeouts();
+  const providerEnvironmentNames = ["DISCORD_LOGIN_ENABLED", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
+  const previousProviderEnvironment = Object.fromEntries(providerEnvironmentNames.map(name => [name, process.env[name]]));
+  const providerFetch = globalThis.fetch;
+  try {
+    let providerRequests = 0;
+    globalThis.fetch = async input => {
+      providerRequests++;
+      assert.equal(new URL(String(input)).pathname, "/auth/v1/settings");
+      return Response.json({ external: { discord: true } });
+    };
+    process.env.DISCORD_LOGIN_ENABLED = " false ";
+    assert.deepEqual(await (await getProviderAvailability()).json(), { discord: false });
+    assert.equal(providerRequests, 0, "Disabled Discord must not depend on a working Auth service or stop email login.");
+    process.env.DISCORD_LOGIN_ENABLED = "true";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://offline.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "offline-public";
+    assert.deepEqual(await (await getProviderAvailability()).json(), { discord: true });
+    globalThis.fetch = async () => Response.json({ external: { discord: false } });
+    assert.deepEqual(await (await getProviderAvailability()).json(), { discord: false }, "Local opt-in must not override a disabled Supabase provider.");
+    globalThis.fetch = async () => { throw new Error("offline provider outage"); };
+    assert.deepEqual(await (await getProviderAvailability()).json(), { discord: false });
+  } finally {
+    globalThis.fetch = providerFetch;
+    for (const name of providerEnvironmentNames) {
+      if (previousProviderEnvironment[name] === undefined) delete process.env[name];
+      else process.env[name] = previousProviderEnvironment[name];
+    }
+  }
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

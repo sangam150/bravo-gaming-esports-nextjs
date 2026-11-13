@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isSupabaseSessionCookieName } from "../supabase-auth-cookies";
 import { requireSupabaseEnv } from "./env";
+import { supabaseRequestFetch } from "./request-fetch";
 
 export type SupabaseProxyIdentity = {
   uid: string;
@@ -31,6 +32,7 @@ export async function refreshSupabaseSession(
   try {
     const { url, publicKey } = requireSupabaseEnv();
     const supabase = createServerClient<Database>(url, publicKey, {
+      global: { fetch: supabaseRequestFetch },
       cookies: {
         getAll() {
           return request.cookies.getAll();

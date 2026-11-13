@@ -179,6 +179,16 @@ async function fixture(page) {
     if (["/api/admin/matches", "/api/admin/matches/preview"].includes(url.pathname)) {
       const body = request.postDataJSON();
       server.writes.push(body);
+      if (Array.isArray(body.matches)) {
+        const data = body.matches.map((entry, index) => ({
+          ...entry,
+          id: `qa-shell-${index}`,
+          ...scoreMatchResults(entry.teamResults, entry.playerResults, points),
+          status: "draft",
+        }));
+        server.matches = data;
+        return route.fulfill({ json: { success: true, data } });
+      }
       const calculation = scoreMatchResults(body.teamResults, body.playerResults, points);
       const data = {
         ...body,
@@ -234,6 +244,31 @@ test("organizer selects versioned tie-break and MVP sequences through forms", as
   await expect(page.getByRole("status")).toContainText("Scoring version saved");
   expect(server.writes[0].rules_json.awardCriteria[0]).toBe("damage");
   expect(server.writes[0].rules_json.version).toBe(2);
+});
+test("bulk match shells inherit event scoring unless the operator explicitly selects a version", async ({ page }) => {
+  const server = await fixture(page);
+  await page.goto("http://qa-master.test/match");
+  const bulk = page.locator("form").filter({ has: page.getByRole("button", { name: "Create Multiple Matches", exact: true }) });
+  const scoring = bulk.getByLabel("Point system", { exact: true });
+  await expect(scoring).toHaveValue("");
+  await bulk.getByLabel("PUBG match IDs", { exact: true }).fill("QA-SHELL-1\nQA-SHELL-2");
+  await bulk.getByLabel("Event", { exact: true }).selectOption(tournament.id);
+  await bulk.getByRole("button", { name: "Create Multiple Matches", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("2 match shells created");
+  const inherited = server.writes.at(-1).matches;
+  expect(inherited).toHaveLength(2);
+  for (const entry of inherited) {
+    expect(entry.pointSystemId).toBeUndefined();
+    expect(entry.tournamentId).toBe(tournament.id);
+    expect(entry.status).toBe("draft");
+  }
+  await expect(scoring).toHaveValue("");
+  await bulk.getByLabel("PUBG match IDs", { exact: true }).fill("QA-SHELL-3");
+  await bulk.getByLabel("Event", { exact: true }).selectOption(tournament.id);
+  await scoring.selectOption(points.id);
+  await bulk.getByRole("button", { name: "Create Multiple Matches", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("1 match shell created");
+  expect(server.writes.at(-1).matches[0].pointSystemId).toBe(points.id);
 });
 test("public event separates schedules/results, scopes standings and withdraws stale data", async ({ page }) => {
   await page.clock.install();

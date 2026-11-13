@@ -11,6 +11,7 @@ import {
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import { requireSameOrigin } from "@/lib/request-origin";
 import { writeAuditLogFromRequest } from "@/lib/audit-logs";
+import { listCanonicalAdminTeams } from "@/lib/canonical-teams";
 import { validateScrimInput, ScrimInputError, scrimAuditSummary } from "@/lib/scrim-input";
 import { revalidateCompetitionPaths } from "@/lib/revalidate-public";
 import type { Scrim } from "@/lib/types";
@@ -36,10 +37,13 @@ function buildScrimPayload(body: Record<string, unknown>): Partial<Scrim> {
     title: typeof body.title === "string" ? body.title : "",
     date: typeof body.date === "string" ? body.date : "",
     map: typeof body.map === "string" ? body.map : "",
-    lobbyTime: typeof body.lobbyTime === "string" && body.lobbyTime ? body.lobbyTime : "8:00 PM NPT",
+    lobbyTime: typeof body.lobbyTime === "string" ? body.lobbyTime : "",
     roomId: typeof body.roomId === "string" ? body.roomId : undefined,
     roomPassword: typeof body.roomPassword === "string" ? body.roomPassword : undefined,
     teamIds: Array.isArray(body.teamIds) ? body.teamIds.filter((value): value is string => typeof value === "string") : [],
+    teamCapacity: typeof body.teamCapacity === "number" ? body.teamCapacity : undefined,
+    slotAssignments: Array.isArray(body.slotAssignments) ? body.slotAssignments.map(row => ({ teamId: row.teamId, slotNumber: row.slotNumber })) : undefined,
+    slotsLocked: typeof body.slotsLocked === "boolean" ? body.slotsLocked : undefined,
     pubgMatchId: pubgMatchIds[0],
     pubgMatchIds,
     status: (typeof body.status === "string" ? body.status : "scheduled") as Scrim["status"],
@@ -53,6 +57,14 @@ function buildScrimPayload(body: Record<string, unknown>): Partial<Scrim> {
     tournamentId: typeof body.tournamentId === "string" ? body.tournamentId : undefined,
     published: body.published === true,
   };
+}
+
+async function requireEligibleSlotTeams(payload: Partial<Scrim>) {
+  if (![payload.teamCapacity, payload.slotAssignments, payload.slotsLocked].some(value => value !== undefined) || !payload.teamIds?.length) return;
+  const teams = await listCanonicalAdminTeams();
+  const eligibleIds = new Set(teams.filter(team => team.isActive && team.status.trim().toLowerCase() === "active" && !team.archivedAt && !team.mergedIntoTeamId).map(team => team.id));
+  if (payload.teamIds.some(id => !eligibleIds.has(id)))
+    throw new ScrimInputError("Confirm only existing active official teams for scrim slots. Reload or reconcile unavailable, archived or merged teams first.");
 }
 
 export async function GET(request: Request) {
@@ -78,6 +90,7 @@ export async function POST(request: Request) {
     }
     validateScrimInput(body);
     const payload = buildScrimPayload(body as Record<string, unknown>);
+    await requireEligibleSlotTeams(payload);
     const id = typeof body.id === "string" && body.id.trim() ? body.id.trim() : randomUUID();
     if (id.length > 160) return Response.json({ error: "Invalid scrim ID." }, { status: 400 });
     const now = new Date().toISOString();
@@ -102,7 +115,7 @@ export async function POST(request: Request) {
     revalidateCompetitionPaths();
     return Response.json({
       success: true,
-      data: { id: result.id, ...payload },
+      data: { id: result.id, ...payload, createdAt: now, updatedAt: now },
     });
   } catch (error: unknown) {
     return scrimError(error);
@@ -120,10 +133,12 @@ export async function PUT(request: Request) {
     if (typeof body.id !== "string" || !body.id) return Response.json({ error: "id is required" }, { status: 400 });
     const existing = await getDocument<Scrim>(COLLECTIONS.scrims, body.id);
     if (!existing || existing.deletedAt) return Response.json({ error: "Scrim not found." }, { status: 404 });
+    if (body.updatedAt !== existing.updatedAt) throw new DocumentWriteConflictError();
     const merged = { ...existing, ...body };
-    validateScrimInput(merged);
+    validateScrimInput(merged, existing);
     const payload = buildScrimPayload(merged);
-    await saveDocumentIfFieldsMatch(COLLECTIONS.scrims, body.id, payload as Record<string, unknown>, { updatedAt: existing.updatedAt });
+    await requireEligibleSlotTeams(payload);
+    const saved = await saveDocumentIfFieldsMatch<Scrim>(COLLECTIONS.scrims, body.id, payload as Record<string, unknown>, { updatedAt: existing.updatedAt });
     await writeAuditLogFromRequest(request, {
       action: "edit",
       entityType: "scrim",
@@ -132,7 +147,7 @@ export async function PUT(request: Request) {
       newValue: scrimAuditSummary({ ...payload, id: body.id }),
     });
     revalidateCompetitionPaths();
-    return Response.json({ success: true, data: { id: body.id, ...payload } });
+    return Response.json({ success: true, data: saved });
   } catch (error: unknown) {
     return scrimError(error);
   }

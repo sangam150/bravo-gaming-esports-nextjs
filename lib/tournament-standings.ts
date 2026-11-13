@@ -73,6 +73,10 @@ export function buildTournamentStandings(tournamentId: string, tournamentTitle: 
         killPoints: 0,
         placementPoints: 0,
         totalPoints: 0,
+        adjustmentPoints: 0,
+        penaltyPoints: 0,
+        bonusPoints: 0,
+        disqualifications: 0,
         bestPlacement: Number.POSITIVE_INFINITY,
         averagePlacement: 0,
         placementTotal: 0,
@@ -90,6 +94,13 @@ export function buildTournamentStandings(tournamentId: string, tournamentTitle: 
       standing.killPoints += result.killPoints ?? result.kills;
       standing.placementPoints += result.placementPoints ?? placementPoints(result.placement);
       standing.totalPoints += result.totalPoints ?? totalPoints(result.placement, result.kills);
+      // This is a display projection of saved decisions, not a rescore. DQ
+      // already contributes zero official points; never invent its lost value.
+      const adjustment = result.disqualified ? 0 : result.adjustmentPoints ?? 0;
+      standing.adjustmentPoints = (standing.adjustmentPoints ?? 0) + adjustment;
+      standing.penaltyPoints = (standing.penaltyPoints ?? 0) + Math.max(0, -adjustment);
+      standing.bonusPoints = (standing.bonusPoints ?? 0) + Math.max(0, adjustment);
+      standing.disqualifications = (standing.disqualifications ?? 0) + (result.disqualified ? 1 : 0);
       standing.bestPlacement = Math.min(standing.bestPlacement, result.placement);
       standing.placementTotal += result.placement;
       if ((match.playedAt ?? "").localeCompare(standing.latestPlayedAt ?? "") >= 0) {
@@ -109,6 +120,9 @@ export function buildTournamentStandings(tournamentId: string, tournamentTitle: 
     .map(({ placementTotal, ...standing }) => ({
       ...standing,
       averagePlacement: Number((placementTotal / Math.max(standing.matches, 1)).toFixed(2)),
+      adjustmentPoints: Number((standing.adjustmentPoints ?? 0).toFixed(2)),
+      penaltyPoints: Number((standing.penaltyPoints ?? 0).toFixed(2)),
+      bonusPoints: Number((standing.bonusPoints ?? 0).toFixed(2)),
       bestPlacement: Number.isFinite(standing.bestPlacement) ? standing.bestPlacement : 0,
       rank: 0,
     }))

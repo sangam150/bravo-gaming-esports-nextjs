@@ -5,7 +5,7 @@ import { isExplicitlyPublishedMatch, sanitizePublicMatch } from "./public-match"
 
 export type PublicScrim = Pick<
   Scrim,
-  "id" | "title" | "date" | "map" | "lobbyTime" | "teamIds" | "pubgMatchId" | "pubgMatchIds" | "status" | "mapRotation"
+  "id" | "title" | "date" | "map" | "lobbyTime" | "teamIds" | "teamCapacity" | "slotAssignments" | "slotsLocked" | "pubgMatchId" | "pubgMatchIds" | "status" | "mapRotation"
 >;
 
 export type PublicScrimDayResult = Omit<ScrimDayResult, "scrims"> & {
@@ -28,6 +28,9 @@ export function toPublicScrim(scrim: Scrim): PublicScrim {
     map: scrim.map,
     lobbyTime: scrim.lobbyTime,
     teamIds: [...scrim.teamIds],
+    teamCapacity: scrim.teamCapacity,
+    slotAssignments: scrim.slotAssignments?.map(row => ({ teamId: row.teamId, slotNumber: row.slotNumber })),
+    slotsLocked: scrim.slotsLocked,
     pubgMatchId: scrim.pubgMatchId,
     pubgMatchIds: scrim.pubgMatchIds ? [...scrim.pubgMatchIds] : undefined,
     status: scrim.status,

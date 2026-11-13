@@ -46,9 +46,10 @@ async function main() {
   let refreshes = 0;
   let profile = { role: "admin", role_source: "manual", team_id: null, player_id: null, is_active: true };
   let userAllowed = true;
-  globalThis.fetch = async (input) => {
+  globalThis.fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     assert.equal(url.origin, "https://offline.supabase.co", "Regression tests must never contact live services");
+    assert.ok(init?.signal instanceof AbortSignal && !init.signal.aborted, "Proxy SDK requests must retain a bounded fetch signal.");
     if (url.pathname === "/auth/v1/token") {
       refreshes += 1;
       return Response.json(newSession);

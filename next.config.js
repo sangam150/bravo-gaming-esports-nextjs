@@ -82,4 +82,10 @@ const nextConfig = {
     ],
   },
 };
-module.exports = nextConfig;
+module.exports = async () => {
+  const { default: previewPolicy } = await import("./lib/preview-resource-policy.js");
+  // Next awaits this supported async configuration before compiling public keys
+  // or fetching build data. Runtime readers enforce the same policy again.
+  previewPolicy.assertPreviewResourceEnvironment(process.env);
+  return nextConfig;
+};

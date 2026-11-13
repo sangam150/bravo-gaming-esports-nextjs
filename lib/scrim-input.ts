@@ -1,8 +1,9 @@
 import type { Scrim } from "./types";
+import { ScrimSlotError, validateScrimSlots } from "./scrim-slots";
 
 export class ScrimInputError extends Error {}
 
-export function validateScrimInput(body: Record<string, unknown>) {
+export function validateScrimInput(body: Record<string, unknown>, existing?: Scrim) {
   for (const key of ["title", "date", "map"]) {
     if (typeof body[key] !== "string" || !body[key].trim() || body[key].length > 200)
       throw new ScrimInputError(`${key} is required and must be at most 200 characters.`);
@@ -17,7 +18,7 @@ export function validateScrimInput(body: Record<string, unknown>) {
     const values = body[key];
     if (
       values !== undefined &&
-      (!Array.isArray(values) || values.length > 100 || values.some((value) => typeof value !== "string" || value.length > 160))
+      (!Array.isArray(values) || values.length > 100 || values.some((value) => typeof value !== "string" || !value.trim() || value.length > 160))
     )
       throw new ScrimInputError(`${key} must contain at most 100 text values.`);
   }
@@ -27,6 +28,8 @@ export function validateScrimInput(body: Record<string, unknown>) {
   }
   if (body.announcement !== undefined && (typeof body.announcement !== "string" || body.announcement.length > 5000))
     throw new ScrimInputError("Announcement must be at most 5000 characters.");
+  try { validateScrimSlots(body, existing); }
+  catch (error) { if (error instanceof ScrimSlotError) throw new ScrimInputError(error.message); throw error; }
 }
 
 export function scrimAuditSummary(scrim: Partial<Scrim>) {
@@ -37,6 +40,9 @@ export function scrimAuditSummary(scrim: Partial<Scrim>) {
     status: scrim.status,
     published: scrim.published,
     teamCount: scrim.teamIds?.length ?? 0,
+    teamCapacity: scrim.teamCapacity,
+    slotAssignments: scrim.slotAssignments,
+    slotsLocked: scrim.slotsLocked,
     deletedAt: scrim.deletedAt,
   };
 }

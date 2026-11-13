@@ -1,4 +1,5 @@
 import type { MatchPlayerResult, TeamMatchResult } from "./types";
+import { USER_FACING_LABELS } from "./user-facing-errors";
 
 export class MatchResultValidationError extends Error {}
 
@@ -11,6 +12,9 @@ export function validateMatchResultsForPublication(teams: TeamMatchResult[], pla
   const teamKeys = new Set<string>();
   const placements = new Set<number>();
   for (const team of teams) {
+    const name = team.teamName.trim().toLowerCase();
+    if (!name || [USER_FACING_LABELS.teamPendingMapping, USER_FACING_LABELS.teamPendingConfirmation].some(label => label.toLowerCase() === name))
+      invalid("select or provide a real team name before publishing; pending labels cannot become teams.");
     const key = team.teamId?.trim() || team.teamName.trim().toLowerCase();
     if (!key || teamKeys.has(key)) invalid("team identities must be present and unique.");
     teamKeys.add(key);

@@ -1,235 +1,531 @@
-# Explicit release file manifest
+# Release file manifest — 13 November 2026
 
-This is the intended staging list, including preserved pre-existing work. Ignored credentials/builds/QA artifacts are excluded. Migration 022 is included only to restore the index to its committed historical content; it should produce no final commit diff. The obsolete `supabase/schema.sql` deletion is intentional: ordered migrations remain authoritative. File-by-file hashes and mechanical checks are retained in `qa-artifacts/release-audit/`. This manifest is not a claim that real-service workflows passed.
+This supersedes the [5 November archived manifest](release-file-manifest-2026-11-05.md). The existing approved **230-file commit** is 7eeded0260887bb31d5090fc1ee47643a8e07a79 on codex/platform-completion-20261104. The index contains exactly the 104-path follow-up listed below for owner review. This document also lists the complete candidate relative to verified remote main/deployed baseline c7311530a17cbb63ba5b4e3df0ef2da44acb7953. No commit, push, merge, migration or deployment was performed.
 
-- `.env.example`
-- `README.md`
-- `app/admin/[section]/page.tsx`
-- `app/admin/authentication/discord-roles/page.tsx`
-- `app/admin/events/page.tsx`
-- `app/admin/matches/import/page.tsx`
-- `app/admin/matches/page.tsx`
-- `app/admin/seasons/page.tsx`
-- `app/api/admin/broadcast/route.ts`
-- `app/api/admin/matches/preview/route.ts`
-- `app/api/admin/matches/route.ts`
-- `app/api/admin/players/[id]/avatar/route.ts`
-- `app/api/admin/point-systems/route.ts`
-- `app/api/admin/pubg/import/reset/route.ts`
-- `app/api/admin/reset/route.ts`
-- `app/api/admin/scrims/route.ts`
-- `app/api/admin/team-requests/route.ts`
-- `app/api/admin/teams/[id]/access/route.ts`
-- `app/api/admin/teams/[id]/logo/adopt/route.ts`
-- `app/api/admin/teams/[id]/logo/route.ts`
-- `app/api/admin/uploads/r2/route.ts`
-- `app/api/announcements/route.ts`
-- `app/api/auth/discord-intent/route.ts`
-- `app/api/auth/login/route.ts`
-- `app/api/auth/password-reset/route.ts`
-- `app/api/auth/providers/route.ts`
-- `app/api/auth/session/route.ts`
-- `app/api/broadcast/route.ts`
-- `app/api/cron/sync-matches/route.ts`
-- `app/api/players/[id]/route.ts`
-- `app/api/players/route.ts`
-- `app/api/registrations/logo/route.ts`
-- `app/api/registrations/route.ts`
-- `app/api/seasons/[id]/route.ts`
-- `app/api/seasons/route.ts`
-- `app/api/team/players/[playerId]/avatar/route.ts`
-- `app/api/team/upload/route.ts`
-- `app/api/tournaments/[id]/route.ts`
-- `app/api/tournaments/route.ts`
-- `app/api/uploads/r2/route.ts`
-- `app/auth/callback/route.ts`
-- `app/layout.tsx`
-- `app/live-stream/page.tsx`
-- `app/login/page.tsx`
-- `app/media/[slug]/page.tsx`
-- `app/overlay/[graphic]/page.tsx`
-- `app/pubg/fantasy/page.tsx`
-- `app/sponsors/[slug]/page.tsx`
-- `app/tournaments/[tournamentId]/page.tsx`
-- `components/SiteHeaderClient.tsx`
-- `components/admin/AdminDashboard.tsx`
-- `components/admin/AdminGate.tsx`
-- `components/admin/AdminLogin.tsx`
-- `components/admin/AdminMatchManager.tsx`
-- `components/admin/AdminOverview.tsx`
-- `components/admin/AdminSidebar.tsx`
-- `components/admin/AdminWorkspaceTabs.tsx`
-- `components/admin/AuthProvider.tsx`
-- `components/admin/BroadcastControlRoom.tsx`
-- `components/admin/BroadcastTemplateEditor.tsx`
-- `components/admin/BulkTeamLogoUpload.tsx`
-- `components/admin/CompetitionContextPanel.tsx`
-- `components/admin/CompetitionScheduleEditor.tsx`
-- `components/admin/EventProductionSettings.tsx`
-- `components/admin/EventSponsorAssignments.tsx`
-- `components/admin/FileUpload.tsx`
-- `components/admin/MatchResultEntry.tsx`
-- `components/admin/PlatformCatalogManagers.tsx`
-- `components/admin/PointSystemManager.tsx`
-- `components/admin/PubgImportManager.tsx`
-- `components/admin/ScoringSequenceEditor.tsx`
-- `components/auth/DiscordLoginButton.tsx`
-- `components/auth/PasswordRecoveryClient.tsx`
-- `components/broadcast/BroadcastAsset.tsx`
-- `components/broadcast/BroadcastExtendedGraphic.tsx`
-- `components/broadcast/BroadcastOverlay.tsx`
-- `components/broadcast/BroadcastScenes.tsx`
-- `components/broadcast/BroadcastSponsorStrip.tsx`
-- `components/broadcast/broadcast.css`
-- `components/home/ReferenceHomePage.tsx`
-- `components/platform/PlatformPages.tsx`
-- `components/pubg/PubgHubUI.tsx`
-- `components/pubg/PubgPublicPages.tsx`
-- `components/pubg/PubgShowcasePages.tsx`
-- `components/public/PublicDesignSystem.tsx`
-- `components/public/competition/CompetitionLeaderboardsPage.tsx`
-- `components/public/competition/CompetitionPlayersPage.tsx`
-- `components/public/competition/CompetitionTeamsPage.tsx`
-- `components/public/content/EventsReferencePage.tsx`
-- `components/public/content/MediaReferencePage.tsx`
-- `components/public/content/NewsReferencePage.tsx`
-- `components/public/content/SponsorsReferencePage.tsx`
-- `components/results/MatchResultDetailClient.tsx`
-- `components/team/TeamPanelClient.tsx`
-- `components/team/TeamRegistrationPageClient.tsx`
-- `components/tournaments/TournamentDetailClient.tsx`
-- `components/ui/ManagedImage.tsx`
-- `components/ui/MotionSystem.tsx`
-- `components/ui/TeamAvatar.tsx`
-- `config/certs/supabase-prod-ca-2021.crt`
-- `docs/admin-broadcast-completion.md`
-- `docs/draft-pull-request.md`
-- `docs/global-production-readiness.md`
-- `docs/master-development-verification.md`
-- `docs/platform-audit.md`
-- `docs/platform-operations.md`
-- `docs/platform-stabilization.md`
-- `docs/platform-verification.md`
-- `docs/release-audit.md`
-- `docs/release-file-manifest.md`
-- `docs/staging-verification.md`
-- `lib/admin-api.ts`
-- `lib/admin-auth.ts`
-- `lib/admin-competition-view.ts`
-- `lib/admin-navigation.ts`
-- `lib/admin-season-days.ts`
-- `lib/auth-session-events.ts`
-- `lib/bravo-live-derivations.ts`
-- `lib/bravo-season-sync.ts`
-- `lib/broadcast-server.ts`
-- `lib/broadcast-studio.ts`
-- `lib/broadcast-template.ts`
-- `lib/broadcast.ts`
-- `lib/canonical-image-upload.ts`
-- `lib/canonical-teams.ts`
-- `lib/competition-relational.ts`
-- `lib/competition-scoring.ts`
-- `lib/data.ts`
-- `lib/discord-auth.ts`
-- `lib/discord-login.ts`
-- `lib/discord-role-sync.ts`
-- `lib/event-datetime.ts`
-- `lib/event-production-server.ts`
-- `lib/event-production.ts`
-- `lib/event-schedule.ts`
-- `lib/image-validation.ts`
-- `lib/login-client.ts`
-- `lib/match-result-validation.ts`
-- `lib/official-tournament-import.ts`
-- `lib/platform-cms.ts`
-- `lib/platform-content.ts`
-- `lib/player-avatar-service.ts`
-- `lib/player-profile-input.ts`
-- `lib/point-system-input.ts`
-- `lib/profile-provisioning.ts`
-- `lib/pubg-hub.ts`
-- `lib/pubg-import-relational.ts`
-- `lib/pubg-rankings.ts`
-- `lib/pubg.ts`
-- `lib/public-asset-cleanup.ts`
-- `lib/public-asset-key.ts`
-- `lib/public-asset-url.ts`
-- `lib/public-content.ts`
-- `lib/public-match.ts`
-- `lib/public-scrims.ts`
-- `lib/r2/client.ts`
-- `lib/r2/storage.ts`
-- `lib/ranking-sort.ts`
-- `lib/readiness-probe.ts`
-- `lib/registration-approval.ts`
-- `lib/revalidate-public.ts`
-- `lib/scoring-rules.ts`
-- `lib/scrim-input.ts`
-- `lib/season-derived-sync.ts`
-- `lib/supabase-auth-cookies.ts`
-- `lib/supabase-auth-server.ts`
-- `lib/supabase-document-runtime.ts`
-- `lib/supabase/client.ts`
-- `lib/supabase/proxy.ts`
-- `lib/supabase/server.ts`
-- `lib/team-logo-approval.ts`
-- `lib/team-logo-service.ts`
-- `lib/tournament-standings.ts`
-- `lib/tournament-workspace.ts`
-- `lib/types.ts`
-- `lib/upload-config.ts`
-- `next.config.js`
-- `package-lock.json`
-- `package.json`
-- `proxy.ts`
-- `qa/admin-data-check.ts`
-- `qa/admin-ui-integrity-check.ts`
-- `qa/admin-workspaces.spec.js`
-- `qa/atomic-match-check.mjs`
-- `qa/auth-account-readiness.mjs`
-- `qa/auth-offline-check.ts`
-- `qa/auth-production-e2e.mjs`
-- `qa/auth-provider.spec.js`
-- `qa/auth-refresh-check.ts`
-- `qa/auth-staging-e2e.mjs`
-- `qa/broadcast-check.ts`
-- `qa/broadcast-ui.spec.js`
-- `qa/database-hardening-check.mjs`
-- `qa/environment-connectivity.mjs`
-- `qa/image-pipeline-check.ts`
-- `qa/live-qa.spec.js`
-- `qa/local-release-runtime.mjs`
-- `qa/mahasangram-publication-check.ts`
-- `qa/master-workflows.spec.js`
-- `qa/migration-preflight.mjs`
-- `qa/player-team-linking-check.ts`
-- `qa/pubg-api-security-check.ts`
-- `qa/pubg-rankings-check.ts`
-- `qa/public-consistency-check.ts`
-- `qa/reference-ui.spec.js`
-- `qa/registration-approval-check.ts`
-- `qa/release-inventory.mjs`
-- `qa/release-source-check.mjs`
-- `qa/scoring-sql-check.mjs`
-- `qa/secret-scan.mjs`
-- `qa/seo-check.ts`
-- `qa/staging-connectivity-evidence.mjs`
-- `qa/staging-env-presence.mjs`
-- `qa/staging-readiness.mjs`
-- `qa/staging-target.mjs`
-- `qa/supabase-readiness.mjs`
-- `qa/team-logo-check.ts`
-- `qa/tournament-read-boundary-check.ts`
-- `scripts/backup-production-public.mjs`
-- `scripts/lib/verified-database-connection.mjs`
-- `scripts/provision-admin.ts`
-- `scripts/reconcile-mahasangram-relational.ts`
-- `supabase/config.toml`
-- `supabase/migrations/022_player_team_match_history_linking.sql`
-- `supabase/migrations/024_public_data_and_authorization_hardening.sql`
-- `supabase/migrations/025_event_player_statistics.sql`
-- `supabase/migrations/026_versioned_scoring_decisions.sql`
-- `supabase/migrations/027_atomic_match_results.sql`
-- `supabase/readiness-recovery.sql`
-- `supabase/schema.sql`
-- `types/database.types.ts`
+## Pending follow-up candidate: 104 paths
+
+| Change | File |
+| --- | --- |
+| M | `.env.example` |
+| A | `.github/workflows/verify.yml` |
+| M | `app/api/admin/broadcast/route.ts` |
+| M | `app/api/admin/matches/preview/route.ts` |
+| M | `app/api/admin/matches/route.ts` |
+| M | `app/api/admin/scrims/route.ts` |
+| M | `app/api/auth/discord-intent/route.ts` |
+| M | `app/api/auth/login/route.ts` |
+| M | `app/api/auth/providers/route.ts` |
+| M | `app/api/registrations/route.ts` |
+| M | `app/auth/callback/route.ts` |
+| M | `components/admin/AdminDashboard.tsx` |
+| M | `components/admin/AdminLogin.tsx` |
+| M | `components/admin/AdminMatchManager.tsx` |
+| M | `components/admin/BroadcastControlRoom.tsx` |
+| M | `components/admin/CompetitionScheduleEditor.tsx` |
+| A | `components/admin/ScrimSlotEditor.tsx` |
+| M | `components/auth/LoginHubClient.tsx` |
+| M | `components/broadcast/broadcast.css` |
+| M | `components/broadcast/BroadcastExtendedGraphic.tsx` |
+| M | `components/broadcast/BroadcastOverlay.tsx` |
+| M | `components/forms/ContactFormClient.tsx` |
+| M | `components/SiteHeaderClient.tsx` |
+| M | `components/statistics/StatisticsPageClient.tsx` |
+| M | `components/team/TeamRegistrationPageClient.tsx` |
+| M | `components/tournaments/TournamentDetailClient.tsx` |
+| M | `components/ui/MotionSystem.tsx` |
+| A | `docs/authentication-verification.md` |
+| M | `docs/draft-pull-request.md` |
+| A | `docs/event-day-operations.md` |
+| A | `docs/event-day-readiness-2026-11-06.md` |
+| A | `docs/preview-resource-isolation.md` |
+| A | `docs/production-deployment-report.md` |
+| A | `docs/release-audit-2026-11-05.md` |
+| M | `docs/release-audit.md` |
+| A | `docs/release-file-manifest-2026-11-05.md` |
+| M | `docs/release-file-manifest.md` |
+| A | `docs/staging-unblock-full-report.md` |
+| M | `docs/staging-verification.md` |
+| A | `docs/templates/scrim-offline-results.csv` |
+| A | `docs/templates/scrim-offline-schedule.csv` |
+| A | `docs/templates/scrim-offline-slots.csv` |
+| M | `lib/auth-errors.ts` |
+| M | `lib/broadcast-server.ts` |
+| M | `lib/broadcast-template.ts` |
+| M | `lib/broadcast.ts` |
+| M | `lib/competition-relational.ts` |
+| M | `lib/data.ts` |
+| A | `lib/event-registration-transaction.ts` |
+| A | `lib/login-failure-response.ts` |
+| M | `lib/match-result-validation.ts` |
+| A | `lib/preview-resource-policy.js` |
+| M | `lib/public-scrims.ts` |
+| M | `lib/r2/client.ts` |
+| A | `lib/registration-approval-policy.ts` |
+| M | `lib/registration-approval.ts` |
+| M | `lib/registration-submission-state.ts` |
+| M | `lib/scrim-input.ts` |
+| A | `lib/scrim-slots.ts` |
+| M | `lib/supabase/env.ts` |
+| M | `lib/supabase/proxy.ts` |
+| A | `lib/supabase/request-fetch.ts` |
+| M | `lib/supabase/server-env.ts` |
+| M | `lib/supabase/server.ts` |
+| M | `lib/supabase/service-role-client.ts` |
+| M | `lib/tournament-standings.ts` |
+| M | `lib/types.ts` |
+| A | `lib/use-hydrated.ts` |
+| M | `lib/user-facing-errors.ts` |
+| M | `next.config.js` |
+| M | `package.json` |
+| A | `qa/admin-provisioning-check.ts` |
+| M | `qa/admin-workspaces.spec.js` |
+| M | `qa/atomic-match-check.mjs` |
+| A | `qa/auth-callback-rejection-check.mjs` |
+| M | `qa/auth-offline-check.ts` |
+| M | `qa/auth-refresh-check.ts` |
+| M | `qa/broadcast-check.ts` |
+| M | `qa/broadcast-ui.spec.js` |
+| A | `qa/event-registration-transaction-check.mjs` |
+| A | `qa/interaction-hydration.spec.js` |
+| M | `qa/live-qa.spec.js` |
+| M | `qa/local-release-runtime.mjs` |
+| A | `qa/local-staging-environment-check.mjs` |
+| A | `qa/login-route-check.ts` |
+| M | `qa/master-workflows.spec.js` |
+| M | `qa/migration-preflight.mjs` |
+| A | `qa/motion-hydration.spec.js` |
+| A | `qa/preview-isolation-check.mjs` |
+| A | `qa/registration-approval-boundary-check.ts` |
+| A | `qa/scrim-operations-check.ts` |
+| A | `qa/scrim-slots.spec.js` |
+| M | `qa/staging-readiness.mjs` |
+| A | `qa/statistics-identity.spec.js` |
+| A | `qa/supabase-fetch-check.ts` |
+| M | `qa/tournament-read-boundary-check.ts` |
+| M | `README.md` |
+| A | `scripts/dev-staging.mjs` |
+| A | `scripts/lib/staging-development-environment.mjs` |
+| M | `scripts/provision-admin.ts` |
+| A | `scripts/provision-staging-admin.mjs` |
+| M | `supabase/config.toml` |
+| A | `supabase/migrations/028_atomic_event_registration.sql` |
+| M | `types/database.types.ts` |
+
+## Complete candidate versus current main/deployed baseline: 403 paths
+
+This includes earlier local history as well as the pending follow-up; it must be reviewed as the full production delta. A means added, M modified, D deleted relative to this baseline. Nine historical deletions remain intentional existing history; ordered migrations replace the obsolete standalone schema and protected storage/public reader paths supersede old routes/components.
+
+| Change | File |
+| --- | --- |
+| M | `.env.example` |
+| A | `.github/workflows/verify.yml` |
+| M | `.gitignore` |
+| M | `app/about/founder/page.tsx` |
+| M | `app/about/media-kit/page.tsx` |
+| M | `app/about/page.tsx` |
+| M | `app/admin/[section]/page.tsx` |
+| M | `app/admin/authentication/discord-roles/page.tsx` |
+| M | `app/admin/events/page.tsx` |
+| M | `app/admin/matches/import/page.tsx` |
+| M | `app/admin/matches/page.tsx` |
+| M | `app/admin/seasons/page.tsx` |
+| A | `app/api/admin/broadcast/route.ts` |
+| M | `app/api/admin/discord-links/route.ts` |
+| M | `app/api/admin/discord-role-mappings/route.ts` |
+| M | `app/api/admin/homepage/route.ts` |
+| M | `app/api/admin/matches/preview/route.ts` |
+| M | `app/api/admin/matches/route.ts` |
+| M | `app/api/admin/platform-event-options/route.ts` |
+| A | `app/api/admin/player-team-linking/memberships/[id]/route.ts` |
+| A | `app/api/admin/player-team-linking/recalculate/route.ts` |
+| A | `app/api/admin/player-team-linking/reviews/[id]/route.ts` |
+| A | `app/api/admin/player-team-linking/route.ts` |
+| A | `app/api/admin/players/[id]/avatar/route.ts` |
+| A | `app/api/admin/point-systems/route.ts` |
+| M | `app/api/admin/pubg/import/reset/route.ts` |
+| M | `app/api/admin/pubg/watchers/route.ts` |
+| M | `app/api/admin/registered-teams/route.ts` |
+| M | `app/api/admin/reset/route.ts` |
+| M | `app/api/admin/scrims/route.ts` |
+| D | `app/api/admin/seed/route.ts` |
+| M | `app/api/admin/sponsors/[id]/route.ts` |
+| M | `app/api/admin/sponsors/route.ts` |
+| M | `app/api/admin/team-reconciliation/route.ts` |
+| M | `app/api/admin/team-requests/route.ts` |
+| A | `app/api/admin/teams/[id]/access/route.ts` |
+| A | `app/api/admin/teams/[id]/aliases/route.ts` |
+| A | `app/api/admin/teams/[id]/logo/adopt/route.ts` |
+| A | `app/api/admin/teams/[id]/logo/route.ts` |
+| A | `app/api/admin/teams/[id]/route.ts` |
+| A | `app/api/admin/teams/route.ts` |
+| D | `app/api/admin/upload/route.ts` |
+| D | `app/api/admin/uploads/r2/presign/route.ts` |
+| M | `app/api/admin/uploads/r2/route.ts` |
+| M | `app/api/announcements/route.ts` |
+| A | `app/api/auth/discord-intent/route.ts` |
+| M | `app/api/auth/login/route.ts` |
+| M | `app/api/auth/password-reset/route.ts` |
+| M | `app/api/auth/providers/route.ts` |
+| M | `app/api/auth/session/route.ts` |
+| A | `app/api/broadcast/route.ts` |
+| M | `app/api/cron/sync-matches/route.ts` |
+| M | `app/api/players/[id]/route.ts` |
+| M | `app/api/players/route.ts` |
+| M | `app/api/pubg/matches/[matchId]/route.ts` |
+| M | `app/api/pubg/players/route.ts` |
+| M | `app/api/pubg/sync-player/route.ts` |
+| M | `app/api/pubg/telemetry/route.ts` |
+| M | `app/api/registrations/logo/route.ts` |
+| M | `app/api/registrations/route.ts` |
+| M | `app/api/scrims/route.ts` |
+| M | `app/api/seasons/[id]/route.ts` |
+| M | `app/api/seasons/route.ts` |
+| M | `app/api/team/players/[playerId]/avatar/route.ts` |
+| M | `app/api/team/requests/route.ts` |
+| M | `app/api/team/upload/route.ts` |
+| M | `app/api/teams/[id]/route.ts` |
+| M | `app/api/teams/route.ts` |
+| M | `app/api/tournaments/[id]/route.ts` |
+| M | `app/api/tournaments/route.ts` |
+| M | `app/api/uploads/private/[uploadId]/route.ts` |
+| M | `app/api/uploads/r2/route.ts` |
+| M | `app/auth/callback/route.ts` |
+| M | `app/calendar/page.tsx` |
+| M | `app/community/announcements/page.tsx` |
+| M | `app/community/highlights/page.tsx` |
+| M | `app/compare/page.tsx` |
+| M | `app/events/[slug]/page.tsx` |
+| M | `app/events/page.tsx` |
+| M | `app/fantasy/page.tsx` |
+| M | `app/feedback/page.tsx` |
+| M | `app/games/[slug]/page.tsx` |
+| M | `app/games/page.tsx` |
+| M | `app/layout.tsx` |
+| M | `app/live-stream/page.tsx` |
+| M | `app/login/page.tsx` |
+| M | `app/media/[slug]/page.tsx` |
+| M | `app/media/page.tsx` |
+| M | `app/mvp-ranking/page.tsx` |
+| M | `app/news/[slug]/page.tsx` |
+| M | `app/news/page.tsx` |
+| M | `app/organizations/[slug]/page.tsx` |
+| M | `app/organizations/page.tsx` |
+| A | `app/overlay/[graphic]/page.tsx` |
+| M | `app/page.tsx` |
+| M | `app/players/page.tsx` |
+| M | `app/privacy/page.tsx` |
+| M | `app/pubg-scrims/page.tsx` |
+| M | `app/pubg/access/page.tsx` |
+| M | `app/pubg/community/page.tsx` |
+| M | `app/pubg/compare/page.tsx` |
+| M | `app/pubg/events/[slug]/page.tsx` |
+| M | `app/pubg/events/page.tsx` |
+| M | `app/pubg/fantasy/page.tsx` |
+| M | `app/pubg/hall-of-fame/page.tsx` |
+| M | `app/pubg/leaderboards/page.tsx` |
+| M | `app/pubg/matches/[slug]/page.tsx` |
+| M | `app/pubg/players/[playerId]/page.tsx` |
+| M | `app/pubg/players/page.tsx` |
+| M | `app/pubg/results/page.tsx` |
+| M | `app/pubg/seasons/[slug]/page.tsx` |
+| M | `app/pubg/teams/[teamId]/page.tsx` |
+| M | `app/pubg/teams/page.tsx` |
+| M | `app/rankings/page.tsx` |
+| M | `app/robots.ts` |
+| M | `app/search/page.tsx` |
+| M | `app/sitemap.ts` |
+| M | `app/sponsor-kit/page.tsx` |
+| M | `app/sponsors/[slug]/page.tsx` |
+| M | `app/sponsors/page.tsx` |
+| M | `app/statistics/page.tsx` |
+| M | `app/stream-schedule/page.tsx` |
+| M | `app/teams/page.tsx` |
+| M | `app/terms/page.tsx` |
+| M | `app/tournaments/[tournamentId]/page.tsx` |
+| M | `app/tournaments/page.tsx` |
+| M | `components/admin/AdminDashboard.tsx` |
+| M | `components/admin/AdminDiscordLinkManager.tsx` |
+| M | `components/admin/AdminGate.tsx` |
+| M | `components/admin/AdminLogin.tsx` |
+| M | `components/admin/AdminMatchManager.tsx` |
+| A | `components/admin/AdminOverview.tsx` |
+| A | `components/admin/AdminPlayerTeamLinkingManager.tsx` |
+| M | `components/admin/AdminRegisteredTeamsManager.tsx` |
+| M | `components/admin/AdminSidebar.tsx` |
+| M | `components/admin/AdminTeamRequestsManager.tsx` |
+| A | `components/admin/AdminWorkspaceTabs.tsx` |
+| M | `components/admin/AuthProvider.tsx` |
+| A | `components/admin/BroadcastControlRoom.tsx` |
+| A | `components/admin/BroadcastTemplateEditor.tsx` |
+| M | `components/admin/BulkTeamLogoUpload.tsx` |
+| A | `components/admin/CompetitionContextPanel.tsx` |
+| A | `components/admin/CompetitionScheduleEditor.tsx` |
+| A | `components/admin/EventProductionSettings.tsx` |
+| A | `components/admin/EventSponsorAssignments.tsx` |
+| M | `components/admin/FileUpload.tsx` |
+| A | `components/admin/HomepageFeaturedEventsManager.tsx` |
+| A | `components/admin/MatchResultEntry.tsx` |
+| M | `components/admin/PlatformCatalogManagers.tsx` |
+| A | `components/admin/PointSystemManager.tsx` |
+| M | `components/admin/PubgImportManager.tsx` |
+| A | `components/admin/ScoringSequenceEditor.tsx` |
+| A | `components/admin/ScrimSlotEditor.tsx` |
+| M | `components/auth/DiscordLoginButton.tsx` |
+| M | `components/auth/LoginHubClient.tsx` |
+| M | `components/auth/PasswordRecoveryClient.tsx` |
+| A | `components/broadcast/broadcast.css` |
+| A | `components/broadcast/BroadcastAsset.tsx` |
+| A | `components/broadcast/BroadcastExtendedGraphic.tsx` |
+| A | `components/broadcast/BroadcastOverlay.tsx` |
+| A | `components/broadcast/BroadcastScenes.tsx` |
+| A | `components/broadcast/BroadcastSponsorStrip.tsx` |
+| M | `components/current-season/CurrentSeasonPageClient.tsx` |
+| M | `components/forms/ContactFormClient.tsx` |
+| M | `components/home/ReferenceHomePage.tsx` |
+| A | `components/JsonLd.tsx` |
+| M | `components/mvp/MvpRankingPageClient.tsx` |
+| M | `components/platform/PlatformPages.tsx` |
+| M | `components/pubg/ComparePageClient.tsx` |
+| M | `components/pubg/PubgHubUI.tsx` |
+| M | `components/pubg/PubgPublicPages.tsx` |
+| M | `components/pubg/PubgShowcasePages.tsx` |
+| M | `components/public/competition/CompetitionLeaderboardsPage.tsx` |
+| M | `components/public/competition/CompetitionPlayersPage.tsx` |
+| M | `components/public/competition/CompetitionTeamsPage.tsx` |
+| D | `components/public/CompetitionReferencePages.tsx` |
+| M | `components/public/content/EventsReferencePage.tsx` |
+| D | `components/public/content/index.ts` |
+| M | `components/public/content/MediaReferencePage.tsx` |
+| M | `components/public/content/NewsReferencePage.tsx` |
+| M | `components/public/content/SponsorsReferencePage.tsx` |
+| D | `components/public/ContentReferencePages.tsx` |
+| M | `components/public/PubgLaunchPages.tsx` |
+| M | `components/public/PublicDesignSystem.tsx` |
+| M | `components/results/MatchResultDetailClient.tsx` |
+| M | `components/SiteHeaderClient.tsx` |
+| M | `components/statistics/StatisticsPageClient.tsx` |
+| M | `components/team/TeamPanelClient.tsx` |
+| M | `components/team/TeamRegistrationPageClient.tsx` |
+| M | `components/tournaments/TournamentDetailClient.tsx` |
+| M | `components/ui/ManagedImage.tsx` |
+| M | `components/ui/MotionSystem.tsx` |
+| M | `components/ui/TeamAvatar.tsx` |
+| A | `config/certs/supabase-prod-ca-2021.crt` |
+| A | `docs/admin-broadcast-completion.md` |
+| A | `docs/authentication-verification.md` |
+| A | `docs/draft-pull-request.md` |
+| A | `docs/event-day-operations.md` |
+| A | `docs/event-day-readiness-2026-11-06.md` |
+| A | `docs/global-production-readiness.md` |
+| A | `docs/master-development-verification.md` |
+| A | `docs/platform-audit.md` |
+| A | `docs/platform-operations.md` |
+| A | `docs/platform-stabilization.md` |
+| A | `docs/platform-verification.md` |
+| A | `docs/preview-resource-isolation.md` |
+| A | `docs/production-deployment-report.md` |
+| A | `docs/release-audit-2026-11-05.md` |
+| A | `docs/release-audit.md` |
+| A | `docs/release-file-manifest-2026-11-05.md` |
+| A | `docs/release-file-manifest.md` |
+| A | `docs/staging-unblock-full-report.md` |
+| A | `docs/staging-verification.md` |
+| A | `docs/templates/scrim-offline-results.csv` |
+| A | `docs/templates/scrim-offline-schedule.csv` |
+| A | `docs/templates/scrim-offline-slots.csv` |
+| M | `knip.json` |
+| M | `lib/admin-api.ts` |
+| M | `lib/admin-auth.ts` |
+| A | `lib/admin-competition-view.ts` |
+| A | `lib/admin-navigation.ts` |
+| M | `lib/admin-season-days.ts` |
+| A | `lib/audit-log-writer.ts` |
+| M | `lib/audit-logs.ts` |
+| M | `lib/auth-errors.ts` |
+| A | `lib/auth-session-events.ts` |
+| M | `lib/bravo-feed-import.ts` |
+| M | `lib/bravo-live-derivations.ts` |
+| M | `lib/bravo-season-sync.ts` |
+| A | `lib/broadcast-server.ts` |
+| A | `lib/broadcast-studio.ts` |
+| A | `lib/broadcast-template.ts` |
+| A | `lib/broadcast.ts` |
+| A | `lib/canonical-image-upload.ts` |
+| A | `lib/canonical-teams.ts` |
+| M | `lib/competition-relational.ts` |
+| M | `lib/competition-scoring.ts` |
+| M | `lib/data.ts` |
+| M | `lib/discord-auth.ts` |
+| M | `lib/discord-login.ts` |
+| M | `lib/discord-role-mapping.ts` |
+| M | `lib/discord-role-sync.ts` |
+| M | `lib/document-store.ts` |
+| A | `lib/event-datetime.ts` |
+| A | `lib/event-production-server.ts` |
+| A | `lib/event-production.ts` |
+| A | `lib/event-registration-transaction.ts` |
+| A | `lib/event-schedule.ts` |
+| A | `lib/homepage-events.ts` |
+| A | `lib/image-validation.ts` |
+| M | `lib/login-client.ts` |
+| A | `lib/login-failure-response.ts` |
+| A | `lib/match-result-validation.ts` |
+| M | `lib/metadata.ts` |
+| A | `lib/nepal-datetime.ts` |
+| M | `lib/official-tournament-import.ts` |
+| M | `lib/platform-cms.ts` |
+| M | `lib/platform-content.ts` |
+| M | `lib/platform-hub.ts` |
+| A | `lib/player-avatar-service.ts` |
+| A | `lib/player-profile-input.ts` |
+| A | `lib/player-team-link-policy.ts` |
+| A | `lib/player-team-linking.ts` |
+| A | `lib/point-system-input.ts` |
+| A | `lib/preview-resource-policy.js` |
+| M | `lib/profile-provisioning.ts` |
+| M | `lib/pubg-hub.ts` |
+| M | `lib/pubg-import-candidates.ts` |
+| M | `lib/pubg-import-relational.ts` |
+| A | `lib/pubg-public.ts` |
+| M | `lib/pubg-rankings.ts` |
+| M | `lib/pubg-sync.ts` |
+| M | `lib/pubg.ts` |
+| A | `lib/public-asset-cleanup.ts` |
+| A | `lib/public-asset-key.ts` |
+| A | `lib/public-asset-url.ts` |
+| M | `lib/public-content.ts` |
+| A | `lib/public-event-policy.ts` |
+| A | `lib/public-links.ts` |
+| A | `lib/public-match.ts` |
+| M | `lib/public-scrims.ts` |
+| M | `lib/r2/client.ts` |
+| M | `lib/r2/storage.ts` |
+| M | `lib/r2/types.ts` |
+| M | `lib/ranking-sort.ts` |
+| A | `lib/readiness-probe.ts` |
+| M | `lib/realtime-hooks.tsx` |
+| A | `lib/registration-approval-policy.ts` |
+| A | `lib/registration-approval-state.ts` |
+| A | `lib/registration-approval.ts` |
+| A | `lib/registration-submission-state.ts` |
+| A | `lib/request-origin.ts` |
+| M | `lib/revalidate-public.ts` |
+| A | `lib/scoring-rules.ts` |
+| A | `lib/scrim-input.ts` |
+| A | `lib/scrim-slots.ts` |
+| M | `lib/search-service.ts` |
+| M | `lib/season-derived-sync.ts` |
+| D | `lib/seed-data.ts` |
+| A | `lib/sponsor-links.ts` |
+| A | `lib/structured-data.ts` |
+| A | `lib/supabase-auth-cookies.ts` |
+| M | `lib/supabase-auth-server.ts` |
+| M | `lib/supabase-document-runtime.ts` |
+| M | `lib/supabase/client.ts` |
+| M | `lib/supabase/env.ts` |
+| M | `lib/supabase/proxy.ts` |
+| A | `lib/supabase/request-fetch.ts` |
+| M | `lib/supabase/server-env.ts` |
+| M | `lib/supabase/server.ts` |
+| M | `lib/supabase/service-role-client.ts` |
+| A | `lib/team-logo-approval.ts` |
+| A | `lib/team-logo-matching.ts` |
+| A | `lib/team-logo-service.ts` |
+| A | `lib/team-mapping-state.ts` |
+| M | `lib/team-registration.ts` |
+| M | `lib/tournament-standings.ts` |
+| A | `lib/tournament-workspace.ts` |
+| M | `lib/types.ts` |
+| M | `lib/upload-config.ts` |
+| M | `lib/upload-records.ts` |
+| A | `lib/use-hydrated.ts` |
+| M | `lib/user-facing-errors.ts` |
+| M | `lib/youtube-service.ts` |
+| M | `next.config.js` |
+| M | `package-lock.json` |
+| M | `package.json` |
+| M | `proxy.ts` |
+| A | `qa/admin-data-check.ts` |
+| A | `qa/admin-provisioning-check.ts` |
+| A | `qa/admin-ui-integrity-check.ts` |
+| A | `qa/admin-workspaces.spec.js` |
+| A | `qa/atomic-match-check.mjs` |
+| A | `qa/auth-account-readiness.mjs` |
+| A | `qa/auth-callback-rejection-check.mjs` |
+| A | `qa/auth-offline-check.ts` |
+| M | `qa/auth-production-e2e.mjs` |
+| A | `qa/auth-provider.spec.js` |
+| A | `qa/auth-refresh-check.ts` |
+| A | `qa/auth-staging-e2e.mjs` |
+| A | `qa/broadcast-check.ts` |
+| A | `qa/broadcast-ui.spec.js` |
+| A | `qa/database-hardening-check.mjs` |
+| M | `qa/discord-role-mapping-check.ts` |
+| M | `qa/environment-connectivity.mjs` |
+| A | `qa/event-registration-transaction-check.mjs` |
+| A | `qa/image-pipeline-check.ts` |
+| A | `qa/integration/mahasangram-production-check.ts` |
+| A | `qa/interaction-hydration.spec.js` |
+| M | `qa/live-qa.spec.js` |
+| A | `qa/local-release-runtime.mjs` |
+| A | `qa/local-staging-environment-check.mjs` |
+| A | `qa/login-route-check.ts` |
+| M | `qa/mahasangram-publication-check.ts` |
+| A | `qa/master-workflows.spec.js` |
+| A | `qa/migration-preflight.mjs` |
+| A | `qa/motion-hydration.spec.js` |
+| A | `qa/player-team-linking-check.ts` |
+| A | `qa/preview-isolation-check.mjs` |
+| A | `qa/pubg-api-security-check.ts` |
+| M | `qa/pubg-rankings-check.ts` |
+| A | `qa/public-consistency-check.ts` |
+| M | `qa/reference-ui.spec.js` |
+| A | `qa/registration-approval-boundary-check.ts` |
+| A | `qa/registration-approval-check.ts` |
+| A | `qa/release-inventory.mjs` |
+| A | `qa/release-source-check.mjs` |
+| A | `qa/scoring-sql-check.mjs` |
+| A | `qa/scrim-operations-check.ts` |
+| A | `qa/scrim-slots.spec.js` |
+| A | `qa/secret-scan.mjs` |
+| A | `qa/seo-check.ts` |
+| A | `qa/staging-connectivity-evidence.mjs` |
+| A | `qa/staging-env-presence.mjs` |
+| A | `qa/staging-readiness.mjs` |
+| A | `qa/staging-target.mjs` |
+| A | `qa/statistics-identity.spec.js` |
+| A | `qa/supabase-fetch-check.ts` |
+| M | `qa/supabase-readiness.mjs` |
+| A | `qa/team-logo-check.ts` |
+| A | `qa/team-mapping-state-check.ts` |
+| A | `qa/tournament-read-boundary-check.ts` |
+| M | `README.md` |
+| M | `scripts/backup-production-public.mjs` |
+| M | `scripts/demo-data-lib.ts` |
+| A | `scripts/dev-staging.mjs` |
+| A | `scripts/lib/staging-development-environment.mjs` |
+| A | `scripts/lib/verified-database-connection.mjs` |
+| M | `scripts/provision-admin.ts` |
+| A | `scripts/provision-staging-admin.mjs` |
+| A | `scripts/reconcile-mahasangram-relational.ts` |
+| D | `scripts/seed-demo-data.ts` |
+| M | `supabase/config.toml` |
+| A | `supabase/migrations/022_player_team_match_history_linking.sql` |
+| A | `supabase/migrations/023_private_document_and_publication_boundary.sql` |
+| A | `supabase/migrations/024_public_data_and_authorization_hardening.sql` |
+| A | `supabase/migrations/025_event_player_statistics.sql` |
+| A | `supabase/migrations/026_versioned_scoring_decisions.sql` |
+| A | `supabase/migrations/027_atomic_match_results.sql` |
+| A | `supabase/migrations/028_atomic_event_registration.sql` |
+| M | `supabase/readiness-recovery.sql` |
+| D | `supabase/schema.sql` |
+| M | `types/database.types.ts` |
+
+## Explicit exclusions and review boundaries
+
+- AGENTS.md is preserved as untracked user-supplied repository guidance, outside this application candidate. No user work was deleted.
+- .env.local, .env.staging.local, all credentials, node_modules, .next, test output and qa-artifacts remain ignored and are excluded.
+- The current audit, consolidated full report and this manifest are intentionally part of the follow-up. The Nov5 versions are retained separately as history.
+- Historical migrations 001–027 remain tracked/ordered. New forward-only migration 028 is pending and was executed only in isolated PostgreSQL; the remote ledger, conflict preflight and migration acceptance remain unknown. No lockfile edit was introduced.
+- File hashes, exact path sets, whitespace checks and mechanical findings are retained in ignored qa-artifacts/blocker-recheck/release-snapshot-2026-11-13.json. Hashes are captured after documentation is finalized; no self-referential hash is embedded here.
+- This manifest is a review inventory, not proof that real staging or production acceptance passed. See [release audit](release-audit.md), [consolidated full report](staging-unblock-full-report.md) and [execution report](production-deployment-report.md).

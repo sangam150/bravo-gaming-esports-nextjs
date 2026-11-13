@@ -15,24 +15,39 @@ export function MotionObserver() {
       ),
     );
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      targets.forEach((target) => (target.dataset.revealed = "true"));
-      return;
-    }
-
-    targets.forEach((target) => (target.dataset.motion = "reveal"));
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || typeof IntersectionObserver === "undefined") return;
+    const styles = getComputedStyle(document.documentElement);
+    const configuredDuration = styles.getPropertyValue("--motion-section").trim();
+    const durationValue = Number.parseFloat(configuredDuration) * (configuredDuration.endsWith("ms") ? 1 : 1000);
+    const duration = Number.isFinite(durationValue) && durationValue >= 0 ? durationValue : 420;
+    const easing = styles.getPropertyValue("--ease-out").trim() || "cubic-bezier(0.22, 1, 0.36, 1)";
+    const animations = new Set<Animation>();
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
-          (entry.target as HTMLElement).dataset.revealed = "true";
+          const target = entry.target as HTMLElement;
+          // A streamed Client Component may still be waiting to hydrate. Native
+          // animations preserve its React-owned markup instead of adding attrs.
+          if (typeof target.animate === "function") {
+            try {
+              const animation = target.animate(
+                [{ opacity: 0, transform: "translateY(14px)" }, { opacity: 1, transform: "translateY(0)" }],
+                { duration, easing },
+              );
+              animations.add(animation);
+              animation.addEventListener("finish", () => { animations.delete(animation); animation.cancel(); }, { once: true });
+            } catch {
+              // Decorative motion must never hide content or break navigation.
+            }
+          }
           observer.unobserve(entry.target);
         });
       },
       { rootMargin: "0px 0px -7% 0px", threshold: 0.06 },
     );
     targets.forEach((target) => observer.observe(target));
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); animations.forEach(animation => animation.cancel()); };
   }, [pathname, protectedRoute]);
 
   return null;

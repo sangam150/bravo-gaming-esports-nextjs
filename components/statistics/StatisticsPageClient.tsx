@@ -105,21 +105,29 @@ export default function StatisticsPageClient({
               title="Team Standings"
               description="Sorted by total points, kill output, wins, best placement, and slot order for tied teams."
               columns={["#", "Team", "Matches", "Kills", "Place Pts", "Total Pts"]}
-              rows={activeLeaderboard.slice(0, 10).map((row) => (
-                <tr key={row.teamId}>
+              rows={activeLeaderboard.slice(0, 10).map((row, index) => {
+                const teamId = row.teamId?.trim();
+                const teamIdentity = (
+                  <>
+                    <TeamAvatar name={row.team} imageUrl={row.logoUrl} size="sm" />
+                    <span className="font-semibold text-white">{row.team}</span>
+                  </>
+                );
+                return <tr key={teamId ? `team:${teamId}` : `unlinked:${row.team}:${index}`}>
                   <td className={row.rank === 1 ? "rank-gold" : "font-mono-stat font-bold text-accent-blue"}>#{row.rank}</td>
                   <td>
-                    <Link href={`/teams/${row.teamId}`} className="flex items-center gap-2 hover:text-accent-blue">
-                      <TeamAvatar name={row.team} imageUrl={row.logoUrl} size="sm" />
-                      <span className="font-semibold text-white">{row.team}</span>
-                    </Link>
+                    {teamId ? (
+                      <Link href={`/teams/${teamId}`} className="flex items-center gap-2 hover:text-accent-blue">{teamIdentity}</Link>
+                    ) : (
+                      <span className="flex items-center gap-2">{teamIdentity}</span>
+                    )}
                   </td>
                   <td className="text-text-muted">{row.matches}</td>
                   <td className="text-text-muted">{row.kills}</td>
                   <td className="text-text-muted">{row.placement}</td>
                   <td className="points-cell">{row.points}</td>
-                </tr>
-              ))}
+                </tr>;
+              })}
             />
 
             <div className="grid gap-6 xl:grid-cols-2">

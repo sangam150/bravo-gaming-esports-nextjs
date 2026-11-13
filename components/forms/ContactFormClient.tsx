@@ -4,6 +4,7 @@ import { CONTACT_SUBJECT_OPTIONS, type ContactMessageKind } from "@/lib/contact-
 import { getResponseErrorMessage, toUserFacingErrorMessage, USER_FACING_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import Link from "next/link";
 import { useState } from "react";
+import { useHydrated } from "@/lib/use-hydrated";
 
 type ContactFormClientProps = {
   kind: ContactMessageKind;
@@ -17,6 +18,7 @@ const inputClass =
   "w-full rounded-[16px] border border-white/[0.08] bg-bg-primary px-4 py-3 text-sm text-white outline-none transition placeholder:text-text-muted focus:border-bravoBlue focus:ring-1 focus:ring-bravoBlue/30";
 
 export default function ContactFormClient({ kind, title, description, submitLabel, subjectLabel = "Subject" }: ContactFormClientProps) {
+  const hydrated = useHydrated();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -28,6 +30,7 @@ export default function ContactFormClient({ kind, title, description, submitLabe
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!hydrated || submitting) return;
     setSubmitting(true);
     setNotice(null);
     setError(null);
@@ -78,6 +81,8 @@ export default function ContactFormClient({ kind, title, description, submitLabe
 
   return (
     <form
+      method="post"
+      action="/api/contact"
       onSubmit={handleSubmit}
       aria-busy={submitting}
       className="space-y-4 rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(16,24,43,0.95),rgba(10,16,32,0.95))] p-6 shadow-[0_0_30px_rgba(20,126,245,0.08)]"
@@ -114,6 +119,7 @@ export default function ContactFormClient({ kind, title, description, submitLabe
         <input
           id={`${fieldIdPrefix}-name`}
           name="name"
+          disabled={!hydrated || submitting}
           className={inputClass}
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -130,6 +136,7 @@ export default function ContactFormClient({ kind, title, description, submitLabe
         <input
           id={`${fieldIdPrefix}-email`}
           name="email"
+          disabled={!hydrated || submitting}
           className={inputClass}
           type="email"
           value={email}
@@ -147,6 +154,7 @@ export default function ContactFormClient({ kind, title, description, submitLabe
         <select
           id={`${fieldIdPrefix}-subject`}
           name="subject"
+          disabled={!hydrated || submitting}
           className={inputClass}
           value={subject}
           onChange={(event) => setSubject(event.target.value)}
@@ -169,6 +177,7 @@ export default function ContactFormClient({ kind, title, description, submitLabe
         <textarea
           id={`${fieldIdPrefix}-body`}
           name="message"
+          disabled={!hydrated || submitting}
           className={inputClass}
           rows={5}
           value={message}
@@ -187,7 +196,7 @@ export default function ContactFormClient({ kind, title, description, submitLabe
       </p>
       <button
         type="submit"
-        disabled={submitting}
+        disabled={!hydrated || submitting}
         className="w-full rounded-[16px] bg-[linear-gradient(180deg,#2F98FF,#147EF5)] px-5 py-3 font-display text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:brightness-110 disabled:opacity-60"
       >
         {submitting ? "Sending your message..." : submitLabel}

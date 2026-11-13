@@ -2,14 +2,17 @@ import { writeAuditLogFromRequest } from "@/lib/audit-logs";
 import { resolveAuthorizedAuthDestination } from "@/lib/auth-destinations";
 import { AuthConfigurationError } from "@/lib/auth-errors";
 import { hasPlayerDashboardAccess, hasTeamWorkspaceAccess } from "@/lib/authz";
+import { getLoginFailureResponse } from "@/lib/login-failure-response";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
 import { createSessionCookie, getSessionCookieMaxAge, REFRESH_COOKIE, SESSION_COOKIE, verifyAccessToken } from "@/lib/supabase-auth-server";
+import { isSupabaseAuthCookieName } from "@/lib/supabase-auth-cookies";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { LoginAccessVariant } from "@/lib/user-facing-errors";
 import { getLoginFailureDetails, getRoleAccessErrorMessage, LOGIN_ERROR_MESSAGES } from "@/lib/user-facing-errors";
 import { after } from "next/server";
+import { cookies } from "next/headers";
 
 function readText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -51,41 +54,69 @@ function createLoginErrorResponse(message: string, status: number) {
   );
 }
 
-function clearBravoSessionCookies(response: Response) {
+function clearBravoSessionCookies(response: Response, authCookieNames: Iterable<string> = []) {
   response.headers.append("Set-Cookie", `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=0`);
   response.headers.append("Set-Cookie", `${REFRESH_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=0`);
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  for (const name of authCookieNames) {
+    response.headers.append("Set-Cookie", `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
+  }
   return response;
 }
 
-async function rejectAuthenticatedLogin(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, message: string, status: number) {
+async function revokeLoginSession(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, request: Request) {
+  const cookieStore = await cookies();
+  const names = new Set(
+    (request.headers.get("cookie") ?? "").split(";").map(cookie => cookie.split("=", 1)[0]?.trim() ?? "").filter(isSupabaseAuthCookieName),
+  );
+  // Password sign-in may have just written cookies absent from the request.
+  // SDK sign-out can return an error without removing those local cookies.
+  for (const cookie of cookieStore.getAll()) if (isSupabaseAuthCookieName(cookie.name)) names.add(cookie.name);
   await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
-  return clearBravoSessionCookies(createLoginErrorResponse(message, status));
+  for (const cookie of cookieStore.getAll()) if (isSupabaseAuthCookieName(cookie.name)) names.add(cookie.name);
+  return names;
+}
+
+async function rejectAuthenticatedLogin(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, request: Request, message: string, status: number) {
+  const authCookieNames = await revokeLoginSession(supabase, request);
+  return clearBravoSessionCookies(createLoginErrorResponse(message, status), authCookieNames);
 }
 
 function scheduleLoginFailure(request: Request, payload: Parameters<typeof logLoginFailure>[1]) {
-  after(async () => {
-    await logLoginFailure(request, payload);
-  });
+  const log = () => logLoginFailure(request, payload).catch(() => undefined);
+  try {
+    after(log);
+  } catch {
+    // Failure telemetry must not turn a controlled denial into an exception.
+    void log();
+  }
 }
 
 export async function POST(request: Request) {
   const invalidOrigin = requireSameOrigin(request);
   if (invalidOrigin) return invalidOrigin;
 
-  const limited = await enforceRateLimit(request, {
-    key: "auth-login",
-    maxRequests: 8,
-    windowMs: 60_000,
-  });
-  if (limited) {
-    return createLoginErrorResponse(LOGIN_ERROR_MESSAGES.rateLimited, 429);
-  }
-
   let variant: LoginAccessVariant = "hub";
   let authenticatedClient: Awaited<ReturnType<typeof createSupabaseServerClient>> | null = null;
+  let credentialRequestPending = false;
 
   try {
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const limited = await enforceRateLimit(request, {
+      key: "auth-login",
+      maxRequests: 8,
+      windowMs: 60_000,
+    });
+    if (limited) {
+      const response = createLoginErrorResponse(LOGIN_ERROR_MESSAGES.rateLimited, 429);
+      for (const name of ["Retry-After", "X-RateLimit-Remaining", "X-RateLimit-Reset"]) {
+        const value = limited.headers.get(name);
+        if (value) response.headers.set(name, value);
+      }
+      return response;
+    }
+
+    const input: unknown = await request.json().catch(() => null);
+    const body = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
     const email = readText(body.email);
     const password = typeof body.password === "string" ? body.password : "";
     const requestedDestination = body.redirect;
@@ -97,16 +128,15 @@ export async function POST(request: Request) {
 
     const supabase = await createSupabaseServerClient();
 
+    credentialRequestPending = true;
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    credentialRequestPending = false;
 
     if (error) {
-      const details = getLoginFailureDetails(error, {
-        variant,
-        stage: "credentials",
-      });
+      const { status, details } = getLoginFailureResponse(error, { variant, credentials: true });
       scheduleLoginFailure(request, {
         variant,
         category: details.category,
@@ -114,7 +144,6 @@ export async function POST(request: Request) {
         status: details.status,
         code: details.code,
       });
-      const status = details.category === "rate_limited" ? 429 : details.category === "backend_unavailable" ? 503 : 401;
       return createLoginErrorResponse(details.message, status);
     }
 
@@ -130,7 +159,7 @@ export async function POST(request: Request) {
         status: details.status,
         code: details.code,
       });
-      return rejectAuthenticatedLogin(supabase, details.message, 503);
+      return rejectAuthenticatedLogin(supabase, request, details.message, 503);
     }
 
     authenticatedClient = supabase;
@@ -143,10 +172,10 @@ export async function POST(request: Request) {
         stage: "role",
         status: 403,
       });
-      return rejectAuthenticatedLogin(supabase, message, 403);
+      return rejectAuthenticatedLogin(supabase, request, message, 403);
     }
     if (variant === "player" && hasPlayerDashboardAccess(verifiedSession.role, verifiedSession.isAdmin) && !verifiedSession.playerId) {
-      return rejectAuthenticatedLogin(supabase, "This player account is not linked to an approved player profile.", 403);
+      return rejectAuthenticatedLogin(supabase, request, "This player account is not linked to an approved player profile.", 403);
     }
     const hasAllowedAccess =
       variant === "admin"
@@ -165,7 +194,7 @@ export async function POST(request: Request) {
         stage: "role",
         status: 403,
       });
-      return rejectAuthenticatedLogin(supabase, message, 403);
+      return rejectAuthenticatedLogin(supabase, request, message, 403);
     }
 
     const redirectTo = resolveAuthorizedAuthDestination(verifiedSession, requestedDestination);
@@ -207,9 +236,7 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error: unknown) {
-    if (authenticatedClient) {
-      await authenticatedClient.auth.signOut({ scope: "local" }).catch(() => undefined);
-    }
+    const authCookieNames = authenticatedClient ? await revokeLoginSession(authenticatedClient, request) : [];
     if (error instanceof AuthConfigurationError) {
       scheduleLoginFailure(request, {
         variant,
@@ -217,11 +244,17 @@ export async function POST(request: Request) {
         stage: "role",
         status: 403,
       });
-      return clearBravoSessionCookies(createLoginErrorResponse(error.message, 403));
+      return clearBravoSessionCookies(createLoginErrorResponse(error.message, 403), authCookieNames);
     }
-    await logServerError("auth.login.server", error, request, { variant });
+    const { status, details } = getLoginFailureResponse(error, { variant, credentials: credentialRequestPending });
+    await logServerError("auth.login.server", new Error(`login_failure:${details.category}`), request, {
+      variant,
+      category: details.category,
+      status: details.status,
+      code: details.code,
+    }).catch(() => undefined);
     return authenticatedClient
-      ? clearBravoSessionCookies(createLoginErrorResponse(LOGIN_ERROR_MESSAGES.backendUnavailable, 503))
-      : createLoginErrorResponse(LOGIN_ERROR_MESSAGES.backendUnavailable, 503);
+      ? clearBravoSessionCookies(createLoginErrorResponse(details.message, status), authCookieNames)
+      : createLoginErrorResponse(details.message, status);
   }
 }

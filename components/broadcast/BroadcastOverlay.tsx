@@ -38,6 +38,13 @@ function Graphic({ graphic, data, clock }: { graphic: BroadcastGraphic; data: Br
             ? data.finalResults
             : true;
     const rows = validContext ? (overall ? data.standings : data.results) : [];
+    const decisions = rows.map(row => {
+      const penalty = "penaltyPoints" in row ? row.penaltyPoints ?? 0 : Math.max(0, -(row.adjustmentPoints ?? 0));
+      const bonus = "bonusPoints" in row ? row.bonusPoints ?? 0 : Math.max(0, row.adjustmentPoints ?? 0);
+      const dq = "disqualifications" in row ? row.disqualifications ?? 0 : row.disqualified ? 1 : 0;
+      return { penalty, bonus, dq };
+    });
+    const showDecisions = decisions.some(row => row.penalty || row.bonus || row.dq);
     const rowsPerPage = template.rows;
     const pageCount = Math.max(1, Math.ceil(rows.length / rowsPerPage));
     const page = Math.min(data.control.page ?? 0, pageCount - 1);
@@ -65,11 +72,12 @@ function Graphic({ graphic, data, clock }: { graphic: BroadcastGraphic; data: Br
                 {show("kills") && <th scope="col">{broadcastLabel(template, "kills")}</th>}
                 {show("killPoints") && <th scope="col">{broadcastLabel(template, "killPoints")}</th>}
                 {show("placementPoints") && <th scope="col">{broadcastLabel(template, "placementPoints")}</th>}
+                {showDecisions && <th scope="col">Penalties / bonuses</th>}
                 <th scope="col">{broadcastLabel(template, "totalPoints")}</th>
               </tr>
             </thead>
             <tbody>
-              {rows.slice(page * rowsPerPage, (page + 1) * rowsPerPage).map((row) => (
+              {rows.slice(page * rowsPerPage, (page + 1) * rowsPerPage).map((row, index) => (
                 <tr key={row.teamId ?? row.teamName}>
                   <td>{row.rank.toString().padStart(2, "0")}</td>
                   <td>
@@ -83,6 +91,7 @@ function Graphic({ graphic, data, clock }: { graphic: BroadcastGraphic; data: Br
                   {show("kills") && <td>{row.kills}</td>}
                   {show("killPoints") && <td>{row.killPoints}</td>}
                   {show("placementPoints") && <td>{row.placementPoints}</td>}
+                  {showDecisions && <td>-{decisions[page * rowsPerPage + index].penalty} / +{decisions[page * rowsPerPage + index].bonus}{decisions[page * rowsPerPage + index].dq ? ` · ${decisions[page * rowsPerPage + index].dq} DQ` : ""}</td>}
                   <td className="broadcast-points">{row.totalPoints}</td>
                 </tr>
               ))}

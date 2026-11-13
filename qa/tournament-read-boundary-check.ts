@@ -17,19 +17,26 @@ async function main() {
   let hidden = false;
   let documentReads = 0;
   let requests = 0;
+  let publicationValidation = false;
+  let attemptedWrites = 0;
   const now = new Date(Date.now() - 86_400_000).toISOString();
   globalThis.fetch = async (input, init) => {
     requests++;
     const url = new URL(input instanceof Request ? input.url : String(input));
     assert.equal(url.origin, "https://offline-boundary.supabase.co", "No real service access permitted");
     const table = url.pathname.split("/").at(-1);
+    if (publicationValidation && init?.method && !["GET", "HEAD"].includes(init.method)) {
+      attemptedWrites++;
+      throw new Error("Invalid publication must fail before any mutation");
+    }
     const singular = new Headers(init?.headers).get("accept")?.includes("object+json");
     const reply = (rows: object[]) => Response.json(singular ? rows[0] ?? null : rows);
     if (table === "events") {
       if (hidden && url.searchParams.has("published")) return reply([]);
-      return reply([{ id: eventId, name: "Bravo Boundary Event", title: "Bravo Boundary Event", slug: "bravo-boundary", published: true, published_at: now, deleted_at: null, demo_seed_tag: null, season_id: null, start_date: now, status: "active", max_teams: 24, format: "Squad", server: "Global" }]);
+      return reply([{ id: eventId, name: "Bravo Boundary Event", title: "Bravo Boundary Event", slug: "bravo-boundary", published: true, published_at: now, deleted_at: null, demo_seed_tag: null, season_id: publicationValidation ? "00000000-0000-4000-8000-000000000004" : null, start_date: now, status: "active", max_teams: 24, format: "Squad", server: "Global" }]);
     }
-    if (table === "event_teams" || table === "seasons" || table === "point_systems" || table === "players") return reply([]);
+    if (table === "point_systems") return reply(publicationValidation ? [{ id: eventId, name: "QA event rules", kill_points: 1, placement_points: { 1: 10 }, rules_json: {} }] : []);
+    if (table === "event_teams" || table === "seasons" || table === "players") return reply([]);
     if (table === "matches") {
       if (url.searchParams.get("select") === "id,revision") return reply([{ id: matchId, revision: revisionRace ? 2 : 1 }]);
       return reply([{ id: matchId, event_id: eventId, season_id: null, match_id: "BOUNDARY-MANUAL", map: "Erangel", match_number: 1, status: "published", published_at: now, match_date: now, created_at: now, updated_at: now, demo_seed_tag: null, deleted_at: null, revision: 1, scoring_rules: {}, raw_json: { private: "PRIVATE_SNAPSHOT" } }]);
@@ -73,7 +80,21 @@ async function main() {
       await assert.rejects(repairImportedPubgMatchFromCache(reference), /Invalid match reference/);
     }
     assert.equal(requests, beforeRequests, "Malformed maintenance references must fail before any query or mutation");
-    console.log("PASS: installed-SDK tournament reader publication boundary, raw-ID masking, server broadcast selection, revision-conflict propagation, hidden canonical ownership and malformed maintenance reference denial. Offline intercepted services only.");
+    publicationValidation = true;
+    hidden = false;
+    const { saveCompetitionMatch } = await import("../lib/competition-relational");
+    for (const teamName of ["", "Team pending mapping", "Team pending confirmation"]) {
+      await assert.rejects(saveCompetitionMatch({
+        tournamentId: eventId,
+        pubgMatchId: "QA-MISSING-TEAM-NAME",
+        map: "Erangel",
+        status: "published",
+        teamResults: [{ teamName, placement: 1, kills: 1, damage: 0, placementPoints: 0, killPoints: 0, totalPoints: 0 }],
+        playerResults: [],
+      }, { publish: true }), /real team name/);
+    }
+    assert.equal(attemptedWrites, 0, "Missing names and UI pending labels cannot create teams or reach transactional writes");
+    console.log("PASS: installed-SDK tournament reader publication boundary, raw-ID masking, server broadcast selection, revision-conflict propagation, hidden canonical ownership, malformed maintenance reference denial and missing-team publication rejection before any write. Offline intercepted services only.");
   } finally {
     globalThis.fetch = originalFetch;
     for (const key of Object.keys(process.env)) if (!(key in environment)) delete process.env[key];

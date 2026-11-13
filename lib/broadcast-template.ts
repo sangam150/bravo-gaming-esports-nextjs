@@ -34,7 +34,9 @@ export function defaultBroadcastTemplate(graphic: string) {
     ...DEFAULT_BROADCAST_TEMPLATE,
     layout: ["compact-scoreboard", "match-info", "sponsor-strip", "lower-third"].includes(graphic) ? "transparent" : "reference",
     rows:
-      graphic === "todays-matches"
+      graphic === "team-slots"
+        ? 16
+        : graphic === "todays-matches"
         ? 5
         : ["scoreboard", "results", "rankings", "standings", "group-standings", "day-standings", "final-rankings"].includes(graphic)
           ? 24

@@ -13,6 +13,7 @@ export const EXTENDED_GRAPHICS: BroadcastGraphic[] = [
   "champion",
   "player-comparison",
   "advancement",
+  "team-slots",
 ];
 export default function BroadcastExtendedGraphic({
   graphic,
@@ -36,11 +37,13 @@ export default function BroadcastExtendedGraphic({
         champion: "Tournament champion",
         "player-comparison": "Player comparison",
         advancement: data.advancement?.final ? "Qualified teams" : "Advancement positions",
+        "team-slots": "Team Slots",
       } as Partial<Record<BroadcastGraphic, string>>
     )[graphic] ||
     "Bravo Gaming";
   const empty = (message: string) => <p className="scene-unavailable">{message}</p>;
   const logo = settings.logoUrl || data.tournament?.logoUrl || "/images/bravo-logo.png";
+  const slotPage = Math.min(data.control.page ?? 0, Math.max(0, Math.ceil((data.teamSlots?.length ?? 0) / settings.rows) - 1));
   if (graphic === "sponsor-strip")
     return (
       <section className="broadcast-panel broadcast-strip-canvas" aria-label={title}>
@@ -146,6 +149,23 @@ export default function BroadcastExtendedGraphic({
         </div>
         <Asset url={logo} name={eventName} />
       </header>
+      {graphic === "team-slots" ? (
+        data.slotScrim ? (
+          <div className="scene-team-slots">
+            <p>{data.slotScrim.title} · {data.slotScrim.locked ? "Confirmed slots locked" : "Current saved assignments"}</p>
+            <div>
+              {(data.teamSlots ?? []).slice(slotPage * settings.rows, (slotPage + 1) * settings.rows).map(slot => (
+                <article key={slot.slotNumber} aria-label={`Slot ${slot.slotNumber}`}>
+                  <strong>#{slot.slotNumber.toString().padStart(2, "0")}</strong>
+                  {slot.teamName ? <Asset url={slot.logoUrl} name={slot.teamName} /> : null}
+                  <h2>{slot.teamName || (slot.occupied ? "Team unavailable" : "Available")}</h2>
+                </article>
+              ))}
+            </div>
+            {data.teamSlots.length > settings.rows ? <p>Page {slotPage + 1} of {Math.ceil(data.teamSlots.length / settings.rows)}</p> : null}
+          </div>
+        ) : empty("Select a published linked scrim with valid saved team slots in Broadcast Studio.")
+      ) : null}
       {graphic === "champion" ? (
         data.champion ? (
           <div className="scene-champion">

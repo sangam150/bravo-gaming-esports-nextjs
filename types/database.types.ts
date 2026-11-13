@@ -312,6 +312,7 @@ export type Database = {
           demo_seed_tag: string | null;
           event_id: string;
           id: string;
+          registration_id: string | null;
           slot_number: number | null;
           status: string;
           team_id: string;
@@ -322,6 +323,7 @@ export type Database = {
           demo_seed_tag?: string | null;
           event_id: string;
           id?: string;
+          registration_id?: string | null;
           slot_number?: number | null;
           status?: string;
           team_id: string;
@@ -332,6 +334,7 @@ export type Database = {
           demo_seed_tag?: string | null;
           event_id?: string;
           id?: string;
+          registration_id?: string | null;
           slot_number?: number | null;
           status?: string;
           team_id?: string;
@@ -343,6 +346,13 @@ export type Database = {
             columns: ["event_id"];
             isOneToOne: false;
             referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_teams_registration_id_fkey";
+            columns: ["registration_id"];
+            isOneToOne: true;
+            referencedRelation: "registrations";
             referencedColumns: ["id"];
           },
           {
@@ -2979,14 +2989,38 @@ export type Database = {
       };
     };
     Functions: {
+      commit_competition_event: {
+        Args: { p_event: Json; p_team_ids: Json; p_actor_id?: string | null };
+        Returns: Json;
+      };
       commit_competition_match: {
-        Args: { p_match: Json; p_team_rows: Json; p_player_rows: Json; p_expected_revision: number | null; p_publish: boolean; p_action?: string; p_actor_id?: string | null };
+        Args: {
+          p_match: Json;
+          p_team_rows: Json;
+          p_player_rows: Json;
+          p_expected_revision: number | null;
+          p_publish: boolean;
+          p_action?: string;
+          p_actor_id?: string | null;
+        };
         Returns: number;
+      };
+      confirm_event_registration: {
+        Args: {
+          p_registration_id: string;
+          p_team_id: string;
+          p_actor_id: string;
+          p_expected_claim_token: string;
+          p_updates?: Json;
+          p_requested_slot?: number | null;
+        };
+        Returns: Json;
       };
       consume_rate_limit: {
         Args: { p_key: string; p_max_requests: number; p_window_ms: number };
         Returns: Json;
       };
+      create_event_registration: { Args: { p_registration: Json }; Returns: Json };
       create_next_day: { Args: { target_season_id?: string }; Returns: string };
       current_user_role: {
         Args: never;
@@ -3000,6 +3034,17 @@ export type Database = {
         Returns: boolean;
       };
       is_team_role: { Args: never; Returns: boolean };
+      set_event_registration_status: {
+        Args: {
+          p_registration_id: string;
+          p_expected_status: string;
+          p_status: string;
+          p_actor_id: string;
+          p_updates?: Json;
+          p_expected_team_id?: string | null;
+        };
+        Returns: Json;
+      };
       jsonb_flag_true_by_default: {
         Args: { key: string; payload: Json };
         Returns: boolean;

@@ -4,12 +4,14 @@ import { cookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
 import "server-only";
 import { requireSupabaseEnv } from "./env";
+import { supabaseRequestFetch } from "./request-fetch";
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
   const { url, publicKey } = requireSupabaseEnv();
 
   return createServerClient<Database>(url, publicKey, {
+    global: { fetch: supabaseRequestFetch },
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -27,6 +29,7 @@ export function createSupabaseRouteClient(request: NextRequest, response: NextRe
   const { url, publicKey } = requireSupabaseEnv();
 
   return createServerClient<Database>(url, publicKey, {
+    global: { fetch: supabaseRequestFetch },
     cookies: {
       getAll() {
         return request.cookies.getAll();

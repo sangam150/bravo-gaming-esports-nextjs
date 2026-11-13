@@ -1,6 +1,7 @@
 import "server-only";
 
 import { S3Client } from "@aws-sdk/client-s3";
+import { assertPreviewR2Environment } from "../preview-resource-policy.js";
 
 type R2Environment = {
   accountId: string;
@@ -52,6 +53,7 @@ function normalizePublicBaseUrl(value: string, variableName: string) {
 }
 
 function getR2Environment(): R2Environment {
+  assertPreviewR2Environment(process.env);
   const accountId = getRequiredEnvironmentValue("R2_ACCOUNT_ID");
   const endpoint = trimTrailingSlash(process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`);
   const privateBucketName = getRequiredEnvironmentValue("R2_PRIVATE_BUCKET_NAME");

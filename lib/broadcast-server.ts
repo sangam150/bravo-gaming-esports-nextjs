@@ -1,8 +1,9 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { DEFAULT_BROADCAST_STATE, buildBroadcastSnapshot, type BroadcastState } from "./broadcast";
-import { getDocument, saveDocumentIfFieldsMatch } from "./document-store";
-import { getPublicTournament, getTournamentMatches, getTournamentPlayers, getTournamentTeams, getSponsors } from "./data";
+import { COLLECTIONS, getDocument, saveDocumentIfFieldsMatch } from "./document-store";
+import { getPublicTournament, getTournamentMatches, getTournamentPlayers, getTournamentTeams, getSponsors, getTeams } from "./data";
+import type { Scrim } from "./types";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
 import { transitionBroadcastStudio, type StudioAction, type StudioRecord } from "./broadcast-studio";
 import { getTournament } from "./data";
@@ -46,7 +47,9 @@ export async function buildStudioPreviewSnapshot() {
     getTournamentPlayers(tournament.id), getSponsors(),
   ]) : [[], [], [], []];
   const production = tournament ? await getEventProduction(tournament.id) : null;
-  return buildBroadcastSnapshot({ state, tournament, matches, teams, players, sponsors, privatePreview: true, production: production?.draft });
+  const scrim = state.scrimId ? await getDocument<Scrim>(COLLECTIONS.scrims, state.scrimId) : null;
+  const slotTeams = scrim && tournament && scrim.tournamentId === tournament.id ? (await getTeams()).filter(team => scrim.teamIds.includes(team.id)) : [];
+  return buildBroadcastSnapshot({ state, tournament, matches, teams: [...teams, ...slotTeams.filter(team => !teams.some(existing => existing.id === team.id))], players, sponsors, scrim, privatePreview: true, production: production?.draft });
 }
 
 // Short shared cache bounds expensive hydration across multiple OBS sources.
@@ -64,7 +67,9 @@ export const getBroadcastSnapshot = unstable_cache(
         ])
       : [[], [], [], []];
     const production = tournament ? (await getEventProduction(tournament.id)).approved : null;
-    return { snapshot: buildBroadcastSnapshot({ state, tournament, matches, teams, players, sponsors, production }), generatedAt: Date.now() };
+    const scrim = state.scrimId ? await getDocument<Scrim>(COLLECTIONS.scrims, state.scrimId) : null;
+    const slotTeams = scrim && tournament && scrim.tournamentId === tournament.id && scrim.published === true && !scrim.deletedAt ? (await getTeams()).filter(team => scrim.teamIds.includes(team.id)) : [];
+    return { snapshot: buildBroadcastSnapshot({ state, tournament, matches, teams: [...teams, ...slotTeams.filter(team => !teams.some(existing => existing.id === team.id))], players, sponsors, scrim, production }), generatedAt: Date.now() };
   },
   ["broadcast-snapshot-v1"],
   { revalidate: 2, tags: ["broadcast"] },

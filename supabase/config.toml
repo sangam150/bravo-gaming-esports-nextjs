@@ -33,6 +33,7 @@ schema_paths = [
   "./migrations/025_event_player_statistics.sql",
   "./migrations/026_versioned_scoring_decisions.sql",
   "./migrations/027_atomic_match_results.sql",
+  "./migrations/028_atomic_event_registration.sql",
 ]
 
 [db.seed]

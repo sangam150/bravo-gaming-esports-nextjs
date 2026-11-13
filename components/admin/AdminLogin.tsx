@@ -5,12 +5,14 @@ import BravoLogo from "@/components/ui/BravoLogo";
 import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { reportLoginFailure } from "@/lib/login-client";
 import { LOGIN_ERROR_MESSAGES, validateLoginCredentials } from "@/lib/user-facing-errors";
+import { useHydrated } from "@/lib/use-hydrated";
 import Link from "next/link";
 import { useState } from "react";
 import { useAdminAuth } from "./AuthProvider";
 
 export default function AdminLogin() {
   const { login, configured } = useAdminAuth();
+  const hydrated = useHydrated();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -83,6 +85,7 @@ export default function AdminLogin() {
           <input
             className="input-esports"
             type="email"
+            disabled={!hydrated}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -95,6 +98,7 @@ export default function AdminLogin() {
           <input
             className="input-esports"
             type="password"
+            disabled={!hydrated}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -102,7 +106,7 @@ export default function AdminLogin() {
             aria-invalid={Boolean(error)}
           />
         </label>
-        <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
+        <button type="submit" disabled={!hydrated || loading} className="btn-primary w-full justify-center disabled:opacity-60">
           {loading ? "Checking admin access..." : "Sign In"}
         </button>
 

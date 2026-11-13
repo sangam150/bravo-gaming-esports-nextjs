@@ -43,7 +43,7 @@ try {
   const policiesBefore=(await db.query("select tablename,policyname,cmd,qual,with_check from pg_policies order by tablename,policyname")).rows;
   await db.exec(await readFile("supabase/migrations/027_atomic_match_results.sql","utf8"));
   const preflightSource=await readFile("qa/migration-preflight.mjs","utf8");
-  const preflightSql=preflightSource.match(/const atomicFunction =[\s\S]*?client\.query\(`([\s\S]*?)`\) : null;/)?.[1];
+  const preflightSql=preflightSource.match(/const atomicFunction =[\s\S]*?client\.query\(`([\s\S]*?)`\)\s*:\s*null;/)?.[1];
   assert.ok(preflightSql,"Extract the actual atomic-schema preflight SQL instead of duplicating its checks");
   const readyPreflight={present:true,revision_present:true,service_only:true,revision_trigger_enabled:true,browser_writes_blocked:true};
   assert.deepEqual((await db.query(preflightSql)).rows[0],readyPreflight,"Real preflight SQL must recognize migration 027's signature, trigger and privilege boundary");

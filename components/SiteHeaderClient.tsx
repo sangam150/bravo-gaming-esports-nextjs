@@ -5,6 +5,7 @@ import { BRAVO_DISCORD_URL } from "@/lib/brand-links";
 import { scheduleEffectTask } from "@/lib/effect-task";
 import { clearBravoSession } from "@/lib/login-client";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useHydrated } from "@/lib/use-hydrated";
 import { ChevronDown, ChevronRight, LogOut, Menu, Play, UserRound, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -112,7 +113,7 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
   const resolvedPathname = pathname || "/";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopMenuOpen, setDesktopMenuOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [isScrolled, setIsScrolled] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
@@ -120,12 +121,11 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
   const drawerRef = useRef<HTMLElement>(null);
   const desktopMenuButtonRef = useRef<HTMLButtonElement>(null);
   const desktopMenuRef = useRef<HTMLDivElement>(null);
+  const previousPathname = useRef(pathname);
 
   useEffect(() => {
-    return scheduleEffectTask(() => setMounted(true));
-  }, []);
-
-  useEffect(() => {
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
     return scheduleEffectTask(() => {
       setMobileOpen(false);
       setDesktopMenuOpen(false);
@@ -464,6 +464,7 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
                 aria-haspopup="true"
                 aria-expanded={desktopMenuOpen}
                 aria-controls="desktop-account-access-menu"
+                disabled={!mounted}
                 onClick={() => setDesktopMenuOpen((value) => !value)}
                 className={utilityClasses(false)}
               >
@@ -494,6 +495,7 @@ export default function SiteHeaderClient({ watchLiveHref, account }: SiteHeaderC
               aria-label={mobileOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileOpen}
               aria-controls="mobile-site-navigation"
+              disabled={!mounted}
               onClick={() => setMobileOpen((value) => !value)}
               className="btn-secondary ml-auto !h-11 xl:hidden"
             >

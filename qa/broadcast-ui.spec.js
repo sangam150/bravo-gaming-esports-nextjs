@@ -87,6 +87,8 @@ function snapshot(graphic = "scoreboard") {
       status: "upcoming",
     })),
     registeredTeams: Array.from({ length: 24 }, (_, i) => ({ id: `qa-${i}`, name: `QA TEAM ${i + 1}` })),
+    slotScrim: { id: "qa-slot-scrim", title: "QA Saved Scrim", date: "2026-11-06", capacity: 16, locked: true },
+    teamSlots: Array.from({ length: 16 }, (_, i) => ({ slotNumber: i + 1, occupied: i === 6, ...(i === 6 ? { teamId: "qa-7", teamName: "QA SAVED SLOT TEAM" } : {}) })),
     casters: Array.from({ length: 4 }, (_, i) => ({ id: `qa-caster-${i}`, name: `QA CASTER ${i + 1}`, role: "QA ANALYST", handle: "" })),
     selectedTeam: {
       id: "qa-0",
@@ -105,10 +107,27 @@ function snapshot(graphic = "scoreboard") {
 
 test.use({ viewport: { width: 1920, height: 1080 }, reducedMotion: "reduce" });
 
+test("standings show saved penalties, bonuses and DQ without changing official totals", async ({ page }) => {
+  const data = snapshot("standings");
+  Object.assign(data.standings[0], { penaltyPoints: 4, bonusPoints: 2.5, adjustmentPoints: -1.5, disqualifications: 1, totalPoints: 28 });
+  await page.route("**/api/broadcast", route => route.fulfill({ json: { success: true, data } }));
+  await page.goto(`${baseURL}/overlay/standings`);
+  const table = page.getByRole("table", { name: "Broadcast standings and match results" });
+  await expect(table.getByRole("columnheader", { name: "Penalties / bonuses", exact: true })).toBeVisible();
+  const first = table.locator("tbody tr").first();
+  await expect(first).toContainText("-4 / +2.5 · 1 DQ");
+  await expect(first.locator(".broadcast-points")).toHaveText("28");
+  await expect(table.locator("tbody tr").nth(1)).toContainText("-0 / +0");
+  await expect(table).not.toContainText("NaN");
+  const bounds = await table.boundingBox();
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(1920);
+});
+
 test("all broadcast graphics render within the transparent OBS canvas", async ({ page }) => {
   test.setTimeout(180_000);
   let data = snapshot();
-  await page.route("**/api/broadcast", (route) => route.fulfill({ json: { success: true, data } }));
+  await page.route("**/api/broadcast", (route) => route.fulfill({ headers: { "x-broadcast-time": String(Date.parse("2026-11-04T14:00:00Z")) }, json: { success: true, data } }));
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   for (const graphic of graphics) {
@@ -161,6 +180,17 @@ test("all broadcast graphics render within the transparent OBS canvas", async ({
     }
     if (graphic === "casters") await expect(page.locator(".scene-casters article")).toHaveCount(4);
     if (graphic === "team-stats") await expect(page.locator(".scene-roster article")).toHaveCount(4);
+    if (graphic === "todays-matches") {
+      await expect(page.locator(".scene-schedule article")).toHaveCount(5);
+      await expect(page.locator(".scene-schedule article").first()).toContainText("Erangel");
+      await expect(page.locator(".scene-schedule article").first()).toContainText("20:00");
+    }
+    if (graphic === "team-slots") {
+      await expect(page.locator(".scene-team-slots article")).toHaveCount(16);
+      await expect(page.getByLabel("Slot 7", { exact: true })).toContainText("QA SAVED SLOT TEAM");
+      await expect(page.getByLabel("Slot 1", { exact: true })).toContainText("Available");
+      await page.screenshot({ path: "qa-artifacts/broadcast/team-slots.png", omitBackground: true });
+    }
     {
       const overflow = await page.locator(".broadcast-scene").evaluateAll((scenes) =>
         scenes.flatMap((scene) =>
@@ -197,6 +227,24 @@ test("program follows show, hide, reveal and connection loss", async ({ page }) 
   failing = true;
   await expect(page.locator(".broadcast-panel")).toHaveCount(0, { timeout: 10_000 });
   await expect(page.locator(".broadcast-stage[data-connected=false]")).toBeAttached();
+  failing = false;
+  await expect(page.getByRole("heading", { name: "Winner winner. Chicken dinner." })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".broadcast-stage[data-connected=true]")).toBeAttached();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Winner winner. Chicken dinner." })).toBeVisible();
+});
+
+test("saved slot changes and reduced capacity recover without a stale empty page", async ({ page }) => {
+  const data = snapshot("team-slots");
+  data.control.page = 3;
+  await page.route("**/api/broadcast", route => route.fulfill({ json: { success: true, data } }));
+  await page.goto(`${baseURL}/overlay/program`);
+  await expect(page.locator(".scene-team-slots article")).toHaveCount(16);
+  await expect(page.getByLabel("Slot 7", { exact: true })).toContainText("QA SAVED SLOT TEAM");
+  data.teamSlots[6] = { slotNumber: 7, occupied: false };
+  data.teamSlots[2] = { slotNumber: 3, occupied: true, teamId: "qa-7", teamName: "QA SAVED SLOT TEAM" };
+  await expect(page.getByLabel("Slot 7", { exact: true })).toContainText("Available", { timeout: 10_000 });
+  await expect(page.getByLabel("Slot 3", { exact: true })).toContainText("QA SAVED SLOT TEAM");
 });
 
 test("dedicated sources stay hidden for other selected graphics; preview works while hidden", async ({ page }) => {

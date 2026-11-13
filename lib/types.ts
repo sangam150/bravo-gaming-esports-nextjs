@@ -249,6 +249,9 @@ export interface Scrim {
   roomId?: string;
   roomPassword?: string;
   teamIds: string[];
+  teamCapacity?: number;
+  slotAssignments?: { teamId: string; slotNumber: number }[];
+  slotsLocked?: boolean;
   pubgMatchId?: string;
   pubgMatchIds?: string[];
   status: ScrimStatus;
@@ -279,6 +282,11 @@ export interface ScrimDayStanding {
 }
 
 export interface TournamentStanding {
+  /** Applied saved decisions; penalties are positive magnitudes, bonuses are positive. */
+  adjustmentPoints?: number;
+  penaltyPoints?: number;
+  bonusPoints?: number;
+  disqualifications?: number;
   tieBreakers?: import("./scoring-rules").TeamTieBreak[];
   latestPlacement?: number;
   latestKills?: number;
@@ -351,6 +359,8 @@ export interface TeamRegistration {
   logoPath?: string;
   logoUploadId?: string;
   approvedTeamId?: string;
+  eventSlotNumber?: number;
+  eventMembershipConfirmedAt?: string;
   approvalClaimToken?: string;
   approvalClaimedAt?: string;
   approvalClaimedBy?: string;

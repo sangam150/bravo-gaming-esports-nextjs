@@ -172,6 +172,26 @@ const enhanced = {
   },
 };
 const enhancedSnapshot = buildBroadcastSnapshot(enhanced);
+const slotScrim: Scrim = { id: "saved-slot-scrim", title: "Published saved slots", date: "2026-11-06", map: "Erangel", lobbyTime: "7:00 PM NPT", tournamentId: tournament.id, teamIds: ["alpha", "bravo"], teamCapacity: 16, slotAssignments: [{ teamId: "alpha", slotNumber: 7 }, { teamId: "bravo", slotNumber: 2 }], slotsLocked: true, status: "scheduled", published: true, roomId: "PRIVATE_SLOT_ROOM", roomPassword: "PRIVATE_SLOT_PASSWORD" };
+const slotInput = { ...input, scrim: slotScrim, state: { ...state, scrimId: slotScrim.id, graphic: "team-slots" as const }, teams: [{ id: "alpha", name: "Approved alpha", slotNumber: 99, totalPoints: 0, kills: 0, matches: 0 }, { id: "bravo", name: "Approved bravo", slotNumber: 88, totalPoints: 0, kills: 0, matches: 0 }] };
+const slotSnapshot = buildBroadcastSnapshot(slotInput);
+assert.equal(slotSnapshot.teamSlots.length, 16);
+assert.equal(slotSnapshot.teamSlots[6].teamName, "Approved alpha", "The saved event assignment is authoritative, never a global slot or team list index");
+assert.equal(slotSnapshot.teamSlots[1].teamName, "Approved bravo");
+assert.equal(slotSnapshot.teamSlots[0].occupied, false);
+assert.equal(slotSnapshot.slotScrim?.locked, true);
+assert.doesNotMatch(JSON.stringify(slotSnapshot), /PRIVATE_SLOT|roomPassword|roomId/);
+assert.equal(buildBroadcastSnapshot({ ...slotInput, scrim: { ...slotScrim, published: false } }).teamSlots.length, 0);
+assert.equal(buildBroadcastSnapshot({ ...slotInput, privatePreview: true, scrim: { ...slotScrim, published: false } }).teamSlots.length, 16);
+for (const scrim of [
+  { ...slotScrim, tournamentId: "another-event" }, { ...slotScrim, id: "another-scrim" }, { ...slotScrim, deletedAt: "2026-11-06" },
+  { ...slotScrim, slotAssignments: [{ teamId: "alpha", slotNumber: 2 }, { teamId: "bravo", slotNumber: 2 }] },
+  { ...slotScrim, slotAssignments: [{ teamId: "alpha", slotNumber: 1 }, { teamId: "alpha", slotNumber: 2 }] },
+  { ...slotScrim, slotAssignments: [{ teamId: "unregistered", slotNumber: 3 }] },
+]) assert.equal(buildBroadcastSnapshot({ ...slotInput, scrim }).teamSlots.length, 0, "Unpublished, stale, cross-event or invalid slot data must fail closed");
+const unavailableTeam = buildBroadcastSnapshot({ ...slotInput, teams: [] });
+assert.equal(unavailableTeam.teamSlots[6].occupied, true, "A missing team image/profile must not falsely release its saved slot");
+assert.equal(unavailableTeam.teamSlots[6].teamName, undefined);
 assert.equal(enhancedSnapshot.scheduledMatches[0].status, "results-published");
 assert.equal(enhancedSnapshot.scheduledMatches[1].status, "upcoming");
 assert.equal(enhancedSnapshot.control.stageLabel, "Grand Finals");
@@ -261,6 +281,19 @@ const customRules = { ...rules, placement_points: { "1": 12.25, "2": 7 }, rules_
 const customScores = scoreMatchResults([{ ...team("alpha", 1, 1), totalPoints: 9999, adjustmentPoints: -4, decisionReason: "Approved late roster penalty" }, team("bravo", 2, 20)], match.playerResults!, customRules);
 assert.equal(customScores.teamResults.find(row => row.teamId === "alpha")?.totalPoints, 10.75, "Server-calculated points include an explicit signed decision and ignore supplied totals");
 assert.equal(customScores.playerResults[0].playerId, "player-c", "Award criteria belong to the saved scoring version");
+const penalized = customScores.teamResults.find(row => row.teamId === "alpha")!;
+const decisionMatches = [
+  { ...match, id: "saved-penalty", teamResults: [penalized] },
+  { ...match, id: "saved-bonus", teamResults: [{ ...penalized, adjustmentPoints: 2.5, totalPoints: 17.25 }] },
+  { ...match, id: "saved-dq", teamResults: [{ ...penalized, disqualified: true, adjustmentPoints: 0, totalPoints: 0 }] },
+];
+const decisionStanding = buildTournamentStandings(tournament.id, tournament.title, decisionMatches)[0];
+assert.equal(decisionStanding.penaltyPoints, 4);
+assert.equal(decisionStanding.bonusPoints, 2.5);
+assert.equal(decisionStanding.adjustmentPoints, -1.5);
+assert.equal(decisionStanding.disqualifications, 1);
+assert.equal(decisionStanding.totalPoints, 28, "Decision breakdown must preserve saved totals, not recalculate or invent DQ lost points");
+assert.equal(buildTournamentStandings(tournament.id, tournament.title, [{ ...match, teamResults: [team("alpha", 1, 1)] }])[0].penaltyPoints, 0, "Legacy missing adjustments remain zero");
 const customSnapshot = buildBroadcastSnapshot({ ...input, matches: [{ ...match, scoringRules: customScores.scoringRules, teamResults: customScores.teamResults, playerResults: customScores.playerResults }] });
 assert.equal(customSnapshot.mvp?.playerId, "player-c");
 assert.equal(customSnapshot.topFragger?.playerId, "player-b", "Custom MVP criteria must not change the top-fragger definition");
@@ -324,6 +357,8 @@ for (const invalid of [[], [team("a", 2, 1)], [team("a", 1, -1)], [team("a", 1, 
 assert.throws(() => validateMatchResultsForPublication(match.teamResults!, [player("a", -1, 100)]));
 assert.throws(() => validateMatchResultsForPublication(match.teamResults!, [player("a", 1, 100), player("a", 2, 200)]));
 assert.throws(() => validateMatchResultsForPublication(match.teamResults!, [{ ...player("a", 1, 100), placement: 2 }]));
+for (const teamName of ["", "   ", "Team pending mapping", "TEAM PENDING CONFIRMATION"])
+  assert.throws(() => validateMatchResultsForPublication([{ ...team("a", 1, 1), teamName }], []), /real team name/);
 async function checkRecovery() {
   let now = 0;
   let attempts = 0;

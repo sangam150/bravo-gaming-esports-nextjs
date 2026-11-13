@@ -6,7 +6,10 @@ import { getBroadcastState, saveBroadcastState, buildStudioPreviewSnapshot } fro
 import { getPublicTournament, getTournament, getTournamentMatches, getTournamentTeams } from "@/lib/data";
 import type { StudioAction } from "@/lib/broadcast-studio";
 import { claimStagedAdminPublicAssets } from "@/lib/public-asset-cleanup";
-import { DocumentWriteConflictError } from "@/lib/document-store";
+import { COLLECTIONS, getDocument, DocumentWriteConflictError } from "@/lib/document-store";
+import { isPublicScrim } from "@/lib/public-scrims";
+import type { Scrim } from "@/lib/types";
+import { validateScrimSlots } from "@/lib/scrim-slots";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getEventProduction } from "@/lib/event-production-server";
 import { parseEventSchedule } from "@/lib/event-schedule";
@@ -55,6 +58,21 @@ export async function PUT(request: Request) {
       const tournament = privateEdit ? await getTournament(next.tournamentId, { includeInternal: true }) : await getPublicTournament(next.tournamentId);
       if (!tournament) return Response.json({ error: "Select a published tournament." }, { status: 400 });
       next.tournamentId = tournament.id;
+      if (next.scrimId) {
+        const scrim = await getDocument<Scrim>(COLLECTIONS.scrims, next.scrimId);
+        if (!scrim || scrim.deletedAt || scrim.tournamentId !== tournament.id || (!privateEdit && !isPublicScrim(scrim)))
+          return Response.json({ error: "Select a published scrim linked to this tournament." }, { status: 400 });
+        if (next.graphic === "team-slots") {
+          try {
+            if (typeof scrim.teamCapacity !== "number") throw new Error("Slot capacity is unconfigured.");
+            validateScrimSlots(scrim as unknown as Record<string, unknown>);
+          } catch {
+            return Response.json({ error: "Configure and save valid slots in Scrims before preparing this graphic." }, { status: 400 });
+          }
+        }
+      }
+      if (next.graphic === "team-slots" && !next.scrimId)
+        return Response.json({ error: "Select the scrim whose saved team slots should be shown." }, { status: 400 });
       const productionRecord = await getEventProduction(tournament.id);
       const production = privateEdit ? productionRecord.draft : productionRecord.approved;
       const stage = production?.stages.find(row => row.id === next.stageId && !row.archived);

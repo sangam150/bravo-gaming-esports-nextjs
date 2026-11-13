@@ -74,22 +74,34 @@ try {
         to_regclass('public.players'),
         to_regclass('public.matches'),
         to_regclass('public.match_player_results'),
-        to_regclass('public.app_documents')
+        to_regclass('public.app_documents'),
+        to_regclass('public.registrations'),
+        to_regclass('public.event_teams'),
+        to_regclass('public.audit_logs')
       ]) dependency
       where dependency is null
     `);
 
   const remoteVersions = migrationRows.rows.map((row) => String(row.version));
-  const expectedAppliedVersions = Array.from({ length: 27 }, (_, index) => String(index + 1).padStart(3, "0"));
-  const orderedPrefix = remoteVersions.length >= 21 && remoteVersions.length <= expectedAppliedVersions.length &&
+  const expectedAppliedVersions = Array.from({ length: 28 }, (_, index) => String(index + 1).padStart(3, "0"));
+  const orderedPrefix =
+    remoteVersions.length >= 21 &&
+    remoteVersions.length <= expectedAppliedVersions.length &&
     remoteVersions.every((version, index) => version === expectedAppliedVersions[index]);
-  const migrationLedgerState = !orderedPrefix ? "unexpected" : remoteVersions.length === expectedAppliedVersions.length ? "applied" : "ready-to-apply";
-  const scoringColumns = remoteVersions.includes("026") ? await client.query(`
+  const migrationLedgerState = !orderedPrefix
+    ? "unexpected"
+    : remoteVersions.length === expectedAppliedVersions.length
+      ? "applied"
+      : "ready-to-apply";
+  const scoringColumns = remoteVersions.includes("026")
+    ? await client.query(`
     select count(*)::int as count from information_schema.columns where table_schema='public' and
     ((table_name='matches' and column_name='scoring_rules') or
      (table_name='match_team_results' and column_name in ('damage','adjustment_points','decision_reason','disqualified')))
-  `) : null;
-  const atomicFunction = remoteVersions.includes("027") ? await client.query(`
+  `)
+    : null;
+  const atomicFunction = remoteVersions.includes("027")
+    ? await client.query(`
     select to_regprocedure('public.commit_competition_match(jsonb,jsonb,jsonb,bigint,boolean,text,uuid)') is not null as present,
     exists(select 1 from information_schema.columns where table_schema='public' and table_name='matches' and column_name='revision') as revision_present,
     case when to_regprocedure('public.commit_competition_match(jsonb,jsonb,jsonb,bigint,boolean,text,uuid)') is not null then
@@ -106,13 +118,82 @@ try {
         or has_any_column_privilege(browser.role_name,format('public.%I',scoring.table_name),'UPDATE')
         or has_any_column_privilege(browser.role_name,format('public.%I',scoring.table_name),'REFERENCES')
     ) as browser_writes_blocked
-  `) : null;
+  `)
+    : null;
+  const duplicateRegistrationCaptains = await client.query(`
+    select count(*)::int as count from (
+      select event_id, lower(btrim(contact_discord))
+      from public.registrations
+      where deleted_at is null and status in ('pending','approved','changes_requested')
+      group by event_id, lower(btrim(contact_discord))
+      having count(*) > 1
+    ) duplicates
+  `);
+  const duplicateEventSlots = await client.query(`
+    select count(*)::int as count from (
+      select event_id, slot_number from public.event_teams
+      where slot_number is not null
+      group by event_id, slot_number having count(*) > 1
+    ) duplicates
+  `);
+  const invalidEventSlots = await client.query(`
+    select count(*)::int as count
+    from public.event_teams membership
+    join public.events event_record on event_record.id = membership.event_id
+    where membership.slot_number is not null
+      and (membership.slot_number < 1 or membership.slot_number > event_record.max_teams)
+  `);
+  const overCapacityEvents = await client.query(`
+    select count(*)::int as count from (
+      select event_record.id
+      from public.events event_record
+      left join public.event_teams membership on membership.event_id = event_record.id
+      group by event_record.id, event_record.max_teams
+      having count(membership.id) > event_record.max_teams
+    ) over_capacity
+  `);
+  const registrationFunction = remoteVersions.includes("028")
+    ? await client.query(`
+    select
+      exists(select 1 from information_schema.columns where table_schema='public' and table_name='event_teams' and column_name='registration_id') as registration_link_present,
+      to_regprocedure('public.create_event_registration(jsonb)') is not null as create_present,
+      to_regprocedure('public.confirm_event_registration(uuid,uuid,uuid,text,jsonb,integer)') is not null as confirm_present,
+      to_regprocedure('public.set_event_registration_status(uuid,text,text,uuid,jsonb,uuid)') is not null as decision_present,
+      to_regprocedure('public.commit_competition_event(jsonb,jsonb,uuid)') is not null as event_commit_present,
+      exists(select 1 from pg_trigger where tgrelid='public.event_teams'::regclass and tgname='event_teams_enforce_membership' and tgenabled='O') as membership_trigger_enabled,
+      exists(select 1 from pg_trigger where tgrelid='public.event_teams'::regclass and tgname='event_teams_sync_count' and tgenabled='O') as count_trigger_enabled,
+      not has_function_privilege('anon','public.confirm_event_registration(uuid,uuid,uuid,text,jsonb,integer)','EXECUTE')
+        and not has_function_privilege('authenticated','public.confirm_event_registration(uuid,uuid,uuid,text,jsonb,integer)','EXECUTE')
+        and has_function_privilege('service_role','public.confirm_event_registration(uuid,uuid,uuid,text,jsonb,integer)','EXECUTE') as service_only,
+      not exists (
+        select 1 from (values ('anon'),('authenticated')) browser(role_name)
+        cross join unnest(array['registrations','event_teams']) protected(table_name)
+        where has_table_privilege(browser.role_name,format('public.%I',protected.table_name),'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+          or has_any_column_privilege(browser.role_name,format('public.%I',protected.table_name),'INSERT')
+          or has_any_column_privilege(browser.role_name,format('public.%I',protected.table_name),'UPDATE')
+          or has_any_column_privilege(browser.role_name,format('public.%I',protected.table_name),'REFERENCES')
+      ) as browser_writes_blocked
+  `)
+    : null;
   const checks = {
     migrationLedgerState,
     appliedVersions: remoteVersions,
     pendingVersions: orderedPrefix ? expectedAppliedVersions.slice(remoteVersions.length) : [],
     scoringSchemaReady: !scoringColumns || scoringColumns.rows[0]?.count === 5,
-    atomicSchemaReady: !atomicFunction || Boolean(atomicFunction.rows[0]?.present && atomicFunction.rows[0]?.revision_present && atomicFunction.rows[0]?.service_only && atomicFunction.rows[0]?.revision_trigger_enabled && atomicFunction.rows[0]?.browser_writes_blocked),
+    atomicSchemaReady:
+      !atomicFunction ||
+      Boolean(
+        atomicFunction.rows[0]?.present &&
+        atomicFunction.rows[0]?.revision_present &&
+        atomicFunction.rows[0]?.service_only &&
+        atomicFunction.rows[0]?.revision_trigger_enabled &&
+        atomicFunction.rows[0]?.browser_writes_blocked,
+      ),
+    registrationSchemaReady: !registrationFunction || Object.values(registrationFunction.rows[0] ?? {}).every(Boolean),
+    duplicateActiveRegistrationCaptains: Number(duplicateRegistrationCaptains.rows[0]?.count ?? -1),
+    duplicateEventSlots: Number(duplicateEventSlots.rows[0]?.count ?? -1),
+    invalidEventSlots: Number(invalidEventSlots.rows[0]?.count ?? -1),
+    overCapacityEvents: Number(overCapacityEvents.rows[0]?.count ?? -1),
     invalidActiveTeamNames: Number(invalidNames.rows[0]?.count ?? -1),
     normalizedIdentityCollisions: Number(identityCollisions.rows[0]?.count ?? -1),
     duplicatePubgAccountIds: Number(duplicateAccounts.rows[0]?.count ?? -1),
@@ -121,7 +202,13 @@ try {
 
   if (
     checks.migrationLedgerState === "unexpected" ||
-    !checks.scoringSchemaReady || !checks.atomicSchemaReady ||
+    !checks.scoringSchemaReady ||
+    !checks.atomicSchemaReady ||
+    !checks.registrationSchemaReady ||
+    checks.duplicateActiveRegistrationCaptains !== 0 ||
+    checks.duplicateEventSlots !== 0 ||
+    checks.invalidEventSlots !== 0 ||
+    checks.overCapacityEvents !== 0 ||
     checks.invalidActiveTeamNames !== 0 ||
     checks.normalizedIdentityCollisions !== 0 ||
     checks.duplicatePubgAccountIds !== 0 ||

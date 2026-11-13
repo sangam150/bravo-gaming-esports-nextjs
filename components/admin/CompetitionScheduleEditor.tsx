@@ -149,7 +149,7 @@ export default function CompetitionScheduleEditor({
                 ...schedule.matches,
                 {
                   matchNumber: Math.max(0, ...schedule.matches.map((row) => row.matchNumber)) + 1,
-                  map: "Erangel",
+                  map: "",
                   scheduledAt: "",
                   status: "upcoming",
                 },

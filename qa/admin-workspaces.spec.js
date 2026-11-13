@@ -89,6 +89,10 @@ async function fixture(page) {
     if (url.pathname === "/api/tournaments")
       return route.fulfill({ json: { success: true, data: [{ id: "qa-event", title: "QA EVENT" }] } });
     if (url.pathname === "/api/admin/sponsors") return route.fulfill({ json: { success: true, data: [] } });
+    if (url.pathname === "/api/admin/scrims") return route.fulfill({ json: { success: true, data: [
+      { id: "saved-scrim", tournamentId: "qa-event", title: "Saved event slots", date: "2026-11-06", teamCapacity: 16, published: true },
+      { id: "unrelated-scrim", tournamentId: "other-event", title: "Other event slots", date: "2026-11-06", teamCapacity: 16, published: true },
+    ] } });
     if (url.pathname === "/api/admin/point-systems") return route.fulfill({ json: { success: true, data: [] } });
     if (url.pathname === "/api/tournaments/qa-event") {
       if (route.request().method() === "PUT") {
@@ -185,10 +189,32 @@ test("event branding drafts retain approval gate and event timezone", async ({ p
   expect(payload.production.timeZone).toBe("Europe/London");
   expect(payload.published).toBeUndefined();
 });
+test("team slots require an explicit linked scrim in the exact ready selection", async ({ page }) => {
+  const server = await fixture(page);
+  await page.goto("http://qa-workspaces.test/studio");
+  await page.getByLabel("Graphic", { exact: true }).selectOption("team-slots");
+  const selected = page.getByLabel("Scrim team slots", { exact: true });
+  await expect(selected.locator("option")).toHaveCount(2);
+  await expect(selected.locator('option[value="unrelated-scrim"]')).toHaveCount(0);
+  await selected.selectOption("saved-scrim");
+  await page.getByRole("button", { name: "Mark ready", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Show graphic", exact: true })).toBeEnabled();
+  expect(server.writes.at(-1).scrimId).toBe("saved-scrim");
+  expect(server.writes.at(-1).matchId).toBe("", "An unrelated draft/result selection cannot block whole-scrim slots");
+  await selected.selectOption("");
+  await expect(page.getByRole("button", { name: "Show graphic", exact: true })).toBeDisabled();
+  await selected.selectOption("saved-scrim");
+  await page.getByRole("button", { name: "Show graphic", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("on air");
+  expect(server.state.scrimId).toBe("saved-scrim");
+  expect(server.state.graphic).toBe("team-slots");
+});
 test("schedule editor writes explicit UTC and keeps a draft competition private", async ({ page }) => {
   const server = await fixture(page);
   await page.goto("http://qa-workspaces.test/schedule");
   await page.getByRole("button", { name: "Add scheduled match" }).click();
+  await expect(page.getByLabel("Map", { exact: true })).toHaveValue("");
+  await page.getByLabel("Map", { exact: true }).fill("Miramar");
   await page.getByLabel("Start time (Asia/Kathmandu)", { exact: true }).fill("2026-11-04T20:00");
   await page.getByRole("button", { name: "Save schedule", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Schedule saved");
@@ -196,4 +222,5 @@ test("schedule editor writes explicit UTC and keeps a draft competition private"
   expect(payload.published).toBeUndefined();
   expect(Object.keys(payload)).toEqual(["schedule"]);
   expect(JSON.parse(payload.schedule).matches[0].scheduledAt).toBe("2026-11-04T14:15:00.000Z");
+  expect(JSON.parse(payload.schedule).matches[0].map).toBe("Miramar");
 });

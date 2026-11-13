@@ -1,6 +1,253 @@
-# Real staging verification — 5 November 2026
+# Real staging verification
 
-## Latest verification — 5 November
+## Current release follow-up — 13 November 2026
+
+**Overall staging acceptance: BLOCKED.** The [production deployment report](production-deployment-report.md) records the current release decisions and final local verification. This section supersedes older credential, account, test-count and graphic-count statements below. PASS applies only to the stated scope; local fixture passes do not certify real staging workflows.
+
+Read-only access checks completed through `2026-11-13T14:28:51Z` (20:13 Nepal) and printed presence booleans, safe connection-shape metadata and schema identifiers only. The designated target remains `https://yppefayrepkqpqtprbqa.supabase.co`; the existing designated account is `sangamka076@gmail.com`. No password reset, role grant, remote migration, R2 write or deployment was performed. The previously committed 230-file snapshot is `7eeded0260887bb31d5090fc1ee47643a8e07a79`; the exact 104-path follow-up, including the consolidated report, is staged but uncommitted.
+
+### Current service and workflow results
+
+| Workflow / check | Status | Verified evidence / remaining action |
+| --- | --- | --- |
+| Credential-file Git exclusion | PASS | `.env.staging.local` exists, is ignored and is not tracked; values were not printed |
+| Complete acceptance configuration | FAIL | Admin password, bypass, team/player accounts and permitted match ID remain missing; access details are listed below |
+| Staging Supabase public-key connectivity | PASS | Keyed Auth settings returned 200 on 13 November |
+| Staging Supabase server-key connectivity | PASS | Empty/base profile reads and read-only designated-account lookup succeeded on 13 November |
+| Designated account existence / confirmation | PASS | Existing identity found and email-confirmed; identity and password preserved |
+| Required active linked administrator profile | FAIL | The confirmed identity has zero linked base profiles. Actual OpenAPI schema lacks `role_source`, `is_active` and six expected Discord fields, so secure provisioning correctly remains fail-closed |
+| Management / database inspection access | FAIL | `SUPABASE_ACCESS_TOKEN` has the expected personal-token shape but returns 401. `DATABASE_URL` identifies production through a pooler username and `DIRECT_URL` identifies the production direct host; both are rejected before connection |
+| Actual table/function compatibility | FAIL | Base registration/result tables exist, but staging lacks `event_teams.registration_id`, `matches.scoring_rules`, `matches.revision`, four 026 decision columns, all 027/028 RPCs and Discord mapping/review tables. This does not reveal the authoritative ledger, policies or grants |
+| Exact migration ledger, policies, grants and backup/restore | BLOCKED | Obtain valid read-only target access; inspect ledger/checksums/dependencies/policies/grants and rehearse a restore before separately approved migrations. Do not blindly replay 017–019 or 026–028 |
+| Diagnose original local login 503 | PASS | Ordinary local development selects the preserved production-configured `.env.local`; its Supabase hostname again returned `ENOTFOUND` on 13 November. Explicit `dev:staging` avoids this fallback |
+| Local login UI / invalid credentials / anonymous API denial | PASS | Previously verified actual staging-backed localhost form 200, invalid login 401 and protected API 401; successful login is not implied. Full public suite passed 72/72 on 11 November |
+| Real admin email/password login | BLOCKED | `QA_STAGING_ADMIN_PASSWORD` absent; missing schema and active linked profile must also be resolved |
+| Session persistence, refresh, direct admin navigation and permissions | BLOCKED | No accepted real administrator session; local SDK/browser fixtures are separate evidence |
+| Logout, expiry and cross-tab access revocation | BLOCKED | Requires successful real sessions; team/player credentials are also absent |
+| Recovery email delivery / real recovery callback | BLOCKED | No owner-controlled recovery acceptance completed; no recovery email requested |
+| Temporary administrator provisioning / removal | BLOCKED | Existing account must be preserved; approve exact profile linkage and later removal after schema reconciliation. No elevation executed |
+| Discord provider configuration | FAIL | Fresh 13 November authorization still redirects with an email as Client ID. The staging callback is correct; numeric intended Application ID `1530095874594836581` and its matching secret remain unconfigured/unverified. No provider update executed |
+| Discord consent, callback, roles, session and logout | BLOCKED | Provider/schema repair and interactive consent required. Local Discord login remains explicitly disabled; enabling it must retain fail-closed role approval |
+| Protected Vercel Preview access / deployed revision | BLOCKED | On 13 November, `/api/version` returned 302 to Vercel SSO without a bypass; application was not reached. Deployment protection remains enabled |
+| Preview Supabase/R2 isolation | BLOCKED | Local Preview policy rejects forbidden targets in offline tests; actual resolved Vercel bindings and R2 token scopes remain unverified |
+| Tournament / season CRUD | BLOCKED | No accepted real administrator session, verified target schema or accessible Preview application |
+| Scrim CRUD and private lobby management | BLOCKED | Same access/schema blockers; no real event modified |
+| Team/player management and roster history | BLOCKED | Same blockers and missing designated team/player accounts |
+| Event registration confirmation / capacity / duplicate atomicity | PASS locally; FAIL/BLOCKED on real staging | Actual migration 028 SQL passes isolated tests, while staging OpenAPI confirms `registration_id` and every 028 RPC are absent. Target ledger, policies/grants, independent connections and real sessions remain unavailable |
+| Saved scrim slots, locking, withdrawal and schedule | BLOCKED | Local route/browser regressions cover assignments, validation and revisions. Real confirmed event membership and multi-operator acceptance remain outstanding |
+| R2 public upload, delivery, replacement and deletion | BLOCKED | Credential/base-URL entries exist, but account/key/bucket fields match the preserved default local configuration; actual staging isolation is unverified. No credentialed R2 write attempted |
+| R2 private upload, authorized download and cross-role denial | BLOCKED | Same isolation/access blockers; no private test object or accepted test sessions |
+| Manual scoring, corrections and result publication | FAIL/BLOCKED on staging | The actual staging schema lacks 026 scoring fields and the 027 transaction RPC; no accepted admin session or verified migration ledger exists. Isolated SQL coverage remains PASS |
+| Match revision conflicts, required audit and direct-write denial | FAIL/BLOCKED on real staging | `matches.revision` and `commit_competition_match` are absent. Focused PGlite tests pass rollback/revision/privilege cases, but real grants/policies and independent-connection stress remain unverified |
+| Permitted PUBG import and duplicate handling | BLOCKED | `PUBG_API_KEY` exists; `QA_STAGING_PUBG_MATCH_ID` is absent. No substitute match used |
+| Public leaderboard calculations | BLOCKED | No actual published staging acceptance records available for comparison |
+| Broadcast Studio control / preview / show-hide / revisions | BLOCKED | No authenticated staging producer session or real published acceptance records; local browser fixture suite passed 11/11 again on 13 November |
+| All dedicated graphics and permanent program | BLOCKED on real staging | Individual local-versus-real results follow; 38 dedicated modes plus program are registered |
+| Public/private staging data separation | BLOCKED | Anonymous local denial passed, but authenticated cross-role/private-record acceptance remains outstanding |
+| Actual OBS Studio capture / transparency / R2 artwork | BLOCKED | No actual OBS capture performed; browser fixtures do not establish OBS Studio acceptance |
+| Production Supabase availability | FAIL | Read-only DNS and unkeyed Auth health probe on 13 November returned `ENOTFOUND`. Do not substitute staging resources into production |
+
+### Local evidence and individual OBS source matrix
+
+The unchanged full public suite passed **72/72** on **11 November**. On **13 November**, current client interaction regressions passed **17/17**, workspace fixtures **5/5**, master workflow fixtures **4/4**, auth-provider fixtures **4/4**, and broadcast browser fixtures **11/11** after the explicit staging localhost was restored following the production build. The broadcast test iterates every registered dedicated graphic; program behavior has separate transition/outage tests. These use intercepted broadcast data and do not create published staging records. Current registration SQL/default QA evidence is reported in the [deployment report](production-deployment-report.md) and [release audit](release-audit.md).
+
+Every real-stage entry below is **BLOCKED**, not a newly measured per-route HTTP result: the 13 November access probe checked `/api/version` only and encountered Vercel SSO. The older route-by-route probes below remain dated historical evidence. Actual published-record rendering, data correctness, privacy, live updates and OBS capture still require acceptance.
+
+| Source | Latest local browser fixture | Real staging acceptance |
+| --- | --- | --- |
+| `/overlay/program` | PASS | BLOCKED |
+| `/overlay/scoreboard` | PASS | BLOCKED |
+| `/overlay/results` | PASS | BLOCKED |
+| `/overlay/winner` | PASS | BLOCKED |
+| `/overlay/mvp` | PASS | BLOCKED |
+| `/overlay/top-fragger` | PASS | BLOCKED |
+| `/overlay/top-damage` | PASS | BLOCKED |
+| `/overlay/headshots` | PASS | BLOCKED |
+| `/overlay/players` | PASS | BLOCKED |
+| `/overlay/rankings` | PASS | BLOCKED |
+| `/overlay/standings` | PASS | BLOCKED |
+| `/overlay/lower-third` | PASS | BLOCKED |
+| `/overlay/schedule` | PASS | BLOCKED |
+| `/overlay/sponsors` | PASS | BLOCKED |
+| `/overlay/opening` | PASS | BLOCKED |
+| `/overlay/closing` | PASS | BLOCKED |
+| `/overlay/killfeed` | PASS | BLOCKED |
+| `/overlay/road-to-finals` | PASS | BLOCKED |
+| `/overlay/road-to-finals-2` | PASS | BLOCKED |
+| `/overlay/todays-matches` | PASS | BLOCKED |
+| `/overlay/map-intro` | PASS | BLOCKED |
+| `/overlay/countdown` | PASS | BLOCKED |
+| `/overlay/casters` | PASS | BLOCKED |
+| `/overlay/team-stats` | PASS | BLOCKED |
+| `/overlay/break` | PASS | BLOCKED |
+| `/overlay/group-standings` | PASS | BLOCKED |
+| `/overlay/day-standings` | PASS | BLOCKED |
+| `/overlay/compact-scoreboard` | PASS | BLOCKED |
+| `/overlay/match-info` | PASS | BLOCKED |
+| `/overlay/team-spotlight` | PASS | BLOCKED |
+| `/overlay/sponsor-strip` | PASS | BLOCKED |
+| `/overlay/champion` | PASS | BLOCKED |
+| `/overlay/final-rankings` | PASS | BLOCKED |
+| `/overlay/player-comparison` | PASS | BLOCKED |
+| `/overlay/technical-break` | PASS | BLOCKED |
+| `/overlay/analyst-panel` | PASS | BLOCKED |
+| `/overlay/starting-soon` | PASS | BLOCKED |
+| `/overlay/advancement` | PASS | BLOCKED |
+| `/overlay/team-slots` | PASS | BLOCKED |
+
+Headshot and killfeed fixture passes verify their truthful unavailable-data states; no reliable live telemetry source has been established.
+
+### Exact outstanding local access and safe continuation
+
+| Variable / access | Current state and required action |
+| --- | --- |
+| `QA_STAGING_ADMIN_PASSWORD` | Missing; configure the existing account's private current or explicitly owner-set password locally. Do not send it in chat |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | Missing; needed for protected Preview acceptance without disabling deployment protection |
+| `VERCEL_TOKEN` or connected Vercel inspection access | No local file/process/CLI token available; verify connected inspection access before claiming deployment bindings are known |
+| `SUPABASE_ACCESS_TOKEN` or connected Supabase inspection access | Local token present but rejected 401; obtain valid read-only management/ledger access |
+| `DATABASE_URL` or `DIRECT_URL` | Both currently target production (pooler identity and direct host respectively), so the staging guard correctly refuses them. Replace them only with a verified `yppefayrepkqpqtprbqa` read-only connection |
+| `QA_STAGING_TEAM_EMAIL`, `QA_STAGING_TEAM_PASSWORD` | Missing; required for real team and cross-role acceptance |
+| `QA_STAGING_PLAYER_EMAIL`, `QA_STAGING_PLAYER_PASSWORD` | Missing; required for real player and cross-role acceptance |
+| `QA_STAGING_PUBG_MATCH_ID` | Missing; supply an authorized match ID before any import |
+| `DISCORD_CLIENT_SECRET` | Absent locally; optional if the matching secret is configured directly in the staging provider. Correct provider Client ID/secret pairing still requires verification |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PRIVATE_BUCKET_NAME`, `R2_PUBLIC_BASE_URL` | Present, but dedicated staging ownership, token scope and deployment bindings remain unverified. Configure verified isolated resources before writes |
+| `CLOUDFLARE_API_TOKEN` or approved account inspection access | No local token available; only needed if using management API inspection to establish R2 isolation |
+
+Modern Supabase publishable/server keys are present and passed current read-only checks. Empty legacy alternatives `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are not additional requirements. Available Vercel and Supabase plugins remain uninstalled, so they do not provide inspection access. The explicit local launcher keeps R2, management, provisioning and QA credentials out of the app runtime; use `npm run dev:staging` and `npm run dev:staging -- --check`. `--discord` is an optional later mode after provider/schema readiness; current local Discord login is disabled.
+
+Current safe metadata is retained in ignored `qa-artifacts/blocker-recheck/current-access-2026-11-13.json` and `release-target-dns-2026-11-13.json`. Local browser logs include `release-public-stable.txt`, `release-client-fixtures.txt`, `release-workspaces.txt`, `release-master-workflows.txt`, `release-auth-provider.txt` and `release-broadcast-browser.txt`. GitHub push remains blocked until actual Preview resource isolation is verified; commit, push, PR, merge, remote migrations and deployment require their applicable explicit approvals.
+
+## Historical follow-ups — 6 November 2026 and earlier
+
+The remaining sections retain their original dates and outcomes. They do not override the current results above.
+
+Historical operational follow-up: [6 November event-day readiness](event-day-readiness-2026-11-06.md) and [operator runbook](event-day-operations.md). The 19:00 Nepal deadline passed without accepted real administrator/event/scoring/OBS workflows. Current source adds event-scoped slots and a 38th Team Slots graphic while preserving the prior 37; historical counts below remain historical. No remote migration or deployment was performed.
+
+## Latest email/admin and Discord verification — 6 November 2026
+
+**Overall acceptance: BLOCKED.** Local fixes and regression checks pass. Successful real administrator login and Discord OAuth remain unverified. This section supersedes all historical credential/account/runtime statements below. The designated temporary staging account is now `sangamka076@gmail.com`; older references to the originally supplied account are retained as history.
+
+No new commit, push, PR, merge, deployment, provider update, remote migration, account reset or role grant was performed. The existing release commit remains `7eeded0260887bb31d5090fc1ee47643a8e07a79` on `codex/platform-completion-20261104`. Authentication follow-up changes are unstaged. GitHub push remains blocked until Vercel Preview Supabase/R2 isolation is verified.
+
+### Real service and workflow results
+
+Presence inspection at `2026-11-06T08:54:18.063Z` printed booleans only. Read-only staging probes at `08:52:51Z` returned keyed Auth settings 200, required profile projections 400/42703, missing Discord tables 404/PGRST205 and Vercel SSO 302. A later bounded probe at `09:05:22Z` again returned Auth settings 200 and the malformed Discord redirect, but several other GET requests hit their 10-second deadlines. These intermittent timeouts are recorded separately; they do not resolve the observed schema/provider failures.
+
+| Workflow / check | Status | Actual result / remaining blocker |
+| --- | --- | --- |
+| Ignore local credential file | PASS | `.env.staging.local` is ignored and untracked; credential values were not printed |
+| Explicit local staging environment | PASS | `npm run dev:staging -- --check --discord` succeeds; running localhost uses the designated staging Supabase URL and excludes R2/management/provisioning credentials |
+| Supabase public/server key validity | PASS | Keyed Auth settings 200; actual designated-account lookup and empty/base profile reads succeed with the staging server key. Network deadlines remain enforced |
+| Complete acceptance configuration | FAIL | Missing test-account/bypass entries and invalid management/database access listed below |
+| Diagnose original local 503 | PASS | Ordinary `npm run dev` selects unchanged `.env.local` with the unresolvable production hostname. Explicit staging launch removes that fallback; real invalid login now returns 401 |
+| Admin login form | PASS | Actual localhost browser loads `/admin/login` with email/password inputs, HTTP 200 |
+| Anonymous protected API | PASS | Actual localhost `/api/admin/broadcast` returns 401 |
+| Real invalid-password response | PASS | A nonexistent staging test identity receives safe invalid-credentials 401; no successful login is claimed |
+| Previously failing public login-page checks | PASS | The original public QA assertions for `/login`, `/player/login`, `/team/login` all pass against staging-backed localhost, with no response fixtures. This does not certify the full public suite or Preview |
+| Requested Auth identity / confirmation | PASS | Read-only staging lookup finds `sangamka076@gmail.com`, email-confirmed; identity/password preserved |
+| Requested active administrator profile | FAIL | Zero profiles linked by `auth_user_id` in the available base projection; required full profile read fails 42703. No role granted |
+| Required authentication / Discord schema | FAIL | Missing `is_active`, `role_source` and Discord fields/tables from 017–019. Complete migration ledger remains unknown |
+| Management / database inspection access | FAIL | `SUPABASE_ACCESS_TOKEN` receives 401. Both present database URLs fail the strict staging target guard; neither was used to connect |
+| Successful admin login, refresh and direct `/admin` navigation | BLOCKED | Missing private test password, missing active linked profile and incomplete schema |
+| Real permissions, role isolation, session expiry and cross-tab logout | BLOCKED | No accepted real administrator/team/player session. Offline coverage is listed separately |
+| Password recovery delivery / successful callback | BLOCKED | No owner-controlled recovery test completed; no recovery email requested |
+| Temporary administrator provisioning/removal | BLOCKED | Existing identity is preserved. Schema reconciliation and approved profile linkage must precede elevation; no provisioning/removal command executed |
+| Discord provider availability | PASS | Staging Auth settings and actual localhost `/api/auth/providers` report enabled |
+| Discord OAuth application ID | FAIL | Actual Supabase authorization response is 302 to Discord with an email as `client_id`; it is not a numeric Application ID |
+| Discord provider callback target | PASS | Observed authorization redirect uses the designated staging Supabase `/auth/v1/callback` |
+| Discord bot/guild/role prerequisites | PASS | Prior read-only application/guild checks returned 200 and matched configured role IDs; public Application ID `1530095874594836581` was verified. Matching OAuth Client Secret remains unverified |
+| Discord consent, callback, authorization, session and logout | BLOCKED | Provider ID/secret pairing, schema reconciliation and interactive consent remain outstanding. Local Discord runtime variables are now explicitly passed; derived admin-role trust stays disabled |
+| Vercel Preview bypass / deployed revision | BLOCKED | Missing `VERCEL_AUTOMATION_BYPASS_SECRET`; first GET returned SSO 302, later GET timed out. Protection remains enabled |
+| Preview Supabase/R2 isolation | BLOCKED | Actual deployed bindings remain unverified. Local runtime guards do not establish deployment isolation |
+| Tournament and season CRUD | BLOCKED | No accepted admin session or approved complete schema; no records changed |
+| Scrim CRUD | BLOCKED | Same authentication/schema blockers |
+| Team and player management | BLOCKED | Same blockers; designated team/player test credentials also absent |
+| R2 public uploads/delivery | BLOCKED | Credentials/base URL are present, but staging bucket isolation and authenticated upload access remain unverified; no object written |
+| R2 private uploads/access restrictions | BLOCKED | Same isolation/access blockers; no private test object or team/player session |
+| Manual scoring, result correction and publication | BLOCKED | No accepted admin session or verified staging migration ledger, including 026/027; no results changed |
+| PUBG import | BLOCKED | `PUBG_API_KEY` is present, but `QA_STAGING_PUBG_MATCH_ID` is missing. No unauthorized match substituted |
+| Public leaderboard calculations | BLOCKED | No actual published acceptance records or accessible verified Preview application |
+| Broadcast control / all OBS graphics and program | BLOCKED | No authenticated producer session or real published staging acceptance records. Earlier individual route matrix remains blocked; not rerun in this auth follow-up |
+| Public/private data separation on staging | BLOCKED | Anonymous API denial passed, but authenticated cross-role/private-record acceptance needs designated sessions |
+
+### Local implementation verification
+
+The existing Supabase architecture is retained. Password-route errors now distinguish 400/401/403/429/500/503, retain rate-limit headers and emit safe telemetry. Rejected password/OAuth flows explicitly expire newly created/chunked/late Supabase cookies even when SDK sign-out fails. Server clients enforce a 10-second per-request deadline while preserving caller cancellation, response-body deadlines and TLS verification. The owner-only CLI preserves existing Auth passwords, checks schema before creation and requires explicit flags for new identities or changes to existing profiles. REST profile/audit provisioning is guarded compensation, not an atomic database transaction.
+
+| Local check | Status | Evidence / scope |
+| --- | --- | --- |
+| Default `npm test` chain | PASS | All 22 QA commands; includes isolated scoring/atomic SQL, 36 actual password-route fixture responses, six timeout/cancellation checks, installed-SDK callback rejection and provisioning regressions |
+| SSR refresh / same-request cookie propagation | PASS | `qa:auth-refresh`; offline installed-SDK/proxy regression |
+| Browser session/role/logout regressions | PASS | Four `qa:auth-provider` fixture tests; no live session claimed |
+| TypeScript | PASS | `next typegen && tsc --noEmit`, exit 0 |
+| ESLint | PASS | Exit 0, zero errors; nine existing warnings in unchanged `PubgImportManager.tsx` retained |
+| Production-mode local build | PASS | `qa/local-release-runtime.mjs build`, exit 0, 147 static-generation tasks; service credentials explicitly blanked, no deployment |
+| Secret/whitespace checks | PASS | Tracked and candidate file scan and whitespace checks pass; scanner unchanged. A clearly fake test bot/key fixture was relabeled with `example-` after the initial scan flagged it |
+
+Evidence: [presence only](../qa-artifacts/blocker-recheck/complete-auth-presence.json), [initial real readiness](../qa-artifacts/blocker-recheck/complete-auth-staging-readiness.txt), [later deadlines/redirect](../qa-artifacts/blocker-recheck/complete-auth-staging-readiness-final.txt), [account readiness](../qa-artifacts/blocker-recheck/complete-auth-account-readiness.txt), [management rejection](../qa-artifacts/blocker-recheck/complete-auth-provider-inspection.txt), [database target validation](../qa-artifacts/blocker-recheck/staging-database-targets.json), [actual local browser/API results](../qa-artifacts/blocker-recheck/complete-auth-live-local.txt), [three public-page rechecks](../qa-artifacts/blocker-recheck/complete-auth-public-recheck.txt), [22-command suite](../qa-artifacts/blocker-recheck/complete-auth-test.txt), [typecheck](../qa-artifacts/blocker-recheck/complete-auth-typecheck.txt), [lint](../qa-artifacts/blocker-recheck/complete-auth-lint.txt), [build](../qa-artifacts/blocker-recheck/complete-auth-build.txt), [secret scan](../qa-artifacts/blocker-recheck/complete-auth-secret-scan.txt). Evidence stays ignored locally.
+
+### Exact remaining inputs and actions
+
+| Input | Current requirement |
+| --- | --- |
+| `QA_STAGING_ADMIN_EMAIL` | Missing; configure the designated `sangamka076@gmail.com` identifier locally |
+| `QA_STAGING_ADMIN_PASSWORD` | Missing; configure the existing account's private current or explicitly owner-set new password. No automatic reset |
+| `SUPABASE_ACCESS_TOKEN` | Present but rejected 401; configure valid staging management access, or provide verified database access below |
+| `DATABASE_URL` / `DIRECT_URL` | Both present but fail the staging target guard. One valid staging-only connection is needed as an alternative for ledger inspection |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | Missing; required for protected Preview acceptance without disabling protection |
+| `DISCORD_CLIENT_SECRET` | Absent locally; needed only if repairing the provider through local tooling. Otherwise configure the matching secret directly in staging Supabase. The app does not require a local `DISCORD_CLIENT_ID` |
+| `QA_STAGING_TEAM_EMAIL`, `QA_STAGING_TEAM_PASSWORD` | Missing; needed for real team/cross-role checks |
+| `QA_STAGING_PLAYER_EMAIL`, `QA_STAGING_PLAYER_PASSWORD` | Missing; needed for real player/cross-role checks |
+| `QA_STAGING_PUBG_MATCH_ID` | Missing; needed for authorized import acceptance |
+
+The configured modern Supabase keys, bot/guild variables, R2 SDK/base URL entries and PUBG API key are present; they must not be confused with missing historical entries below. Legacy key alternatives and `ADMIN_PROVISION_PASSWORD` are optional for the current existing-account workflow.
+
+Once access is saved, inspect the exact staging ledger/dependencies and backup/restore readiness. Prepare a concrete ordered schema repair for explicit migration approval; do not blindly replay 017–019. Correct the staging Discord provider to the intended numeric Application ID and matching secret, register the staging callback and verify the local redirect allowlist. Then provision only the approved staging profile, complete real email/Discord sessions and logout, verify Preview resource isolation, and continue the blocked CRUD/upload/scoring/broadcast workflows. No remote migration or production deployment is authorized. See [authentication-verification.md](authentication-verification.md) for commands and temporary-access removal.
+
+## Earlier authentication and Discord follow-up — 5 November
+
+This section supersedes earlier empty-Supabase-key and connectivity-only conclusions below. Real requests now use the designated staging project `yppefayrepkqpqtprbqa`. The protected Vercel deployment, production-resource isolation, full admin acceptance and OBS acceptance remain unverified; localhost results do not certify that deployment.
+
+The owner populated new opaque Supabase keys in ignored `.env.staging.local`. Read-only Auth settings and an empty profile read both returned **200** with those keys. The file initially retained the unreachable production URL and legacy production JWT fallbacks. The local correction changed only its Supabase URL and cleared `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`, preserving the validated publishable/secret keys. `.env.local` remains unchanged. Localhost was restarted with the explicitly loaded staging credentials; production and R2 credentials were excluded.
+
+| Current check | Status | Actual evidence / remaining action |
+| --- | --- | --- |
+| Staging public-key and server-key connectivity | PASS | `staging-opaque-key-connectivity.json`: Auth settings 200; `profiles?select=id&limit=0` 200 with no rows returned |
+| Actual localhost admin login form | PASS | Browser check rendered the real email/password fields at `http://localhost:3000/admin/login`, HTTP 200 |
+| Anonymous protected API denial | PASS | Actual localhost `/api/admin/broadcast` returned 401 |
+| Real invalid-credential login response | PASS | Actual staging-backed localhost login returned the expected invalid-credentials 401; no mocked response and no successful sign-in claimed |
+| Designated email admin readiness | FAIL | Read-only staging Auth lookup completed and did not find `bravoxgaming473@gmail.com`; `QA_STAGING_ADMIN_PASSWORD` remains absent |
+| Required profile / Discord schema | FAIL | Strict staging-only empty REST probes confirm missing required fields/tables listed below; successful token authentication alone cannot complete profile verification |
+| Discord OAuth provider enabled | PASS | Staging `/auth/v1/settings` and localhost `/api/auth/providers` report Discord enabled |
+| Discord OAuth Client ID | FAIL | Actual staging authorization redirect includes an email as `client_id`; Discord requires the numeric application ID. No raw OAuth state or secrets persisted |
+| Discord provider callback target | PASS | Authorization redirect uses `https://yppefayrepkqpqtprbqa.supabase.co/auth/v1/callback`; the app's subsequent local callback/allowlist still needs end-to-end verification |
+| Configured Discord bot identity | PASS | Read-only Discord application endpoint returned 200; verified public Application ID `1530095874594836581` |
+| Configured guild and role IDs | PASS | Bot guild GET returned 200 and matched the configured guild. Existing ADMIN/ORGANIZER/MODERATOR/IGL/PLAYER/BANNED IDs match its roles; optional additional role mappings remain unset |
+| Supabase management access | FAIL | Configured `SUPABASE_ACCESS_TOKEN` received HTTP 401; owner will configure valid access locally. No provider setting has been changed |
+| Discord callback runtime credentials | BLOCKED | Bot/guild prerequisites are verified. The prepared `--discord` launcher mode passes only staging Discord variables, preserves disabled derived-role trust, and refuses to start while required schema probes fail. Running localhost remains in auth-only mode |
+| Discord consent, callback, session and logout | BLOCKED | Invalid provider Client ID, missing schema and callback runtime prerequisites; no interactive Discord login completed |
+| Vercel Preview / resource isolation | BLOCKED | Not repeated in this follow-up; last probe returned SSO redirects. Actual Preview Supabase/R2 bindings remain unverified |
+| CRUD, R2 writes, scoring, leaderboards, broadcast and OBS acceptance | BLOCKED | No accepted admin session or approved target-schema reconciliation; no new functional acceptance claimed |
+
+Observed missing schema, with source migrations that introduce it:
+
+- `profiles.is_active`: migration **017**.
+- `profiles.role_source`, `discord_guild_id`, `discord_role_ids`, `discord_mapped_roles`, `discord_role_synced_at`: migration **018**.
+- `profiles.discord_team_role_id`, `discord_team_verified_at`, plus `discord_role_mappings` and `discord_access_reviews`: migration **019**.
+
+These probes establish schema gaps, not the complete migration ledger. Inspect the exact staging ledger, dependencies and backups before proposing an ordered repair. **No remote migration is authorized or applied.** Do not blindly replay selected files. Both email profile verification and the Discord callback depend on this reconciliation. Existing manual admin approval and fail-closed Discord role trust remain intact; Discord login alone must not grant website administrator access.
+
+The OAuth Client ID is configured in **staging Supabase → Authentication → Sign In / Providers → Discord**, using the intended Discord application's numeric ID and matching Client Secret. The configured bot's verified ID is available if that is the intended OAuth application. The application does not read a local `DISCORD_CLIENT_ID` as a replacement for that provider setting. Register the staging Supabase callback in Discord, and verify the local `/auth/callback` redirect policy in Supabase. See [Supabase Discord setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-discord) and [Discord OAuth2](https://docs.discord.com/developers/topics/oauth2). Keep client secrets and management/bot tokens out of chat and reports.
+
+Prepared local tooling is ignored under `qa-artifacts/blocker-recheck/`. The provider repair is bounded to the designated project, verifies the intended bot application and changes only the malformed client ID plus an explicitly supplied matching secret if needed; it has **not** been executed. Valid management access is required first. Schema changes require separate explicit approval after review. After that reconciliation, the local Discord command is `node qa-artifacts/blocker-recheck/start-local-staging.mjs --discord`; run with `--check` first and stop the existing development server only when the prerequisites pass.
+
+Evidence: [keyed connectivity](../qa-artifacts/blocker-recheck/staging-opaque-key-connectivity.json), [actual local browser/API checks](../qa-artifacts/blocker-recheck/local-login-live-check.json), [designated account readiness](../qa-artifacts/blocker-recheck/local-staging-admin-readiness.json), [provider redirect/configuration](../qa-artifacts/blocker-recheck/discord-config-check.json), [bot identity and rejected management access](../qa-artifacts/blocker-recheck/discord-provider-inspection.json), [guild/role checks](../qa-artifacts/blocker-recheck/discord-guild-readonly.json), [empty schema probes](../qa-artifacts/blocker-recheck/discord-schema-readonly.json). Offline auth and Discord role-mapping regressions passed separately; those are not interactive OAuth acceptance.
+
+No production records were modified, remote migrations applied, accounts created, roles granted, R2 objects written, commits made, branches pushed or deployments performed during this follow-up. The staging-backed invalid-login request may produce ordinary staging authentication/rate-limit/error audit records. The earlier release audit remains the historical pre-commit record.
+
+**Overall: BLOCKED. Staging connectivity is verified; successful administrator/Discord authentication and release acceptance are not. GitHub push remains blocked until Preview resource isolation is verified.**
+
+## Earlier deployment verification — 5 November
 
 Release-audit recheck at `2026-11-05T06:04:19.141Z` observed the same 45 preview redirects and unkeyed Supabase 401. The real admin command again stopped before login for missing `QA_STAGING_ADMIN_PASSWORD`; see `qa-artifacts/release-audit/staging-auth.txt`. Current source additionally requires **migration 027**, which remains unapplied. See [release-audit.md](release-audit.md) for final local checks and Git/PR restrictions.
 

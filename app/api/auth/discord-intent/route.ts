@@ -10,6 +10,13 @@ export async function POST(request: Request) {
   const invalidOrigin = requireSameOrigin(request);
   if (invalidOrigin) return invalidOrigin;
 
+  if (process.env.DISCORD_LOGIN_ENABLED?.trim().toLowerCase() === "false") {
+    return NextResponse.json(
+      { success: false, error: "Discord sign-in is unavailable. Please use email login." },
+      { status: 503, headers: { "Cache-Control": "private, no-store, max-age=0" } },
+    );
+  }
+
   const limited = await enforceRateLimit(request, {
     key: "discord-oauth-intent",
     maxRequests: 12,

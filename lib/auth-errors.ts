@@ -10,3 +10,11 @@ export class AuthConfigurationError extends Error {
     this.name = "AuthConfigurationError";
   }
 }
+
+/** Required backend configuration is absent or invalid, rather than an account denial. */
+export class AuthBackendConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthBackendConfigurationError";
+  }
+}

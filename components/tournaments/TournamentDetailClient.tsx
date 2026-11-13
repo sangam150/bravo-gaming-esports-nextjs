@@ -249,6 +249,9 @@ export default function TournamentDetailClient({
                             <th scope="col">Matches</th>
                             <th scope="col">Placement</th>
                             <th scope="col">Kills</th>
+                            <th scope="col">Penalties</th>
+                            <th scope="col">Bonuses</th>
+                            <th scope="col">DQ</th>
                             <th scope="col">Total</th>
                           </tr>
                         </thead>
@@ -261,6 +264,9 @@ export default function TournamentDetailClient({
                               <td>{standing.matches}</td>
                               <td>{standing.placementPoints}</td>
                               <td>{standing.killPoints}</td>
+                              <td>{standing.penaltyPoints ? `-${standing.penaltyPoints}` : "0"}</td>
+                              <td>{standing.bonusPoints ? `+${standing.bonusPoints}` : "0"}</td>
+                              <td>{standing.disqualifications ?? 0}</td>
                               <td className="points-cell">{standing.totalPoints}</td>
                             </tr>
                           ))}

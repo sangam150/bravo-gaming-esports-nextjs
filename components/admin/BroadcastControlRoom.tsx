@@ -9,7 +9,7 @@ import FileUpload from "./FileUpload";
 import BroadcastTemplateEditor from "./BroadcastTemplateEditor";
 import { defaultBroadcastTemplate } from "@/lib/broadcast-template";
 import { formatEventDateTimeInput, eventDateTimeLocalToUtcIso } from "@/lib/event-datetime";
-import type { Tournament, TournamentMatch } from "@/lib/types";
+import type { Scrim, Tournament, TournamentMatch } from "@/lib/types";
 import { scheduleEffectTask } from "@/lib/effect-task";
 import { parseEventSchedule, scheduleForDay } from "@/lib/event-schedule";
 import { parseEventProduction, type EventProduction } from "@/lib/event-production";
@@ -33,6 +33,7 @@ export default function BroadcastControlRoom({ initialTournamentId = "" }: { ini
   const [graphicSearch, setGraphicSearch] = useState("");
   const [eventTeams, setEventTeams] = useState<{ id: string; name: string }[]>([]);
   const [scheduleCount, setScheduleCount] = useState(0);
+  const [scrims, setScrims] = useState<Pick<Scrim, "id" | "title" | "date" | "tournamentId" | "published" | "teamCapacity">[]>([]);
   const previewRef = useRef<HTMLDivElement>(null);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
   const serverClock = useRef({ epoch: 0, performance: 0 });
@@ -44,7 +45,7 @@ export default function BroadcastControlRoom({ initialTournamentId = "" }: { ini
       const [control, events] = await Promise.all([adminFetch("/api/admin/broadcast"), adminFetch("/api/tournaments?admin=true")]);
       serverClock.current = { epoch: control.serverTime ?? Date.now(), performance: performance.now() };
       const draft = parseBroadcastState({ ...DEFAULT_BROADCAST_STATE, ...(control.data.draft ?? control.data), revision: control.data.revision });
-      setState(initialTournamentId && draft.tournamentId !== initialTournamentId ? { ...draft, tournamentId: initialTournamentId, matchId: "", playerId: "", teamId: "", stageId: "", groupId: "", dayId: "" } : draft);
+      setState(initialTournamentId && draft.tournamentId !== initialTournamentId ? { ...draft, tournamentId: initialTournamentId, scrimId: "", matchId: "", playerId: "", teamId: "", stageId: "", groupId: "", dayId: "" } : draft);
       setProgram(parseBroadcastState({ ...DEFAULT_BROADCAST_STATE, ...control.data }));
       setReadySignature(control.data.readySignature ?? "");
       setStudioStatus(control.data.studioStatus ?? "hidden");
@@ -57,6 +58,14 @@ export default function BroadcastControlRoom({ initialTournamentId = "" }: { ini
     }
   }, [initialTournamentId]);
   useEffect(() => scheduleEffectTask(load), [load]);
+  useEffect(() => {
+    if (!state?.tournamentId || state.graphic !== "team-slots") return;
+    let active = true;
+    adminFetch("/api/admin/scrims").then(response => {
+      if (active) setScrims((response.data ?? []).filter((scrim: Scrim) => scrim.tournamentId === state.tournamentId && !scrim.deletedAt).map((scrim: Scrim) => ({ id: scrim.id, title: scrim.title, date: scrim.date, tournamentId: scrim.tournamentId, published: scrim.published, teamCapacity: scrim.teamCapacity })));
+    }).catch(() => { if (active) { setScrims([]); setError("Could not load scrim slots. Reload controls before showing this graphic."); } });
+    return () => { active = false; };
+  }, [state?.tournamentId, state?.graphic, previewKey]);
   const previewReady = state !== null;
   useEffect(() => {
     const id = state?.tournamentId;
@@ -189,6 +198,7 @@ export default function BroadcastControlRoom({ initialTournamentId = "" }: { ini
                 setState({
                   ...state,
                   tournamentId: event.target.value,
+                  scrimId: "",
                   matchId: "",
                   playerId: "",
                   comparisonPlayerId: "",
@@ -209,6 +219,14 @@ export default function BroadcastControlRoom({ initialTournamentId = "" }: { ini
               ))}
             </select>
           </label>
+          {state.graphic === "team-slots" && <label className="block text-sm">
+            Scrim team slots
+            <select aria-label="Scrim team slots" className={fieldClass} value={state.scrimId ?? ""} disabled={busy} onChange={event => setState({ ...state, scrimId: event.target.value, page: 0 })}>
+              <option value="">Select linked scrim</option>
+              {scrims.filter(scrim => scrim.tournamentId === state.tournamentId).map(scrim => <option key={scrim.id} value={scrim.id}>{scrim.title} · {scrim.date}{scrim.published ? "" : " · draft"}</option>)}
+            </select>
+            <span className="mt-1 block text-xs text-text-muted">Uses the saved assignments in Scrims. Publish the scrim before taking its slots live.</span>
+          </label>}
           {production && (["stageId", "groupId", "dayId"] as const).map(key => {
             const options = key === "stageId" ? production.stages : (key === "groupId" ? production.groups : production.days).filter(row => !state.stageId || row.stageId === state.stageId);
             return <label key={key} className="block text-sm">{key === "stageId" ? "Stage" : key === "groupId" ? "Group" : "Match day"}<select className={fieldClass} value={state[key] ?? ""} onChange={event => setState({ ...state, [key]: event.target.value, ...(key === "stageId" ? { groupId: "", dayId: "" } : {}), matchId: "", playerId: "", teamId: "", rosterIds: [] })}><option value="">All {key === "stageId" ? "stages" : key === "groupId" ? "groups" : "days"}</option>{options.filter(row => !row.archived).sort((a, b) => a.order - b.order).map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>;
@@ -244,7 +262,8 @@ export default function BroadcastControlRoom({ initialTournamentId = "" }: { ini
               value={state.graphic}
               aria-label="Graphic"
               disabled={busy}
-              onChange={(event) => setState({ ...state, graphic: event.target.value as BroadcastState["graphic"], page: 0 })}
+              onChange={(event) => setState({ ...state, graphic: event.target.value as BroadcastState["graphic"], page: 0,
+                ...(event.target.value === "team-slots" ? { matchId: "", playerId: "", comparisonPlayerId: "", teamId: "", rosterIds: [], stageId: "", groupId: "", dayId: "", stageLabel: "" } : {}) })}
             >
               {BROADCAST_GRAPHIC_GROUPS.map(group => <optgroup key={group.name} label={group.name}>{group.graphics.filter(graphic => graphic === state.graphic || graphic.replaceAll("-", " ").includes(graphicSearch.toLowerCase())).map((graphic) => (
                 <option key={graphic} value={graphic}>
@@ -508,7 +527,7 @@ export default function BroadcastControlRoom({ initialTournamentId = "" }: { ini
               Reload controls
             </button>
           </div>
-          {["road-to-finals", "road-to-finals-2", "todays-matches"].includes(state.graphic) && (
+          {["road-to-finals", "road-to-finals-2", "todays-matches", "team-slots"].includes(state.graphic) && (
             <div className="grid grid-cols-2 gap-3">
             <button type="button" disabled={busy} className="btn-secondary" onClick={() => void update(state.graphic.startsWith("road-to-finals") ? { graphic: state.graphic === "road-to-finals" ? "road-to-finals-2" : "road-to-finals", page: 0 } : { page: Math.max(0, (state.page ?? 0) - 1) })}>Preview previous page</button>
             <button
@@ -520,7 +539,9 @@ export default function BroadcastControlRoom({ initialTournamentId = "" }: { ini
                   state.graphic.startsWith("road-to-finals")
                     ? { graphic: state.graphic === "road-to-finals" ? "road-to-finals-2" : "road-to-finals", page: 0 }
                     : {
-                        page: ((state.page ?? 0) + 1) % Math.max(1, Math.ceil(scheduleCount / Math.min(6, state.templates?.[state.graphic]?.rows ?? 5))),
+                        page: ((state.page ?? 0) + 1) % Math.max(1, Math.ceil(state.graphic === "team-slots"
+                          ? (scrims.find(scrim => scrim.id === state.scrimId)?.teamCapacity ?? 0) / (state.templates?.[state.graphic]?.rows ?? 16)
+                          : scheduleCount / Math.min(6, state.templates?.[state.graphic]?.rows ?? 5))),
                       },
                 )
               }

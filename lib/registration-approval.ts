@@ -16,6 +16,8 @@ import {
 import { updateRegistrationStatus } from "./data";
 import { COLLECTIONS, DocumentWriteConflictError, getDocument } from "./document-store";
 import { cleanupUnreferencedPublicAssetByUrl } from "./public-asset-cleanup";
+import { hasEventRegistrationTarget } from "./registration-approval-policy";
+import { confirmEventRegistrationTransaction, setEventRegistrationStatusTransaction } from "./event-registration-transaction";
 import {
   deletePrivateObjectByKey,
   deletePublicObjectByKey,
@@ -109,7 +111,7 @@ async function listMatchingTeamLifecycleRows(teamName: string, teamTag?: string)
   });
 }
 
-async function resolveCanonicalTeamForApproval(registration: TeamRegistration) {
+async function resolveCanonicalTeamForApproval(registration: TeamRegistration, options: { allowCreate: boolean }) {
   if (registration.approvedTeamId) {
     if (!isCanonicalTeamId(registration.approvedTeamId)) {
       throw new RegistrationApprovalError(
@@ -178,6 +180,16 @@ async function resolveCanonicalTeamForApproval(registration: TeamRegistration) {
       "This registration matches a deleted, inactive, archived, or merged official team. Reconcile that record explicitly before approval.",
       {
         code: "canonical_team_unavailable",
+        status: 409,
+      },
+    );
+  }
+
+  if (!options.allowCreate) {
+    throw new RegistrationApprovalError(
+      "Event approval requires an existing active official team. Create or reconcile the official team before confirming event membership.",
+      {
+        code: "canonical_team_required_for_event",
         status: 409,
       },
     );
@@ -348,22 +360,30 @@ async function rereadRegistrationForApproval(registrationId: string) {
 async function updateRegistrationApprovalWithConfirmation(
   registration: TeamRegistration,
   updates: RegistrationApprovalUpdates,
+  actorProfileId: string,
 ): Promise<RegistrationApprovalResult> {
   const expected = buildRegistrationApprovalExpectation(registration, updates);
   try {
-    return await updateRegistrationStatus(
-      registration.id,
-      "approved",
-      {
-        ...updates,
-        approvalClaimToken: undefined,
-        approvalClaimedAt: undefined,
-        approvalClaimedBy: undefined,
-      },
-      {
-        expectedRegistration: registration,
-      },
-    );
+    return hasEventRegistrationTarget(registration)
+      ? await confirmEventRegistrationTransaction({
+          actorProfileId,
+          registration,
+          teamId: updates.approvedTeamId,
+          updates,
+        })
+      : await updateRegistrationStatus(
+          registration.id,
+          "approved",
+          {
+            ...updates,
+            approvalClaimToken: undefined,
+            approvalClaimedAt: undefined,
+            approvalClaimedBy: undefined,
+          },
+          {
+            expectedRegistration: registration,
+          },
+        );
   } catch (updateError) {
     let current: TeamRegistration | null;
     try {
@@ -409,14 +429,18 @@ async function approveRegistrationLogo(
   const logoPath = normalizeOptionalString(registration.logoPath);
   const logoUrl = normalizeOptionalString(registration.logoUrl);
   if (!uploadId && !logoPath && !logoUrl) {
-    const approvedRegistration = await updateRegistrationApprovalWithConfirmation(registration, {
-      approvedTeamId: team.id,
-      logoPath: undefined,
-      logoUploadId: undefined,
-      logoUrl: undefined,
-      tournamentId: registration.tournamentId,
-      tournamentTitle: registration.tournamentTitle,
-    });
+    const approvedRegistration = await updateRegistrationApprovalWithConfirmation(
+      registration,
+      {
+        approvedTeamId: team.id,
+        logoPath: undefined,
+        logoUploadId: undefined,
+        logoUrl: undefined,
+        tournamentId: registration.tournamentId,
+        tournamentTitle: registration.tournamentTitle,
+      },
+      input.actorProfileId,
+    );
     return {
       cleanupPending: false,
       registration: approvedRegistration,
@@ -526,17 +550,28 @@ async function approveRegistrationLogo(
           { cause: new Error("Registration update returned no result.") },
         );
       }
-      await updateRegistrationStatus(
-        registration.id,
-        "pending",
-        {
-          ...registrationLinkUpdates(registration),
-          approvalClaimToken: undefined,
-          approvalClaimedAt: undefined,
-          approvalClaimedBy: undefined,
-        },
-        { expectedRegistration: activatedRegistration },
-      );
+      if (hasEventRegistrationTarget(registration)) {
+        await setEventRegistrationStatusTransaction({
+          actorProfileId: input.actorProfileId,
+          expectedStatus: "approved",
+          expectedTeamId: team.id,
+          registrationId: registration.id,
+          status: "pending",
+          updates: registrationLinkUpdates(registration),
+        });
+      } else {
+        await updateRegistrationStatus(
+          registration.id,
+          "pending",
+          {
+            ...registrationLinkUpdates(registration),
+            approvalClaimToken: undefined,
+            approvalClaimedAt: undefined,
+            approvalClaimedBy: undefined,
+          },
+          { expectedRegistration: activatedRegistration },
+        );
+      }
       approvedRegistration = null;
     },
     updateCanonicalTeam: async () => {
@@ -547,14 +582,18 @@ async function approveRegistrationLogo(
         sourceMetadata: nextSourceMetadata,
       });
       try {
-        approvedRegistration = await updateRegistrationApprovalWithConfirmation(registration, {
-          approvedTeamId: activatedTeam.id,
-          logoPath: preparedImage.objectKey,
-          logoUploadId: activeUploadRecordId,
-          logoUrl: preparedImage.publicUrl,
-          tournamentId: registration.tournamentId,
-          tournamentTitle: registration.tournamentTitle,
-        });
+        approvedRegistration = await updateRegistrationApprovalWithConfirmation(
+          registration,
+          {
+            approvedTeamId: activatedTeam.id,
+            logoPath: preparedImage.objectKey,
+            logoUploadId: activeUploadRecordId,
+            logoUrl: preparedImage.publicUrl,
+            tournamentId: registration.tournamentId,
+            tournamentTitle: registration.tournamentTitle,
+          },
+          input.actorProfileId,
+        );
       } catch (error) {
         if (shouldPreserveUnconfirmedLogoArtifacts(error)) throw error;
         try {
@@ -643,7 +682,9 @@ export async function approveCanonicalTeamRegistration(
   const registration = await claimRegistrationForApproval(input.registration, input.actorProfileId);
   let createdTeamRecoveryTarget: CanonicalAdminTeam | null = null;
   try {
-    const resolution = await resolveCanonicalTeamForApproval(registration);
+    const resolution = await resolveCanonicalTeamForApproval(registration, {
+      allowCreate: !hasEventRegistrationTarget(registration),
+    });
     if (resolution.created) createdTeamRecoveryTarget = resolution.team;
     await writeRequiredAuditLogFromRequest(request, {
       action: resolution.created ? "create_from_registration_requested" : "link_registration_requested",

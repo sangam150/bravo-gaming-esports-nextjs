@@ -6,9 +6,10 @@ import { DiscordRoleSyncError } from "@/lib/discord-role-sync";
 import { getSessionCookieMaxAge, REFRESH_COOKIE, SESSION_COOKIE, verifyAccessToken } from "@/lib/supabase-auth-server";
 import { isSupabaseAuthCookieName } from "@/lib/supabase-auth-cookies";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-function callbackError(request: Request, category: string) {
+function callbackError(request: Request, category: string, currentAuthCookieNames: Iterable<string>) {
   const url = new URL("/login", request.url);
   url.searchParams.set("error", category);
   const response = NextResponse.redirect(url, 303);
@@ -37,10 +38,13 @@ function callbackError(request: Request, category: string) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
   });
-  const cookieNames = (request.headers.get("cookie") ?? "")
-    .split(";")
-    .map((cookie) => cookie.split("=", 1)[0]?.trim())
-    .filter((name): name is string => Boolean(name && isSupabaseAuthCookieName(name)));
+  const cookieNames = new Set(
+    (request.headers.get("cookie") ?? "")
+      .split(";")
+      .map((cookie) => cookie.split("=", 1)[0]?.trim())
+      .filter((name): name is string => Boolean(name && isSupabaseAuthCookieName(name))),
+  );
+  for (const name of currentAuthCookieNames) cookieNames.add(name);
   for (const name of cookieNames) {
     response.cookies.set(name, "", {
       expires: new Date(0),
@@ -88,8 +92,18 @@ function readAuthenticationMethods(accessToken: string) {
 }
 
 async function rejectCallback(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, request: Request, category: string) {
+  const cookieStore = await cookies();
+  // The code exchange can write new/chunked SSR cookies that were absent from
+  // the incoming request. Keep their names even if SDK sign-out removes some
+  // or returns an error without clearing its session.
+  const authCookieNames = new Set(
+    cookieStore.getAll().map((cookie) => cookie.name).filter(isSupabaseAuthCookieName),
+  );
   await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
-  return callbackError(request, category);
+  for (const cookie of cookieStore.getAll()) {
+    if (isSupabaseAuthCookieName(cookie.name)) authCookieNames.add(cookie.name);
+  }
+  return callbackError(request, category, authCookieNames);
 }
 
 export async function GET(request: Request) {

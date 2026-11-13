@@ -32,6 +32,7 @@ import {
 } from "./competition-relational";
 import { formatAnnouncementDate } from "./display-format";
 import { ensureUniqueDocumentSlug, filterSoftDeleted, getDocumentByIdOrSlug, softDeleteDocumentEntity } from "./document-entities";
+import { createEventRegistrationTransaction } from "./event-registration-transaction";
 import { parseEventSchedule, publicEventSchedule } from "./event-schedule";
 import {
   COLLECTIONS,
@@ -1253,7 +1254,13 @@ export async function saveTournament(data: Partial<Tournament> & { title: string
   const compatibilityPayload = normalizeTournamentPayload(savedTournament);
   if (isDocumentStoreConfigured()) {
     const current = await getDocument<Record<string, unknown>>(COLLECTIONS.tournaments, savedTournament.id);
-    if (current) await saveDocumentIfFieldsMatch(COLLECTIONS.tournaments, savedTournament.id, compatibilityPayload as unknown as Record<string, unknown>, { productionRevision: typeof current.productionRevision === "number" ? current.productionRevision : null });
+    if (current)
+      await saveDocumentIfFieldsMatch(
+        COLLECTIONS.tournaments,
+        savedTournament.id,
+        compatibilityPayload as unknown as Record<string, unknown>,
+        { productionRevision: typeof current.productionRevision === "number" ? current.productionRevision : null },
+      );
     else await saveDocument(COLLECTIONS.tournaments, savedTournament.id, compatibilityPayload as unknown as Record<string, unknown>);
   }
   await claimStagedAdminPublicAssets({
@@ -1272,7 +1279,10 @@ export async function deleteTournament(id: string) {
   return { id, deleted: true };
 }
 
-export async function getTournamentMatches(tournamentId: string, options: { includeDrafts?: boolean; preserveResultIdentity?: boolean } = {}): Promise<TournamentMatch[]> {
+export async function getTournamentMatches(
+  tournamentId: string,
+  options: { includeDrafts?: boolean; preserveResultIdentity?: boolean } = {},
+): Promise<TournamentMatch[]> {
   // preserveResultIdentity is for server-side broadcast selection only. The
   // snapshot builder still sanitizes every public result before serialization.
   let relationalOwner = false;
@@ -1283,7 +1293,7 @@ export async function getTournamentMatches(tournamentId: string, options: { incl
       const matches = await getCompetitionMatchesForEvent(tournament.id, options);
       const scopedMatches = options.includeDrafts
         ? matches
-        : matches.filter(isExplicitlyPublishedMatch).map((match) => options.preserveResultIdentity ? match : sanitizePublicMatch(match));
+        : matches.filter(isExplicitlyPublishedMatch).map((match) => (options.preserveResultIdentity ? match : sanitizePublicMatch(match)));
       return scopedMatches.sort((firstMatch, secondMatch) => compareMatchSequenceOrder(firstMatch, secondMatch));
     }
     if (await competitionEventIdentityExists(tournamentId)) return [];
@@ -1310,7 +1320,11 @@ export async function getTournamentMatches(tournamentId: string, options: { incl
       .filter((m) => m.dataSource === "pubg_api" || m.syncedAt);
 
     return (
-      options.includeDrafts ? visibleMatches : visibleMatches.filter(isExplicitlyPublishedMatch).map((match) => options.preserveResultIdentity ? match : sanitizePublicMatch(match))
+      options.includeDrafts
+        ? visibleMatches
+        : visibleMatches
+            .filter(isExplicitlyPublishedMatch)
+            .map((match) => (options.preserveResultIdentity ? match : sanitizePublicMatch(match)))
     ).sort((firstMatch, secondMatch) => compareMatchSequenceOrder(firstMatch, secondMatch));
   } catch {
     return [];
@@ -1912,6 +1926,7 @@ export async function getRegistration(id: string): Promise<TeamRegistration | nu
 }
 
 export async function createRegistration(data: Omit<TeamRegistration, "id" | "createdAt" | "status">, options: { id?: string } = {}) {
+  const registrationId = options.id ?? `reg-${Date.now()}`;
   const payload = {
     teamName: data.teamName.trim(),
     teamTag: cleanString(data.teamTag),
@@ -1930,10 +1945,13 @@ export async function createRegistration(data: Omit<TeamRegistration, "id" | "cr
     createdAt: new Date().toISOString(),
   };
   if (isDocumentStoreConfigured()) {
+    if (payload.tournamentId) {
+      return createEventRegistrationTransaction({ id: registrationId, ...payload });
+    }
     const result = await createDocument(COLLECTIONS.registrations, payload, options.id);
     return { id: result.id, ...payload };
   }
-  return { id: options.id ?? `reg-${Date.now()}`, ...payload };
+  return { id: registrationId, ...payload };
 }
 
 export async function updateRegistrationStatus(

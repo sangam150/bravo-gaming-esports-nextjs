@@ -30,10 +30,7 @@ function normalizeTeamResults(value: unknown) {
         ({
           ...parseScoringDecision(item),
           teamId: typeof item.teamId === "string" ? item.teamId : undefined,
-          teamName: getUserFacingTeamLabel(
-            typeof item.teamName === "string" ? item.teamName : undefined,
-            USER_FACING_LABELS.teamPendingMapping,
-          ),
+          teamName: typeof item.teamName === "string" ? item.teamName.trim() : "",
           slotNumber: typeof item.slotNumber === "number" && Number.isFinite(item.slotNumber) ? item.slotNumber : undefined,
           placement: typeof item.placement === "number" && Number.isFinite(item.placement) ? item.placement : 0,
           kills: typeof item.kills === "number" && Number.isFinite(item.kills) ? item.kills : 0,

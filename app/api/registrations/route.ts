@@ -4,6 +4,7 @@ import { CanonicalTeamError } from "@/lib/canonical-teams";
 import { createRegistration, getRegistration, getRegistrations, getRegistrationTeamCandidates, updateRegistrationStatus } from "@/lib/data";
 import { COLLECTIONS, DocumentWriteConflictError, getDocument } from "@/lib/document-store";
 import { ImageDecodeError } from "@/lib/image-validation";
+import { EventRegistrationMutationError, setEventRegistrationStatusTransaction } from "@/lib/event-registration-transaction";
 import { getManagedUploadRecord } from "@/lib/r2/storage";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/lib/registration-submission-state";
 import { requireSameOrigin } from "@/lib/request-origin";
 import { logServerError } from "@/lib/server-monitoring";
+import { hasEventRegistrationTarget } from "@/lib/registration-approval-policy";
 import { ActiveAssetDeliveryError } from "@/lib/team-logo-service";
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role-client";
 import { findTeamDuplicateCandidates } from "@/lib/team-onboarding";
@@ -268,6 +270,9 @@ export async function POST(request: Request) {
     if (error instanceof RegistrationValidationError) {
       return Response.json({ error: error.message }, { status: 400 });
     }
+    if (error instanceof EventRegistrationMutationError) {
+      return Response.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     if (error instanceof RegistrationSubmissionRecoveryError) {
       await logServerError("registrations.create.recovery_required", error, request);
       return Response.json(
@@ -373,21 +378,25 @@ export async function PATCH(request: Request) {
 
     if (requestedStatus !== "approved") {
       const rejecting = requestedStatus === "rejected";
-      const result = await updateRegistrationStatus(
-        registrationId,
-        requestedStatus as "pending" | "rejected",
-        {
-          approvedTeamId: normalizeOptionalString(registration.approvedTeamId),
-          logoPath: rejecting ? undefined : normalizeOptionalString(registration.logoPath),
-          logoUploadId: rejecting ? undefined : normalizeOptionalString(registration.logoUploadId),
-          logoUrl: rejecting ? undefined : normalizeOptionalString(registration.logoUrl),
-          tournamentId: registration.tournamentId,
-          tournamentTitle: registration.tournamentTitle,
-        },
-        {
-          expectedRegistration: registration,
-        },
-      );
+      const updates = {
+        approvedTeamId: normalizeOptionalString(registration.approvedTeamId),
+        logoPath: rejecting ? undefined : normalizeOptionalString(registration.logoPath),
+        logoUploadId: rejecting ? undefined : normalizeOptionalString(registration.logoUploadId),
+        logoUrl: rejecting ? undefined : normalizeOptionalString(registration.logoUrl),
+        tournamentId: registration.tournamentId,
+        tournamentTitle: registration.tournamentTitle,
+      };
+      const result = hasEventRegistrationTarget(registration)
+        ? await setEventRegistrationStatusTransaction({
+            actorProfileId: auth.session.profileId,
+            expectedStatus: registration.status,
+            registrationId,
+            status: requestedStatus as "pending" | "rejected",
+            updates,
+          })
+        : await updateRegistrationStatus(registrationId, requestedStatus as "pending" | "rejected", updates, {
+            expectedRegistration: registration,
+          });
       const cleanupPending = rejecting ? await cleanupPendingRegistrationLogoCandidates(registrationId) : false;
       return Response.json({
         success: true,
@@ -407,11 +416,17 @@ export async function PATCH(request: Request) {
       cleanupPending: approval.cleanupPending,
       data: approval.registration,
       team: approval.team,
-      message: `Registration approved. ${approval.team.name} is now live.`,
+      message: hasEventRegistrationTarget(approval.registration)
+        ? `Registration approved. ${approval.team.name} is confirmed in the event roster at slot ${approval.registration.eventSlotNumber}.`
+        : `Team review approved. ${approval.team.name} is now in the official team registry.`,
     });
   } catch (error: unknown) {
     await logServerError("registrations.update", error, request);
-    if (error instanceof RegistrationApprovalError || error instanceof CanonicalTeamError) {
+    if (
+      error instanceof RegistrationApprovalError ||
+      error instanceof CanonicalTeamError ||
+      error instanceof EventRegistrationMutationError
+    ) {
       return Response.json({ error: error.message, code: error.code }, { status: error.status });
     }
     if (error instanceof ActiveAssetDeliveryError) {

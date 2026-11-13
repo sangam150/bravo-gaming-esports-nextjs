@@ -7,6 +7,7 @@ import { scheduleEffectTask } from "@/lib/effect-task";
 import { performPasswordLogin, reportLoginFailure } from "@/lib/login-client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { LOGIN_ERROR_MESSAGES, validateLoginCredentials } from "@/lib/user-facing-errors";
+import { useHydrated } from "@/lib/use-hydrated";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -69,7 +70,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
   const configured = isSupabaseConfigured();
   const discordAuthEnabled = useDiscordProviderEnabled();
   const searchParams = useSearchParams();
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = useHydrated();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -77,7 +78,6 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
   const [notice, setNotice] = useState<string | null>(null);
   const content = getVariantContent(variant);
 
-  useEffect(() => scheduleEffectTask(() => setHydrated(true)), []);
   useEffect(() => {
     const callbackError = searchParams.get("error");
     if (callbackError) {
@@ -216,6 +216,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                   <input
                     className="input-esports"
                     type="email"
+                    disabled={!hydrated}
                     placeholder="you@example.com"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
@@ -229,6 +230,7 @@ export default function LoginHubClient({ variant = "hub" }: LoginHubClientProps)
                   <input
                     className="input-esports"
                     type="password"
+                    disabled={!hydrated}
                     placeholder="Enter your password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
