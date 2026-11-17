@@ -2,6 +2,8 @@
 
 ## Current execution result — 17 November 2026
 
+Exact preserved SHA `5ceece39ddc18bc8d57578c91dbaa8e69be8f503` passed GitHub Actions run `44116203600` and built canonical Preview `dpl_7fCSapvfS1Pf9CPMbFYBiu6cdFNV`. Both anonymous Preview URLs return HTTP 302. With the ignored bypass, the application, admin login, leaderboard and all 38 overlay routes respond; anonymous admin API denial is HTTP 401. `/api/broadcast` returns HTTP 503 because the real staging publication schema/data prerequisite is unavailable.
+
 | Workflow | Status | Actual evidence |
 | --- | --- | --- |
 | Canonical Vercel protection | PASS | Anonymous exact Preview and branch alias redirect HTTP 302 to Vercel Authentication; production alias remains HTTP 200 |

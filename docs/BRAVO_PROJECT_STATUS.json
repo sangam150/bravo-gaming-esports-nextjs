@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-17T16:15:59+05:45",
+  "generated_at": "2026-11-17T21:26:00+05:45",
   "project": "BRAVO Gaming Esports",
   "repository": "sangam150/bravo-gaming-esports-nextjs",
   "branch": "codex/platform-completion-20261104",
-  "commit": "e025f9cdf85bb4aa618b4c0c1e7242aa783b6d9d",
+  "commit": "5ceece39ddc18bc8d57578c91dbaa8e69be8f503",
   "base_branch": "main",
   "base_commit": "c7311530a17cbb63ba5b4e3df0ef2da44acb7953",
   "overall_status": "BLOCKED",
@@ -30,17 +30,17 @@
     "migrations": 28,
     "broadcast_graphics": 38,
     "tsx_components": 78,
-    "feature_delta_paths": 403,
-    "latest_commit_paths": 104,
-    "unstaged_release_candidate_paths": 24,
+    "feature_delta_paths": 417,
+    "latest_commit_paths": 24,
+    "unstaged_release_candidate_paths": 0,
     "separate_untracked_instruction_paths": 1
   },
   "targets": {
     "staging_supabase_project_ref": "yppefayrepkqpqtprbqa",
     "production_supabase_project_ref": "hldppfhtkfgthainismr",
     "production_url": "https://bravo-gaming-esports.vercel.app",
-    "staging_url": "https://bravo-gaming-esports-nextjs-g2h87ahi1-sangams-projects-9468acfa.vercel.app",
-    "successful_preview_url": "https://bravo-gaming-esports-nextjs-g2h87ahi1-sangams-projects-9468acfa.vercel.app",
+    "staging_url": "https://bravo-gaming-esports-nextj-git-967ba4-sangams-projects-9468acfa.vercel.app",
+    "successful_preview_url": "https://bravo-gaming-esports-nextjs-apemi5wrz-sangams-projects-9468acfa.vercel.app",
     "staging_deployment_protection": "CANONICAL_STANDARD_PROTECTION_ACTIVE",
     "preview_resource_isolation": "FAIL_R2_NOT_ISOLATED_AND_EFFECTIVE_BINDINGS_INCOMPLETE",
     "local_vercel_link_project": "bravo-gaming-esports-nextjs",
@@ -48,7 +48,7 @@
   },
   "git": {
     "local_matches_remote_feature_branch": true,
-    "commits_ahead_of_main": 3,
+    "commits_ahead_of_main": 4,
     "feature_branch_pushed": true,
     "main_merged": false,
     "production_deployed_from_feature_branch": false,
@@ -57,9 +57,9 @@
     "further_push_allowed": true
   },
   "github_actions": {
-    "run_id": 43519330298,
+    "run_id": 44116203600,
     "workflow": "Local verification",
-    "commit": "e025f9cdf85bb4aa618b4c0c1e7242aa783b6d9d",
+    "commit": "5ceece39ddc18bc8d57578c91dbaa8e69be8f503",
     "status": "completed",
     "conclusion": "success",
     "all_configured_steps_passed": true
@@ -67,7 +67,7 @@
   "vercel_projects": [
     {
       "name": "bravo-gaming-esports-nextjs",
-      "deployment_id": "dpl_9DvXxkctzrY7J4pmE8WLs3TgzBWQ",
+      "deployment_id": "dpl_7fCSapvfS1Pf9CPMbFYBiu6cdFNV",
       "deployment_status": "SUCCESS",
       "exact_sha_verified": true,
       "public_preview_reachable": true,
@@ -99,8 +99,8 @@
       "reason": "The exact committed snapshot passed local verification."
     },
     "feature_branch_push": {
-      "status": "READY_AUTHORIZED",
-      "reason": "Canonical is protected and is the sole Git-connected Vercel project; the new candidate may be preserved and its isolated Preview verified."
+      "status": "COMPLETED",
+      "reason": "The exact candidate is on the remote feature branch; canonical was the only project to create a protected Preview."
     },
     "draft_pr": {
       "status": "BLOCKED",
@@ -133,7 +133,7 @@
     { "name": "master_workflows", "status": "PASS_4_OF_4" },
     { "name": "public_fixture_qa", "status": "PASS_72_OF_72" },
     { "name": "dependency_audit", "status": "PASS_ZERO_ADVISORIES" },
-    { "name": "github_actions_exact_sha", "status": "PASS_RUN_43519330298" },
+    { "name": "github_actions_exact_sha", "status": "PASS_RUN_44116203600" },
     { "name": "preview_isolation_regression", "status": "PASS_OFFLINE_ONLY" },
     { "name": "default_local_staging_launcher", "status": "PASS" },
     { "name": "live_invalid_login", "status": "PASS_HTTP_401_NOT_503" }
@@ -241,13 +241,13 @@
     "pubg_import_verified": "BLOCKED",
     "all_38_graphics_verified_with_real_data": "BLOCKED",
     "actual_obs_acceptance_verified": "NOT RUN",
-    "final_ci_passed": "NOT RUN",
+    "final_ci_passed": "YES_RUN_44116203600",
     "main_merge_ready": "NO",
     "production_database_ready": "UNKNOWN",
     "production_deployment_ready": "NO",
     "production_deployed": "NO",
     "production_smoke_tests_passed": "NOT RUN"
   },
-  "next_safe_action": "Prepare and push the exact reviewed feature candidate, then verify the sole canonical protected Preview. Database, OAuth, scoped R2 and real acceptance remain credential/evidence blocked.",
+  "next_safe_action": "Obtain target-locked Supabase ledger access and a bucket-restricted R2 credential, then complete real administrator, CRUD, scoring, publication and OBS acceptance on the protected canonical Preview.",
   "next_approval_required": "NONE_ALL_GATES_AUTHORIZED_EXECUTION_REMAINS_EVIDENCE_GATED"
 }

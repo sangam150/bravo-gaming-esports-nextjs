@@ -1,5 +1,9 @@
 # Release file manifest — 13 November 2026
 
+## Final preservation result — 17 November 2026
+
+The exact 24-path candidate below was committed as `5ceece39ddc18bc8d57578c91dbaa8e69be8f503` and pushed to `origin/codex/platform-completion-20261104`. Exact-SHA GitHub Actions run `44116203600` passed and only the canonical Vercel project created a Preview. `AGENTS.md` remains separate and untracked. Ignored environments, Vercel metadata, QA evidence and credentials were not committed. Statements below describing this candidate as unstaged are retained as pre-commit review evidence and are superseded by this result.
+
 ## Final validation — 17 November 2026
 
 - Exact application candidate: **24 paths** (ten modified and fourteen tracked-ready untracked); `AGENTS.md` remains a separate untracked instruction file.

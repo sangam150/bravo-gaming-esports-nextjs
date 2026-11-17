@@ -1,24 +1,24 @@
 # Bravo Gaming Esports — final release readiness
 
-Evidence refreshed: **17 November 2026, 16:16 NPT**
+Evidence refreshed: **17 November 2026, 21:26 NPT**
 Branch: `codex/platform-completion-20261104`
-Audited local/remote feature SHA: `e025f9cdf85bb4aa618b4c0c1e7242aa783b6d9d`
+Audited local/remote application/report SHA: `5ceece39ddc18bc8d57578c91dbaa8e69be8f503`
 Verified main SHA: `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`
 
 ## Executive decision
 
-The preserved application source is locally healthy, but the release is **not ready to merge or deploy**. The exact feature SHA passed GitHub Actions and the refreshed local source passed typecheck, the 26-command QA chain, production build, dependency audit, browser workflow suites and the 38-mode broadcast fixture check. Real staging acceptance remains blocked by infrastructure and credentials, not by a confirmed new application defect.
+The preserved application source and final 24-path safety/report candidate are locally healthy, committed and pushed, but the release is **not ready to merge or deploy**. Exact-SHA GitHub Actions run `44116203600` passed. The canonical protected Preview deployment `dpl_7fCSapvfS1Pf9CPMbFYBiu6cdFNV` is READY at the same SHA. Real staging acceptance remains blocked by schema and credential prerequisites, not by a confirmed new application defect.
 
-The only remote change during this execution is owner-approved V1 Standard Protection on the canonical Vercel project. No DNS record, environment binding, Git integration, Supabase object, administrator account, OAuth provider, R2 object, Git index, commit, push, merge or deployment was changed.
+Owner-authorized changes completed: canonical Standard Protection; Git disconnection on both duplicate Vercel projects; creation and functional testing of the dedicated staging R2 bucket pair; one protected feature-branch push; and the resulting canonical Preview. No DNS record, Production environment binding, Supabase object, administrator account, OAuth provider, main branch, production migration or production deployment was changed.
 
 ## Release decisions
 
 | Decision | Status | Evidence/reason |
 | --- | --- | --- |
-| LOCAL SOURCE READY | YES | Refreshed checks below pass; no staged files |
-| GITHUB FEATURE BRANCH READY | BLOCKED | Existing feature SHA `e025f9…` is preserved and its CI passed, but the 23-path final local candidate is uncommitted/unpushed and further pushes remain blocked by Preview safety |
+| LOCAL SOURCE READY | YES | Refreshed checks pass; exact 24-path candidate committed; only separate `AGENTS.md` remains untracked |
+| GITHUB FEATURE BRANCH READY | YES | Local and remote branch equal `5ceece39…`; exact-SHA CI run `44116203600` passed |
 | VERCEL PREVIEW PROTECTED | YES | V1 completed: canonical `ssoProtection.deploymentType=prod_deployment_urls_and_all_previews`; exact Preview and branch alias return anonymous HTTP 302 to Vercel Authentication while production remains HTTP 200 |
-| VERCEL PREVIEW RESOURCE ISOLATION VERIFIED | NO | The local workspace link is now canonical and metadata supports staging Supabase/no R2, but effective server-key ownership and dedicated R2 token scope are unproven |
+| VERCEL PREVIEW RESOURCE ISOLATION VERIFIED | NO | New build exposes only staging Supabase variable names and no SQL/R2 names; R2 is safe by absence, but the available credential still reaches production buckets |
 | DUPLICATE DEPLOYMENTS RESOLVED | YES | V2/V3 completed: both duplicate projects retain history/domains but no longer have a Git link; only canonical can react to repository pushes |
 | CUSTOM DOMAIN VERIFIED | NO | All configured custom hosts are NXDOMAIN; `.esports` is not delegated |
 | STAGING DATABASE SCHEMA READY | NO | OpenAPI exposes missing profile/scoring/registration objects; authoritative catalog evidence is unavailable |
@@ -29,11 +29,11 @@ The only remote change during this execution is owner-approved V1 Standard Prote
 | SCRIM OPERATIONS VERIFIED | BLOCKED | Local fixtures pass; real staging authenticated CRUD not run |
 | REGISTRATION CONCURRENCY VERIFIED | BLOCKED | Migration 028 passes isolated PostgreSQL; multi-connection staging test awaits schema recovery |
 | SCORING AND LEADERBOARDS VERIFIED | BLOCKED | Migrations 026–027 pass isolated PostgreSQL; real staging publication is unavailable |
-| R2 PUBLIC/PRIVATE VERIFIED | NO | Current credentials can address shared production buckets; no dedicated staging pair exists |
+| R2 PUBLIC/PRIVATE VERIFIED | PARTIAL / ISOLATION FAIL | Dedicated staging pair passed real put/get/content-type/cleanup checks and is empty; current credential also reaches production buckets and was not bound to Preview |
 | PUBG IMPORT VERIFIED | BLOCKED | No permitted match ID or authorized live credential evidence |
 | ALL 38 GRAPHICS VERIFIED WITH REAL DATA | BLOCKED | All 38 pass fixture/browser QA; real published staging records are unavailable |
 | ACTUAL OBS ACCEPTANCE VERIFIED | NOT RUN | Requires an OBS operator and accepted staging data/source access |
-| FINAL CI PASSED | NOT RUN | Exact remote SHA CI passed, but the final 23-path local candidate has not been committed/pushed and therefore has no GitHub Actions run |
+| FINAL CI PASSED | YES | GitHub Actions run `44116203600` completed successfully for exact SHA `5ceece39…` |
 | MAIN MERGE READY | NO | Real staging acceptance and infrastructure safety gates are incomplete |
 | PRODUCTION DATABASE READY | UNKNOWN | Production ledger/backup/rehearsal were intentionally not touched |
 | PRODUCTION DEPLOYMENT READY | NO | Required staging, database and infrastructure gates are incomplete |
@@ -57,7 +57,7 @@ The only remote change during this execution is owner-approved V1 Standard Prote
 | `npm run build` | PASS | Next.js 16.4.5; 147 pages generated |
 | `npm audit` | PASS | Zero vulnerabilities |
 | `git diff --check` | PASS | No tracked whitespace errors before documentation refresh |
-| `npm run qa:staging-readiness` | FAIL/BLOCKED | Wrong QA origin, schema drift, invalid Discord client ID, absent admin password |
+| `npm run qa:staging-readiness` | PASS EXECUTION / ACCEPTANCE BLOCKED | Protected canonical origin HTTP 200 with bypass; staging Auth HTTP 200; actual schema drift, invalid Discord client ID and absent admin password remain |
 
 The first broadcast UI attempt returned 11 `ERR_CONNECTION_REFUSED` failures because no server was running. The unchanged suite passed 11/11 once the successful production build was served. The initial failure is retained as orchestration evidence and was not suppressed.
 
@@ -65,7 +65,7 @@ The first broadcast UI attempt returned 11 `ERR_CONNECTION_REFUSED` failures bec
 
 | Project | Verified current state | Required owner action | Acceptance criterion |
 | --- | --- | --- | --- |
-| `bravo-gaming-esports-nextjs` (`prj_xbU…`) | Canonical; `main`; V1 Standard Protection active; exact Preview and branch alias redirect anonymous requests to Vercel Authentication; generated production alias and `/api/version` remain HTTP 200 at `c731153…`; metadata shows staging Supabase, no direct SQL and no R2 | Separately approve dedicated Preview R2 configuration and protected test access when resources exist | Protection remains active; production stays public; effective Supabase and R2 ownership/scope proven |
+| `bravo-gaming-esports-nextjs` (`prj_xbU…`) | Canonical and sole Git target; Standard Protection active; exact-SHA Preview `dpl_7fCS…` READY; exact deployment and branch alias return anonymous HTTP 302; protected probes return 200; build metadata has staging Supabase names and no SQL/R2 names | Add only a new two-bucket-scoped staging R2 token after production-denial proof | Protection remains active; production stays public; effective Supabase and R2 ownership/scope proven |
 | `bravo-gaming-esports` (`prj_rAj…`) | V2 completed: Git disconnected; project/deployments and `.com.np` assignments retained unchanged | Decide later whether to retain/migrate the unresolved domain pair | No repository push can create a deployment here |
 | `bravo-gaming` (`prj_TT2…`) | V3 completed: Git disconnected; project/deployments retained | No further action required for push isolation | No repository push can create a deployment here |
 
@@ -100,12 +100,12 @@ No migration 029 is justified yet. Historical migrations must not be edited or b
 
 ## GitHub and worktree
 
-- Local HEAD and remote feature branch: `e025f9cdf85bb4aa618b4c0c1e7242aa783b6d9d`.
-- Remote `main`: `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`; feature is three commits ahead, zero behind.
-- GitHub Actions run `43519330298` for the exact feature SHA: completed/success; configured `offline` job passed.
+- Local HEAD and remote feature branch: `5ceece39ddc18bc8d57578c91dbaa8e69be8f503` before this documentation-only evidence update.
+- Remote `main`: `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`; complete feature delta is 417 paths.
+- GitHub Actions run `44116203600` for exact SHA `5ceece39…`: completed/success; every configured `offline` step passed.
 - PR #1 remains open, non-draft and unmerged on the older `feature/obs-broadcast-overlay` architecture. Retain for comparison or close only with owner approval; do not merge it into the 38-mode implementation.
-- Nothing is staged. No commit or push is authorized. `AGENTS.md` remains separate repository guidance.
-- The candidate inventory is maintained in `docs/release-file-manifest.md`; ignored environments, QA outputs and credential files remain excluded.
+- The reviewed 24-path candidate was committed and pushed. `AGENTS.md` remains separate untracked repository guidance.
+- Ignored environments, QA outputs and credential files remain excluded.
 
 ## Remaining external access
 

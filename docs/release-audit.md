@@ -2,6 +2,8 @@
 
 ## Authorized infrastructure completion — 17 November 2026
 
+Final preservation evidence: commit `5ceece39ddc18bc8d57578c91dbaa8e69be8f503` was pushed only to `codex/platform-completion-20261104`. GitHub Actions run `44116203600` passed every configured step. Vercel created exactly one new Preview, canonical deployment `dpl_7fCSapvfS1Pf9CPMbFYBiu6cdFNV`; duplicate projects created none. The deployment is READY at the exact SHA, its exact URL and branch alias return anonymous HTTP 302, and protected probes return HTTP 200. All 38 overlay routes return 200; the public broadcast API returns 503 because required staging schema/data remain unavailable. Main and production were not changed.
+
 The canonical Vercel project is now the only Git-connected project. Standard Preview protection remains active and was independently verified by anonymous HTTP 302 responses. Both duplicate project Git integrations were disconnected without deleting deployments, history or the `.com.np` assignments. Production remains public at the unchanged main SHA.
 
 Dedicated staging R2 buckets now exist and passed real put/get/content-type/cleanup tests. The credential used for those tests also reaches both known production buckets, so credential isolation is **FAIL** and the credential was not bound to Preview. A new token restricted to the two staging buckets is still required.
