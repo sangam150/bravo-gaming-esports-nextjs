@@ -1,5 +1,81 @@
 # Real staging verification
 
+## Current execution result — 17 November 2026
+
+| Workflow | Status | Actual evidence |
+| --- | --- | --- |
+| Canonical Vercel protection | PASS | Anonymous exact Preview and branch alias redirect HTTP 302 to Vercel Authentication; production alias remains HTTP 200 |
+| Duplicate deployment isolation | PASS | `bravo-gaming-esports` and `bravo-gaming` Git links are disconnected; canonical is the sole Git-connected project |
+| Protected QA access | PASS | Ignored local automation bypass reaches canonical protected alias without disabling protection |
+| Staging Supabase connectivity | PASS WITH LIMITATION | Auth settings HTTP 200 and project callback points to `yppefayrepkqpqtprbqa`; management token is 401 and SQL URLs are rejected as production targets |
+| Migration ledger/schema catalog | BLOCKED | No authorized target-locked SQL or Dashboard export; versions 001–028 remain UNKNOWN remotely |
+| Admin authentication/session/permissions/logout | BLOCKED | `QA_STAGING_ADMIN_PASSWORD` absent and required profile schema unavailable; provisioning preflight made no mutation |
+| Tournament and scrim CRUD | BLOCKED | Local tests pass; real admin session/schema unavailable |
+| Team and player management | BLOCKED | Local tests pass; real admin session/schema unavailable |
+| Match scoring/publication/leaderboards | BLOCKED | Local 026/027 coverage passes; real RPC/schema/admin prerequisites unavailable |
+| Staging R2 bucket operations | PASS WITH ISOLATION FAIL | Both dedicated staging buckets passed put/get/content-type/cleanup and are empty; available credential also reaches both production buckets |
+| Preview R2 uploads | BLOCKED | No R2 Preview binding; unsafe broad credential intentionally withheld |
+| Broadcast control and overlays | BLOCKED FOR REAL DATA | Local fixture/browser suites pass; real published staging records and actual OBS acceptance unavailable |
+| Discord OAuth | FAIL | Provider redirect still emits an email-shaped Client ID; matching numeric Client Secret is unavailable |
+| PUBG real import | BLOCKED | No permitted staging match ID |
+
+No remote migration, administrator elevation, OAuth change, main merge or production deployment was performed. Older entries below retain the chronology of earlier checks.
+
+## V1 acceptance update — 17 November 2026
+
+Canonical Preview protection is **PASS**: project metadata reports Standard Protection, and cookie-free exact Preview plus branch-alias requests return HTTP 302 to Vercel Authentication. The production alias remains HTTP 200. This is access-control evidence only; it does not prove database or storage isolation. Unattended protected QA is still blocked because `VERCEL_AUTOMATION_BYPASS_SECRET` is absent locally and `qa/staging-target.mjs` still names the old duplicate deployment. No bypass is currently configured on the canonical project.
+
+The [16 November Phase 2 infrastructure report](infrastructure-unblock-phase-2-2026-11-16.md) supersedes older Vercel protection/domain and staging SQL-access statements below where they differ.
+
+## Infrastructure recheck — 15 November 2026
+
+**Overall staging acceptance remains BLOCKED.** The focused [staging infrastructure reconciliation](staging-infrastructure-reconciliation-2026-11-15.md) supersedes older Vercel-access and effective-binding statements in this file.
+
+| Workflow / check | Current result | Evidence / limit |
+| --- | --- | --- |
+| Vercel inspection access | PASS | CLI 65.16.0 is authenticated as `sangam150`; the six-project team inventory and all three BRAVO project configurations were inspected read-only |
+| Git deployment triggers | FAIL for release safety | All three BRAVO projects link to the same GitHub repository with automatic deployments enabled, so one feature push can trigger all three |
+| `bravo-gaming-esports` Preview | FAIL CLOSED | Production Supabase plus shared R2 names are configured; exact-SHA build logs show the source guard rejected deployment |
+| `bravo-gaming` Preview | FAIL CLOSED | Required staging Supabase and R2 bindings are absent; exact-SHA build logs show the source guard rejected deployment |
+| `bravo-gaming-esports-nextjs` Preview | PARTIAL PASS / PASS protection | Staging Supabase guard passed, Preview R2 is absent, and owner-approved V1 Standard Protection redirects anonymous Preview requests to Vercel Authentication |
+| Supabase management access | FAIL | Fresh CLI login still leads to `Invalid access token`; local management project read remains 401 |
+| Supabase data-plane reads | PASS | Staging OpenAPI and Auth admin user listing return 200 with the configured server key |
+| Supabase direct SQL inspection | BLOCKED | `DATABASE_URL` and `DIRECT_URL` identify production and are rejected before connection; ledger, policies and grants remain authoritative unknowns |
+| Staging schema compatibility | FAIL / partial evidence | OpenAPI shows non-prefix drift: migration 020–025 markers and 026–028 fields/RPCs are largely absent, while two migration-024-related RPCs exist |
+| Backup/restore rehearsal | BLOCKED | Staging SQL access is absent; local PostgreSQL client tools are absent and the Docker daemon is not running |
+| Feature-branch push | BLOCKED | First protect the successful Preview and consolidate or correct the two duplicate Git-connected projects under separate approval |
+
+Apart from owner-approved V1 Standard Protection, no Vercel setting, environment value, Git trigger, database object, account, provider, R2 object, migration or deployment was changed. The next schema action is an authorized read-only staging `DIRECT_URL` for `yppefayrepkqpqtprbqa`; the prepared inspector then runs in a repeatable-read, read-only transaction.
+
+## Current execution — 14 November 2026
+
+**Overall staging acceptance remains BLOCKED.** Fresh checks were read-only and targeted `yppefayrepkqpqtprbqa` only.
+
+| Workflow / check | Current result | Evidence / limit |
+| --- | --- | --- |
+| Exact release branch/CI | PASS | Local and remote SHA `e025f9cd` match; GitHub Actions run `43519330298` passed all configured steps |
+| Exact-SHA Preview | PARTIAL PASS | `bravo-gaming-esports-nextjs` Preview `/api/version` returned 200 with `e025f9cd` and environment `preview` |
+| Other Vercel projects | FAIL/BLOCKED | `bravo-gaming-esports` and `bravo-gaming` deployments failed; logs require authorized Vercel access |
+| Preview access protection | FAIL/INCONSISTENT | Older staging URL redirects to Vercel SSO, while the successful branch alias is publicly reachable |
+| Preview Supabase source guard | PASS for URL/type | Successful build requires exact staging URL and correct key types; `/api/auth/providers` returned 200 with Discord enabled |
+| Effective Preview server-key ownership | BLOCKED | Vercel variables/integrations inaccessible; public data fallbacks cannot prove the opaque server key owner |
+| Preview R2 | FAIL/BLOCKED | nonexistent managed-object read returned 500; no object write occurred and resource/token scope is unknown |
+| Staging Auth settings | PASS | current keyed read 200; email and Discord enabled |
+| Staging OpenAPI | PASS read / FAIL compatibility | server-key OpenAPI 200; all previously reported profile/scoring/registration fields, Discord tables and five RPCs remain absent |
+| Designated Auth identity | PASS existence / FAIL linkage | user exists and is confirmed; base linked-profile read 200 with count zero |
+| Management project read | FAIL | present token still returns 401 |
+| Database target | FAIL | both configured URLs parse but identify production; no connection attempted |
+| Staging SQL preflight | BLOCKED | `qa/migration-preflight.mjs` is explicitly production-only and its verified-connection helper is pinned to production project `hldppfhtkfgthainismr`; it was not run against or repurposed for staging |
+| Default localhost login backend | PASS | `npm run dev` now uses the guarded staging launcher; a live intentionally invalid login returned 401 instead of the prior production-DNS 503 |
+| Discord provider | FAIL | authorization still redirects with an email-shaped Client ID; staging callback is correct |
+| Real administrator login | BLOCKED | `QA_STAGING_ADMIN_PASSWORD` absent; schema/profile prerequisites also fail |
+| Team/player/PUBG acceptance identities | BLOCKED | designated team/player variables and permitted match ID absent |
+| Production Auth backend | FAIL | production Supabase hostname returns NXDOMAIN on 14 November |
+
+Live Preview read results for the successful project: version 200, provider discovery 200, home 200, leaderboard 200, anonymous admin broadcast 401, and managed public R2 read 500. The successful public reads contained no acceptance records and do not replace CRUD/scoring/OBS acceptance. No POST, account action, migration, provider change or object mutation was performed.
+
+`npm run dev:staging -- --check` and `npm run admin:provision:staging -- --check` both passed and performed no account request. `npm run qa:staging-readiness` exited 1 as designed with the external blockers above.
+
 ## Current release follow-up — 13 November 2026
 
 **Overall staging acceptance: BLOCKED.** The [production deployment report](production-deployment-report.md) records the current release decisions and final local verification. This section supersedes older credential, account, test-count and graphic-count statements below. PASS applies only to the stated scope; local fixture passes do not certify real staging workflows.

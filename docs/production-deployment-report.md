@@ -1,5 +1,19 @@
 # Release execution report — 13 November 2026
 
+## V1 production-continuity verification — 17 November 2026
+
+Canonical Standard Protection is active and verified on Preview. The exact Preview and branch alias now redirect anonymous requests to Vercel Authentication. The generated production alias and `/api/version` remain public HTTP 200 at production SHA `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`, deployment `dpl_7ytcSWrPN23ugzduYznDTcuygJd4`. No deployment, production variable, branch or domain setting changed. Production release decision remains **HOLD** because resource isolation, duplicate targets, schema and real staging acceptance are incomplete.
+
+## Current release update — 14 November 2026
+
+**Release decision remains HOLD.** The former 104-path candidate is now committed and pushed at `e025f9cdf85bb4aa618b4c0c1e7242aa783b6d9d`; local and remote feature HEAD match. No further commit or push was performed in this execution.
+
+GitHub Actions run `43519330298` passed every configured step for the exact SHA. The combined commit state remains failure because two Vercel projects failed; one exact-SHA Preview succeeded and is publicly reachable. That Preview proves the staging Supabase URL source guard and public-key provider read, but R2 delivery returns HTTP 500 and complete Vercel bindings remain inaccessible without login. Further pushes remain blocked.
+
+Fresh staging reads reconfirm the 401 management token, production-targeting database URLs, missing remote schema/RPC contract, confirmed-but-unlinked administrator identity, malformed Discord Client ID and missing QA credentials. Production `/api/version` remains on `c7311530`; the production Supabase hostname returns NXDOMAIN. No staging or production mutation was performed.
+
+Current gate decisions: local development **YES**; GitHub feature branch preserved **YES**; final CI **YES for the exact offline workflow**; Vercel isolation **BLOCKED**; staging schema **NO**; real admin/Discord/scrim/scoring/R2/PUBG/OBS acceptance **BLOCKED**; main merge and production deployment **NO**.
+
 **Release decision: HOLD.** The approved 230-file snapshot is already committed locally as `7eeded0260887bb31d5090fc1ee47643a8e07a79`. Subsequent fixes are a separate, uncommitted candidate; its exact 104 paths, including the consolidated handoff report, are staged for owner review. No new commit, push, PR, merge, remote migration, provider/account change or deployment was performed in this continuation. No production records or R2 objects were modified.
 
 PASS means the named check passed in its stated environment. FAIL identifies an observed defect or rejected configuration. BLOCKED means its acceptance prerequisites are unavailable. Local fixture results never substitute for real staging or OBS acceptance. Current client/report date is **13 November 2026, Asia/Kathmandu**; older evidence below retains its actual date. No past scrim is presented as today's event.
@@ -38,7 +52,7 @@ Fresh read-only evidence through `2026-11-13T14:28:51Z` is retained in `current-
 | Workflow | Status | Observed result / exact requirement |
 | --- | --- | --- |
 | Staging publishable/server key connectivity | PASS | Auth settings 200; secret-key empty profiles read 200; exact project `yppefayrepkqpqtprbqa` |
-| Original local 503 diagnosis | PASS | Ordinary `npm run dev` inherits unchanged `.env.local` with production hostname `hldppfhtkfgthainismr.supabase.co`; fresh uncredentialed DNS and health checks still fail `ENOTFOUND`. Use the explicit staging launcher; never substitute staging for production configuration |
+| Original local 503 diagnosis and local fix | PASS | `.env.local` still contains production hostname `hldppfhtkfgthainismr.supabase.co`, which fails DNS. Default `npm run dev` now uses the guarded staging launcher; a live intentionally invalid login returned 401 instead of 503. Raw `dev:webpack`/`dev:turbopack` remain explicit |
 | Current auth-only localhost availability | PASS | Explicit staging runtime restored at `http://localhost:3000`: fresh `/admin/login` 200, `/api/auth/providers` 200 with Discord explicitly disabled, anonymous `/api/admin/broadcast` 401. `local-staging-pages-2026-11-13.json`; no credentials sent or successful login claimed |
 | Designated Auth identity | PASS | `sangamka076@gmail.com` exists and is email-confirmed. Its identity and password were preserved |
 | Required profile/schema | FAIL | Read-only staging OpenAPI shows the actual exposed profile table lacks `role_source`, `is_active`, `discord_guild_id`, `discord_role_ids`, `discord_mapped_roles`, `discord_role_synced_at`, `discord_team_role_id` and `discord_team_verified_at`. Base projection succeeds and finds zero profiles linked to this account. The exact applied ledger remains unknown |

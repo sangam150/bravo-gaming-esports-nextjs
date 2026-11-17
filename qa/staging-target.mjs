@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 
 export const STAGING_PROJECT_REF = "yppefayrepkqpqtprbqa";
-export const STAGING_ORIGIN = "https://bravo-gaming-esports-mvfxuoofn-sangams-projects-9468acfa.vercel.app";
+export const STAGING_ORIGIN = "https://bravo-gaming-esports-nextj-git-967ba4-sangams-projects-9468acfa.vercel.app";
 export const PRODUCTION_PROJECT_REF = "hldppfhtkfgthainismr";
 
 export function readStagingEnvironment() {

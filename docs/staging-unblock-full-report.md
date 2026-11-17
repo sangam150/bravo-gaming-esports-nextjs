@@ -1,5 +1,13 @@
 # Bravo Gaming Esports — staging unblock and release preparation report
 
+## Execution addendum — 14 November 2026
+
+The previously staged 104-path follow-up was committed and pushed as `e025f9cdf85bb4aa618b4c0c1e7242aa783b6d9d`. GitHub Actions run `43519330298` passed all configured offline checks for that exact SHA. No additional commit, push, PR, merge, migration, account/provider change, R2 write or deployment was performed here.
+
+One of three Vercel projects now serves the exact feature SHA, but two deployments failed. The successful Preview proves the staging Supabase URL build guard and public Auth provider connectivity; it is publicly reachable and its R2 public delivery returns HTTP 500. Vercel settings/logs remain inaccessible because CLI/API management access is not authorized. Further pushes stay blocked.
+
+Fresh redacted Supabase reads reconfirm management 401, production-targeting DB URLs, OpenAPI 200 with the same missing fields/tables/RPCs, and a confirmed Auth user with zero linked profiles. Discord remains misconfigured. Production Supabase DNS remains NXDOMAIN. All real staging acceptance and production gates below remain blocked unless explicitly updated by this addendum.
+
 Report date: **13 November 2026 (Asia/Kathmandu)**
 Branch: `codex/platform-completion-20261104`
 Current HEAD: `7eeded0260887bb31d5090fc1ee47643a8e07a79`

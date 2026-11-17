@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "node scripts/dev-staging.mjs",
     "dev:turbopack": "next dev --turbo",
     "dev:webpack": "next dev --webpack",
     "dev:staging": "node scripts/dev-staging.mjs",

@@ -1,5 +1,21 @@
 # Email and Discord authentication verification
 
+## 14 November 2026 refresh
+
+The implementation remains locally verified, but successful real administrator and Discord sessions remain **BLOCKED**.
+
+- The local HTTP 503 was caused by the default `npm run dev` loading the unreachable production Supabase target from `.env.local`. The default command now uses the existing guarded staging launcher; a live intentionally invalid login returned HTTP 401 instead of 503.
+- Staging Auth settings are reachable and enable email and Discord.
+- The server-key admin user read returned 200; `sangamka076@gmail.com` exists and is email-confirmed.
+- A base profile query by the verified Auth UUID returned 200 with zero rows.
+- The OpenAPI contract still lacks `is_active`, `role_source`, six Discord sync fields, `discord_role_mappings` and `discord_access_reviews`.
+- `QA_STAGING_ADMIN_PASSWORD` and `DISCORD_CLIENT_SECRET` are absent locally.
+- The real Discord authorization redirect still contains an email-shaped Client ID; callback target is the staging Supabase callback.
+- The exact-SHA Vercel Preview reports Discord enabled, but no OAuth consent/callback/profile/role/session flow was attempted.
+- The production Supabase hostname currently returns NXDOMAIN, independently blocking production authentication.
+
+The provisioning wrapper's `--check` mode passed and confirmed environment isolation; it performed no identity/profile request. No password, profile, role, provider or session was changed. The owner approval and execution sequence below remains authoritative after staging schema reconciliation.
+
 ## Current decision
 
 Local authentication fixes and staging tools are prepared using the existing Supabase architecture. **Successful real administrator login and Discord OAuth are still BLOCKED.** Do not infer success from fixture tests or from an HTTP 200 connectivity probe. The existing release commit is `7eeded0260887bb31d5090fc1ee47643a8e07a79`; this follow-up is uncommitted.
@@ -10,7 +26,7 @@ The designated target is `yppefayrepkqpqtprbqa`. Production credentials, records
 
 | Check | Actual result |
 | --- | --- |
-| Ordinary development environment | `.env.local` selects the old production Supabase hostname. OS DNS and a public resolver return ENOTFOUND/NXDOMAIN. This explains the original credential-stage status-0/503 failure |
+| Ordinary development environment | `.env.local` still contains the old production Supabase hostname, but `npm run dev` now routes through the guarded staging launcher and prevents that fallback. The raw `dev:webpack` command remains explicit |
 | Explicit staging connectivity | Staging DNS resolves; HTTPS Auth settings returns 200 with the staging publishable key. The staging secret key successfully reads an empty profile projection, also 200 |
 | Local anonymous/invalid-login behavior | Real localhost admin form loads; protected broadcast API rejects anonymous access with 401; intentionally invalid credentials return 401 |
 | Requested temporary identity | `sangamka076@gmail.com` already exists in staging Auth and is email-confirmed. No profile linked by `auth_user_id` was found. The identity and password were preserved |
@@ -32,7 +48,7 @@ Rejected password and OAuth logins now expire the complete set of Supabase auth 
 
 Server Supabase HTTP requests use a 10-second request timeout while preserving caller cancellation, response-body deadlines and TLS verification. This is a per-request bound; a multi-request login or SDK refresh retry sequence can take longer. Browser/recovery authentication architecture is unchanged.
 
-The staging development command reads `.env.staging.local` explicitly. It clears automatic/inherited production credential fallbacks and excludes R2, management tokens and QA/provisioning passwords from the application process. Modern keys and legacy alternatives remain supported; legacy JWT project/role mismatches and server keys in browser configuration are rejected. Discord mode passes only the configured server-side guild/bot/role variables; Discord-derived administrator access remains disabled.
+The default staging development command reads `.env.staging.local` explicitly. It clears automatic/inherited production credential fallbacks and excludes R2, management tokens and QA/provisioning passwords from the application process. Modern keys and legacy alternatives remain supported; legacy JWT project/role mismatches and server keys in browser configuration are rejected. Discord mode passes only the configured server-side guild/bot/role variables; Discord-derived administrator access remains disabled.
 
 ## Local setup
 
@@ -48,12 +64,12 @@ SUPABASE_SECRET_KEY=<staging server secret>
 Legacy alternatives are `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`. Use matching keys from the selected project; do not retain production fallbacks. No privileged key is passed to the browser. The backend needs its private key for verified Auth identity/profile access.
 
 ```sh
-npm run dev:staging -- --check --discord
+npm run dev -- --check
 npm run qa:staging-readiness
-npm run dev:staging -- --discord
+npm run dev
 ```
 
-Stop the existing local development server before starting another on port 3000. A successful `--check` verifies environment construction, not schema/account/provider acceptance. `qa:staging-readiness` performs read-only real service checks and exits nonzero while dependencies remain unavailable. Normal `npm run dev` retains Next.js's standard file-loading behavior and does not load `.env.staging.local` automatically. See [Next.js environment order](https://nextjs.org/docs/app/guides/environment-variables#environment-variable-load-order).
+Use `npm run dev -- --discord` only after the Discord provider is repaired and the required guild credentials are configured. Stop the existing local development server before starting another on port 3000. A successful `--check` verifies environment construction, not schema/account/provider acceptance. `qa:staging-readiness` performs read-only real service checks and exits nonzero while dependencies remain unavailable. `npm run dev:webpack` and `npm run dev:turbopack` intentionally retain Next.js's standard `.env.local` behavior and must not be used for staging authentication while that file targets production. See [Next.js environment order](https://nextjs.org/docs/app/guides/environment-variables#environment-variable-load-order).
 
 ## Schema and Discord prerequisites
 

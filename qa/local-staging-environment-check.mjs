@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { buildStagingDevelopmentEnvironment, STAGING_SUPABASE_ORIGIN } from "../scripts/lib/staging-development-environment.mjs";
+
+const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+assert.equal(packageJson.scripts.dev, "node scripts/dev-staging.mjs", "Default local development must use the guarded staging launcher.");
+assert.equal(packageJson.scripts["dev:webpack"], "next dev --webpack", "Raw local environment development must remain an explicit command.");
 
 const ref = new URL(STAGING_SUPABASE_ORIGIN).hostname.split(".")[0];
 const jwt = (project, role) => `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ ref: project, role })).toString("base64url")}.offline-test-signature`;

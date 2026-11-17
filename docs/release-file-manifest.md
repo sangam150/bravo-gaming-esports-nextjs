@@ -1,5 +1,56 @@
 # Release file manifest — 13 November 2026
 
+## Final validation — 17 November 2026
+
+- Exact application candidate: **24 paths** (ten modified and fourteen tracked-ready untracked); `AGENTS.md` remains a separate untracked instruction file.
+- Index: **zero staged paths**.
+- Secret scan: **PASS**, 578 tracked/candidate files.
+- Tracked whitespace: **PASS**, `git diff --check` has no output.
+- Accidental CRLF/stat-only changes from the Vercel/Windows CLI inspection were normalized and verified byte-identical to HEAD; `.gitignore` and migrations 001–004/010 are not part of the candidate.
+- Ignored `.vercel/project.json` now selects canonical project `prj_xbUATIQPxXEj6Aamukjx8YJABjBh`; it is local operational metadata, not a release file.
+- No environment file, credential, inspection output, build output, database dump or test artifact is included.
+
+## Phase 3 working tree — 16 November 2026
+
+The reported seven local edits are the seven modified documentation files. The actual tracked delta is **ten files** because `package.json`, `qa/local-staging-environment-check.mjs` and the canonical protected target in `qa/staging-target.mjs` preserve the intentional staging corrections. Phase 2 added nine tracked-ready untracked report/QA paths, Phase 3 adds the current infrastructure report, and the final execution adds four release-control documents. The exact unstaged application candidate is therefore **24 paths**. `AGENTS.md` remains a separate user-supplied instruction file. Ignored `qa-artifacts`, environment files and inspection outputs are excluded. Nothing is staged, committed or pushed by this follow-up.
+
+| Change | File | Intent |
+| --- | --- | --- |
+| M | `docs/authentication-verification.md` | Current authentication evidence/blockers |
+| M | `docs/preview-resource-isolation.md` | Authorized Vercel project isolation findings |
+| M | `docs/production-deployment-report.md` | Current release gate evidence |
+| M | `docs/release-audit.md` | Infrastructure blocker decision update |
+| M | `docs/release-file-manifest.md` | Exact working-tree reconciliation |
+| M | `docs/staging-unblock-full-report.md` | Current blocker handoff |
+| M | `docs/staging-verification.md` | Current staging result matrix |
+| M | `package.json` | Default local development uses guarded staging launcher |
+| M | `qa/local-staging-environment-check.mjs` | Regression for guarded default local command |
+| M | `qa/staging-target.mjs` | Canonical protected branch-alias target for real staging QA |
+| A | `docs/BRAVO_CODEBASE_MAP.md` | Generated source inventory document, not generated build output |
+| A | `docs/BRAVO_COMPLETE_PROJECT_HANDOFF.md` | Consolidated handoff report |
+| A | `docs/BRAVO_LAUNCH_CHECKLIST.md` | Owner launch checklist |
+| A | `docs/BRAVO_PROJECT_STATUS.json` | Machine-readable project status report |
+| A | `docs/staging-infrastructure-reconciliation-2026-11-15.md` | Initial read-only infrastructure reconciliation |
+| A | `docs/infrastructure-unblock-phase-2-2026-11-16.md` | Exact Vercel/Supabase Phase 2 owner plan |
+| A | `docs/infrastructure-unblock-phase-3.md` | Read-only Phase 3 evidence and exact approval gates |
+| A | `docs/BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md` | Evidence-based final readiness decision |
+| A | `docs/BRAVO_FINAL_OWNER_ACTIONS.md` | Separate owner approval register with effects and rollback |
+| A | `docs/BRAVO_FINAL_STAGING_ACCEPTANCE.md` | Real staging PASS/FAIL/BLOCKED matrix |
+| A | `docs/BRAVO_FINAL_DEPLOYMENT_RUNBOOK.md` | Production preflight, execution and rollback runbook |
+| A | `qa/staging-schema-readonly-dashboard.sql` | Read-only Supabase Dashboard fallback |
+| A | `qa/staging-schema-readonly-inspection.mjs` | Target-locked, least-privilege catalog inspector |
+| A | `qa/staging-schema-readonly-inspection-check.mjs` | Inspector safety regression |
+
+The ignored wrapper remains at `qa-artifacts/staging-schema-readonly-inspection.mjs` so the previously documented command is stable; it imports the tracked-ready QA source. The ignored Vercel metadata summarizer and all future evidence JSON remain excluded. No migration, application feature, environment file, credential, `.next` output, `node_modules`, test output or deployment artifact was added.
+
+## Current state — 14 November 2026
+
+The 104-path follow-up listed below is no longer pending: it was committed as `e025f9cdf85bb4aa618b4c0c1e7242aa783b6d9d` and pushed to `origin/codex/platform-completion-20261104`. The committed delta from `origin/main` remains 403 paths. The historic tables below remain the exact review inventory for that release commit.
+
+The current working tree contains documentation updates plus a two-file local-login correction. Four new handoff artifacts are untracked: `docs/BRAVO_COMPLETE_PROJECT_HANDOFF.md`, `docs/BRAVO_PROJECT_STATUS.json`, `docs/BRAVO_CODEBASE_MAP.md` and `docs/BRAVO_LAUNCH_CHECKLIST.md`. Existing release/auth/staging/Preview reports are modified to add current evidence. `package.json` routes default `npm run dev` through the existing guarded staging launcher, and `qa/local-staging-environment-check.mjs` protects that default. `AGENTS.md` remains a separate untracked instruction file and is not part of the release candidate. Nothing is staged; no local commit is authorized.
+
+No application route/component, migration, lockfile, environment file, generated output or credential was added by the 14 November evidence refresh. `package.json` and one existing QA script changed only to prevent the default localhost command from loading the unreachable production backend. The current working tree must be re-inventoried before any separately approved future commit.
+
 This supersedes the [5 November archived manifest](release-file-manifest-2026-11-05.md). The existing approved **230-file commit** is 7eeded0260887bb31d5090fc1ee47643a8e07a79 on codex/platform-completion-20261104. The index contains exactly the 104-path follow-up listed below for owner review. This document also lists the complete candidate relative to verified remote main/deployed baseline c7311530a17cbb63ba5b4e3df0ef2da44acb7953. No commit, push, merge, migration or deployment was performed.
 
 ## Pending follow-up candidate: 104 paths
