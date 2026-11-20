@@ -188,11 +188,11 @@ async function main() {
   assert.match(supabaseProxySource, /supabase\.auth\.getUser\(\)/);
   assert.match(supabaseProxySource, /error: userError/);
   assert.match(supabaseProxySource, /if \(userError \|\| !user\)/);
-  assert.match(supabaseProxySource, /error: profileError/);
-  assert.match(supabaseProxySource, /profile\.role_source !== "discord_sync"/);
+  assert.match(supabaseProxySource, /getAuthProfileIdentity\(supabase, user\.id\)/);
+  assert.match(supabaseProxySource, /profile\.roleSource !== "discord_sync"/);
   assert.match(supabaseProxySource, /catch \{[\s\S]*return \{ response, identity: null \}/);
   assert.ok(
-    supabaseProxySource.indexOf("if (!options.resolveIdentity)") < supabaseProxySource.indexOf('.from("profiles")'),
+    supabaseProxySource.indexOf("if (!options.resolveIdentity)") < supabaseProxySource.indexOf("getAuthProfileIdentity(supabase, user.id)"),
     "Public document refresh must not perform the protected-route profile lookup.",
   );
 
@@ -222,8 +222,12 @@ async function main() {
 
   const serverAuthSource = await readFile(new URL("../lib/supabase-auth-server.ts", import.meta.url), "utf8");
   assert.doesNotMatch(serverAuthSource, /getProfileFromDiscordUserId|syncDiscordRoles|extractDiscordUserId/);
-  assert.match(serverAuthSource, /\.eq\("auth_user_id", authUserId\)/);
+  assert.match(serverAuthSource, /getAuthProfileIdentity\(client, authUserId\)/);
   assert.match(serverAuthSource, /profileRecord\.role_source !== "discord_sync"/);
+  const profileIdentitySource = await readFile(new URL("../lib/supabase/profile-identity.ts", import.meta.url), "utf8");
+  assert.match(profileIdentitySource, /\.eq\("auth_user_id", authUserId\)/);
+  assert.match(profileIdentitySource, /status === "active"/);
+  assert.match(profileIdentitySource, /code === "42703" \|\| code === "PGRST204"/);
 
   const recoveryClientSource = await readFile(new URL("../components/auth/PasswordRecoveryClient.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(recoveryClientSource, /exchangeCodeForSession/);

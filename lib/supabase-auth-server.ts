@@ -1,4 +1,3 @@
-import type { Tables } from "@/types/database.types";
 import type { User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import "server-only";
@@ -6,13 +5,20 @@ import { AuthConfigurationError } from "./auth-errors";
 import { isAdminRole as isAdminRoleHelper, isPlatformRole } from "./authz";
 import { isSupabaseSessionCookieName } from "./supabase-auth-cookies";
 import { getSupabaseServiceRoleClient } from "./supabase/service-role-client";
+import { getAuthProfileIdentity } from "./supabase/profile-identity";
 import { createSupabaseServerClient } from "./supabase/server";
 
 export const SESSION_COOKIE = "bravo_session";
 export const REFRESH_COOKIE = "bravo_refresh";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 5; // 5 days
 
-type ProfileRecord = Pick<Tables<"profiles">, "id" | "role" | "role_source" | "team_id" | "player_id" | "display_name"> & {
+type ProfileRecord = {
+  id: string;
+  role: string;
+  role_source: string;
+  team_id: string | null;
+  player_id: string | null;
+  display_name: string | null;
   is_active: boolean;
 };
 
@@ -34,17 +40,18 @@ function isAdminRole(role: string | null | undefined) {
 
 async function getProfileFromProfiles(authUserId: string): Promise<ProfileRecord | null> {
   const client = getSupabaseServiceRoleClient();
-  const { data, error } = await client
-    .from("profiles")
-    .select("id,role,role_source,team_id,player_id,display_name,is_active")
-    .eq("auth_user_id", authUserId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? null) as ProfileRecord | null;
+  const profile = await getAuthProfileIdentity(client, authUserId);
+  return profile
+    ? {
+        id: profile.id,
+        role: profile.role,
+        role_source: profile.roleSource,
+        team_id: profile.teamId,
+        player_id: profile.playerId,
+        display_name: profile.displayName,
+        is_active: profile.isActive,
+      }
+    : null;
 }
 
 function decodeJwtPayload(accessToken: string) {

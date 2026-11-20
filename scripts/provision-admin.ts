@@ -1,20 +1,32 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isLegacyProfileCompatibilityError } from "../lib/supabase/profile-identity";
 import type { Database } from "../types/database.types";
 
 const ADMIN_ROLES = new Set(["super_admin", "admin", "moderator", "organizer"]);
 const PROFILE_FIELDS = "id,auth_user_id,email,role,role_source,is_active,display_name,updated_at" as const;
+const LEGACY_PROFILE_FIELDS = "id,auth_user_id,email,role,status,display_name,updated_at" as const;
 const AUDIT_FIELDS = "id,actor_id,action,entity_type,entity_id,old_data,new_data" as const;
 const PAGE_SIZE = 1000;
 const PRIVATE_PASSWORD_ENV_NAMES = new Set(["ADMIN_PROVISION_PASSWORD", "QA_STAGING_ADMIN_PASSWORD"]);
-type Profile = Pick<
-  Database["public"]["Tables"]["profiles"]["Row"],
-  "id" | "auth_user_id" | "email" | "role" | "role_source" | "is_active" | "display_name" | "updated_at"
->;
+type ProfileSchema = "modern" | "legacy";
+type Profile = Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "auth_user_id" | "email" | "role" | "display_name" | "updated_at"> & {
+  role_source: string;
+  is_active: boolean;
+  schema: ProfileSchema;
+};
 type Client = SupabaseClient<Database>;
 type Environment = Record<string, string | undefined>;
 class AdminProvisionError extends Error {}
+
+function safeProvisionErrorDiagnostic(error: unknown) {
+  const record = error && typeof error === "object" ? error as Record<string, unknown> : {};
+  const code = typeof record.code === "string" && /^[A-Z0-9_]{1,24}$/i.test(record.code) ? record.code : "unknown";
+  const text = [record.message, record.details, record.hint].filter((value): value is string => typeof value === "string").join(" ");
+  const constraint = /constraint\s+["']([a-zA-Z0-9_]{1,80})["']/.exec(text)?.[1] ?? null;
+  return constraint ? `${code}:${constraint}` : code;
+}
 
 export type AdminProvisionOptions = {
   email: string;
@@ -118,27 +130,53 @@ async function findAuthUser(client: Client, email: string): Promise<User | null>
   throw new AdminProvisionError("Auth user lookup exceeded its safe pagination limit; no user was created.");
 }
 
-async function requireProvisioningSchema(client: Client) {
-  const [profile, audit] = await Promise.all([
+async function requireProvisioningSchema(client: Client): Promise<ProfileSchema> {
+  const [modernProfile, audit] = await Promise.all([
     client.from("profiles").select(PROFILE_FIELDS).limit(0),
     client.from("audit_logs").select(AUDIT_FIELDS).limit(0),
   ]);
-  if (profile.error)
-    throw new AdminProvisionError(
-      "Required profile schema is unavailable; no Auth user was created. Review the target migration ledger first.",
-    );
   if (audit.error)
     throw new AdminProvisionError(
       "Required audit schema is unavailable; no Auth user was created. Review the target migration ledger first.",
     );
+  if (!modernProfile.error) return "modern";
+  if (isLegacyProfileCompatibilityError(modernProfile.error)) {
+    const legacyProfile = await client.from("profiles").select(LEGACY_PROFILE_FIELDS as typeof PROFILE_FIELDS).limit(0);
+    if (!legacyProfile.error) return "legacy";
+  }
+  throw new AdminProvisionError(
+    "Required profile schema is unavailable; no Auth user was created. Review the target migration ledger first.",
+  );
 }
 
-async function readProfile(client: Client, authUserId: string): Promise<Profile | null> {
-  const { data, error } = await client.from("profiles").select(PROFILE_FIELDS).eq("auth_user_id", authUserId).maybeSingle();
+function normalizeProfile(data: unknown, schema: ProfileSchema): Profile | null {
+  if (!data || typeof data !== "object") return null;
+  const row = data as Record<string, unknown>;
+  if (!["id", "auth_user_id", "email", "role", "updated_at"].every((name) => typeof row[name] === "string" && row[name])) {
+    throw new AdminProvisionError("The returned profile is incomplete; provisioning was rejected.");
+  }
+  const active = schema === "modern" ? row.is_active === true : String(row.status ?? "").trim().toLowerCase() === "active";
+  return {
+    id: String(row.id),
+    auth_user_id: String(row.auth_user_id),
+    email: String(row.email),
+    role: String(row.role) as Profile["role"],
+    role_source: schema === "modern" ? String(row.role_source ?? "") : "legacy_schema",
+    is_active: active,
+    display_name: typeof row.display_name === "string" ? row.display_name : null,
+    updated_at: String(row.updated_at),
+    schema,
+  };
+}
+
+async function readProfile(client: Client, authUserId: string, schema: ProfileSchema): Promise<Profile | null> {
+  const fields = schema === "modern" ? PROFILE_FIELDS : LEGACY_PROFILE_FIELDS;
+  const { data, error } = await client.from("profiles").select(fields as typeof PROFILE_FIELDS).eq("auth_user_id", authUserId).maybeSingle();
   if (error) throw new AdminProvisionError("The existing profile could not be verified; no profile changes were attempted.");
-  if (data && data.auth_user_id !== authUserId)
+  const profile = normalizeProfile(data, schema);
+  if (profile && profile.auth_user_id !== authUserId)
     throw new AdminProvisionError("The returned profile linkage does not match the verified Auth user; no profile changes were attempted.");
-  return data;
+  return profile;
 }
 
 export async function provisionAdmin(client: Client, options: AdminProvisionOptions, environment: Environment = process.env) {
@@ -151,7 +189,7 @@ export async function provisionAdmin(client: Client, options: AdminProvisionOpti
     throw new AdminProvisionError(
       "The matching Supabase Auth user must confirm their email before administrative access can be provisioned.",
     );
-  await requireProvisioningSchema(client);
+  const profileSchema = await requireProvisioningSchema(client);
 
   let createdAuthUser = false;
   let writtenProfile: Profile | null = null;
@@ -175,11 +213,11 @@ export async function provisionAdmin(client: Client, options: AdminProvisionOpti
       throw new AdminProvisionError(
         "The matching Supabase Auth user must confirm their email before administrative access can be provisioned.",
       );
-    previousProfile = await readProfile(client, authUser.id);
+    previousProfile = await readProfile(client, authUser.id, profileSchema);
     const alreadyApproved =
       previousProfile?.role === options.role &&
       previousProfile.is_active &&
-      previousProfile.role_source === "manual" &&
+      (profileSchema === "legacy" || previousProfile.role_source === "manual") &&
       previousProfile.email.toLowerCase() === options.email;
     if (alreadyApproved && !createdAuthUser)
       return {
@@ -201,24 +239,29 @@ export async function provisionAdmin(client: Client, options: AdminProvisionOpti
         ? undefined
         : String(authUser.user_metadata?.display_name ?? authUser.user_metadata?.name ?? "").trim() || null,
       role: options.role,
-      role_source: "manual",
-      is_active: true,
+      ...(profileSchema === "modern"
+        ? { role_source: "manual", is_active: true }
+        : { status: "active", ...(previousProfile ? {} : { id: authUser.id }) }),
       updated_at: new Date().toISOString(),
     };
     // Never overwrite a profile concurrently created or changed after lookup.
     const mutation = previousProfile
-      ? client.from("profiles").update(desired).eq("id", previousProfile.id).eq("updated_at", previousProfile.updated_at)
-      : client.from("profiles").insert(desired);
-    const { data: profile, error: profileError } = await mutation.select(PROFILE_FIELDS).maybeSingle();
+      ? client.from("profiles").update(desired as unknown as Database["public"]["Tables"]["profiles"]["Update"]).eq("id", previousProfile.id).eq("updated_at", previousProfile.updated_at)
+      : client.from("profiles").insert(desired as unknown as Database["public"]["Tables"]["profiles"]["Insert"]);
+    const fields = profileSchema === "modern" ? PROFILE_FIELDS : LEGACY_PROFILE_FIELDS;
+    const { data: savedProfile, error: profileError } = await mutation.select(fields as typeof PROFILE_FIELDS).maybeSingle();
+    const profile = normalizeProfile(savedProfile, profileSchema);
     if (profileError || !profile)
-      throw new AdminProvisionError("Profile provisioning failed or conflicted with another change; reload the account before retrying.");
+      throw new AdminProvisionError(
+        `Profile provisioning failed or conflicted with another change (${safeProvisionErrorDiagnostic(profileError)}); reload the account before retrying.`,
+      );
     writtenProfile = profile;
     if (
       profile.auth_user_id !== authUser.id ||
       profile.email.toLowerCase() !== options.email ||
       profile.role !== options.role ||
       !profile.is_active ||
-      profile.role_source !== "manual"
+      (profileSchema === "modern" && profile.role_source !== "manual")
     ) {
       throw new AdminProvisionError("The saved profile did not verify as the approved active administrator; provisioning was rejected.");
     }
@@ -234,6 +277,7 @@ export async function provisionAdmin(client: Client, options: AdminProvisionOpti
       new_data: {
         role: profile.role,
         roleSource: profile.role_source,
+        profileSchema,
         isActive: profile.is_active,
         source: "owner_cli",
         authUserCreated: createdAuthUser,
@@ -253,15 +297,23 @@ export async function provisionAdmin(client: Client, options: AdminProvisionOpti
       // REST profile and audit writes are not a DB transaction. Compensate using
       // the written version; never overwrite a subsequent owner's profile edit.
       try {
+        const restore = profileSchema === "modern"
+          ? {
+              email: previousProfile?.email ?? options.email,
+              role: previousProfile?.role ?? "viewer",
+              role_source: previousProfile?.role_source ?? "system",
+              is_active: previousProfile?.is_active ?? false,
+              updated_at: previousProfile?.updated_at ?? new Date().toISOString(),
+            }
+          : {
+              email: previousProfile?.email ?? options.email,
+              role: previousProfile?.role ?? "viewer",
+              status: previousProfile?.is_active ? "active" : "inactive",
+              updated_at: previousProfile?.updated_at ?? new Date().toISOString(),
+            };
         const { data, error: restoreError } = await client
           .from("profiles")
-          .update({
-            email: previousProfile?.email ?? options.email,
-            role: previousProfile?.role ?? "viewer",
-            role_source: previousProfile?.role_source ?? "system",
-            is_active: previousProfile?.is_active ?? false,
-            updated_at: previousProfile?.updated_at ?? new Date().toISOString(),
-          })
+          .update(restore as unknown as Database["public"]["Tables"]["profiles"]["Update"])
           .eq("id", writtenProfile.id)
           .eq("updated_at", writtenProfile.updated_at)
           .select("id")

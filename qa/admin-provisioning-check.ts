@@ -25,7 +25,7 @@ const user = {
 type Profile = Pick<
   Database["public"]["Tables"]["profiles"]["Row"],
   "id" | "auth_user_id" | "email" | "role" | "role_source" | "is_active" | "display_name" | "updated_at"
->;
+> & { schema: "modern" | "legacy" };
 const viewer: Profile = {
   id: profileId,
   auth_user_id: authId,
@@ -35,6 +35,7 @@ const viewer: Profile = {
   is_active: true,
   display_name: "Preserved name",
   updated_at: "2026-01-01T00:00:00Z",
+  schema: "modern",
 };
 type Scenario = {
   pages?: User[][];
@@ -51,6 +52,7 @@ type Scenario = {
   triggerProfile?: boolean;
   wrongSavedRole?: boolean;
   unexpectedCreatedEmail?: boolean;
+  legacyProfileSchema?: boolean;
 };
 
 function fixture(scenario: Scenario = {}) {
@@ -62,7 +64,7 @@ function fixture(scenario: Scenario = {}) {
   const deleted: string[] = [];
   const audit: Array<Record<string, unknown>> = [];
   const profileWrites: Array<Record<string, unknown>> = [];
-  const failed = (code: string) => Response.json({ code, message: "Offline failure" }, { status: 400 });
+  const failed = (code: string, message = "Offline failure") => Response.json({ code, message }, { status: 400 });
   const fetcher: typeof fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     assert.equal(url.origin, origin, "Provisioning regression must never contact a live host");
@@ -93,7 +95,12 @@ function fixture(scenario: Scenario = {}) {
     }
     if (url.pathname === "/rest/v1/profiles") {
       if (method === "GET") {
-        if (url.searchParams.get("limit") === "0") return scenario.profileSchemaError ? failed("42703") : Response.json([]);
+        if (url.searchParams.get("limit") === "0") {
+          if (scenario.profileSchemaError) return failed("42703");
+          if (scenario.legacyProfileSchema && url.searchParams.get("select")?.includes("role_source"))
+            return failed("42703", "column profiles.role_source does not exist");
+          return Response.json([]);
+        }
         if (scenario.profileLookupError) return failed("LOOKUP_FAILED");
         return rows(profile ? [profile] : []);
       }
@@ -102,7 +109,11 @@ function fixture(scenario: Scenario = {}) {
         if (scenario.profileWriteError) return failed("WRITE_FAILED");
         if (method === "PATCH" && (scenario.concurrentWrite || url.searchParams.get("updated_at") !== `eq.${profile?.updated_at}`))
           return rows([]);
-        profile = { ...viewer, ...profile, ...body } as Profile;
+        profile = { ...viewer, ...profile, ...body, schema: scenario.legacyProfileSchema ? "legacy" : "modern" } as Profile;
+        if (scenario.legacyProfileSchema) {
+          profile.is_active = body?.status === "active";
+          profile.role_source = "legacy_schema";
+        }
         if (scenario.wrongSavedRole && body?.role === "admin") profile.role = "viewer";
         return rows([profile]);
       }
@@ -219,6 +230,18 @@ async function main() {
     grant.requests.some((request) => request.path.startsWith("/auth/") && request.method !== "GET"),
     false,
   );
+
+  const legacyGrant = fixture({ profile: null, legacyProfileSchema: true });
+  const legacyGranted = await provisionAdmin(legacyGrant.client, options, environment);
+  assert.equal(legacyGranted.authUserCreated, false);
+  assert.equal(legacyGrant.profile?.role, "admin");
+  assert.equal(legacyGrant.profile?.is_active, true);
+  assert.equal(legacyGrant.profileWrites.length, 1);
+  assert.equal(legacyGrant.profileWrites[0].id, authId);
+  assert.equal(legacyGrant.profileWrites[0].status, "active");
+  assert.equal("is_active" in legacyGrant.profileWrites[0], false);
+  assert.equal("role_source" in legacyGrant.profileWrites[0], false);
+  assert.equal(legacyGrant.audit.length, 1);
 
   const unconfirmed = fixture({ pages: [[{ ...user, email_confirmed_at: undefined }]] });
   await assert.rejects(provisionAdmin(unconfirmed.client, { ...options, createIfMissing: true }, environment), /confirm their email/);

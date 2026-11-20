@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isSupabaseSessionCookieName } from "../supabase-auth-cookies";
 import { requireSupabaseEnv } from "./env";
+import { getAuthProfileIdentity } from "./profile-identity";
 import { supabaseRequestFetch } from "./request-fetch";
 
 export type SupabaseProxyIdentity = {
@@ -68,23 +69,16 @@ export async function refreshSupabaseSession(
       return { response, identity: null };
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role,role_source,team_id,player_id,is_active")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    if (profileError) {
-      return { response, identity: null };
-    }
+    const profile = await getAuthProfileIdentity(supabase, user.id);
     const identity =
       profile?.role &&
-      profile.is_active &&
-      (profile.role_source !== "discord_sync" || process.env.DISCORD_RELATIONAL_TEAM_AUTH_ENABLED?.trim().toLowerCase() === "true")
+      profile.isActive &&
+      (profile.roleSource !== "discord_sync" || process.env.DISCORD_RELATIONAL_TEAM_AUTH_ENABLED?.trim().toLowerCase() === "true")
         ? ({
             uid: user.id,
             role: profile.role,
-            teamId: profile.team_id,
-            playerId: profile.player_id,
+            teamId: profile.teamId,
+            playerId: profile.playerId,
             isActive: true,
           } satisfies SupabaseProxyIdentity)
         : null;
