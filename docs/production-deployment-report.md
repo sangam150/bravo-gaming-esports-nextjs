@@ -1,5 +1,13 @@
 # Release execution report — 13 November 2026
 
+## Final gap-closure decision — 18 November 2026
+
+The final preserved feature SHA is `f322affa3c9a864621afab15af9d452331384171`. Exact-SHA GitHub Actions run `44117785592` passed and protected Preview `dpl_HffsSeACPP2m7UKDDfwxwMZW4UBN` is READY. Production remains unchanged at main SHA `c7311530a17cbb63ba5b4e3df0ef2da44acb7953` and deployment `dpl_7ytcSWrPN23ugzduYznDTcuygJd4`; no merge, production migration or deployment occurred.
+
+The production decision is **HOLD / NO-GO**. Authoritative staging schema and migration-ledger evidence, isolated R2 credentials, real admin/Discord/workflow/PUBG/OBS acceptance and a working controlled custom domain are still absent. Fresh production public smoke also timed out at `/mvp-ranking`, `/api/leaderboard` and `/api/home`, and production canonical metadata still references the old Vercel hostname. These observations require diagnosis after staging prerequisites are resolved; they are not suppressed or relabeled as passes.
+
+Older sections below are retained as historical execution evidence.
+
 ## V1 production-continuity verification — 17 November 2026
 
 Canonical Standard Protection is active and verified on Preview. The exact Preview and branch alias now redirect anonymous requests to Vercel Authentication. The generated production alias and `/api/version` remain public HTTP 200 at production SHA `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`, deployment `dpl_7ytcSWrPN23ugzduYznDTcuygJd4`. No deployment, production variable, branch or domain setting changed. Production release decision remains **HOLD** because resource isolation, duplicate targets, schema and real staging acceptance are incomplete.

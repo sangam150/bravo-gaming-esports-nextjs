@@ -1,5 +1,19 @@
 # Release audit — 13 November 2026
 
+## Administrator login remediation — 21 November 2026
+
+Implementation commit `41ab4017835e3a0c50a40fe951961215a817b847` adds a fail-closed compatibility reader for the verified legacy staging profile schema and extends the guarded provisioner without changing modern behavior. The confirmed staging Auth identity now has one audited active `admin` profile; the existing password was not changed. Guarded localhost returns HTTP 200 for the login page and an intentionally invalid login returns HTTP 401 rather than 503. Automated successful login remains blocked only because `QA_STAGING_ADMIN_PASSWORD` is absent and the compatibility commit has not yet received deployed end-to-end acceptance.
+
+The 27-command QA chain, typecheck, 147-route production build, secret scan across 580 files and lint with zero errors/nine existing warnings pass. Broader staging schema, R2, Discord, PUBG, OBS, domain, merge and production gates remain blocked. Older sections below remain chronology.
+
+## Final gap-closure supersession — 18 November 2026
+
+The authoritative release identity is now feature SHA `f322affa3c9a864621afab15af9d452331384171`, exact-SHA GitHub Actions run `44117785592` (success), and canonical protected Preview `dpl_HffsSeACPP2m7UKDDfwxwMZW4UBN` (READY). The application/safety implementation remains commit `5ceece39ddc18bc8d57578c91dbaa8e69be8f503`; later commits preserve the completed release documentation and controls. Production remains unchanged at main SHA `c7311530a17cbb63ba5b4e3df0ef2da44acb7953` and deployment `dpl_7ytcSWrPN23ugzduYznDTcuygJd4`.
+
+Canonical Preview protection and duplicate-Git-target isolation pass. Real staging acceptance remains blocked by unavailable authoritative staging SQL/catalog access, missing compatible profile/transaction objects, absent administrator password, malformed Discord Client ID, unbound and over-broad R2 credentials, no permitted PUBG match ID, and no real published broadcast data/OBS run. The current full matrix is [BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md](BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md). No merge, remote migration, account elevation, OAuth change or production deployment occurred during this gap closure.
+
+Older dated sections below remain historical evidence and are superseded where they conflict with this section.
+
 ## Authorized infrastructure completion — 17 November 2026
 
 Final preservation evidence: commit `5ceece39ddc18bc8d57578c91dbaa8e69be8f503` was pushed only to `codex/platform-completion-20261104`. GitHub Actions run `44116203600` passed every configured step. Vercel created exactly one new Preview, canonical deployment `dpl_7fCSapvfS1Pf9CPMbFYBiu6cdFNV`; duplicate projects created none. The deployment is READY at the exact SHA, its exact URL and branch alias return anonymous HTTP 302, and protected probes return HTTP 200. All 38 overlay routes return 200; the public broadcast API returns 503 because required staging schema/data remain unavailable. Main and production were not changed.

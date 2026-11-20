@@ -1,5 +1,13 @@
 # Vercel Preview resource policy
 
+## Final verified topology — 18 November 2026
+
+Canonical project `bravo-gaming-esports-nextjs` is the sole Git-connected BRAVO project. Exact-final-SHA Preview `dpl_HffsSeACPP2m7UKDDfwxwMZW4UBN` is READY at `f322affa3c9a864621afab15af9d452331384171`, Standard Protection is active, anonymous exact-deployment and branch-alias requests redirect to Vercel Authentication, and an ignored local bypass permits controlled QA without disabling protection. The two duplicate projects remain disconnected from Git.
+
+Effective Preview metadata contains designated staging Supabase variables and no SQL or R2 variable names. Preview therefore cannot currently upload to R2. Dedicated staging buckets exist and pass functional tests, but the available local credential can also address both production buckets. Resource isolation is therefore **FAIL for R2 credentials**, and that credential must not be bound to Preview. Create a new token limited to exactly `bravo-gaming-staging-assets` and `bravo-gaming-staging-private`, prove denial on the production pair, then bind only Preview scope and reverify effective values without printing them.
+
+Older sections below preserve the topology observed at earlier checkpoints and are superseded where they conflict with this section.
+
 ## V1 protection result — 17 November 2026
 
 Owner-approved V1 is **PASS**. Canonical project `bravo-gaming-esports-nextjs` reports `ssoProtection.deploymentType=prod_deployment_urls_and_all_previews`. Cookie-free exact Preview and branch-alias requests return HTTP 302 to Vercel Authentication; the production alias and `/api/version` remain HTTP 200 at SHA `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`. No redeployment occurred. Duplicate A and B metadata remains unchanged.

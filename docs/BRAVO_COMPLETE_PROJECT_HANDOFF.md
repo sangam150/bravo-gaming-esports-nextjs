@@ -1,5 +1,15 @@
 # BRAVO Gaming Esports - Complete Project Audit and Master Handoff
 
+## 2026-11-21 administrator login remediation
+
+Implementation commit `41ab4017835e3a0c50a40fe951961215a817b847` fixes the verified staging login compatibility gap without weakening modern authorization. The existing confirmed Auth identity now has one audited active `admin` legacy profile; its password was preserved. Guarded localhost no longer reproduces the service-unavailable error. Automated successful login still requires the missing ignored `QA_STAGING_ADMIN_PASSWORD` or an owner-witnessed manual login after deployment. Broader staging/production blockers remain unchanged; see the authoritative final readiness report.
+
+## 2026-11-18 gap-closure supersession
+
+The final preserved feature SHA is `f322affa3c9a864621afab15af9d452331384171`; exact-SHA GitHub Actions run `44117785592` passed; canonical protected Preview `dpl_HffsSeACPP2m7UKDDfwxwMZW4UBN` is READY. Production is unchanged at main SHA `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`. The current consolidated truth, including every PASS/FAIL/BLOCKED workflow and exact owner action, is [BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md](BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md).
+
+Staging is not accepted. The authoritative migration ledger/catalog remains unavailable; real admin and workflow acceptance cannot start; Discord still emits an email-shaped Client ID; R2 bucket operations pass but credential isolation fails; PUBG has no permitted match ID; real published broadcast data and actual OBS evidence are absent; and custom domains are unusable. No remote migration, account elevation, provider change, merge or deployment occurred. Older sections below remain chronology and use the SHA/evidence current at their dates.
+
 ## 2026-11-17 final readiness update
 
 The authoritative current release summary is [BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md](BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md). Owner gates, staging evidence and the deployment procedure are separated into:

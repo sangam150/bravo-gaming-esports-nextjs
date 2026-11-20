@@ -1,5 +1,23 @@
 # Bravo Gaming Esports — final owner actions
 
+## 21 November 2026 login update
+
+The existing staging Auth identity is now linked to one audited active `admin` legacy profile. No password was changed. To complete real login acceptance, configure the existing password as `QA_STAGING_ADMIN_PASSWORD` in ignored `.env.staging.local`, or perform a witnessed manual login after the compatibility commit is deployed. Profile creation/elevation is no longer an outstanding action.
+
+## 18 November 2026 remaining owner inputs and approvals
+
+Earlier broad authorization enabled the safe infrastructure actions already recorded, but it does not substitute for credentials or authorize unreviewed database/account/provider/production mutations. The following remain separate gates:
+
+1. Configure a staging-only `DIRECT_URL` or `DATABASE_URL` for project `yppefayrepkqpqtprbqa`, or provide a redacted Dashboard read-only export. Current URLs are rejected as non-staging and `SUPABASE_ACCESS_TOKEN` is invalid.
+2. Create a new R2 Object Read & Write credential limited to exactly `bravo-gaming-staging-assets` and `bravo-gaming-staging-private`; prove it cannot address `bravo-gaming-assets` or `bravo-gaming-private`. No Cloudflare management token is currently configured.
+3. Configure `QA_STAGING_ADMIN_PASSWORD` for the existing designated account, or perform witnessed manual acceptance. Do not reset or recreate the Auth identity.
+4. Configure the matching private Discord Client Secret and separately approve replacement of the email-shaped Client ID with the verified numeric Application ID. The redirect callback must remain on staging during acceptance.
+5. Supply a permitted `QA_STAGING_PUBG_MATCH_ID` and, for role-isolation checks, `QA_STAGING_TEAM_EMAIL`, `QA_STAGING_TEAM_PASSWORD`, `QA_STAGING_PLAYER_EMAIL` and `QA_STAGING_PLAYER_PASSWORD`.
+6. Select and prove control of a registrable production domain before any DNS/TLS change.
+7. After all staging rows pass, approve draft PR, main merge, production backup/migrations and production deployment as independent operations.
+
+No secret value belongs in chat, documentation, logs or Git. The current decision remains **NO-GO**.
+
 This is the actionable approval register. Approval of one row does not authorize another. No item below was executed during the 17 November 2026 evidence refresh.
 
 ## Ready infrastructure approvals
@@ -30,7 +48,7 @@ V6 is a preservation constraint, not a mutation: keep canonical project Git, `ma
 1. Run the target-locked read-only Supabase inspector or Dashboard SQL after the owner supplies access.
 2. Author the minimum compatibility migration only after authoritative ledger/catalog evidence.
 3. Approve staging backup, isolated restore rehearsal and the exact staging SQL/checksum.
-4. Approve linking/elevating the existing administrator Auth UUID after schema compatibility; do not recreate/reset it automatically.
+4. Administrator profile linking/elevation is complete; preserve the Auth identity and audited profile during later schema reconciliation.
 5. Approve staging Discord provider correction using the verified numeric application ID and matching secret.
 6. Approve designated staging test records and R2 object writes/cleanup.
 7. Approve a local Git commit after final manifest, secret and whitespace review.

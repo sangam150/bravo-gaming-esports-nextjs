@@ -1,5 +1,19 @@
 # Real staging verification
 
+## Administrator login remediation — 21 November 2026
+
+The designated confirmed Auth identity now has exactly one audited active legacy `admin` profile. Login/session and proxy authorization support the verified legacy `status` schema through implementation commit `41ab4017835e3a0c50a40fe951961215a817b847`; modern schema remains primary and all unrelated errors fail closed. Guarded localhost login service availability is PASS (page HTTP 200; invalid credential HTTP 401, not 503). Successful password login, persistence, dashboard authorization and logout remain BLOCKED because `QA_STAGING_ADMIN_PASSWORD` is absent and no owner-witnessed manual session was performed.
+
+No password reset, migration, production record change, OAuth change, merge or production deployment occurred.
+
+## Final gap-closure result — 18 November 2026
+
+Exact preserved SHA `f322affa3c9a864621afab15af9d452331384171` passed GitHub Actions run `44117785592` and built canonical protected Preview `dpl_HffsSeACPP2m7UKDDfwxwMZW4UBN`. The protected application and all 38 overlay routes respond through the ignored local bypass. Staging Auth settings are reachable, but real administrator, CRUD, scoring, publishing and broadcast acceptance remain blocked by the schema/account prerequisites below. Dedicated staging R2 bucket operations pass; credential isolation fails because the available credential can also address both production buckets, so it remains unbound to Preview.
+
+Fresh public checks pass all 35 sitemap URLs and the 16 required desktop plus five mobile routes without broken images, missing-href links or horizontal overflow. Staging currently publishes zero events, tournaments, scrims, ranked teams and ranked players. The reported homepage-versus-leaderboard Top Players mismatch is not presently reproducible because both are empty. This is not evidence that real data workflows pass.
+
+The authoritative matrix and exact remaining actions are in [BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md](BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md). Older dated sections below are retained as chronology.
+
 ## Current execution result — 17 November 2026
 
 Exact preserved SHA `5ceece39ddc18bc8d57578c91dbaa8e69be8f503` passed GitHub Actions run `44116203600` and built canonical Preview `dpl_7fCSapvfS1Pf9CPMbFYBiu6cdFNV`. Both anonymous Preview URLs return HTTP 302. With the ignored bypass, the application, admin login, leaderboard and all 38 overlay routes respond; anonymous admin API denial is HTTP 401. `/api/broadcast` returns HTTP 503 because the real staging publication schema/data prerequisite is unavailable.

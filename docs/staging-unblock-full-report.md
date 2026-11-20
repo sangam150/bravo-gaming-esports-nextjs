@@ -1,5 +1,11 @@
 # Bravo Gaming Esports — staging unblock and release preparation report
 
+## Final gap-closure addendum — 18 November 2026
+
+The preserved remote feature snapshot is `f322affa3c9a864621afab15af9d452331384171`; exact-SHA Actions run `44117785592` passed; protected canonical Preview `dpl_HffsSeACPP2m7UKDDfwxwMZW4UBN` is READY. Production remains unchanged. Canonical is now the sole Git deployment target, and dedicated staging R2 buckets pass controlled object tests, but the available R2 credential also reaches production and remains intentionally unbound.
+
+Supabase management access still rejects the configured token and the SQL target guard rejects both configured URLs as non-staging. The actual ledger, policies, grants and function definitions remain unknown. Real administrator, CRUD, scoring, publication, leaderboard, PUBG and OBS acceptance therefore remains BLOCKED. The authoritative current report is [BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md](BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md); earlier sections below remain historical evidence.
+
 ## Execution addendum — 14 November 2026
 
 The previously staged 104-path follow-up was committed and pushed as `e025f9cdf85bb4aa618b4c0c1e7242aa783b6d9d`. GitHub Actions run `43519330298` passed all configured offline checks for that exact SHA. No additional commit, push, PR, merge, migration, account/provider change, R2 write or deployment was performed here.

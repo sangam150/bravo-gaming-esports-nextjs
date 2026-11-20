@@ -1,5 +1,22 @@
 # BRAVO Gaming Esports - Launch Checklist
 
+## 18 November 2026 final gap-closure checkpoint
+
+- [x] Confirm final local/remote feature SHA `f322affa3c9a864621afab15af9d452331384171`, remote main SHA `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`, and five-commit separation.
+- [x] Confirm exact-SHA GitHub Actions run `44117785592` passed and canonical Preview `dpl_HffsSeACPP2m7UKDDfwxwMZW4UBN` is READY and protected.
+- [x] Confirm duplicate Git deployment targets are disconnected and production is unchanged.
+- [x] Verify all 35 sitemap routes plus the required desktop/mobile public routes; record no current public Top Players mismatch because both relevant datasets are empty.
+- [x] Verify dedicated staging R2 bucket functionality and record credential-isolation failure; do not bind the broad credential to Preview.
+- [ ] Obtain target-locked read-only staging ledger/catalog evidence and reconcile migrations 001–028.
+- [ ] Approve and apply only a verified forward-only staging compatibility migration after backup/restore rehearsal.
+- [ ] Provision/link the designated admin only after schema compatibility and separate elevation approval; then run real authentication and workflow acceptance.
+- [ ] Correct Discord with the verified numeric Application ID and matching private secret under separate provider-change approval.
+- [ ] Complete real CRUD, scoring, publication, leaderboard, R2 Preview, permitted PUBG import, published-record broadcast and actual OBS acceptance.
+- [ ] Select and prove control of a registrable production domain, then configure DNS/TLS under a separate approval.
+- [ ] Approve draft PR, merge, production SQL and production deployment independently.
+
+Current decision: **NO-GO for merge and production**. See the single authoritative [final release readiness report](BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md).
+
 ## 17 November 2026 checkpoint
 
 - [x] Reconfirm local and remote feature SHA `e025f9cdf85bb4aa618b4c0c1e7242aa783b6d9d` and actual remote main SHA `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`.

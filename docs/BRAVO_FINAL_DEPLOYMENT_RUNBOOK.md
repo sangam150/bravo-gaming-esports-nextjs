@@ -1,5 +1,11 @@
 # Bravo Gaming Esports — final deployment runbook
 
+## Current release identity and gate — 18 November 2026
+
+Candidate feature SHA: `f322affa3c9a864621afab15af9d452331384171`. Exact-SHA CI run `44117785592` passes and canonical protected Preview `dpl_HffsSeACPP2m7UKDDfwxwMZW4UBN` is READY. Production remains main SHA `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`, deployment `dpl_7ytcSWrPN23ugzduYznDTcuygJd4`.
+
+This runbook is currently **not executable**: the actual staging ledger/catalog is unknown, no verified staging backup/restore rehearsal exists, R2 credentials are not isolated, real admin/Discord/CRUD/scoring/PUBG/OBS acceptance has not passed, and no working controlled custom domain is verified. Preserve production unchanged until the authoritative acceptance report marks every launch-critical row PASS and the owner separately approves each mutation.
+
 This runbook is preparation only. It does not authorize a migration, commit, push, merge or deployment.
 
 ## 1. Freeze and preflight

@@ -1,5 +1,11 @@
 # Infrastructure unblock — phase 3 — 16 November 2026
 
+## Final evidence update — 18 November 2026
+
+Final preserved feature SHA `f322affa3c9a864621afab15af9d452331384171` passed exact-SHA Actions run `44117785592`; canonical protected Preview `dpl_HffsSeACPP2m7UKDDfwxwMZW4UBN` is READY. The canonical project remains the sole Git target. Dedicated staging R2 bucket tests pass, but the currently available credential can access both production buckets and is not isolated or bound to Preview. The management token remains invalid and configured PostgreSQL URLs are rejected as non-staging, so the migration ledger/catalog is still unavailable and no remote SQL ran.
+
+The final infrastructure decision remains **BLOCKED for staging acceptance and production**. See [BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md](BRAVO_FINAL_RELEASE_READINESS_2026-11-16.md) for the current matrix. The original Phase 3 evidence below is retained and is superseded where it describes earlier project links, protection, deployment IDs or release SHAs.
+
 ## Authorized execution update — 17 November 2026
 
 All action gates were subsequently authorized. The safe evidence-gated operations completed as follows:

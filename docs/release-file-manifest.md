@@ -1,5 +1,17 @@
 # Release file manifest — 13 November 2026
 
+## Login-remediation implementation — 21 November 2026
+
+Commit `41ab4017835e3a0c50a40fe951961215a817b847` contains exactly nine reviewed paths: generated repository guidance `AGENTS.md`; three authentication/profile implementation files; `package.json`; three QA files; and the guarded admin provisioner. No environment file, credential, QA artifact, database dump or generated build output is included. The 14 documentation/status changes are finalized separately so they can reference this exact implementation commit.
+
+Validation: 27-command QA PASS; typecheck PASS; production build PASS with 147 routes; secret scan PASS across 580 files; `git diff --check` PASS; lint PASS with zero errors and nine pre-existing warnings.
+
+## Final preserved snapshot — 18 November 2026
+
+The final remote feature-branch snapshot is `f322affa3c9a864621afab15af9d452331384171`, five commits ahead of remote main `c7311530a17cbb63ba5b4e3df0ef2da44acb7953`. Exact-SHA GitHub Actions run `44117785592` passed and canonical protected Preview `dpl_HffsSeACPP2m7UKDDfwxwMZW4UBN` is READY. The complete feature delta is 417 paths; the final commit itself contains six paths. The current final-evidence refresh modifies 14 documentation/status files locally; none is staged, committed or pushed. `AGENTS.md` remains separate and untracked. Ignored environment files, Vercel metadata, QA evidence, credentials and generated outputs remain excluded.
+
+The earlier 24-path section documents the application/safety preservation commit `5ceece39…` and remains valid historical review evidence. It is not the final feature SHA.
+
 ## Final preservation result — 17 November 2026
 
 The exact 24-path candidate below was committed as `5ceece39ddc18bc8d57578c91dbaa8e69be8f503` and pushed to `origin/codex/platform-completion-20261104`. Exact-SHA GitHub Actions run `44116203600` passed and only the canonical Vercel project created a Preview. `AGENTS.md` remains separate and untracked. Ignored environments, Vercel metadata, QA evidence and credentials were not committed. Statements below describing this candidate as unstaged are retained as pre-commit review evidence and are superseded by this result.
